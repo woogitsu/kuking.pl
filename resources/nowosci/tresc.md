@@ -73,6 +73,16 @@ nie dotkniecie „Wyślij komentarz”. To zwykły komentarz, więc autor dostaj
 powiadomienie jak zawsze. Gdy autor później zmieni krok, Wasze pytanie zostaje
 takie, jakie wysłaliście.
 
+### Wydruk planu na tydzień
+
+Chcecie powiesić plan na lodówce albo omówić go przy stole? W Planerze, obok
+wyboru tygodnia, jest przycisk „Wydrukuj ten tydzień”. Otwiera podgląd kartki z
+planem tego tygodnia, który właśnie oglądacie: zakres dat z rokiem, siedem dni
+z datami i wszystkie zaplanowane pozycje — bez przycisków, wyszukiwania i listy
+zakupów. Wasze prywatne dopiski i oznaczenia „Zrobione” zostają w planerze, nie
+trafiają na papier. To kopia z chwili otwarcia, więc po zmianie planu otwórzcie
+wydruk jeszcze raz.
+
 ### Dzień gotowania przy „Ugotowałem”
 
 Gotowaliście w niedzielę, a zdjęcie i kilka słów dodajecie dopiero we wtorek?

@@ -1190,6 +1190,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/planer', [PlanerController::class, 'show'])
         ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
         ->name('planer.show');
+    // „Wydrukuj ten tydzień” (#2498): czysty odczyt wybranego tygodnia własnego
+    // planu, bez wyszukiwarki i bez żadnego zapisu — własny koszyk jak odczyt planera.
+    Route::get('/planer/do-druku', [PlanerController::class, 'druk'])
+        ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
+        ->name('planer.print');
     Route::post('/planer', [PlanerController::class, 'store'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.store');

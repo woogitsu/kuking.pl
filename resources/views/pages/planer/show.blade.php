@@ -62,6 +62,8 @@
         @endunless
         <a class="btn btn-secondary" href="{{ route('planer.show', ['tydzien' => $poniedzialek->addDays(7)->toDateString()]) }}">Następny tydzień</a>
         <a class="btn btn-secondary" href="{{ route('shopping.index') }}">Lista zakupów</a>
+        {{-- Kartka papierowa wybranego tygodnia (#2498): zachowuje `tydzien`. --}}
+        <a class="btn btn-secondary" href="{{ route('planer.print', ['tydzien' => $poniedzialek->toDateString()]) }}" data-rola="wydrukuj-tydzien">Wydrukuj ten tydzień</a>
     </nav>
 
     {{-- Wybór tygodnia po dacie (#2513): zwykły GET bez skryptu. Zły albo pusty

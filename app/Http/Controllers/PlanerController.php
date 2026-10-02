@@ -19,6 +19,7 @@ use App\Support\Odmiana;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 /**
@@ -97,6 +98,26 @@ class PlanerController extends Controller
                 ->whereBetween('day', [$poniedzialek->subDays(7)->toDateString(), $poniedzialek->subDay()->toDateString()])
                 ->exists(),
             'wpisowNaDzien' => PlanerTygodnia::wpisowNaDzien(),
+        ]);
+    }
+
+    /**
+     * „Wydrukuj ten tydzień” (#2498): kartka z planem WYBRANEGO tygodnia
+     * (`?tydzien=`, jak ekran planera — zły parametr to bieżący tydzień).
+     * Czysty odczyt WŁASNEGO planu: nic nie zapisuje, nie tworzy kopii na
+     * serwerze i nie bierze identyfikatora osoby z adresu. Widoczność
+     * przepisów liczy `PlanerTygodnia` (niedostępny i usunięty zostają
+     * pozycjami bez tytułu); prywatne dopiski i „Zrobione” nie trafiają
+     * do widoku.
+     */
+    public function druk(Request $request, PlanerTygodnia $planer): View
+    {
+        $poniedzialek = PlanerTygodnia::poniedzialek($request->query('tydzien'));
+
+        return view('pages.planer.do-druku', [
+            'poniedzialek' => $poniedzialek,
+            'dni' => $planer->tydzien($request->user(), $poniedzialek),
+            'dataOdczytu' => Czas::lokalnie(Carbon::now())->translatedFormat('j F Y, H:i'),
         ]);
     }
 

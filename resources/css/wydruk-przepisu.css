@@ -147,6 +147,27 @@
   word-break: break-all;
 }
 
+/* Kartka „Plan na tydzień” (#2498) na ekranie: podgląd. Dni jako osobne
+   bloki z linią; długie wpisy zawijają się zamiast wypychać stronę w bok. */
+.kartka-planu-dzien {
+  padding: var(--spacing-3) 0;
+  border-top: 1px solid var(--color-border, currentColor);
+  overflow-wrap: anywhere;
+}
+
+.kartka-planu-dzien h3 {
+  margin: 0 0 var(--spacing-2);
+}
+
+.kartka-planu-lista {
+  margin: 0;
+  padding-left: 1.25em;
+}
+
+.kartka-planu-pusty {
+  margin: 0;
+}
+
 @media print {
   @page {
     size: A4;
@@ -620,5 +641,35 @@
   body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika .druk-pomocnik-qr-adres {
     overflow-wrap: anywhere;
     word-break: break-all;
+  }
+
+  /* ───────────────────────────────────────────────────────────────────────
+     KARTKA „PLAN NA TYDZIEŃ” (#2498). Ramę i pismo (16 pt, razy skala
+     tekstu) dają `.sciagawka` i wspólne reguły wyżej. Pismo nie jest
+     zmniejszane, żeby zmieścić tydzień na jednej stronie: długi plan
+     przechodzi na kolejne. Dzień z jego pozycjami nie rozrywa się między
+     stronami, a nagłówek dnia nie zostaje sam na dole kartki.
+     ─────────────────────────────────────────────────────────────────────── */
+  body:has(.kartka-planu) .kartka-planu-dzien {
+    padding: 6pt 0;
+    border-top: 0.5pt solid #929A8C;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body:has(.kartka-planu) .kartka-planu-dzien h3 {
+    margin: 0 0 3pt;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  body:has(.kartka-planu) .kartka-planu-lista {
+    margin: 0;
+    padding-left: 1.25em;
+  }
+
+  body:has(.kartka-planu) .kartka-planu-lista li {
+    padding: 1pt 0;
+    overflow-wrap: anywhere;
   }
 }
