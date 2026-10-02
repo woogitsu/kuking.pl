@@ -35,6 +35,15 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
+    'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',
+    "Koszt autora pozostaje bazowy po zmianie porcji (#2524)": r'KOSZT_AUTORA_2524_NIEPRZELICZONY',
+    'Pusty Recipe zasłania pełny w JSON-LD (#2536)': r'JSONLD_PUSTY_NIE_ZASLANIA',
+    'Meta content składnika znika z mikrodanych (#2538)': r'MICRODATA_META_SKLADNIK',
+    'Meta content kroku znika z mikrodanych (#2538)': r'MICRODATA_META_KROK',
+    'Meta content zagnieżdżonego kroku znika (#2538)': r'MICRODATA_META_KROK',
+    'Tekstowe ułamkowe porcje znikają (#2539)': r'PORCJE_ULAMKOWE_TEKST',
+    'Porcje numeryczne poza granicami formularza (#2539)': r'PORCJE_NUMERYCZNE_ZGODNE_Z_FORMULARZEM',
     'Koszt: opis celu kasuje rozpoznaną masę (#2508)': r'KOSZT_2508_OPIS_CELU_NIE_KASUJE_MASY',
     'Koszt: słowny zakres gubi granice i miarę (#2477)': r'KOSZT_2477_SLOWNY_ZAKRES_ZACHOWUJE_GRANICE_I_MIARE',
     'Koszt: uszkodzony zakres przyjmuje początek (#2477)': r'KOSZT_2477_USZKODZONY_ZAKRES_NIE_LICZY_POCZATKU',
@@ -43,7 +52,6 @@ OCZEKUJ = {
     'Bieżący eksport pomija wybór Bez ilości (#2476)': r'EKSPORT_BIEZACY_BEZ_ILOSCI',
     'Ukryty przepis nazwany szkicem w eksporcie (#2479)': r'EKSPORT_UKRYTY_NIE_JEST_SZKICEM',
     'Sam rok rodzinny znika z HTML eksportu (#2478)': r'EKSPORT_ROK_SAM_W_HTML',
-    'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',
     # #1011, paczka H: wpisy dopisane po wzorcach dla wcześniejszych kontroli.
     "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
     'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',
@@ -212,6 +220,9 @@ OCZEKUJ = {
     'Podpowiedź wyglądu bez dolnego insetu': r'Podpowiedź szybkiego wyglądu musi omijać wskaźnik Home\.',
     'Edycja domyślnego zeszytu bez skutku dla przyszłych zapisów': r'contains "i wszystko, co zapiszesz tu później"',
     'Wydruk przepisu z pismem poniżej 12 pt': r'Reguła druku ustawia pismo poniżej 12 pt\.',
+    'Główny link wydruku gubi wybrane porcje (#2474)': r'DRUK_PORCJE_HREF: link nie zachował zaakceptowanych porcji\.',
+    'Strona przepisu gubi czas kroku (#2484)': r'CZAS_KROKU_STRONA: czas pierwszego kroku zniknął\.',
+    'Wydruk zeszytu gubi czas kroku (#2484)': r'CZAS_KROKU_ZESZYT: czas pierwszego kroku zniknął\.',
     'Ściągawka do wydruku z pismem poniżej 16 pt (F4)': r'Ściągawka nie ma w druku progu 16 pt\.',
     'Wydruk dla pomocnika z pismem poniżej 16 pt (#2345)': r'Wydruk dla pomocnika nie ma w druku progu 16 pt\.',
     'Wydruk z widocznym objaśnieniem Zgłoś dla gościa (#2345)': r'Objaśnienie Zgłoś dla gościa nie jest ukryte w każdym wydruku\.',
