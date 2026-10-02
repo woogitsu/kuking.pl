@@ -219,6 +219,12 @@
 
         <section class="cook-step" aria-label="Bieżący krok">
             <p class="cook-step-numer" aria-hidden="true">Krok {{ $krok }} z {{ $total }}</p>
+            {{-- Nazwa etapu (#2652): tylko orientacja. To nie jest krok — nie ma
+                 minutnika, odhaczenia ani numeru, a „Krok N z M” liczy instrukcje. --}}
+            @php($etapKroku = \App\Domain\Recipes\EtapyPrzygotowania::nazwaDlaKroku($steps, $krok - 1))
+            @if($etapKroku !== null)
+                <p class="cook-step-etap">Etap: {{ $etapKroku }}</p>
+            @endif
             <p class="cook-step-tekst">{{ $aktualnyKrok->instruction }}</p>
 
             {{-- Przeliczenie °F ↔ °C na żądanie (#2585). Tekst kroku powyżej

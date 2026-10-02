@@ -136,6 +136,7 @@ final class ZrobWlasnaWersje
                     'instruction' => $krok->instruction,
                     'media_id' => null,
                     'timer_seconds' => $krok->timer_seconds,
+                    'section_name' => $krok->section_name,
                 ]);
             }
 

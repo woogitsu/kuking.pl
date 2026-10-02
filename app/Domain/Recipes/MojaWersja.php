@@ -230,6 +230,8 @@ final class MojaWersja
             'kroki' => $recipe->steps()->get()->map(fn ($k): array => [
                 self::normalizuj($k->instruction),
                 $k->timer_seconds === null ? null : (int) $k->timer_seconds,
+                // Nazwa etapu (#2652) to treść autora: sama jej zmiana jest inną wersją.
+                self::normalizuj($k->section_name),
             ])->all(),
         ];
     }

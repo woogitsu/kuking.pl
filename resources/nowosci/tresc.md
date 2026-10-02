@@ -167,6 +167,16 @@ nie podał sztuk, wyglądają tak jak dotąd.
 ### Dopisek przy przepisie w Planerze
 
 Przy przepisie w planie możesz dopisać krótką, prywatną uwagę, na przykład „kolacja” albo „na niedzielę z rodziną”. Po powrocie do planu od razu widzisz, które danie było na co, bez osobnego wpisu. Dopisek ma najwyżej 80 znaków, widzisz go tylko Ty i możesz go w każdej chwili zmienić albo usunąć. Nie zmienia przepisu ani planu, a przycisk „Skopiuj poprzedni tydzień” przenosi go razem z pozycją.
+### Etapy przygotowania
+
+Robicie pierogi przez dwa dni? Przy kroku przepisu możecie teraz wpisać nazwę
+etapu, na przykład „Dzień 1: farsz” albo „Dzień 2: lepienie”. Nazwa pojawia się
+nad kolejnymi krokami na stronie przepisu i na wydruku, a w trybie gotowania
+nad bieżącym krokiem stoi „Etap: Dzień 2: lepienie”, więc po przerwie od razu
+wiadomo, gdzie jesteście. Etap trwa do kroku z następną nazwą. Nazwa nie jest
+krokiem do odhaczenia: numery kroków, minutniki i to, co już zrobiliście,
+zostają tak samo jak wcześniej. Przepis bez nazw wygląda jak dotąd — pole jest
+nieobowiązkowe.
 
 ## Alfa 0.78
 
