@@ -15,6 +15,7 @@ zakupów tu nie ma i nie było w tej zmianie.
 | `day` | `date` | dzień planu, data kalendarzowa (nie `timestamptz`) |
 | `recipe_id` | `uuid` NULL | → `recipes(id)` **`ON DELETE SET NULL`** |
 | `label` | `varchar(120)` NULL | własny wpis, gdy pozycja nie jest przepisem |
+| `done_at` | `timestamptz(6)` NULL | prywatne „Zrobione” (#2593, migracja `2026_10_02_190000`); NULL = nieoznaczona, wartość = chwila oznaczenia i znacznik wersji stanu |
 | `created_at` / `updated_at` | `timestamptz` | |
 
 **Plan jest prywatny.** Nie ma kolumny widoczności, bo nie ma czego pokazywać
@@ -62,6 +63,19 @@ Test przeplotu z prawdziwym `EraseAccountData`:
 Wycofanie samego kodu przywróciłoby możliwość odtworzenia planu po wymazaniu;
 bezpieczny rollback wymaga zachowania równoważnej blokady i świeżej kontroli
 stanu konta. Schemat bazy w #2551 pozostaje bez zmian.
+
+**„Zrobione” (#2593, V2).** `done_at` jest poza `$fillable`; ustawia je tylko
+akcja `OznaczPozycjePlanu` (żądany stan, nie przełączenie), pod blokadą wiersza
+`users` i wiersza pozycji, po świeżej kontroli konta i własności. Formularz niesie
+znacznik stanu widzianego na stronie; gdy stan zmienił się w innej karcie, żądanie
+jest odrzucane z komunikatem (konflikt), a identyczne powtórzenie jest no-opem.
+Oznaczenie nie tworzy `cooked_events` ani powiadomień. „Skopiuj poprzedni tydzień”
+wstawia pozycje z `done_at = NULL`. Paczka RODO ma pola `zrobione` i
+`oznaczono_jako_zrobione`; wymazanie konta usuwa je razem z wierszem.
+**Rollback (D-088):** `down()` ODMAWIA, gdy choć jedna pozycja ma `done_at`
+(komunikat podaje kopię `pg_dump -t meal_plan_entries` i
+`UPDATE meal_plan_entries SET done_at = NULL`); bez oznaczeń przechodzi.
+Test: `tests/Feature/PlanerZrobioneTest.php`.
 
 ### shopping_list_items
 

@@ -1070,6 +1070,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/planer/kopiuj-tydzien', [PlanerController::class, 'copy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.copy');
+    Route::patch('/planer/{wpis}/zrobione', [PlanerController::class, 'markDone'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.done');
     Route::delete('/planer/{wpis}', [PlanerController::class, 'destroy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.destroy');

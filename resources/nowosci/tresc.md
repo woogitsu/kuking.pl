@@ -66,6 +66,9 @@ Rozwijanie działa bez żadnych ustawień i niczego nie zapisuje.
 ### Własny minutnik w trybie gotowania
 
 Krok, przy którym autor nie podał czasu, ma teraz „Nastaw własny minutnik”: możecie wybrać 5, 10, 15 lub 20 minut albo wpisać własną liczbę i dotknąć „Start”. Minutnik odlicza i dzwoni tak samo jak ten od autora, i odlicza dalej po przejściu do następnych kroków. Czas zostaje tylko w tej przeglądarce — nie zmienia przepisu.
+### Zrobione w Planerze
+
+Przy każdej pozycji planu możesz oznaczyć, że jest już zrobiona, i cofnąć to jednym przyciskiem. Dzięki temu po przygotowaniu części potraw widzisz, co jeszcze zostało, a cały plan zostaje na swoim miejscu. Oznaczenie jest prywatne: nie publikuje „Ugotowałem”, nie powiadamia autora przepisu i nie zmienia nic poza Twoim planem.
 
 ## Alfa 0.78
 

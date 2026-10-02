@@ -149,6 +149,7 @@
                                     PlanerTygodnia::STAN_NIEDOSTEPNY => 'przepis niedostępny',
                                     default => 'przepis usunięty',
                                 };
+                                $zrobione = $wpis->done_at !== null;
                             @endphp
                             <li class="planer-pozycja">
                                 <span class="planer-pozycja-tresc">
@@ -161,8 +162,18 @@
                                     @else
                                         <span class="meta">Przepis został usunięty.</span>
                                     @endif
+                                    @if($zrobione)
+                                        <span class="planer-zrobione">Zrobione</span>
+                                    @endif
                                 </span>
                                 <span class="planer-nawigacja">
+                                    {{-- Prywatne „Zrobione” (#2593): zwykły formularz, żądany stan + znacznik stanu z tej strony. --}}
+                                    <form method="POST" action="{{ route('planer.done', $wpis) }}">
+                                        @csrf @method('PATCH')
+                                        <input type="hidden" name="zrobione" value="{{ $zrobione ? '0' : '1' }}">
+                                        <input type="hidden" name="stan" value="{{ \App\Domain\Planer\Actions\OznaczPozycjePlanu::znacznik($wpis) }}">
+                                        <button class="btn btn-secondary" type="submit">{{ $zrobione ? 'Cofnij oznaczenie' : 'Oznacz jako zrobione' }}<span class="visually-hidden">: {{ $nazwa }}</span></button>
+                                    </form>
                                     @if($pozycja['stan'] === PlanerTygodnia::STAN_PRZEPIS)
                                         {{-- Lista zakupów (#27, etap 2, D-333): linie składników tego przepisu. --}}
                                         <form method="POST" action="{{ route('shopping.recipe.store', $pozycja['przepis']->slug) }}">
