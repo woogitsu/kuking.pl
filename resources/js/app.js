@@ -32,7 +32,7 @@ import './powiadomienia-push.js';
 import './drukuj-przepis.js';
 import './postep-importu.js';
 import './powiadomienia-push-uzgodnij.js';
-import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika} from './minutnik-krok.js';
 import {podlaczKolejke} from './kolejka-gotowania.js';
 import {podlaczPrzelacznik, utworzKontrolerWakeLock, utworzPamiecWyboru} from './wake-lock-gotowania.js';
 import {podlaczStronaNieaktualna} from './strona-nieaktualna.js';
@@ -805,12 +805,16 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     const sekundyCalkiem = parseInt(blok.dataset.timerSekundy ?? '', 10);
     const recipeSlug = blok.dataset.timerRecipe ?? '';
     const krok = blok.dataset.timerKrok ?? '';
+    const stepId = blok.dataset.timerStepId ?? '';
+    const fingerprint = blok.dataset.timerFingerprint ?? '';
+    const pasMinutnikow = document.querySelector('.cook-alarmy');
+    const krokiTozsamosci = pasMinutnikow ? JSON.parse(pasMinutnikow.dataset.alarmyKroki ?? '[]') : [];
 
     if (!przycisk || !anuluj || !odliczanie || !komunikat || !Number.isFinite(sekundyCalkiem) || sekundyCalkiem <= 0) {
         return;
     }
 
-    const klucz = kluczStanu(recipeSlug, krok);
+    const klucz = kluczStanu(recipeSlug, krok, stepId, fingerprint);
 
     // Callback moze wrocic z opoznieniem po usnieciu karty. Liczymy czas do
     // terminu na zegarze monotonicznym, zamiast zakladac, ze kazde
@@ -886,7 +890,8 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         // Zapis PRZED startem -- zeby nawigacja albo oznaczenie kroku
         // (oba przeladowuja strone -- issue #740) mialy co odczytac,
         // nawet jesli czlowiek kliknął "Nastepny krok" sekunde po starcie.
-        sessionStorage.setItem(klucz, zapiszStan(sekundyCalkiem, Date.now() + sekundyCalkiem * 1000));
+        sessionStorage.setItem(klucz, zapiszStan(sekundyCalkiem, Date.now() + sekundyCalkiem * 1000,
+            {stepId, fingerprint, krokPierwotny: Number(krok)}));
         uruchomOdliczanie(terminMonotoniczny);
     });
 
@@ -938,6 +943,12 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
             // Uszkodzony albo porzucony dawno po terminie (ponad
             // PRZETERMINOWANIE_NAJWYZEJ_MS) -- znika po cichu, bez alarmu.
             sessionStorage.removeItem(klucz);
+            return false;
+        }
+
+        if (aktualnyKrokMinutnika(stan, krokiTozsamosci) !== Number(krok)) {
+            // Zmieniony lub usunięty krok nie dostaje etykiety bieżącej czynności.
+            // Termin przejmie pas innych minutników bez jego kasowania.
             return false;
         }
 
@@ -1007,17 +1018,67 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     const recipeSlug = pas.dataset.alarmyRecipe ?? '';
     const widocznyKrok = pas.dataset.alarmyKrok ?? '';
     const adres = pas.dataset.alarmyAdres ?? '';
+    const krokiTozsamosci = JSON.parse(pas.dataset.alarmyKroki ?? '[]');
 
-    const pokazAlarm = (krok) => {
+    const pokazAlarm = (krok, aktualny) => {
         pokazAlarmWPasie(
             pas,
-            `Minutnik kroku ${krok} skończył odliczanie.`,
-            adres ? {href: `${adres}?krok=${encodeURIComponent(krok)}`, tekst: `Przejdź do kroku ${krok}`} : null,
+            aktualny === null
+                ? `Minutnik uruchomiony przy wcześniejszym kroku ${krok} skończył odliczanie. Przepis się zmienił.`
+                : `Minutnik kroku ${aktualny} skończył odliczanie.`,
+            adres && aktualny !== null ? {href: `${adres}?krok=${encodeURIComponent(aktualny)}`, tekst: `Przejdź do kroku ${aktualny}`} : null,
         );
     };
 
-    const odliczaj = (klucz, krok, zapis, terminMonotoniczny) => {
+    const odliczaj = (klucz, krok, zapis, stan) => {
+        const aktualny = aktualnyKrokMinutnika(stan, krokiTozsamosci);
+        const terminMonotoniczny = stan.terminMonotoniczny;
+        let wiersz = null;
+        let interwal = null;
+        let odswiezWiersz = () => {};
+
+        {
+            wiersz = document.createElement('div');
+            wiersz.className = 'flash-ramka flash-ramka-informacja stack';
+            const opis = document.createElement('p');
+            opis.className = 'm-0';
+            opis.setAttribute('role', 'status');
+            opis.textContent = aktualny === null
+                ? `Przepis się zmienił. Minutnik wcześniejszego kroku ${krok}, uruchomiony na ${formatMinutySekundy(stan.sekundyCalkiem)}, nadal odlicza.`
+                : `Minutnik kroku ${aktualny}, uruchomiony na ${formatMinutySekundy(stan.sekundyCalkiem)}, nadal odlicza.`;
+            const czas = document.createElement('p');
+            czas.className = 'm-0';
+            czas.setAttribute('role', 'timer');
+            czas.setAttribute('aria-label', 'Pozostały czas wcześniejszego minutnika');
+            czas.setAttribute('aria-live', 'off');
+            const anuluj = document.createElement('button');
+            anuluj.type = 'button';
+            anuluj.className = 'btn btn-secondary btn-cook';
+            anuluj.textContent = aktualny === null
+                ? `Anuluj minutnik wcześniejszego kroku ${krok}`
+                : `Anuluj minutnik kroku ${aktualny}`;
+            anuluj.addEventListener('click', () => {
+                if (sessionStorage.getItem(klucz) === zapis) sessionStorage.removeItem(klucz);
+                window.clearInterval(interwal);
+                wiersz.remove();
+                pas.hidden = pas.childElementCount === 0;
+            });
+            wiersz.append(opis, czas, anuluj);
+            pas.append(wiersz);
+            pas.hidden = false;
+            odswiezWiersz = () => {
+                czas.textContent = formatMinutySekundy(pozostaloSekund(terminMonotoniczny, performance.now()));
+            };
+            odswiezWiersz();
+        }
+
         const sprawdz = () => {
+            if (sessionStorage.getItem(klucz) !== zapis) {
+                wiersz?.remove();
+                pas.hidden = pas.childElementCount === 0;
+                return true;
+            }
+            odswiezWiersz();
             if (pozostaloSekund(terminMonotoniczny, performance.now()) > 0) {
                 return false;
             }
@@ -1026,7 +1087,9 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
             // nie anulowal ani nie uruchomil od nowa.
             if (sessionStorage.getItem(klucz) === zapis) {
                 sessionStorage.removeItem(klucz);
-                pokazAlarm(krok);
+                wiersz?.remove();
+                pas.hidden = pas.childElementCount === 0;
+                pokazAlarm(krok, aktualny);
             }
 
             return true;
@@ -1036,7 +1099,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
             return;
         }
 
-        const interwal = window.setInterval(() => {
+        interwal = window.setInterval(() => {
             if (sprawdz()) {
                 window.clearInterval(interwal);
             }
@@ -1065,10 +1128,6 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         kluczeTegoPrzepisu().forEach((klucz) => {
             const krok = krokZKlucza(klucz, recipeSlug);
 
-            if (krok === widocznyKrok) {
-                return;
-            }
-
             const zapis = sessionStorage.getItem(klucz);
             // Uszkodzony albo porzucony dawno po terminie (przeglad #1301):
             // znika po cichu, bez alarmu.
@@ -1079,12 +1138,17 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
                 return;
             }
 
+            if (aktualnyKrokMinutnika(stan, krokiTozsamosci) === Number(widocznyKrok)
+                && klucz === kluczStanu(recipeSlug, widocznyKrok, stan.stepId, stan.fingerprint)) {
+                return;
+            }
+
             if (odliczane.has(`${klucz}|${zapis}`)) {
                 return;
             }
 
             odliczane.add(`${klucz}|${zapis}`);
-            odliczaj(klucz, krok, zapis, stan.terminMonotoniczny);
+            odliczaj(klucz, stan.krokPierwotny ?? (/^\d+$/.test(krok) ? Number(krok) : 0), zapis, stan);
         });
     };
 

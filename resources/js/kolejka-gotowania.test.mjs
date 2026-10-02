@@ -20,7 +20,7 @@ import {
     czytaj,
     podlaczKolejke,
 } from './kolejka-gotowania.js';
-import {kluczStanu, zapiszStan} from './minutnik-krok.js';
+import {kluczStanu, zapiszStan, odczytajTermin} from './minutnik-krok.js';
 
 class FalszywyStorage {
     constructor() {
@@ -270,6 +270,23 @@ test('minutniki potraw A i B mają osobne klucze i nie mieszają się z cudzymi'
         ],
         'slug „zupa” nie łapie minutnika „zupa-grzybowa”',
     );
+});
+
+test('2589: ten sam minutnik przechodzi między pojedynczym gotowaniem i kolejką bez drugiego zapisu', () => {
+    const id = '00000000-0000-4000-8000-000000000002';
+    const fingerprint = 'b'.repeat(64);
+    const klucz = kluczStanu('zupa', 2, id, fingerprint);
+    const ss = new FalszywyStorage();
+    ss.setItem(klucz, zapiszStan(600, T0 + 600_000,
+        {stepId: id, fingerprint, krokPierwotny: 2}));
+
+    const zKolejki = minutnikiKolejki([klucz], ['zupa', 'kotlet']);
+    assert.deepEqual(zKolejki, [{klucz, slug: 'zupa', krok: `id_${id}_${fingerprint}`}],
+        'TIMER_2589_SINGLE_QUEUE');
+    assert.equal(ss.length, 1, 'Przejście do kolejki nie tworzy drugiego minutnika');
+    assert.equal(kluczStanu('zupa', 1, id, fingerprint), klucz,
+        'Po przestawieniu kroków powrót do trybu pojedynczego używa tego samego terminu');
+    assert.equal(odczytajTermin(ss.getItem(klucz), T0 + 120_000, 0).terminMonotoniczny, 480_000);
 });
 
 test('czyszczenie kolejki kasuje listę i minutniki jej potraw, cudze minutniki zostają', () => {

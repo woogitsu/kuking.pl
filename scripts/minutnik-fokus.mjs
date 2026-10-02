@@ -11,7 +11,9 @@ const manifest = JSON.parse(readFileSync('public/build/manifest.json', 'utf8'));
 const css = readFileSync('public/build/' + manifest['resources/css/app.css'].file, 'utf8');
 const html = template.replace(/\{\{--[\s\S]*?--\}\}/g, '')
   .replaceAll('{{ $aktualnyKrok->timer_seconds }}', '3')
-  .replaceAll('{{ $timerLabel }}', '3 sekundy');
+  .replaceAll('{{ $timerLabel }}', '3 sekundy')
+  .replaceAll('{{ $aktualnyKrok->getKey() }}', '00000000-0000-4000-8000-000000000001')
+  .replaceAll('{{ $aktualnyKrok->timerFingerprint() }}', 'a'.repeat(64));
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH, headless: true });
 try {
   const page = await browser.newPage({ viewport: { width: 320, height: 900 } });

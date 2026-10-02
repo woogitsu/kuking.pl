@@ -156,6 +156,13 @@ z 29 września 2026) — wolno budować:
   a ten, którego osoba już nie widzi, wypada z kolejki z komunikatem. Bez
   JavaScriptu ekran pokazuje zwykłe linki do trybu pojedynczego, a przycisk
   „Dodaj do kolejki gotowania” pojawia się dopiero ze skryptem.
+  Minutnik trzyma w `sessionStorage` UUID kroku, niewrażliwy odcisk jego
+  instrukcji i czasu oraz pierwotny czas/numer, bez tekstu przepisu (#2589).
+  Przestawienie nie zmienia terminu. Zmiana lub usunięcie czynności daje
+  widoczny komunikat o wcześniejszym kroku i możliwość anulowania, bez
+  odnośnika do innej czynności. Starszy zapis bez tożsamości także nie jest
+  przypisywany do obecnego kroku; nadal odlicza i alarmuje. `localStorage`
+  kolejki oraz adres zachowują wyłącznie slug i numer kroku zgodnie z D-333.
 
 **Dopisane do planu i zbudowane** (D-333, wiersz „#2227”, decyzja właściciela
 z 30 września 2026):
