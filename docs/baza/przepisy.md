@@ -10,6 +10,8 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - `summary` — patrz niżej;
 - `servings`, `prep_minutes`, `cook_minutes`, `difficulty`
   (CHECK: `easy` \| `medium` \| `hard`) — o czasach patrz niżej;
+- `czas_laczny_zrodla_minut` — łączny czas podany przez źródło importu, osobno
+  od `prep_minutes` i `cook_minutes` (patrz niżej);
 - `estimated_cost_pln` — szacunkowy koszt wg autora, patrz niżej (D-286);
 - `visibility` (`public` \| `followers` \| `private`),
   `status` (`draft` \| `published` \| `hidden` \| `removed`), `hero_media_id`;
