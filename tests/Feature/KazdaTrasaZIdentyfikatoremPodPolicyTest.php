@@ -1560,6 +1560,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('shopping.destroy', $pozycjaZakupowDoKasacji), [], [$W, $O, $O, $O, $O]);
         $dodaj('shopping.recipe.store', 'dodanie składników prywatnego przepisu do listy zakupów', 'post',
             route('shopping.recipe.store', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        // Wybór składników (#2462): ekran i zapis prywatnego przepisu — tylko autor.
+        $dodaj('shopping.recipe.pick', 'ekran wyboru składników prywatnego przepisu do zakupów', 'get',
+            route('shopping.recipe.pick', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        $dodaj('shopping.recipe.pick.store', 'dodanie wybranych składników prywatnego przepisu do zakupów', 'post',
+            route('shopping.recipe.pick.store', $przepisPrywatny), ['skladniki' => ['01a0fd15-5599-7067-9435-6566b0d15f33'], 'odcisk' => str_repeat('a', 64)], [$W, $O, $O, $O, $O]);
         // Ekran pytania bez wcześniejszego dodania odsyła do przepisu, więc
         // właściciel ma „dozwolone” (przekierowanie), a reszta — odmowę.
         $dodaj('shopping.recipe.confirm', 'ekran „dodać składniki jeszcze raz?” prywatnego przepisu', 'get',

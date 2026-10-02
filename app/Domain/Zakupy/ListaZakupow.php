@@ -69,6 +69,9 @@ final class ListaZakupow
 
     public const WYNIK_BRAK_SKLADNIKOW = 'brak_skladnikow';
 
+    /** Wybór składników (#2462): przepis zmienił się od otwarcia podglądu — nic nie dopisano. */
+    public const WYNIK_ZMIENIONY = 'zmieniony';
+
     public const COFNIECIE_PRZYWROCONO = 'przywrocono';
 
     /** Nic do cofnięcia: nie było usunięcia, wygasło albo już cofnięte (drugie kliknięcie). */
@@ -174,9 +177,19 @@ final class ListaZakupow
      * potwierdziła, nic nie jest dopisywane: wynik `juz_jest` niesie datę
      * wcześniejszego dodania, żeby ekran mógł zapytać.
      *
+     * WYBÓR SKŁADNIKÓW (#2462, V2): z `$wybraneId` dopisujemy dokładnie wskazane
+     * linie TEGO przepisu (kolejność przepisu, nie żądania). Identyfikatory nie
+     * są treścią ani autoryzacją — tekst czyta serwer, po blokadzie, z linii
+     * przepisu, który osoba nadal widzi. `$odcisk` to skrót listy linii z chwili
+     * podglądu: jeśli przepis zmienił się od podglądu, nic nie jest kopiowane
+     * (`zmieniony`), a człowiek dostaje świeży podgląd. Identyfikator spoza
+     * przepisu odrzuca całość. Ostrzeżenie o ponownym dodaniu, limit i zapis
+     * „wszystko albo nic” działają jak przy dodaniu wszystkich.
+     *
+     * @param  list<string>|null  $wybraneId
      * @return array{wynik: string, dodano: int, wczesniej: ?CarbonInterface}
      */
-    public function dodajSkladniki(User $user, Recipe $przepis, bool $potwierdzone = false): array
+    public function dodajSkladniki(User $user, Recipe $przepis, bool $potwierdzone = false, ?array $wybraneId = null, ?string $odcisk = null): array
     {
         if (! $this->przepisy->view($user, $przepis)) {
             throw new AuthorizationException;
@@ -188,8 +201,18 @@ final class ListaZakupow
             return ['wynik' => self::WYNIK_BRAK_SKLADNIKOW, 'dodano' => 0, 'wczesniej' => null];
         }
 
-        return DB::transaction(function () use ($user, $przepis, $linie, $potwierdzone): array {
+        return DB::transaction(function () use ($user, $przepis, $linie, $potwierdzone, $wybraneId, $odcisk): array {
             $this->zablokujListe($user);
+
+            if ($wybraneId !== null) {
+                $wybrane = $this->wybraneLinie($przepis, $wybraneId, (string) $odcisk);
+
+                if ($wybrane === null) {
+                    return ['wynik' => self::WYNIK_ZMIENIONY, 'dodano' => 0, 'wczesniej' => null];
+                }
+
+                $linie = $wybrane;
+            }
 
             $wczesniej = ShoppingListItem::query()
                 ->where('user_id', $user->getKey())
@@ -512,19 +535,128 @@ final class ListaZakupow
      */
     private function linieSkladnikow(Recipe $przepis): array
     {
+        return array_column($this->liniePrzepisu($przepis), 'tekst');
+    }
+
+    /**
+     * Te same linie z identyfikatorami, płasko, w kolejności ze strony przepisu.
+     *
+     * @return list<array{id: string, tekst: string}>
+     */
+    private function liniePrzepisu(Recipe $przepis): array
+    {
         $linie = [];
 
-        foreach (GrupySkladnikow::ulozyc($przepis->ingredients()->get()) as $grupa) {
-            foreach ($grupa['skladniki'] as $skladnik) {
-                /** @var RecipeIngredient $skladnik */
-                $tekst = self::oczysc((string) $skladnik->ingredient_text);
-                if ($tekst !== null) {
-                    $linie[] = mb_substr($tekst, 0, self::maksZnakow());
-                }
+        foreach ($this->grupyPrzepisu($przepis) as $grupa) {
+            foreach ($grupa['skladniki'] as $linia) {
+                $linie[] = $linia;
             }
         }
 
         return $linie;
+    }
+
+    /**
+     * Grupy składników z identyfikatorami linii (do ekranu wyboru, #2462).
+     * Linia pusta po oczyszczeniu odpada; grupa bez linii znika.
+     *
+     * @return list<array{nazwa: ?string, skladniki: list<array{id: string, tekst: string}>}>
+     */
+    private function grupyPrzepisu(Recipe $przepis): array
+    {
+        $grupy = [];
+
+        foreach (GrupySkladnikow::ulozyc($przepis->ingredients()->get()) as $grupa) {
+            $linie = [];
+            foreach ($grupa['skladniki'] as $skladnik) {
+                /** @var RecipeIngredient $skladnik */
+                $tekst = self::oczysc((string) $skladnik->ingredient_text);
+                if ($tekst !== null) {
+                    $linie[] = ['id' => (string) $skladnik->getKey(), 'tekst' => mb_substr($tekst, 0, self::maksZnakow())];
+                }
+            }
+
+            if ($linie !== []) {
+                $grupy[] = ['nazwa' => $grupa['nazwa'], 'skladniki' => $linie];
+            }
+        }
+
+        return $grupy;
+    }
+
+    /**
+     * Skrót listy linii (id + tekst, w kolejności ze strony) — odcisk podglądu wyboru.
+     *
+     * @param  list<array{id: string, tekst: string}>  $linie
+     */
+    private static function odciskLinii(array $linie): string
+    {
+        return hash('sha256', implode("\n", array_map(fn (array $l): string => $l['id'].'|'.$l['tekst'], $linie)));
+    }
+
+    /**
+     * Ekran wyboru składników (#2462): grupy z identyfikatorami linii i odcisk
+     * aktualnej listy. Tylko odczyt — niczego nie dopisuje.
+     *
+     * @return array{grupy: list<array{nazwa: ?string, skladniki: list<array{id: string, tekst: string}>}>, odcisk: string, ile: int}
+     */
+    public function doWyboru(Recipe $przepis): array
+    {
+        $grupy = $this->grupyPrzepisu($przepis);
+        $linie = $this->liniePrzepisu($przepis);
+
+        return ['grupy' => $grupy, 'odcisk' => self::odciskLinii($linie), 'ile' => count($linie)];
+    }
+
+    /** Kiedy składniki TEGO przepisu trafiły na listę po raz pierwszy (albo null) — do ostrzeżenia. */
+    public function pierwszeDodanie(User $user, Recipe $przepis): ?CarbonInterface
+    {
+        $wczesniej = ShoppingListItem::query()
+            ->where('user_id', $user->getKey())
+            ->where('recipe_id', $przepis->getKey())
+            ->min('created_at');
+
+        return $wczesniej === null ? null : Carbon::parse($wczesniej);
+    }
+
+    /**
+     * Teksty wybranych linii w kolejności przepisu — albo `null`, gdy przepis
+     * zmienił się od podglądu (odcisk się nie zgadza). Identyfikator spoza
+     * tego przepisu przy zgodnym odcisku to podmiana: odrzucamy całość.
+     * Wołane po blokadzie listy, z linii czytanych na nowo.
+     *
+     * @param  list<string>  $wybraneId
+     * @return list<string>|null
+     *
+     * @throws ValidationException
+     */
+    private function wybraneLinie(Recipe $przepis, array $wybraneId, string $odcisk): ?array
+    {
+        $linie = $this->liniePrzepisu($przepis);
+
+        if (! hash_equals(self::odciskLinii($linie), $odcisk)) {
+            return null;
+        }
+
+        $znane = array_column($linie, 'id');
+        $wybraneId = array_values(array_unique($wybraneId));
+
+        if ($wybraneId === [] || array_diff($wybraneId, $znane) !== []) {
+            throw ValidationException::withMessages([
+                'skladniki' => $wybraneId === []
+                    ? 'Zaznacz co najmniej jeden składnik i naciśnij „Dodaj wybrane”. Nic nie zostało dodane.'
+                    : 'Nie rozpoznajemy części zaznaczonych składników. Odśwież stronę, zaznacz je jeszcze raz — nic nie zostało dodane.',
+            ]);
+        }
+
+        $teksty = [];
+        foreach ($linie as $linia) {
+            if (in_array($linia['id'], $wybraneId, true)) {
+                $teksty[] = $linia['tekst'];
+            }
+        }
+
+        return $teksty;
     }
 
     private static function oczysc(string $tekst): ?string
