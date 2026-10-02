@@ -41,7 +41,7 @@ const html = (seconds, krok = 1, fingerprint = odciskKroku(krok)) => template.re
 // Pas alarmów minutników z innych kroków (issue #1301) — też z realnego Blade.
 const alarmyTemplate = blade.match(/<div class="cook-alarmy[\s\S]*? hidden><\/div>/)?.[0];
 assert(alarmyTemplate, 'Nie znaleziono rzeczywistego pasa alarmów innych kroków');
-const importLine = `import { pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika } from './${moduleFileName}';\n`;
+const importLine = `import { pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika, sprawdzMinutyWlasne, etykietaMinut } from './${moduleFileName}';\n`;
 // Jedna strona trybu gotowania = jeden krok: pas alarmów + (opcjonalnie)
 // minutnik tego kroku, jak w cooking.blade.php.
 const stepPage = (krok, seconds, identities = [1, 2, 3, 4], fingerprints = identities.map(odciskKroku)) => '<p class="cook-progress">Krok ' + krok + '</p>'
@@ -50,7 +50,16 @@ const stepPage = (krok, seconds, identities = [1, 2, 3, 4], fingerprints = ident
     .replaceAll('{{ $adresGotowania() }}', '/gotuj')
     .replace(/data-alarmy-kroki="[^"]*"/, `data-alarmy-kroki="${JSON.stringify(identities.map((id, index) => ({id: idKroku(id), fingerprint: fingerprints[index]}))).replaceAll('"', '&quot;')}"`)
     .replace(/\{\{ route\([^}]*\}\}/, '/gotuj')
-  + (seconds ? html(seconds, identities[krok - 1] ?? krok, fingerprints[krok - 1]).replaceAll('{{ $recipe->slug }}', 'zupa').replaceAll('{{ $krok }}', String(krok)) : '');
+  + (seconds === 'wlasny' ? wlasnyHtml(identities[krok - 1] ?? krok, fingerprints[krok - 1]).replaceAll('{{ $krok }}', String(krok)) : seconds ? html(seconds, identities[krok - 1] ?? krok, fingerprints[krok - 1]).replaceAll('{{ $recipe->slug }}', 'zupa').replaceAll('{{ $krok }}', String(krok)) : '');
+// Własny minutnik przy kroku bez czasu autora (issue #2595) — też z realnego Blade.
+const wlasnyTemplate = blade.match(/<div class="cook-timer cook-timer-wlasny"[\s\S]*?\n            @endif/)?.[0].replace(/\n            @endif$/, '');
+assert(wlasnyTemplate, 'Nie znaleziono rzeczywistego HTML własnego minutnika');
+const wlasnyHtml = (krok, fingerprint = odciskKroku(krok)) => wlasnyTemplate.replace(/\{\{--[\s\S]*?--\}\}/g, '')
+  .replaceAll('{{ $recipe->slug }}', 'zupa').replaceAll('{{ $krok }}', String(krok))
+  .replaceAll('{{ $aktualnyKrok->getKey() }}', idKroku(krok))
+  .replaceAll('{{ $aktualnyKrok->timerFingerprint() }}', fingerprint)
+  .replace(/@foreach\(\[5, 10, 15, 20\] as \$szybkieMinuty\)\s*([\s\S]*?)\s*@endforeach/, (_, wiersz) => [5, 10, 15, 20]
+    .map(m => wiersz.replaceAll('{{ $szybkieMinuty }}', String(m))).join('\n'));
 // Wyjście z trybu gotowania (przegląd #1301) — oba linki z realnego Blade.
 const zakonczTemplate = blade.match(/<a class="btn btn-secondary cook-exit"[\s\S]*?<\/a>/)?.[0];
 const ugotowalemTemplate = blade.match(/<a class="btn btn-primary btn-cook" href="\{\{ route\('cooked\.create'[^\n]*?<\/a>/)?.[0];
@@ -186,6 +195,7 @@ async function pause(page, milliseconds) {
   return performance.now() - start;
 }
 async function check(name, run) {
+  if (process.env.TYLKO && !new RegExp(process.env.TYLKO).test(name)) return;
   try { await run(); results.push({ name, result: 'PASS' }); }
   catch (error) { results.push({ name, result: 'FAIL', error: error.message }); }
   console.log(JSON.stringify(results.at(-1)));
@@ -651,6 +661,71 @@ try {
       assert(await page.locator('.cook-alarmy [role=timer]').isVisible());
       assert.equal(await page.locator('.cook-alarm').count(), 0);
       assert(await page.evaluate(key => sessionStorage.getItem(key) !== null, legacyKey));
+    } finally { await page.close(); }
+  });
+  await check('wlasny_minutnik_2595_start_zapis_odtworzenie_anulowanie', async () => {
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 2, 'wlasny');
+      const blok = page.locator('.cook-timer-wlasny');
+      assert(await blok.isVisible(), 'Skrypt odslania blok wlasnego minutnika');
+      assert(await blok.locator('.cook-timer-odliczanie').isHidden());
+      await blok.locator('.cook-timer-szybki[data-minuty="5"]').click();
+      assert(await blok.locator('.cook-timer-wybor').isHidden(), 'Wybor znika podczas odliczania');
+      assert(await blok.locator('.cook-timer-anuluj').isVisible());
+      assert(await blok.locator('.cook-timer-nazwa').isVisible());
+      assert.match(await blok.locator('.cook-timer-nazwa').innerText(), /Twój minutnik/);
+      const pozostalo = await remaining(page);
+      assert(pozostalo >= 299 && pozostalo <= 300, 'Pozostalo ' + pozostalo);
+      const zapis = JSON.parse(await page.evaluate(key => sessionStorage.getItem(key), storageKey(2)));
+      assert.equal(zapis.sekundyCalkiem, 300);
+      await page.waitForTimeout(1200);
+      await openStep(page, 2, 'wlasny');
+      assert(await page.locator('.cook-timer-anuluj').isVisible(), 'Po przeladowaniu odliczanie wraca');
+      assert(await remaining(page) <= 299, 'Nie startuje od pelnych 5 minut');
+      assert.match(await page.locator('.cook-timer-komunikat').textContent(), /Twój minutnik ustawiony na 5 min/);
+      await page.locator('.cook-timer-anuluj').click();
+      assert.equal(await page.evaluate(key => sessionStorage.getItem(key), storageKey(2)), null);
+      assert(await page.locator('.cook-timer-wybor').isVisible());
+      assert.match(await page.locator('.cook-timer-komunikat').textContent(), /Twój minutnik anulowany/);
+    } finally { await page.close(); }
+  });
+  await check('wlasny_minutnik_2595_zle_wartosci_i_pole_minuty', async () => {
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 2, 'wlasny');
+      const pole = page.locator('.cook-timer-minuty');
+      for (const [wpis, tekst] of [['0', /większą od zera/], ['-3', /ujemna/], ['1441', /1440 minut/], ['', /Wpisz/]]) {
+        await pole.fill(wpis);
+        await page.getByRole('button', { name: 'Start' }).click();
+        assert(await page.locator('.cook-timer-blad').isVisible(), 'Blad przy polu: ' + wpis);
+        assert.match(await page.locator('.cook-timer-blad').innerText(), tekst);
+        assert.equal(await pole.inputValue(), wpis, 'Wpisane dane zostaja');
+        assert.equal(await pole.getAttribute('aria-invalid'), 'true');
+        assert.equal(await page.evaluate(key => sessionStorage.getItem(key), storageKey(2)), null, 'Zly czas nie uruchamia odliczania');
+      }
+      await pole.fill('7');
+      await page.getByRole('button', { name: 'Start' }).click();
+      assert(await page.locator('.cook-timer-blad').isHidden());
+      const pozostalo = await remaining(page);
+      assert(pozostalo >= 419 && pozostalo <= 420, 'Pozostalo ' + pozostalo);
+      assert.equal(JSON.parse(await page.evaluate(key => sessionStorage.getItem(key), storageKey(2))).sekundyCalkiem, 420);
+    } finally { await page.close(); }
+  });
+  await check('wlasny_minutnik_2595_koniec_alarm_ten_sam_mechanizm', async () => {
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 2, 'wlasny');
+      await page.evaluate(([key, id, odcisk]) => sessionStorage.setItem(key, JSON.stringify({
+        sekundyCalkiem: 60, terminEpoka: Date.now() + 2000, stepId: id, fingerprint: odcisk, krokPierwotny: 2,
+      })), [storageKey(2), idKroku(2), odciskKroku(2)]);
+      await openStep(page, 2, 'wlasny');
+      assert(await page.locator('.cook-timer-anuluj').isVisible());
+      await page.waitForTimeout(2600);
+      assert.equal(await page.locator('.cook-alarm').count(), 1, 'Alarm w tym samym pasie co minutnik autora');
+      assert.equal(await page.evaluate(key => sessionStorage.getItem(key), storageKey(2)), null);
+      assert(await page.locator('.cook-timer-wybor').isVisible(), 'Po koncu mozna nastawic ponownie');
+      assert(await page.evaluate(() => window.alarmBeeps) > 0, 'Ten sam dzwiek alarmu');
     } finally { await page.close(); }
   });
 } finally { await browser.close(); server.close(); }

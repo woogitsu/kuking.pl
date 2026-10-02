@@ -5161,6 +5161,26 @@
         0 0 0 5px var(--color-accent-tint-ink);
 }
 
+/* Własny minutnik (issue #2595): szybkie czasy i pole „minuty". Przyciski
+   zawijają się w wiersze, więc mieszczą się też przy 320 px i 200% powiększenia. */
+.cook-timer-wybor,
+.cook-timer-formularz {
+    display: grid;
+    gap: var(--spacing-3);
+}
+
+.cook-timer-szybkie {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+}
+
+.cook-timer-wybor[hidden],
+.cook-timer-blad[hidden],
+.cook-timer-nazwa[hidden] {
+    display: none;
+}
+
 .cook-timer-odliczanie {
     font-size: var(--text-title);
     font-weight: 800;

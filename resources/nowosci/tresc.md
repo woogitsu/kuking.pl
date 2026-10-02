@@ -32,6 +32,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Własny minutnik w trybie gotowania
+
+Krok, przy którym autor nie podał czasu, ma teraz „Nastaw własny minutnik”: możecie wybrać 5, 10, 15 lub 20 minut albo wpisać własną liczbę i dotknąć „Start”. Minutnik odlicza i dzwoni tak samo jak ten od autora, i odlicza dalej po przejściu do następnych kroków. Czas zostaje tylko w tej przeglądarce — nie zmienia przepisu.
+
 ## Alfa 0.78
 
 **Co zużyć najpierw, lista zakupów i wydruk zeszytu.**

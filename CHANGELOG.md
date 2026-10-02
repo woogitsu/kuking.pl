@@ -6,6 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Nowe (#2595): w trybie gotowania krok bez czasu podanego przez autora ma blok „Nastaw własny minutnik” — przyciski 5, 10, 15 i 20 minut oraz pole „Ile minut?” z przyciskiem „Start”. Działa tak samo jak minutnik autora (dźwięk, alarm, anulowanie, powrót do kroku po przeładowaniu), podpis „Twój minutnik”. Czas zostaje tylko w tej przeglądarce, nic nie zmienia przepisu ani konta; bez JavaScriptu blok się nie pokazuje. [nowa funkcja]
 ## Alfa 0.78 — co zużyć najpierw, lista zakupów i wydruk zeszytu
 
 - Naprawione (#2621): wklejona pusta linia z nierozdzielającą spacją nie dodaje niewidocznego składnika ani nie skleja dwóch kroków przepisu. Spacja wewnątrz wpisanej ilości zostaje bez zmian.
