@@ -30,6 +30,11 @@
         </section>
     @endif
 
+    {{-- „Moje próby tego przepisu” (#2412) — prywatna historia własnych wykonań. --}}
+    @if(($mojeProbyLink ?? false))
+        <p><a class="btn btn-secondary" href="{{ route('cooked.proby', $event->recipe->slug) }}">Moje próby tego przepisu</a></p>
+    @endif
+
     {{-- Prywatna liczba faktycznych porcji (#2540) — wyłącznie kucharz.
          Poprawa i usunięcie bez tworzenia nowego wykonania. --}}
     @if(auth()->id() === $event->user_id)

@@ -24,6 +24,7 @@ use App\Domain\Recipes\TypowyCzasPrzepisu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
 use App\Models\Comment;
+use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\RecipeHint;
@@ -676,6 +677,14 @@ class RecipeController extends Controller
                 ->collections()
                 ->whereHas('recipes', fn ($query) => $query->whereKey($model->getKey()))
                 ->exists(),
+            // „Moje próby tego przepisu” (#2412): odnośnik tylko dla osoby,
+            // która ma własne wykonanie. Jedno zapytanie `exists`, wiązane
+            // z `user_id` oglądającego — cudze wykonania nie wchodzą do wyniku.
+            'maWlasneProby' => $request->user() !== null
+                && CookedEvent::query()
+                    ->where('user_id', $request->user()->getKey())
+                    ->where('recipe_id', $model->getKey())
+                    ->exists(),
         ]);
     }
 

@@ -500,6 +500,9 @@
                     @can('cook', $recipe)
                         <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">{{ \App\Support\Forma::dla(auth()->user(), 'Ugotowałam', 'Ugotowałem', 'Ugotowałem') }}</a>
                     @endcan
+                    @if($maWlasneProby ?? false)
+                        <a class="btn btn-secondary" href="{{ route('cooked.proby', $recipe->slug) }}">Moje próby tego przepisu</a>
+                    @endif
                     @if($isSaved)
                         {{--
                             WYJĘCIE MÓWI, SKĄD WYJMUJE (issue #775).

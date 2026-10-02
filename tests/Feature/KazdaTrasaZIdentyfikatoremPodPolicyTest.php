@@ -1279,6 +1279,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('jak_wyszlo.zamknij', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.create', 'formularz „Ugotowałem" przy prywatnym przepisie', 'get',
             route('cooked.create', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        // #2412: historia własnych prób przepisu otwiera się wyłącznie komuś,
+        // kto przepis może zobaczyć (`RecipePolicy::view`); dane i tak są
+        // wiązane z `user_id` oglądającego.
+        $dodaj('cooked.proby', '„Moje próby tego przepisu” przy prywatnym przepisie', 'get',
+            route('cooked.proby', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.store', 'zapis „Ugotowałem" przy prywatnym przepisie', 'post',
             route('cooked.store', $przepisPrywatny), ['note' => 'Wyszło świetnie.'], [$W, $O, $O, $O, $O]);
         $dodaj('collections.save', 'zapisanie prywatnego przepisu do zeszytu', 'post',
