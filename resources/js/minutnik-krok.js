@@ -53,8 +53,8 @@ export function formatMinutySekundy(sekundy) {
  * inaczej minutnik jednego kroku pokazywałby się jako aktywny na innym
  * kroku albo w innym przepisie otwartym w tej samej karcie.
  */
-export function kluczStanu(recipeSlug, krok) {
-    return `kuking.minutnik.${recipeSlug}.${krok}`;
+export function kluczStanu(recipeSlug, krok, stepId = null, fingerprint = null) {
+    return `kuking.minutnik.${recipeSlug}.${stepId && fingerprint ? `id_${stepId}_${fingerprint}` : krok}`;
 }
 
 /**
@@ -67,8 +67,8 @@ export function kluczStanu(recipeSlug, krok) {
  * z issue #751, jest znikome — a bez zegara ściennego stan w ogóle nie
  * przetrwałby przeładowania strony.
  */
-export function zapiszStan(sekundyCalkiem, terminEpoka) {
-    return JSON.stringify({sekundyCalkiem, terminEpoka});
+export function zapiszStan(sekundyCalkiem, terminEpoka, tozsamosc = null) {
+    return JSON.stringify({sekundyCalkiem, terminEpoka, ...(tozsamosc ?? {})});
 }
 
 /**
@@ -139,7 +139,20 @@ export function odczytajTermin(zapisany, terazEpoka, terazMonotoniczny) {
     return {
         sekundyCalkiem,
         terminMonotoniczny: terazMonotoniczny + (terminEpoka - terazEpoka),
+        stepId: typeof dane.stepId === 'string' ? dane.stepId : null,
+        fingerprint: typeof dane.fingerprint === 'string' ? dane.fingerprint : null,
+        krokPierwotny: Number.isInteger(dane.krokPierwotny) && dane.krokPierwotny > 0 ? dane.krokPierwotny : null,
     };
+}
+
+/** Aktualny numer tego samego, niezmienionego kroku; nigdy nie zgaduje po pozycji. */
+export function aktualnyKrokMinutnika(stan, kroki) {
+    if (!stan?.stepId || !stan.fingerprint || !Array.isArray(kroki)) return null;
+
+    const indeks = kroki.findIndex((krok) => krok.id === stan.stepId);
+    if (indeks < 0 || kroki[indeks].fingerprint !== stan.fingerprint) return null;
+
+    return indeks + 1;
 }
 
 /**
@@ -157,5 +170,5 @@ export function krokZKlucza(klucz, recipeSlug) {
 
     const krok = klucz.slice(przedrostek.length);
 
-    return /^[1-9]\d*$/.test(krok) ? krok : null;
+    return /^[1-9]\d*$/.test(krok) || /^id_[0-9a-f-]{36}_[0-9a-f]{64}$/i.test(krok) ? krok : null;
 }

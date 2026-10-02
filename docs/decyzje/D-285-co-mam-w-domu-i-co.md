@@ -84,6 +84,12 @@ Znane granice tej prostoty (świadome, do rewizji po pomiarze):
   (mąka ≠ mak, mak ≠ makaron, lód ≠ lody …; mąka = mąki/mąkę, ser = sera …);
 - produkt ogólny pasuje do odmiany: „mleko” zalicza „mleko kokosowe”,
   „ser” — „ser pleśniowy”;
+- **doprecyzowanie błędu #2613:** rdzeń produktu wymieniony wyłącznie po
+  słowie „bez” nie zalicza całej linijki. „Sól” nie potwierdza „masła bez soli”,
+  natomiast samo „masło” nadal potwierdza tę linijkę. Zakres „bez …” kończy
+  interpunkcja (przecinek, średnik, kropka, wykrzyknik albo pytajnik), więc
+  produkt zapisany osobno poza przeczeniem może pasować. Przy niejasnej
+  końcówce do granicy interpunkcji reguła zachowawczo pokazuje brak;
 - sól, pieprz i woda liczą się jak każdy inny składnik — kto ich nie wpisze,
   zobaczy je w „Brakuje”.
 

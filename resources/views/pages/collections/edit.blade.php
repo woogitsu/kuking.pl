@@ -26,7 +26,7 @@
                 <label class="choice">
                     <input type="radio" name="visibility" value="private"
                            @checked(old('visibility', $collection->visibility) === 'private')>
-                    <span class="choice-label">Tylko ja</span>
+                    <span class="choice-label">Prywatny</span>
                 </label>
                 <label class="choice">
                     <input type="radio" name="visibility" value="public"
@@ -43,7 +43,11 @@
                 <p class="notice mt-2" id="skutek-domyslnego-zeszytu">To Twój główny zeszyt. Przycisk „Zapisuję” wkłada tu każdy przepis i wpis, jeśli nie wybierzesz innego zeszytu. Gdy wybierzesz „Wszyscy”, inne zalogowane osoby zobaczą to, co już tu jest, i wszystko, co zapiszesz tu później.</p>
             @endif
             @if($collection->isPublic())
-                <p class="meta mt-2">Zmiana na „Tylko ja” od razu zamyka dotychczasowy bezpośredni adres dla innych osób.</p>
+                <p class="meta meta-samodzielne mt-2">Zmiana na „Prywatny” wyłącza publiczny dostęp do zeszytu.</p>
+            @endif
+            @if(! $collection->is_default)
+                <p class="meta meta-samodzielne mt-2" id="prywatny-zeszyt-dostep">Prywatny zeszyt widzisz Ty i osoby, które przyjęły zaproszenie. Zmiana widoczności nie odbiera im dostępu i nie odwołuje oczekujących zaproszeń.</p>
+                <a class="btn btn-secondary mt-2" href="{{ route('collections.sharing', $collection) }}">Kto ma dostęp</a>
             @endif
             <x-blad-grupy name="visibility" />
         </fieldset>

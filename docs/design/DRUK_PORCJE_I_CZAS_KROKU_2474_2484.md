@@ -10,6 +10,13 @@ Dotyczy otwarcia odnośnika w nowej karcie oraz działania bez skryptu;
 zwykłe kliknięcie przy działającym skrypcie nadal drukuje bieżący ekran.
 
 Odbiór układu A4 i zapisu jako PDF wymaga osobnego pomiaru przeglądarkowego.
+Pomiar `scripts/wydruk-przepisu.mjs` otwiera rzeczywisty odnośnik „Drukuj
+przepis” po wyborze 2, 6 i 4 porcji dla krótkiego i długiego przepisu. Sprawdza
+parametry odnośnika, przeliczenie na kartce i generuje osobny A4 PDF dla każdego
+wyboru, motywu i gościa/autora. Brak `porcje` w odnośniku dla wyboru różnego od
+liczby autora oblewa kontrolę ujemną. W CI tylko syntetyczne PDF-y z
+`storage/wydruk-765/*.pdf` są dostępne w artefakcie `wydruk-a4-<SHA>` przez
+trzy dni. Sam zielony pomiar nadal nie zastępuje obejrzenia stron PDF.
 
 ## #2484 — czas osobnego minutnika kroku
 
@@ -34,3 +41,6 @@ przeglądarka generuje pliki A4 PDF. Kontrola ujemna usuwa etykietę czasu
 z dokumentu i musi oblać pomiar. Sprawdzenie widocznego tekstu w print DOM
 oraz wygenerowanie PDF nie stanowią ekstrakcji tekstu z pliku PDF ani
 wizualnego odbioru całych kartek; te dwa odbiory trzeba odnotować osobno.
+W artefakcie są również `zeszyt-czas-*.pdf` dla obu motywów i obu stanów
+logowania. Odbiór wymaga sprawdzenia wszystkich stron obu ścieżek po pobraniu
+artefaktu z dokładnego, zielonego SHA; brak artefaktu oznacza brak odbioru.
