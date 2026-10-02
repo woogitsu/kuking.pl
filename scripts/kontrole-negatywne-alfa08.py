@@ -1348,6 +1348,8 @@ checks = [
     ("Prywatny zeszyt obiecuje odebranie dostepu (#2601)", "app/Http/Controllers/CollectionController.php",
      "test_prywatnosc_opisuje_zakres_i_nie_konczy_wspoldzielenia",
      lambda s: replace_once(s, "Zeszyt jest teraz prywatny. Publiczny dostęp został wyłączony.", "Zeszyt jest teraz widoczny tylko dla Ciebie.")),
+    ("OCR: błąd zdjęcia znika z opisu pola (#2586)", "resources/views/pages/import/zdjecie.blade.php", "brak_pliku_i_zly_format_wiaza_widoczny_blad_z_opisem_pola_po_http",
+     lambda s: replace_once(s, 'aria-describedby="f-zdjecie-help @error(\'zdjecie\') f-zdjecie-error @enderror"', 'aria-describedby="f-zdjecie-help"')),
     ("Spiżarnia usuwa bez pytania (#2467)", "resources/views/pages/pantry/_produkty.blade.php",
      "test_pierwszy_klik_w_spizarni_rozwija_pytanie_zamiast_kasowac_produkt", spizarnia_bez_potwierdzenia),
     ("Planer usuwa bez pytania (#2468)", "resources/views/pages/planer/show.blade.php",
