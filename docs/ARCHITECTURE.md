@@ -466,6 +466,13 @@ straciło aktywność. Cofnięcie istniejącego obserwowania pozostaje możliwe,
 także przez formularz zawierający wyłącznie usunięcia. Test dwóch połączeń
 rozstrzyga oba przeploty z sankcją konta (#2091).
 
+Każda zmiana wiersza `follows` na parze osób — `FollowUser`, `UnfollowUser`
+i `BlockUser` — idzie przez `ZamekPary` (wiersze `users` rosnąco po id), więc
+równoległe obserwuj, przestań obserwować i zablokuj ustawiają się w jednej
+kolejce: stan końcowy wynika z kolejności żądań, bez 40P01 i bez 23505 dla
+człowieka (#2404). Pilnuje tego `tests/Dwa/ObserwowanieIPrzestanObserwowacTenSamZamekParyTest.php`, a w CI `scripts/kontrola-negatywna-2404.py` sprawdza,
+że gołe `detach()` w `UnfollowUser` oblewa ten test.
+
 ## Wybór redakcyjny: jeden pełny zestaw i audyt w tej samej transakcji
 
 Tablica dnia i kolaż strony powitalnej zastępują cały wybór przez `DELETE`

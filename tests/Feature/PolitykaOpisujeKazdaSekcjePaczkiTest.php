@@ -44,6 +44,9 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         'wersje_przepisow' => 'przepisy wraz z ich wcześniejszymi wersjami',
         'wpisy' => '| Publikowanie treści |',
         'ugotowalem' => 'komentarze, „Ugotowałem” i zeszyty',
+        // Wskazówki od gotujących (#2352, D-333): obie strony tej samej tabeli.
+        'wskazowki_z_moich_wykonan' => '| Wskazówki od gotujących (',
+        'wskazowki_do_moich_przepisow' => '| Wskazówki od gotujących (',
         'moje_komentarze' => 'zdjęcia, przepisy wraz z ich wcześniejszymi wersjami, wpisy, komentarze',
         'kolekcje' => 'komentarze, „Ugotowałem” i zeszyty',
         'zeszyty_udostepnione_mi' => '| Wspólne zeszyty',
@@ -56,6 +59,7 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         // Paczka J (#27) dopisuje tę sekcję i wiersz polityki — fraza czeka tu na scalenie.
         'lista_zakupow' => '| Lista zakupów |',
         'postep_gotowania' => '| Zapamiętany postęp w trybie gotowania |',
+        'wspolne_gotowanie' => '| Wspólne gotowanie |',
         'ukryte' => '| Ukrywanie wpisów i osób',
         'moje_reakcje' => '| Reakcja „Smakowicie wygląda”',
         'moje_podziekowania' => '| „Dziękuję” pod cudzym komentarzem',

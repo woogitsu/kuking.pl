@@ -23,6 +23,7 @@ use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Support\Komunikat;
 use App\Support\OdpowiedziWatku;
 use App\Support\StaryAdresPrzepisu;
@@ -253,8 +254,16 @@ class CookedEventController extends Controller
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
         OdpowiedziWatku::uzupelnij($komentarze, $request, ['author.profile.avatar', 'cookedEvent.recipe']);
 
+        // Wskazówka (#2352) interesuje tylko dwie osoby: kucharza (odpowiada)
+        // i autora przepisu (prosi). Dla reszty nie pytamy bazy wcale.
+        $widz = $request->user();
+        $wskazowka = $widz !== null && ($widz->getKey() === $cookedEvent->user_id || $widz->getKey() === $cookedEvent->recipe?->author_id)
+            ? RecipeHint::query()->where('cooked_event_id', $cookedEvent->getKey())->with(['author', 'recipe'])->first()
+            : null;
+
         return view('pages.cooked.show', [
             'event' => $cookedEvent,
+            'wskazowka' => $wskazowka,
             // Tylko dla kucharza (#2378): przypięta wersja albo `null`.
             // Obcy nie dostaje nawet informacji, że wskaźnik istnieje.
             'wersjaWykonania' => $cookedEvent->user_id === $request->user()?->getKey()

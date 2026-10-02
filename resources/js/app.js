@@ -31,6 +31,7 @@ import './co-mam-w-domu.js';
 import './powiadomienia-push.js';
 import './drukuj-przepis.js';
 import './postep-importu.js';
+import './dyktowanie.js';
 import './powiadomienia-push-uzgodnij.js';
 import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika} from './minutnik-krok.js';
 import {podlaczKolejke} from './kolejka-gotowania.js';

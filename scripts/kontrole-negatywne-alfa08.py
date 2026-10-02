@@ -915,6 +915,16 @@ def zakupy_usun_bez_pytania(source):
     return source[:od] + dawny_formularz + source[do:]
 
 
+WYBOR_FORMY_WIDOK = "resources/views/components/wybor-formy.blade.php"
+DOSTEPNOSC_FORMY_TEST = "DostepnoscFormyIOnboardinguTest"
+
+
+def replace_wszystkie(source, old, new, ile):
+    if source.count(old) != ile:
+        raise RuntimeError("Kontrola nie znalazła oczekiwanej liczby miejsc mutacji.")
+    return source.replace(old, new)
+
+
 def remove_notice(source):
     start = source.index("@if($collectionError)")
     end = source.index("@endif", start) + len("@endif")
@@ -1333,6 +1343,23 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Wspólna sesja traci zamiennik autora (#2485)", "resources/views/pages/wspolne-gotowanie/show.blade.php",
+     "test_zamienniki_i_zdjecia_sa_przy_wlasciwych_elementach_dla_obu_rol",
+     lambda s: replace_once(s, '@if($skladnik->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $skladnik->substitutes }}</span>@endif', '')),
+    ("Wspólna sesja traci zdjęcie kroku (#2486)", "resources/views/pages/wspolne-gotowanie/show.blade.php",
+     "test_zamienniki_i_zdjecia_sa_przy_wlasciwych_elementach_dla_obu_rol",
+     lambda s: replace_once(s, '@if($krok->media)', '@if(false)')),
+    # #2449: osobno wykrycie jawnej zmiany i odmowa zgadywania starego wyboru.
+    ("Historia ignoruje wybór Bez ilości (#2449)", "app/Domain/Recipes/Historia/PorownanieWersji.php",
+     "test_jawna_zmiana_bez_ilosci_w_obie_strony_jest_widoczna_bez_zmiany_tekstu_autora",
+     lambda s: replace_once(s,
+         "if ($staryWybor !== null && $nowyWybor !== null && $staryWybor !== $nowyWybor) {",
+         "if (false) {")),
+    ("Historia zgaduje wybór w starej migawce (#2449)", "app/Domain/Recipes/Historia/PorownanieWersji.php",
+     "test_stara_migawka_bez_wyboru_nie_staje_sie_nie_a_pozostale_zmiany_sa_widoczne",
+     lambda s: replace_once(s,
+         "} elseif (($staryWybor === null) !== ($nowyWybor === null)) {",
+         "} elseif (false) {")),
     # #2291: regresja domyślnej konfiguracji ma zapalić odczyt `SHOW jit` na
     # rzeczywistym nowym połączeniu PostgreSQL, nie tylko test tekstu configu.
     ("Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)", "config/database.php", "PolaczenieBazyMaWylaczonyJitTest::swieze_polaczenie_aplikacji_ma_jit_off",
@@ -1572,6 +1599,26 @@ checks = [
      lambda s: replace_once(s,
          "@if($recipe->source_note || $recipe->source_person || $recipe->source_url || $recipe->family_since_year)",
          "@if($recipe->source_note || $recipe->source_person || $recipe->source_url)")),
+    # #2455: bez gałęzi liczby grupowanej parser zostawia ilość bez zmiany.
+    # Data provider wymaga prawidłowego wyniku także dla NBSP i zakresów.
+    ("Grupowanie tysięcy rozbite na fragmenty (#2455)", "app/Domain/Recipes/Porcje/PrzeliczSkladnik.php", "test_grupowanie_tysiecy_przelicza_cala_ilosc",
+     lambda s: replace_once(s, "|'.self::GRUPOWANA.'|", "|")),
+    ("Pasteryzacja znów zaleca piekarnik (#2434)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora",
+     lambda s: replace_once(s, "Ogrzewać przetwory, by ograniczyć drobnoustroje. Metodę, czas i temperaturę dobierz z przebadanych zaleceń dla konkretnego produktu i składu. Nie utrwalaj napełnionych słoików w zwykłym piekarniku. Sama gorąca woda nie wystarcza dla wszystkich przetworów.", "Podgrzewać zamknięte słoiki z zawartością w gorącej wodzie lub piekarniku, żeby przetwory dłużej się trzymały. Temperaturę i czas podaje autor przepisu, więc trzymaj się dokładnie jego wskazówek.")),
+    ("Uwaga słownika gwarantuje parametry autora (#2434)", "resources/views/components/terminy-kroku.blade.php", "test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora",
+     lambda s: replace_once(s, "To objaśnienie słowa, nie ocena bezpieczeństwa przepisu. Przy przetworach korzystaj z przebadanych zaleceń dla konkretnego produktu.", "To ogólne wyjaśnienie, nie część przepisu — w razie wątpliwości trzymaj się tego, co napisał autor.")),
+    # #2421: w oknie <= 16rem przy tekście 125/140% pasek górny odpina się,
+    # bo kolumnowy znak robi go wyższym niż rezerwa nad nim (WCAG 2.4.11).
+    ("Pasek przy kolumnowym znaku znowu przypięty", "resources/css/marka-rama.css", "PasekPrzyKolumnowymZnakuTest",
+     lambda s: replace_once(s, 'html:is([data-text-scale="125"], [data-text-scale="140"]) [data-marka] .marka-topbar { position: relative; top: 0; }', "")),
+    # #2343, recenzja paczki V: uwaga pod słownikiem terminów wróciłaby do
+    # .meta, czyli 16 px zamiast tekstu czytanego.
+    ("Uwaga słownika terminów wraca do .meta", "resources/views/components/terminy-kroku.blade.php", "test_uwaga_pod_slownikiem_ma_rozmiar_tekstu_czytanego_nie_meta",
+     lambda s: replace_once(s, '<p class="cook-terminy-uwaga">', '<p class="meta">')),
+    # Droga do bety: bez referencji ctx.shared zamknięcie rejestracji
+    # ustawione w panelu znika przy pierwszym `apply`.
+    ("Przełącznik rejestracji bez Shared Variable", ".railway/railway.ts", "ZamkniecieRejestracjiPrzezyjeApplyTest",
+     lambda s: replace_once(s, "KUKING_REGISTRATION_OPEN: ctx.shared.KUKING_REGISTRATION_OPEN,", "KUKING_REGISTRATION_OPEN: 'true',")),
     # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
     # wróciłby do zielonej plakietki także dla odmowy.
     ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",
@@ -2518,6 +2565,20 @@ checks = [
      lambda s: replace_once(s,
          "@if(($recipe->source_note || $recipe->source_person || $recipe->sourceScan) && ! $dlaPomocnika)",
          "@if(($recipe->source_note || $recipe->source_person) && ! $dlaPomocnika)")),
+    # #2405 (UX-001): błąd wyboru formy ma być powiązany z radiami.
+    ("Błąd wyboru formy bez stabilnego id (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, '<span class="field-error" id="f-form_of_address-error">', '<span class="field-error">')),
+    ("Radia formy nie wskazują błędu w aria-describedby (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, "'forma-zwracania-pomoc f-form_of_address-error'", "'forma-zwracania-pomoc'")),
+    ("Radia formy bez aria-invalid (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_wszystkie(s, '@if($maBlad) aria-invalid="true" @endif', '', 3)),
+    # #2406 (UX-002): onboarding oznacza bieżący krok.
+    ("Onboarding bez aria-current na bieżącym kroku (#2406)", "resources/views/pages/onboarding/interests.blade.php", DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, '<span class="wizard-steps-current" aria-current="step">', '<span class="wizard-steps-current">')),
+    ("Onboarding bez grupy z nazwą kroków (#2406)", "resources/views/pages/onboarding/people.blade.php", DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, ' role="group" aria-label="Postęp zakładania konta"', '')),
+    ("Odwołanie od blokady CSAM bez ochrony decyzji (#2427)", "app/Domain/Moderation/Actions/ResolveAppeal.php", "OdwolanieOdBlokadyCsamTest",
+     lambda s: replace_once(s, "&& $this->blokadaZDowodem($decyzja)", "&& false")),
     ("Fixture wspomnienia znika po północy w Polsce", "scripts/fixtures/rocznice-wykonania-s.php",
      "test_fixture_pomiaru_pokazuje_wspomnienie_po_polnocy_w_polsce",
      lambda s: replace_once(s, "$dzis->copy()->addDay()->subYear()", "$dzis->copy()->subYear()")),

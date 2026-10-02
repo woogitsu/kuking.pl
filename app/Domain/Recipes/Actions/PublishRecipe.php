@@ -405,11 +405,15 @@ final class PublishRecipe
             if ($existing === null) {
                 $payload['author_id'] = $author->getKey();
                 $payload['klucz_wyslania'] = $klucz;
-                $payload['slug'] = $this->slugs->handle($title);
                 $payload['status'] = $publish ? Recipe::STATUS_PUBLISHED : Recipe::STATUS_DRAFT;
                 $payload['published_at'] = $publish ? now() : null;
 
-                $recipe = Recipe::create($payload);
+                // Slug i insert razem, z ponowieniem przy równoległym zajęciu
+                // tego samego adresu (#2403).
+                $recipe = $this->slugs->zapisz(
+                    $title,
+                    static fn (string $slug): Recipe => Recipe::create([...$payload, 'slug' => $slug]),
+                );
             } else {
                 /*
                  * WIERSZ PRZEPISU POD BLOKADĄ, I DOPIERO POD NIĄ PYTAMY O STAN
@@ -505,9 +509,7 @@ final class PublishRecipe
 
                 // Slug zmieniamy tylko dla szkicu. Po publikacji adres
                 // przepisu jest obietnicą — ludzie go zapisują i wysyłają.
-                if (! $recipe->isPublished()) {
-                    $payload['slug'] = $this->slugs->handle($title, $recipe->getKey());
-                }
+                $zmienSlug = ! $recipe->isPublished();
 
                 // O zmianie statusu decyduje macierz przejść, nie pytanie
                 // „czy przepis jest już opublikowany" (audyt A08). Tamto
@@ -528,7 +530,16 @@ final class PublishRecipe
                 $byloUdostepnione = $recipe->isPublished() && $recipe->visibility !== 'private';
 
                 $recipe->forceFill(['content_revision' => $recipe->content_revision + 1]);
-                $recipe->update($payload);
+
+                if ($zmienSlug) {
+                    $this->slugs->zapisz(
+                        $title,
+                        static fn (string $slug): bool => $recipe->update([...$payload, 'slug' => $slug]),
+                        $recipe->getKey(),
+                    );
+                } else {
+                    $recipe->update($payload);
+                }
             }
 
             $skladnikiPrzed = $existing === null ? [] : $this->odciskSkladnikowDlaAlergenow(

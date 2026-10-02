@@ -16,6 +16,7 @@ use App\Models\CommentThank;
 use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
 use App\Models\CookingProgress;
+use App\Models\CookingSession;
 use App\Models\Hide;
 use App\Models\MealPlanEntry;
 use App\Models\Notification;
@@ -24,6 +25,7 @@ use App\Models\PostReaction;
 use App\Models\Profile;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Models\RecipeVersion;
 use App\Models\ShoppingListItem;
 use App\Models\User;
@@ -186,6 +188,9 @@ final class CollectUserExportData
             'przepisy' => $this->recipes($user, $photos),
             'wpisy' => $this->posts($user, $photos),
             'ugotowalem' => $this->cookedEvents($user, $photos),
+            // Wskazówki od gotujących (#2352, D-333), obie strony.
+            'wskazowki_z_moich_wykonan' => $this->hintsAsCook($user),
+            'wskazowki_do_moich_przepisow' => $this->hintsAsAuthor($user),
             'moje_komentarze' => $this->ownComments($user),
             'kolekcje' => $this->collections($user),
             // Wspólne zeszyty (#1743, D-302) — w granicach RODO art. 15 ust. 4,
@@ -211,6 +216,7 @@ final class CollectUserExportData
             'obserwowane_tagi' => $this->followedTags($user),
             'co_mam_w_domu' => $this->pantry($user),
             'postep_gotowania' => $this->postepGotowania($user),
+            'wspolne_gotowanie' => $this->wspolneGotowanie($user),
             'ukryte' => $this->hides($user),
             // „Smakowicie wygląda" (#1813, D-280): napisane przez tę osobę
             // i otrzymane pod jej wpisami. Otrzymane z nazwą konta — autor
@@ -1175,6 +1181,75 @@ final class CollectUserExportData
         })->values()->all();
     }
 
+    /**
+     * Wskazówki z MOICH wykonań (#2352): moja uwaga, kto o nią prosił i co
+     * odpowiedziałem. Tytuł i autor przepisu — wyłącznie gdy przepis widać
+     * dziś (jak w `ugotowalem`, B2-06).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function hintsAsCook(User $user): array
+    {
+        $stany = [
+            RecipeHint::STATUS_PROPOSED => 'czeka na moją odpowiedź',
+            RecipeHint::STATUS_ACCEPTED => 'zgoda udzielona, wskazówka stoi przy przepisie',
+            RecipeHint::STATUS_DECLINED => 'odpowiedź: „Nie”',
+            RecipeHint::STATUS_WITHDRAWN => 'zgoda wycofana',
+            RecipeHint::STATUS_CANCELLED => 'autor przepisu wycofał prośbę',
+        ];
+
+        return RecipeHint::query()
+            ->where('cook_id', $user->getKey())
+            ->with(['recipe.author.profile', 'cookedEvent'])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (RecipeHint $hint): array => [
+                'przepis' => $this->granica->widzi($hint->recipe) ? $hint->recipe->title : self::TRESC_NIEDOSTEPNA,
+                'autor_przepisu' => $this->granica->widzi($hint->recipe) ? $hint->recipe->author?->displayName() : null,
+                'moja_uwaga' => $hint->cookedEvent?->note,
+                'stan' => $hint->wygasla() ? 'prośba wygasła bez odpowiedzi' : ($stany[$hint->status] ?? $hint->status),
+                'prosba_z_dnia' => $this->date($hint->created_at),
+                'odpowiedz_z_dnia' => $this->date($hint->decided_at),
+                'zgoda_wycofana_dnia' => $this->date($hint->withdrawn_at),
+                // Ukrycie przez moderację (#2352) jest decyzją wobec MOJEJ uwagi
+                // (DSA art. 17), więc kucharz ma o nim w paczce; autor przepisu nie.
+                'ukryta_przez_moderacje_dnia' => $this->date($hint->moderation_hidden_at),
+            ])->values()->all();
+    }
+
+    /**
+     * Prośby o wskazówki do MOICH przepisów (#2352). Bez cudzych danych:
+     * ani nazwy kucharza, ani jego tekstu. Odmowa i wycofanie zgody wyglądają
+     * tu tak samo — autor nie dowiaduje się, która z nich to była.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function hintsAsAuthor(User $user): array
+    {
+        return RecipeHint::query()
+            ->where('author_id', $user->getKey())
+            ->with('recipe')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (RecipeHint $hint): array => [
+                'przepis' => $hint->recipe?->title,
+                'prosba_z_dnia' => $this->date($hint->created_at),
+                // Wygasła prośba wygląda jak „Nie”: autor nie ma poznać różnicy.
+                'stan' => match (true) {
+                    $hint->wygasla() => 'nie jest dostępna jako wskazówka',
+                    $hint->status === RecipeHint::STATUS_PROPOSED => 'czeka na odpowiedź',
+                    $hint->status === RecipeHint::STATUS_CANCELLED => 'anulowana przeze mnie',
+                    // Ukrycie przez moderację nie jest autorowi opisywane: wygląda
+                    // jak „Nie” i wycofanie zgody (tego, kto zdecydował, nie ujawniamy).
+                    $hint->status === RecipeHint::STATUS_ACCEPTED && ! $hint->jestUkrytaPrzezModeracje() => 'stoi przy przepisie jako wskazówka',
+                    default => 'nie jest dostępna jako wskazówka',
+                },
+                'wersja_przepisu_z_chwili_prosby' => $hint->recipe_version_number,
+            ])->values()->all();
+    }
+
     /** @return list<array<string, mixed>> */
     private function followedTags(User $user): array
     {
@@ -1258,6 +1333,50 @@ final class CollectUserExportData
                     'przygotowane_skladniki' => $widoczny ? $skladniki : [],
                     'ostatnia_zmiana' => $this->date($postep->updated_at),
                     'wygasa' => $this->date($postep->expires_at),
+                ];
+            })->all();
+    }
+
+    /**
+     * Wspólne gotowanie (#2385) — trwające sesje, w których osoba jest
+     * gospodarzem albo pomocnikiem. Rola, tytuł przepisu (tylko gdy osoba
+     * widzi go dziś), numery kroków odhaczonych PRZEZ TĘ OSOBĘ i termin
+     * ważności. Bez tokenów i skrótów oraz bez danych drugiej osoby — nazwę
+     * drugiej osoby widać na ekranie sesji, ale to jej dane, nie paczki.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function wspolneGotowanie(User $user): array
+    {
+        $id = (string) $user->getKey();
+
+        return CookingSession::query()
+            ->where('expires_at', '>', now())
+            ->where(fn ($q) => $q
+                ->where('host_id', $id)
+                ->orWhereIn('id', DB::table('cooking_session_participants')->where('user_id', $id)->select('session_id')))
+            ->with('recipe')
+            ->orderBy('created_at')
+            ->get()
+            ->map(function (CookingSession $sesja) use ($id): array {
+                $odhaczone = DB::table('cooking_session_steps')
+                    ->where('session_id', $sesja->getKey())
+                    ->where('done_by_id', $id)
+                    ->pluck('step_id')
+                    ->all();
+                $numery = [];
+                foreach ($sesja->recipe->steps()->orderBy('position')->pluck('id')->all() as $pozycja => $krokId) {
+                    if (in_array($krokId, $odhaczone, true)) {
+                        $numery[] = $pozycja + 1;
+                    }
+                }
+
+                return [
+                    'rola' => $sesja->host_id === $id ? 'gospodarz' : 'pomocnik',
+                    'przepis' => $this->granica->widzi($sesja->recipe) ? $sesja->recipe->title : self::TRESC_NIEDOSTEPNA,
+                    'kroki_odhaczone_przeze_mnie' => $numery,
+                    'zalozona' => $this->date($sesja->created_at),
+                    'wygasa' => $this->date($sesja->expires_at),
                 ];
             })->all();
     }

@@ -12,12 +12,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use Tests\TestCase;
 
-/** Link miniatury w wierszowej karcie przepisu musi mieć własną nazwę (#2063). */
+/** Karta przepisu ma jeden nazwany link (#2063); w wierszu rozciągnięty na całą kartę (1.10.2026). */
 class LinkMiniaturyPrzepisuMaNazweTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_pusta_nazwa_zdjecia_nie_pozostawia_linku_miniatury_bez_nazwy(): void
+    public function test_wiersz_ma_jeden_link_do_przepisu_z_tytulem_a_miniatura_nie_jest_linkiem(): void
     {
         $media = Media::factory()->create(['alt_text' => null]);
         $recipe = Recipe::factory()->create([
@@ -27,16 +27,21 @@ class LinkMiniaturyPrzepisuMaNazweTest extends TestCase
         ]);
 
         $xpath = $this->karta($recipe, 'wiersz');
-        $link = '//article//a[contains(concat(" ", normalize-space(@class), " "), " recipe-card-miniatura ")]';
 
-        $this->assertSame(1, $xpath->query($link)->length);
-        $this->assertSame(route('recipes.show', $recipe->slug), $xpath->evaluate('string('.$link.'/@href)'));
-        $this->assertSame('Zobacz przepis: '.$recipe->title, $xpath->evaluate('string('.$link.'/@aria-label)'));
-        $this->assertSame('', $xpath->evaluate('string('.$link.'//img/@alt)'));
+        // Cała karta jest klikalna jednym linkiem tytułu (nakładka `::after`),
+        // więc czytnik ekranu nie dostaje drugiego linku z miniatury.
+        $this->assertSame(0, $xpath->query('//article//a[contains(concat(" ", normalize-space(@class), " "), " recipe-card-miniatura ")]')->length);
+        $this->assertSame(1, $xpath->query('//article//a')->length);
+        $this->assertSame(1, $xpath->query('//article[contains(concat(" ", normalize-space(@class), " "), " recipe-card-wiersz ")]//div[contains(concat(" ", normalize-space(@class), " "), " recipe-card-miniatura ")]//img')->length);
+        // Brak opisu zdjęcia = pusty alt (miniatura ozdobna), a nie nazwa pliku ani brak atrybutu.
+        $miniatura = '//article//div[contains(concat(" ", normalize-space(@class), " "), " recipe-card-miniatura ")]//img';
+        $this->assertSame(1, $xpath->query($miniatura.'[@alt=""]')->length);
+        $this->assertSame(route('recipes.show', $recipe->slug), $xpath->evaluate('string(//article//h3/a[contains(concat(" ", normalize-space(@class), " "), " link-tytul ")]/@href)'));
         $this->assertSame($recipe->title, trim($xpath->evaluate('string(//article//h3/a)')));
+        $this->assertSame(0, $xpath->query('//a//a')->length);
     }
 
-    public function test_link_miniatury_nazywa_cel_takze_przy_autorskim_opisie_zdjecia(): void
+    public function test_autorski_opis_zdjecia_zostaje_na_miniaturze_wiersza(): void
     {
         $media = Media::factory()->create(['alt_text' => 'Miseczka zupy']);
         $recipe = Recipe::factory()->create([
@@ -46,10 +51,12 @@ class LinkMiniaturyPrzepisuMaNazweTest extends TestCase
         ]);
 
         $xpath = $this->karta($recipe, 'wiersz');
-        $link = '//article//a[contains(concat(" ", normalize-space(@class), " "), " recipe-card-miniatura ")]';
 
-        $this->assertSame('Zobacz przepis: Zupa jarzynowa', $xpath->evaluate('string('.$link.'/@aria-label)'));
-        $this->assertSame('Miseczka zupy', $xpath->evaluate('string('.$link.'//img/@alt)'));
+        $this->assertSame(
+            'Miseczka zupy',
+            $xpath->evaluate('string(//article//div[contains(concat(" ", normalize-space(@class), " "), " recipe-card-miniatura ")]//img/@alt)'),
+        );
+        $this->assertSame(1, $xpath->query('//article//a')->length);
     }
 
     public function test_kafel_zachowuje_jeden_nazwany_link_bez_linku_miniatury(): void

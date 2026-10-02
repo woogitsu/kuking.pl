@@ -56,6 +56,35 @@ return [
     ],
 
     /*
+     * WSKAZÓWKI OD GOTUJĄCYCH (#2352, D-333) — autor przepisu proponuje, by
+     * uwagę z cudzego wykonania pokazać przy jego przepisie; kucharz się
+     * zgadza albo nie.
+     *
+     * `na_przepis_max` — ile wskazówek (czekających i przyjętych, bez ukrytych
+     * przez moderację) może mieć jeden przepis; przywrócenie ukrytej wolno
+     * ponad nim, a `na_stronie_max` to sufit tego, co strona pokazuje. Granica nie układa niczego według popularności
+     * (AGENTS.md §8, §12): chroni stronę przepisu przed ścianą cytatów i
+     * kucharzy przed lawiną próśb. Wskazówki idą w kolejności zgód, bez
+     * rankingu, wszystkie na jednej stronie. `na_dobe_max` — ile próśb
+     * jeden autor może wysłać w dobie (nie wpływa na przyjęte).
+     */
+    'wskazowki' => [
+        'na_przepis_max' => 10,
+        'na_dobe_max' => 10,
+        // Twardy sufit liczby wskazówek POKAZYWANYCH na stronie przepisu
+        // (decyzja właściciela z 1.10.2026: ukryta wskazówka zwalnia miejsce
+        // w limicie, a jej przywrócenie wolno ponad `na_przepis_max`). Założenie:
+        // ponad 10 stoją tylko wskazówki przywrócone przez moderację, więc
+        // 20 starcza z zapasem; sufit nie jest drugim limitem próśb.
+        'na_stronie_max' => 20,
+        // Czekająca prośba wygasa po tylu dniach od `created_at` (decyzja
+        // właściciela z 1.10.2026): przestaje liczyć się do limitu na przepis
+        // i nie da się na nią odpowiedzieć „Zgadzam się”. Wygaśnięcie to koniec
+        // — nowej prośby o to samo wykonanie nie ma (bez presji na kucharza).
+        'prosba_wygasa_po_dniach' => 30,
+    ],
+
+    /*
      * „ZUŻYJ W PIERWSZEJ KOLEJNOŚCI” (#1903, D-333) — terminy przy produktach
      * z „Co mam w domu”.
      *
@@ -627,7 +656,13 @@ return [
     'kanal_cache_sekund' => (int) env('KUKING_KANAL_CACHE_SEKUND', 300),
 
     'account' => [
-        'registration_open' => (bool) env('KUKING_REGISTRATION_OPEN', true),
+        // Pusty napis = brak = OTWARTA. Railway przekazuje niezałożoną Shared
+        // Variable jako pusty napis, a `(bool) ''` to `false` — rejestracja
+        // zamknęłaby się sama po `apply`. Zamyka tylko jawne „false”/„0”;
+        // wartość niezrozumiała też zamyka (kierunek bezpieczny).
+        'registration_open' => in_array(env('KUKING_REGISTRATION_OPEN'), [null, ''], true)
+            ? true
+            : filter_var(env('KUKING_REGISTRATION_OPEN'), FILTER_VALIDATE_BOOL),
 
         // Minimalny wiek. Oświadczenie przy rejestracji — bez weryfikacji
         // tożsamości (docs/legal/COMPLIANCE.md).
@@ -2129,6 +2164,15 @@ return [
         'zakupy' => '120,10',
 
         /*
+         * WSKAZÓWKI OD GOTUJĄCYCH (#2352, D-333) — prośba autora i odpowiedź
+         * kucharza („Zgadzam się”, „Nie”, „Wycofaj zgodę”). To są pojedyncze,
+         * świadome kliknięcia; próg zatrzymuje pętlę, która przy każdym obrocie
+         * budziłaby kogoś powiadomieniem. Dobowy limit próśb jest osobno,
+         * w akcji (`kuking.wskazowki.na_dobe_max`).
+         */
+        'wskazowki' => '30,10',
+
+        /*
          * PLANER TYGODNIA — ODCZYT (`GET /planer`, #2037).
          *
          * Od wyszukiwania przepisu przy każdym dniu ta sama trasa, która
@@ -3346,6 +3390,26 @@ return [
         // Wygasły wiersz jest ignorowany przy odczycie i kasowany co noc
         // przez `kuking:sprzataj-postep-gotowania`.
         'retention_hours' => 24,
+    ],
+
+    'wspolne_gotowanie' => [
+        // Wspólne gotowanie gospodarza i do trzech pomocników (#2385, `docs/product/PROJEKT_WSPOLNE_GOTOWANIE_2385.md`).
+        // Ile godzin od ZAŁOŻENIA sesja jest ważna. Termin jest stały (bez
+        // przedłużania aktywnością): sesja nie ma stawać się trwałą historią
+        // konta. Wygasła jest niewidoczna, a nocne
+        // `kuking:sprzataj-wspolne-gotowanie` ją kasuje.
+        'retencja_godziny' => 24,
+
+        // Ile godzin żyje link zaproszenia (nigdy dłużej niż sesja). Link jest
+        // wielorazowy: wpuszcza kolejne osoby aż do `max_pomocnikow`.
+        'link_godziny' => 24,
+
+        // Ilu pomocników obok gospodarza: do trzech (decyzja właściciela z
+        // 1.10.2026, wiersz „#2385” w D-333). Jeden link wpuszcza do tylu osób (decyzja z 1.10.2026).
+        'max_pomocnikow' => 3,
+
+        // Ile niewygasłych sesji naraz może mieć jeden gospodarz.
+        'max_sesji_gospodarza' => 5,
     ],
 
     'sessions' => [

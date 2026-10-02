@@ -33,6 +33,7 @@
             <x-field :name="'steps.'.$index.'.instruction'" :label="'Krok '.($index + 1).': co się robi'" type="textarea" :rows="3"
                      :wire="'steps.'.$index.'.instruction'" :value="$row['instruction'] ?? ''"
                      :placeholder="$index === 0 ? 'Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny.' : null" />
+            <x-dyktowanie :cel="'f-steps-'.$index.'-instruction'" />
 
             {{-- `x-field` wolno tu użyć, choć nazwa ma kropki: kreator
                  wysyła dane przez `wire:model`, a nie POST-em, więc

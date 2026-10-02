@@ -318,6 +318,17 @@ Harmonogram::artisan('kuking:sprzataj-postep-gotowania')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 02:30 — przed całym nocnym pasmem sprzątania (odstęp 15 minut od 02:45;
+// `HarmonogramBezWspolnychSlotowTest`). Wygasłe sesje wspólnego gotowania
+// (#2385): ważne `config('kuking.wspolne_gotowanie.retencja_godziny')` godzin
+// od założenia. Odczyt ignoruje wygasłe sesje sam; to zadanie zabiera dane.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:sprzataj-wspolne-gotowanie')
+    ->name('kuking:sprzataj-wspolne-gotowanie')
+    ->dailyAt('02:30')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // 02:45 — przed całym nocnym pasmem sprzątania (pierwsze zadanie o 03:00,
 // odstęp 15 minut; `HarmonogramBezWspolnychSlotowTest`). Minuta 45 dzieli
 // godzinę z zadaniami godzinowymi i `*/15`, ale nie ich wyrażenie cron

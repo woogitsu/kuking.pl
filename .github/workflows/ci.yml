@@ -1662,6 +1662,13 @@ jobs:
           PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: node scripts/port-projektu.mjs
 
+      # #2405: ta sama baza i Chromium, tylko dwa formularze wyboru.
+      # Sprawdza prawdziwy błąd walidacji, klawiaturę, 320 px i 200%.
+      - name: Wybór formy — 320 px, 200% i klawiatura po błędzie
+        env:
+          DB_DATABASE: kuking_port_pomiar
+        run: node scripts/wybor-formy-ci.mjs
+
       # #492 (decyzja właściciela z 29.09.2026, D-333): cztery pomiary #713,
       # do tej pory uruchamiane ręcznie, chodzą w CI. Stoją PO
       # `port-projektu.mjs`, bo ten zakłada `kuking_port_pomiar` i sieje

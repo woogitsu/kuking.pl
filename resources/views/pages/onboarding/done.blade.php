@@ -1,12 +1,12 @@
 <x-layout title="Gotowe" :noindex="true">
-    <p class="wizard-steps">
-        <span class="wizard-steps-current">Krok 3 z 3</span>
+    <div class="wizard-steps" role="group" aria-label="Postęp zakładania konta">
+        <span class="wizard-steps-current" aria-current="step">Krok 3 z 3</span>
         <span class="wizard-steps-track" aria-hidden="true">
             <span class="wizard-steps-dot" data-done="true"></span>
             <span class="wizard-steps-dot" data-done="true"></span>
             <span class="wizard-steps-dot" data-done="true"></span>
         </span>
-    </p>
+    </div>
 
     <h1>Wszystko gotowe, {{ $name }}</h1>
 
@@ -42,6 +42,7 @@
     @if($profile && \App\Support\Forma::wyborDostepny())
         <section class="ramka-pomocnicza mt-8">
             <h2 class="mt-0">Jedno pytanie, jeśli chcesz</h2>
+            <x-error-summary />
             <x-wybor-formy :profile="$profile" :akcja="route('onboarding.form_of_address')" />
         </section>
     @endif

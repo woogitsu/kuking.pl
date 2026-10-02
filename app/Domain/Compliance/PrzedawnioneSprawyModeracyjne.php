@@ -173,7 +173,11 @@ final class PrzedawnioneSprawyModeracyjne
     {
         return Appeal::query()
             ->whereIn('status', [Appeal::STATUS_UPHELD, Appeal::STATUS_OVERTURNED])
-            ->where('decided_at', '<', $prog);
+            ->where('decided_at', '<', $prog)
+            ->whereNotExists(fn (QueryBuilder $q) => $q->select(DB::raw(1))
+                ->from('moderation_actions as dowod_decyzji')
+                ->whereColumn('dowod_decyzji.id', 'appeals.moderation_action_id')
+                ->whereExists(self::zabezpieczony('dowod_decyzji')));
     }
 
     /**
@@ -252,6 +256,7 @@ final class PrzedawnioneSprawyModeracyjne
     {
         return ModerationAction::query()
             ->where('created_at', '<', $prog)
+            ->whereNotExists(self::zabezpieczony('moderation_actions'))
             ->whereNotExists($this->odwolaniePodzapytanie($prog, tylkoZywe: false));
     }
 
@@ -273,7 +278,8 @@ final class PrzedawnioneSprawyModeracyjne
     {
         return Report::query()
             ->whereIn('status', [Report::STATUS_RESOLVED, Report::STATUS_REJECTED])
-            ->where('resolved_at', '<', $prog);
+            ->where('resolved_at', '<', $prog)
+            ->whereNotExists(self::zabezpieczony('reports'));
     }
 
     /**
@@ -339,5 +345,23 @@ final class PrzedawnioneSprawyModeracyjne
         }
 
         return [$usuniete, $bledy];
+    }
+
+    /**
+     * Podzapytanie: sprawa (zgłoszenie albo decyzja) dotyczy obiektu
+     * zabezpieczonego jako dowód (ścieżka CSAM, D-333). Takiej sprawy
+     * retencja NIE zabiera — razem z nią zniknęłby ślad, dlaczego obiekt
+     * jest zabezpieczony i kto go zabezpieczył.
+     *
+     * @return \Closure(QueryBuilder): void
+     */
+    private static function zabezpieczony(string $tabela): \Closure
+    {
+        return static function (QueryBuilder $query) use ($tabela): void {
+            $query->select(DB::raw(1))
+                ->from('zabezpieczenia_dowodow')
+                ->whereColumn('zabezpieczenia_dowodow.target_type', $tabela.'.target_type')
+                ->whereColumn('zabezpieczenia_dowodow.target_id', $tabela.'.target_id');
+        };
     }
 }

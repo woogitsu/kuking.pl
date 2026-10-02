@@ -45,6 +45,14 @@ Wiersz przeżywa wersję (retencja wersji, usunięcie przepisu) tak jak każda
 decyzja przeżywa treść — `target_id` nie ma klucza obcego. Zapis:
 `App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu`.
 
+**`target_type = 'recipe_hint'` (#2352, decyzja właściciela z 1.10.2026).**
+Ukrycie samej wskazówki od gotujących: `action = hide`, `target_id` =
+`recipe_hints.id`, `subject_user_id` = **kucharz** (autor uwagi, nie autor
+przepisu), `report_id` = zgłoszenie (albo `appeal_id` przy nowej decyzji po
+odwołaniu zgłaszającego). Cofnięcie po uznanym odwołaniu to `unhide`
+(`reason_code = appeal_overturned`). Kolumna nie ma CHECK-a, więc nowy typ nie
+zmienia tu schematu.
+
 Od migracji `2026_09_06_100000_add_context_to_moderation_actions` (issues #65 i #10)
 wiersz zapisuje dwie rzeczy więcej:
 
@@ -132,6 +140,69 @@ odwołanie przed jego własnym czasem (ADR §4). Kolejność w komendzie:
 `appeals` → `moderation_actions` → `reports`. Zapytanie idzie wprost do tabeli
 `appeals` przez `moderation_action_id`, a nie przez nazwaną relację Eloquent —
 blokada działa przy każdym żywym odwołaniu, niezależnie od roli odwołującego.
+
+### zabezpieczenia_dowodow
+**Rejestr dowodów zabezpieczonych przed usunięciem** — ścieżka CSAM w panelu
+moderacji („CSAM — natychmiast ukryj i zabezpiecz”), D-333 (wiersz z 1.10.2026).
+Migracja `2026_10_01_150000_create_zabezpieczenia_dowodow_table`. Procedura:
+`docs/legal/MODERATION_PLAYBOOK.md` §7.1, `docs/flota/CSAM_JEDNA_KARTKA.md`.
+
+To **jedno miejsce**, które mówi „tego obiektu nie wolno skasować żadną drogą”.
+Pytają o nie: `PrzedawnioneUsunieteTresci` (retencja usuniętych treści),
+`PrzedawnioneWersjePrzepisow`, `PrzedawnioneSprawyModeracyjne` (sprawa o
+zabezpieczony obiekt nie jest kasowana po 36 miesiącach), `KasujZdjecie`,
+`EraseAccountData` (konto z zabezpieczonym dowodem nie jest wymazywane) i
+`RestoreContent` (zabezpieczona treść nie wraca, także po wygranym odwołaniu).
+Pytania zadaje `App\Support\ZabezpieczoneDowody`.
+
+- `id uuid` PK;
+- `target_type varchar(30) NOT NULL` — `post`, `recipe`, `comment` albo
+  `media` (CHECK `zabezpieczenia_dowodow_target_type_check`); `target_id uuid
+  NOT NULL`. Bez klucza obcego — obiekt bywa skasowany z innych powodów, a
+  rejestr ma po tym zostać. **UNIQUE** (`target_type`, `target_id`): jeden
+  obiekt zabezpiecza się raz;
+- `subject_user_id uuid NULL` → `users` (`ON DELETE SET NULL`) — autor treści
+  albo właściciel zdjęcia. **NULL = nie znamy autora.** Konto z takim wierszem
+  nie jest wymazywane (anonimizacja zabrałaby dane, o które zapyta organ);
+- `report_id uuid NULL` → `reports` (`ON DELETE SET NULL`) — zgłoszenie, z
+  którego wyszła akcja. **NULL = akcja ze strony treści, bez zgłoszenia.**
+- `moderation_action_id uuid NULL` → `moderation_actions` (`ON DELETE SET
+  NULL`) — decyzja „Usuń treść” zapisana przy zabezpieczeniu;
+- `secured_by uuid NULL` → `users` (`ON DELETE SET NULL`) — moderator;
+- `previous_media_status varchar(20) NULL` — **tylko dla `target_type = 'media'`
+  i wtedy obowiązkowe**: status zdjęcia SPRZED zabezpieczenia (`pending`,
+  `processing`, `ready`, `rejected`). Dla wpisu, przepisu i komentarza **zawsze
+  NULL** (CHECK `zabezpieczenia_dowodow_previous_media_status_check`).
+  Potrzebne człowiekowi, który kiedyś — po decyzji prawnika — będzie
+  przywracał zdjęcie;
+- `note varchar(2000) NULL` — notatka wewnętrzna moderatora, **bez opisu
+  materiału**;
+- `secured_at timestamptz NOT NULL DEFAULT now()`.
+
+**Zlecenie przeniesienia wariantów (#2437):** dla nowo zabezpieczonego zdjęcia
+wiersz w `jobs` (kolejka `media`) powstaje w tej samej transakcji co
+`zabezpieczenia_dowodow` i `media.status = secured` — wspólne połączenie
+PostgreSQL, `after_commit=false`. Nie ma nowej tabeli ani migracji. Po
+ukończeniu worker wpisuje do JSONB `media.metadata` znacznik
+`warianty_dowodu_przeniesione_at`; istniejący `/health` wykrywa jego brak po
+15 minutach. Wartość `null` albo pusta nie wycisza alarmu. Jeśli wariant nadal
+leży na wspólnym publicznym `r2_legacy`, worker nie zapisuje znacznika i nie
+usuwa oryginału. Znacznik nie znaczy, że osobny purge CDN już się zakończył.
+Diagnostyka i bezpieczne pojedyncze ponowienie: `docs/infra/CSAM_KOLEJKA_2437.md`.
+
+Zabezpieczenie przepisu obejmuje **całą jego historię wersji**
+(`recipe_versions`) — wersje przepisu nie mają własnego wiersza w rejestrze,
+chroni je wiersz przepisu.
+
+**Nie ma `released_at` i nie ma drogi z panelu, która zdejmuje wiersz.** To
+świadome: kiedy i na czyje polecenie wolno skasować dowód, ma rozstrzygnąć
+prawnik (playbook §7.1a, pytanie 2). Do tego czasu zabezpieczenie jest
+bezterminowe — błąd w bezpieczną stronę.
+
+**Rollback (D-088): ODMAWIA**, gdy tabela nie jest pusta — zrzucenie rejestru
+zdjęłoby ochronę ze wszystkich dowodów naraz, a najbliższa noc retencji by je
+skasowała. Na pustej tabeli `down()` ją usuwa. Test odmowy i kontrola
+dodatnia: `tests/Feature/CofniecieMigracjiZabezpieczonychDowodowOdmawiaTest.php`.
 
 ### appeals
 Odwołania od decyzji moderacyjnych — **AUTORA treści I ZGŁASZAJĄCEGO**
