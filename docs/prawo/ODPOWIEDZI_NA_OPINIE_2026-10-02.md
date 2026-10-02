@@ -62,6 +62,13 @@ Ten plik zestawia każdą odpowiedź z tym, co jest dziś w kodzie i na produkcj
 4. **Beta: tylko osoby pełnoletnie, znane właścicielowi** (pytanie 12). Regulamin
    zostaje przy 16+.
 
+5. **EmailLabs: historyczne dane o otwarciach usunięte** (potwierdzenie właściciela, pytanie 16).
+6. **Dane spółki:** sąd rejestrowy w Białymstoku, kapitał zakładowy 5 000,00 zł.
+   Dopisane do regulaminu, punkt 1 (pytanie 14).
+7. **SAMSUFI jest mikroprzedsiębiorstwem** (oświadczenie właściciela, pytanie 10).
+   Przed publicznym startem 16+ zalecana jest jeszcze pisemna notatka z danymi
+   (zatrudnienie, obrót lub suma bilansowa, powiązania).
+
 Punkty oznaczone wyżej jako DECYZJA przy pytaniach 6, 9, 12 i 15 są tym rozstrzygnięte.
 Otwarta zostaje data wejścia regulaminu dla bety (pytanie 4).
 
