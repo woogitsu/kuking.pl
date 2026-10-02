@@ -46,7 +46,7 @@ Przy zmianie schematu dopisz opis do pliku obszaru (z planem wycofania, AGENTS.m
 | [`importy-i-ai`](baza/importy-i-ai.md) | Importy przepisów i budżet AI | importy_przepisow, ai_budzet_dzienny, ai_rezerwacje, proby_importu, przepisy_z_importu, wczytane_z_paczki |
 | [`logowanie-sesje-tokeny`](baza/logowanie-sesje-tokeny.md) | Logowanie bez hasła, zaproszenia, sesje, tokeny | pending_email_changes, login_link_tokens, registration_invites, cache, password_reset_tokens, personal_access_tokens, sessions |
 | [`sygnaly-i-tagi`](baza/sygnaly-i-tagi.md) | Sygnały produktowe i tagi | product_signals, tags, tag_aliases, post_tags, tag_follows, tag_promotions, tag_highlights |
-| [`planowanie-v2`](baza/planowanie-v2.md) | Planer, lista zakupów, spiżarnia i gotowanie (V2) | meal_plan_entries, shopping_list_items, shopping_list_undos, pantry_items, cooking_progress, weekly_recipe_picks |
+| [`planowanie-v2`](baza/planowanie-v2.md) | Planer, lista zakupów, spiżarnia i gotowanie (V2) | meal_plan_entries, shopping_list_items, shopping_list_undos, pantry_items, cooking_progress, weekly_recipe_picks, cooking_notes |
 | [`wyszukiwarka-i-wybory-dnia`](baza/wyszukiwarka-i-wybory-dnia.md) | Wyszukiwarka i wybory redakcyjne | daily_picks, hero_picks (+ funkcja kuking_normalize, kolumny *_search) |
 | [`budzet-polaczen`](baza/budzet-polaczen.md) | Budżet połączeń PostgreSQL (issue #598) | (bez tabel: połączenia PostgreSQL) |
 | [`migracje-danych-i-wdrozenia`](baza/migracje-danych-i-wdrozenia.md) | Migracje danych i `wdrozenia` | wdrozenia, wdrozenia_funkcje |

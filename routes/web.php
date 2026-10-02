@@ -40,6 +40,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
 use App\Http\Controllers\CookingModeController;
 use App\Http\Controllers\CspReportController;
+use App\Http\Controllers\DopisekGotowaniaController;
 use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
@@ -395,6 +396,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/przepisy/{recipe}/gotuj/postep', [CookingModeController::class, 'postepZapamietany'])
         ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
         ->name('cooking.sync.postep');
+    // Prywatny roboczy dopisek podczas gotowania (#2587): zwykłe POST-y,
+    // nic się nie publikuje, każde wejście przechodzi przez Policy.
+    Route::post('/przepisy/{recipe}/gotuj/dopisek', [DopisekGotowaniaController::class, 'zapisz'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.dopisek.zapisz');
+    Route::post('/przepisy/{recipe}/gotuj/dopisek/usun', [DopisekGotowaniaController::class, 'usun'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.dopisek.usun');
 });
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');

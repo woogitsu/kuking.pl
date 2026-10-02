@@ -820,6 +820,27 @@ trafi tam pierwszy rekord.
   WŁAŚCICIELA** z DPA i ustawień konta (dzienniki żądań). W repozytorium nie
   ma żadnego pobierania dzienników Cloudflare do serwisu.
 
+### 3.29 Prywatny roboczy dopisek z gotowania (V2, issue #2587)
+
+- **Cel:** zanotowanie przy garnku zmiany w przepisie i świadome użycie jej
+  później w formularzu „Ugotowałem”.
+- **Dane:** identyfikator konta i przepisu, krótki tekst wpisany przez osobę
+  (do 500 znaków), numer rewizji, daty ostatniej zmiany i wygaśnięcia
+  (`cooking_notes`). Tylko dla zalogowanych; goście tej funkcji nie mają.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — funkcja, z której osoba świadomie
+  korzysta, tak jak z planu na tydzień. Weryfikacja przez prawnika zostaje w #8.
+- **Odbiorcy:** Railway. Dane widzi wyłącznie właściciel
+  (`CookingNotePolicy`); nic nie jest wysyłane do podmiotów trzecich, nie
+  trafia do adresu, cache, telemetrii ani do autora przepisu. Do pola „Coś po
+  swojemu?” (widocznego przy wykonaniu) przechodzi tylko na prośbę osoby.
+- **Termin usunięcia:** 24 godziny od ostatniej zmiany
+  (`kuking.cooking_note.retention_hours`; wygasły wiersz jest ignorowany przy
+  odczycie, a `kuking:sprzataj-postep-gotowania` kasuje go co noc o 03:00),
+  zapisanie wykonania tego przepisu, przycisk „Usuń dopisek” albo wymazanie
+  konta (`EraseAccountData`).
+- **Eksport:** `dopiski_z_gotowania` (tytuł przepisu tylko gdy przepis jest
+  dziś widoczny dla osoby, treść dopisku, daty).
+
 ---
 
 ## 4. Kategorie odbiorców (art. 30 ust. 1 lit. d)

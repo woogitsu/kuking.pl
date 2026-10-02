@@ -72,6 +72,7 @@ final class InwentarzDanychKonta
         'tag_follows.user_id' => [self::EKSPORT, 'obserwowane_tagi'],
         'pantry_items.user_id' => [self::EKSPORT, 'co_mam_w_domu'],
         'cooking_progress.user_id' => [self::EKSPORT, 'postep_gotowania'],
+        'cooking_notes.user_id' => [self::EKSPORT, 'dopiski_z_gotowania'],
         'hides.user_id' => [self::EKSPORT, 'ukryte'],
         'post_reactions.user_id' => [self::EKSPORT, 'moje_reakcje'],
         'comment_thanks.thanker_id' => [self::EKSPORT, 'moje_podziekowania'],

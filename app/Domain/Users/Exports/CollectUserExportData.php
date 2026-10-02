@@ -15,6 +15,7 @@ use App\Models\Comment;
 use App\Models\CommentThank;
 use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
+use App\Models\CookingNote;
 use App\Models\CookingProgress;
 use App\Models\Hide;
 use App\Models\MealPlanEntry;
@@ -211,6 +212,7 @@ final class CollectUserExportData
             'obserwowane_tagi' => $this->followedTags($user),
             'co_mam_w_domu' => $this->pantry($user),
             'postep_gotowania' => $this->postepGotowania($user),
+            'dopiski_z_gotowania' => $this->dopiskiZGotowania($user),
             'ukryte' => $this->hides($user),
             // „Smakowicie wygląda" (#1813, D-280): napisane przez tę osobę
             // i otrzymane pod jej wpisami. Otrzymane z nazwą konta — autor
@@ -1216,6 +1218,28 @@ final class CollectUserExportData
                 'rodzaj_terminu' => $produkt->expiry_kind,
                 'ilosc' => $produkt->quantity_note,
                 'mrozone' => (bool) $produkt->frozen,
+            ])->all();
+    }
+
+    /**
+     * Prywatne, robocze dopiski z gotowania (#2587) — tylko niewygasłe.
+     * Tekst jest własnością osoby, więc idzie w całości; tytuł przepisu
+     * tylko wtedy, gdy przepis widać dziś pod jego adresem (jak w `postepGotowania`).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function dopiskiZGotowania(User $user): array
+    {
+        return $user->cookingNotes()
+            ->where('expires_at', '>', now())
+            ->with('recipe')
+            ->orderBy('updated_at')
+            ->get()
+            ->map(fn (CookingNote $dopisek): array => [
+                'przepis' => $this->granica->widzi($dopisek->recipe) ? $dopisek->recipe->title : self::TRESC_NIEDOSTEPNA,
+                'tresc' => $dopisek->body,
+                'ostatnia_zmiana' => $this->date($dopisek->updated_at),
+                'wygasa' => $this->date($dopisek->expires_at),
             ])->all();
     }
 
