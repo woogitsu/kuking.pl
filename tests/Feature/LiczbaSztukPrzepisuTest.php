@@ -443,6 +443,10 @@ class LiczbaSztukPrzepisuTest extends TestCase
             foreach ((new DOMXPath($li->ownerDocument))->query('.//span', $li) as $span) {
                 $span->parentNode?->removeChild($span);
             }
+            // Blok „Przelicz” (#2533) to podpowiedź na żądanie, nie tekst składnika.
+            foreach (iterator_to_array((new DOMXPath($li->ownerDocument))->query('.//details[@data-przelicz-miare]', $li)) as $blok) {
+                $blok->parentNode?->removeChild($blok);
+            }
 
             $wynik[] = trim((string) preg_replace('/\s+/u', ' ', $li->textContent));
         }
