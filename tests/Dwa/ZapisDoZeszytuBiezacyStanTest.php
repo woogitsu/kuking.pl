@@ -12,6 +12,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Report;
 use App\Models\User;
+use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use PDO;
@@ -108,7 +109,7 @@ final class ZapisDoZeszytuBiezacyStanTest extends TestDwochPolaczen
 
         if ($saveFirst) {
             // Kontrola wspólnej granicy: zmiana naprawdę czeka na zapis.
-            $changePid = $this->waitFor($change['name'], null);
+            $changePid = $this->waitFor($change['name'], $savingPid);
             $this->assertNotSame($savingPid, $changePid);
             $this->zwolnijBariere($barrier);
             $saved = $saving->wynik(12);
@@ -201,6 +202,39 @@ final class ZapisDoZeszytuBiezacyStanTest extends TestDwochPolaczen
         }
     }
 
+    public function test_przyrzad_czeka_na_wlasciwa_bariere_po_obcym_locku(): void
+    {
+        $name = 'zeszyt-bariera-'.bin2hex(random_bytes(5));
+        $gate = $this->nowePolaczenie();
+        $gate->prepare('SELECT pg_advisory_lock(9159, hashtext(?))')->execute([$name]);
+        $target = $this->bariera('SELECT pg_advisory_xact_lock(9160, hashtext(?))', [$name]);
+
+        $holder = $this->workerBariery('hold', ['name' => $name.'-holder', 'key' => $name]);
+        $holderPid = $this->waitFor($name.'-holder', $gate);
+        $probe = $this->workerBariery('probe', ['name' => $name.'-probe', 'key' => $name]);
+        $sawForeignLock = false;
+
+        try {
+            $probePid = $this->waitFor($name.'-probe', $target, function (int $pid, string $blockers) use ($holderPid, $gate, $name, &$sawForeignLock): void {
+                $this->assertSame('{'.$holderPid.'}', $blockers, 'Przyrząd musi najpierw zobaczyć obcą blokadę.');
+                $this->assertNotSame($holderPid, $pid);
+                $sawForeignLock = true;
+                $release = $gate->prepare('SELECT pg_advisory_unlock(9159, hashtext(?))');
+                $release->execute([$name]);
+                $this->assertContains($release->fetchColumn(), [true, 't', '1']);
+            });
+
+            $this->assertTrue($sawForeignLock, 'ZESZYT_2598_OBCY_LOCK_POMINIETY: przyrząd nie zobaczył wcześniejszej obcej blokady.');
+            $this->assertNotSame($holderPid, $probePid, 'ZESZYT_2598_WLASCIWA_BARIERA: przyrząd zwrócił PID obcego procesu.');
+        } finally {
+            $gate->prepare('SELECT pg_advisory_unlock(9159, hashtext(?))')->execute([$name]);
+            $this->zwolnijBariere($target);
+        }
+
+        $this->assertTrue($holder->wynik(12)['ok']);
+        $this->assertTrue($probe->wynik(12)['ok']);
+    }
+
     /**
      * @param  array<string, string>  $change
      * @return array{0: string, 1: array<string, string>}
@@ -243,21 +277,38 @@ final class ZapisDoZeszytuBiezacyStanTest extends TestDwochPolaczen
         return $worker;
     }
 
-    /** Czeka, aż proces o tej nazwie stoi w kolejce po blokadę (i czyją). */
-    private function waitFor(string $name, ?PDO $barrier): int
+    /** @param array<string, string> $args */
+    private function workerBariery(string $scenario, array $args): ProcesRownolegly
     {
-        $ownerPid = $barrier !== null ? (int) $barrier->query('SELECT pg_backend_pid()')->fetchColumn() : null;
-        $query = $this->obserwator->prepare("SELECT pid, pg_blocking_pids(pid)::text AS blockers FROM pg_stat_activity WHERE application_name = ? AND wait_event_type = 'Lock'");
+        $worker = ProcesRownolegly::start(__DIR__.'/bin/bariera-zeszytu.php', $scenario, $args, [
+            'DB_DATABASE' => $this->baza, 'APP_ENV' => 'testing',
+        ]);
+        $this->workers[] = $worker;
+
+        return $worker;
+    }
+
+    /** Czeka na blokadę trzymaną przez wskazany proces, nie na dowolny wcześniejszy lock. */
+    private function waitFor(string $name, PDO|int $barrier, ?Closure $onForeignLock = null): int
+    {
+        $ownerPid = $barrier instanceof PDO
+            ? (int) $barrier->query('SELECT pg_backend_pid()')->fetchColumn()
+            : $barrier;
+        $query = $this->obserwator->prepare("SELECT pid, pg_blocking_pids(pid)::text AS blockers, CASE WHEN CAST(? AS integer) = ANY(pg_blocking_pids(pid)) THEN 1 ELSE 0 END AS expected FROM pg_stat_activity WHERE application_name = ? AND wait_event_type = 'Lock'");
         $deadline = microtime(true) + 6;
         do {
-            $query->execute([$name]);
+            $query->execute([$ownerPid, $name]);
             $row = $query->fetch(PDO::FETCH_ASSOC);
             if ($row) {
-                if ($ownerPid !== null) {
-                    $this->assertStringContainsString((string) $ownerPid, $row['blockers']);
-                }
+                if ((int) $row['expected'] === 1) {
+                    $this->assertNotSame($ownerPid, (int) $row['pid']);
 
-                return (int) $row['pid'];
+                    return (int) $row['pid'];
+                }
+                if ($onForeignLock !== null) {
+                    $onForeignLock((int) $row['pid'], (string) $row['blockers']);
+                    $onForeignLock = null;
+                }
             }
             usleep(10000);
         } while (microtime(true) < $deadline);
