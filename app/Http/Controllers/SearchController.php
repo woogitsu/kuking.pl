@@ -151,6 +151,23 @@ class SearchController extends Controller
         if ($obserwowani && $section === 'wszystko') {
             $section = 'przepisy';
         }
+        // ZWYKŁY SKŁADNIK DO POMINIĘCIA (V2, #2526): jedno opcjonalne
+        // kryterium `bez_skladnika=…`, bezstanowe jak alergeny — wybór żyje
+        // wyłącznie w adresie. Warunek NA PRZEPISY: „Wszystko" z filtrem
+        // staje się „Przepisy", a na „Ludziach" filtr jest pomijany.
+        // Zła nazwa (za długa, bez liter) NIE filtruje po cichu: ekran mówi,
+        // co poprawić, i pokazuje wyniki bez tego filtra.
+        $bezSkladnika = null;
+        $bladSkladnika = null;
+        $skladnikWpisany = '';
+        if ($section !== 'ludzie') {
+            $surowySkladnik = $request->query('bez_skladnika');
+            $skladnikWpisany = is_string($surowySkladnik) ? trim($surowySkladnik) : '';
+            ['wartosc' => $bezSkladnika, 'blad' => $bladSkladnika] = SearchQuery::skladnikDoPominiecia($surowySkladnik);
+            if ($bezSkladnika !== null && $section === 'wszystko') {
+                $section = 'przepisy';
+            }
+        }
         // „Do 20 zł" to przepisy z kosztem wg autora (D-286).
         $maksKosztZl = $section === 'tanie' ? KosztPrzepisu::TANIE_DO : null;
         $szukaPrzepisow = in_array($section, ['wszystko', 'przepisy', 'tanie'], true);
@@ -191,6 +208,7 @@ class SearchController extends Controller
         $parametry = array_filter(['q' => $phrase, 'sekcja' => $section, 'czas' => $maksMinut,
             'bez' => $bezAlergenow === [] ? null : $bezAlergenow,
             'obserwowani' => $obserwowani ? 1 : null,
+            'bez_skladnika' => $bezSkladnika,
             'ile_przepisow' => $ilePrzepisow, 'ile_osob' => $ileOsob,
             'od_przepisu' => $odPrzepisu, 'od_osoby' => $odOsoby,
             'po_przepisie' => $poPrzepisie, 'po_osobie' => $poOsobie], fn ($v) => $v !== null);
@@ -214,7 +232,7 @@ class SearchController extends Controller
         $przepisy = $szukaPrzepisow && $searchErrors->isEmpty()
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
             // (issue #41). Bez niego blokada kończyła się na widoku i liście.
-            ? $this->search->recipes($phrase, $request->user(), $ilePrzepisow + 1, $maksMinut, $odPrzepisu, $maksKosztZl, $poPrzepisie, $bezAlergenow, $obserwowani)
+            ? $this->search->recipes($phrase, $request->user(), $ilePrzepisow + 1, $maksMinut, $odPrzepisu, $maksKosztZl, $poPrzepisie, $bezAlergenow, $obserwowani, $bezSkladnika)
             : collect();
 
         // Zakładka „Ludzie" liczy się DOKŁADNIE TAK SAMO, a nie „przy okazji".
@@ -298,6 +316,9 @@ class SearchController extends Controller
             'maksMinut' => $maksMinut,
             'czasNieznany' => $czasNieznany,
             'bezAlergenow' => $bezAlergenow,
+            'bezSkladnika' => $bezSkladnika,
+            'bladSkladnika' => $bladSkladnika,
+            'skladnikWpisany' => $skladnikWpisany,
             'bezNieznane' => $bezNieznane,
             'obserwowani' => $obserwowani,
             'obserwowaniGosc' => $obserwowaniGosc,
