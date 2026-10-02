@@ -87,6 +87,13 @@
          z przeglądarki. Tylko gdy jest co drukować — przepisy widoczne dla
          oglądającego (`$recipes->total()` liczy je tym samym zakresem).
          Zwykły odnośnik z tekstem, działa bez JavaScriptu. --}}
+    {{-- „Zaplanuj wybrane przepisy” (#2483): tylko właściciel zeszytu, do własnego planera. --}}
+    @can('planuj', $collection)
+        @if($recipes->total() > 0)
+            <p class="mb-5"><a class="btn btn-secondary" href="{{ route('collections.planer', $collection) }}">Zaplanuj wybrane przepisy</a></p>
+        @endif
+    @endcan
+
     @if($recipes->total() > 0)
         <p class="mb-5"><a class="btn btn-secondary" href="{{ route('collections.print', ['collection' => $collection, 'druk' => 1]) }}#jak-wydrukowac" rel="nofollow">Wydrukuj zeszyt</a></p>
     @endif

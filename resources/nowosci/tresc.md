@@ -54,6 +54,10 @@ Ugotowaliście ten sam przepis kilka razy i chcecie wiedzieć, co się zmieniło
 
 Szukacie obiadu, ale dziś bez brokułu? W wyszukiwarce przepisów jest nowa, zwijana sekcja „Bez wskazanego składnika (nieobowiązkowe)”. Wpisujecie jeden produkt, klikacie „Szukaj”, a wyniki pomijają przepisy, w których autor zapisał go w składnikach — także w innej odmianie. Nad wynikami widać, co pomijamy, i jest przycisk „Usuń filtr”. Uwaga: to nie jest sprawdzenie alergenów ani składu gotowych produktów — działamy na tekście, który napisał autor przepisu, więc przy gotowych produktach zawsze czytajcie etykietę. Nic o Was nie zapamiętujemy.
 
+### Zaplanuj wybrane przepisy z zeszytu
+
+Zebraliście w zeszycie zupę, pieczeń i deser na niedzielny obiad? Na stronie własnego zeszytu jest przycisk „Zaplanuj wybrane przepisy”. Zaznaczacie przepisy, wybieracie jeden dzień w Planerze i widzicie podgląd: co dodamy, a co już tam jest. Dopiero po zatwierdzeniu przepisy trafiają do planu na ten dzień. Nic się nie dzieje bez Waszego kliknięcia, a notatki z zeszytu zostają w zeszycie.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.
