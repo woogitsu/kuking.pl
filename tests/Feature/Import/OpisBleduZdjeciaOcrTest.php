@@ -62,12 +62,9 @@ final class OpisBleduZdjeciaOcrTest extends TestCase
             'brak pliku' => [],
             'niedozwolony format' => ['zdjecie' => UploadedFile::fake()->create('kartka.txt', 1, 'text/plain')],
         ] as $przypadek => $dane) {
-            $this->actingAs($this->osoba)->from(route('import.zdjecie'))
-                ->post(route('import.zlec'), $dane)
-                ->assertRedirect(route('import.zdjecie'))
-                ->assertSessionHasErrors('zdjecie');
-
-            $html = $this->actingAs($this->osoba)->get(route('import.zdjecie'))->assertOk()->getContent();
+            $html = $this->followingRedirects()->actingAs($this->osoba)->from(route('import.zdjecie'))
+                ->post(route('import.zlec'), $dane)->assertOk()->getContent();
+            $this->followRedirects = false;
             [$xpath, $pole] = $this->pole($html);
 
             $this->assertSame('true', $pole->getAttribute('aria-invalid'), $przypadek);
