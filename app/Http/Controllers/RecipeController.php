@@ -11,6 +11,7 @@ use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
 use App\Domain\Recipes\Actions\ZrobWlasnaWersje;
 use App\Domain\Recipes\CoMoznaDopisac;
 use App\Domain\Recipes\ExistingStepDuplicates;
+use App\Domain\Recipes\FrazaWSzkicach;
 use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
@@ -196,7 +197,11 @@ class RecipeController extends Controller
     {
         // Odłożone na później (#2550) to ta sama lista, osobny widok: `?odlozone=1`.
         $odlozone = $request->query('odlozone') === '1';
-        $zapytanie = $request->user()->recipes()->where('status', Recipe::STATUS_DRAFT);
+        // „Szukaj w szkicach” (#2435): zakres autora i `status = draft` jest w zapytaniu
+        // PRZED frazą; fraza tylko zawęża (tytuł, `FrazaWSzkicach`).
+        $fraza = FrazaWSzkicach::zAdresu($request->query('szukaj'));
+        $zapytanie = $request->user()->recipes()->where('status', Recipe::STATUS_DRAFT)
+            ->tap(fn ($query) => $fraza->zawez($query));
         $drafts = KursorListy::strona(
             ($odlozone ? $zapytanie->whereNotNull('odlozony_at') : $zapytanie->whereNull('odlozony_at'))
                 ->orderByDesc('updated_at')
@@ -213,7 +218,17 @@ class RecipeController extends Controller
             ->whereNotNull('odlozony_at')
             ->count();
 
+        // Pusty wynik w jednej zakładce nie znaczy „nie ma takiego szkicu”: mówimy, ile pasuje w drugiej.
+        $wDrugiejZakladce = 0;
+        if ($fraza->aktywna() && $drafts->isEmpty()) {
+            $drugie = $request->user()->recipes()->where('status', Recipe::STATUS_DRAFT)
+                ->tap(fn ($query) => $fraza->zawez($query));
+            $wDrugiejZakladce = ($odlozone ? $drugie->whereNull('odlozony_at') : $drugie->whereNotNull('odlozony_at'))->count();
+        }
+
         return view('pages.recipes.drafts', [
+            'fraza' => $fraza,
+            'wDrugiejZakladce' => $wDrugiejZakladce,
             'drafts' => $drafts,
             'odlozone' => $odlozone,
             'liczbaOdlozonych' => $liczbaOdlozonych,
