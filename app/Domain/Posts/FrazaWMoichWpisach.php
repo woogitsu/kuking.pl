@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Posts;
 
-use App\Domain\Search\SearchQuery;
 use App\Models\Post;
 use App\Support\FrazaWyszukiwania;
 use Illuminate\Database\Eloquent\Builder;
@@ -43,8 +42,8 @@ final class FrazaWMoichWpisach
             return new self('', null);
         }
 
-        if (mb_strlen($fraza) > SearchQuery::MAX_PHRASE_LENGTH) {
-            return new self($fraza, 'Skróć tekst w polu „'.self::ETYKIETA.'” do '.SearchQuery::MAX_PHRASE_LENGTH.' znaków i spróbuj ponownie.');
+        if (mb_strlen($fraza) > FrazaWyszukiwania::MAX_DLUGOSC) {
+            return new self($fraza, 'Skróć tekst w polu „'.self::ETYKIETA.'” do '.FrazaWyszukiwania::MAX_DLUGOSC.' znaków i spróbuj ponownie.');
         }
 
         // Długość PO normalizacji (#1050): fraza z samych emoji znika w `Str::ascii()`.

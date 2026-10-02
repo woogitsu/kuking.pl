@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes;
 
-use App\Domain\Search\SearchQuery;
 use App\Models\Recipe;
 use App\Support\FrazaWyszukiwania;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
  * (`kuking_normalize`), fraza przez `FrazaWyszukiwania` — „zurek” znajdzie
  * „Żurek”, wielkość liter nie ma znaczenia, a `%` i `_` są zwykłym tekstem
  * (#753). Te same progi długości (2 znaki po normalizacji, #1050; najwyżej
- * `SearchQuery::MAX_PHRASE_LENGTH`) i ten sam układ zdań błędu.
+ * `FrazaWyszukiwania::MAX_DLUGOSC`) i ten sam układ zdań błędu.
  *
  * GŁÓWNA WYSZUKIWARKA SIĘ NIE ZMIENIA. `SearchQuery` nadal widzi tylko
  * opublikowane przepisy; ta klasa jest wywoływana WYŁĄCZNIE na zapytaniu,
@@ -44,8 +43,8 @@ final class FrazaWSzkicach
             return new self('', null);
         }
 
-        if (mb_strlen($fraza) > SearchQuery::MAX_PHRASE_LENGTH) {
-            return new self($fraza, 'Skróć tekst w polu „'.self::ETYKIETA.'” do '.SearchQuery::MAX_PHRASE_LENGTH.' znaków i spróbuj ponownie.');
+        if (mb_strlen($fraza) > FrazaWyszukiwania::MAX_DLUGOSC) {
+            return new self($fraza, 'Skróć tekst w polu „'.self::ETYKIETA.'” do '.FrazaWyszukiwania::MAX_DLUGOSC.' znaków i spróbuj ponownie.');
         }
 
         // Długość PO normalizacji (#1050): fraza z samych emoji znika w `Str::ascii()`.

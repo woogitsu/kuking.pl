@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Planer\Actions;
 
-use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Planer\AktywneKontoPlanu;
 use App\Domain\Planer\PlanerTygodnia;
+use App\Domain\Planer\PrzepisyZeszytuDlaPlanu;
 use App\Domain\Planer\ZakresDatPlanu;
 use App\Models\Collection;
 use App\Models\MealPlanEntry;
@@ -50,7 +50,7 @@ final class DodajZestawDoPlanu
     public const MAKS_WYBRANYCH = 50;
 
     public function __construct(
-        private readonly WidocznaZawartoscZeszytu $zawartosc = new WidocznaZawartoscZeszytu,
+        private readonly PrzepisyZeszytuDlaPlanu $zawartosc,
         private readonly RecipePolicy $przepisy = new RecipePolicy,
     ) {}
 

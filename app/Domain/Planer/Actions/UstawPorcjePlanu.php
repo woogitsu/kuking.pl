@@ -6,7 +6,7 @@ namespace App\Domain\Planer\Actions;
 
 use App\Domain\Planer\AktywneKontoPlanu;
 use App\Domain\Planer\PlanerTygodnia;
-use App\Domain\Recipes\Porcje\WyborPorcji;
+use App\Domain\Planer\PorcjePrzepisuDlaPlanu;
 use App\Models\MealPlanEntry;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\DB;
  *
  * Ustawia ŻĄDANĄ wartość (pusta = wyczyść, wrócą ilości autora). Walidację i
  * zakres 1–100 daje istniejący `WyborPorcji` (ten sam parser co `?porcje=`),
- * nie osobna reguła. To tylko zapis planu osoby: nie zmienia przepisu, dnia,
+ * nie osobna reguła — przez kontrakt `PorcjePrzepisuDlaPlanu`, bo Planer nie
+ * importuje modułu `Recipes` (`GrafModulowDomenyBezCykliTest`). To tylko zapis planu osoby: nie zmienia przepisu, dnia,
  * `done_at` ani `updated_at`, nie tworzy zakupów ani wykonań.
  *
  * Konto i pozycja są czytane pod blokadą (jak `ZapiszDopisekPlanu`); cudza
@@ -40,6 +41,10 @@ final class UstawPorcjePlanu
 
     /** Przepis nie podaje liczby porcji, więc nie ma od czego liczyć. */
     public const BEZ_PODSTAWY = 'bez_podstawy';
+
+    public function __construct(
+        private readonly PorcjePrzepisuDlaPlanu $porcje,
+    ) {}
 
     /**
      * @return self::ZASTOSOWANO|self::JUZ_TAK_BYLO|self::KONFLIKT|self::BRAK|self::NIE_DOTYCZY|self::NIEPRAWIDLOWE|self::BEZ_PODSTAWY
@@ -74,17 +79,17 @@ final class UstawPorcjePlanu
 
             $nowa = null;
             if ($wartosc !== null) {
-                $wybor = WyborPorcji::dla($przepis, $wartosc);
+                $porcje = $this->porcje->porcje($przepis, $wartosc);
 
-                if (! $wybor->dostepny()) {
+                if ($porcje === PorcjePrzepisuDlaPlanu::BEZ_PODSTAWY) {
                     return self::BEZ_PODSTAWY;
                 }
 
-                if ($wybor->odrzucone || $wybor->wybrane === null || $wybor->wybrane < WyborPorcji::NAJMNIEJ || $wybor->wybrane > WyborPorcji::NAJWIECEJ) {
+                if (! is_float($porcje)) {
                     return self::NIEPRAWIDLOWE;
                 }
 
-                $nowa = round($wybor->wybrane, 2);
+                $nowa = round($porcje, 2);
             }
 
             if (self::rowne($wpis->planned_servings, $nowa)) {

@@ -83,14 +83,18 @@ final class PlanerPorcjeTest extends TestCase
         $this->ustaw($ja, $sroda, '2')->assertRedirect()->assertSessionHas('status');
         $this->ustaw($ja, $niedziela, '6')->assertRedirect();
 
-        $this->assertSame(2.0, $sroda->refresh()->planned_servings);
-        $this->assertSame(6.0, $niedziela->refresh()->planned_servings);
+        $odczyt1 = $sroda->refresh()->planned_servings;
+        $this->assertSame(2.0, $odczyt1);
+        $odczyt3 = $niedziela->refresh()->planned_servings;
+        $this->assertSame(6.0, $odczyt3);
         $this->assertSame(4.0, (float) $zupa->fresh()->servings, 'Receptura autora nie zmienia się.');
 
         // Zmiana jednej pozycji nie rusza drugiej.
         $this->ustaw($ja, $sroda, '3')->assertRedirect();
-        $this->assertSame(3.0, $sroda->refresh()->planned_servings);
-        $this->assertSame(6.0, $niedziela->refresh()->planned_servings);
+        $odczyt2 = $sroda->refresh()->planned_servings;
+        $this->assertSame(3.0, $odczyt2);
+        $odczyt4 = $niedziela->refresh()->planned_servings;
+        $this->assertSame(6.0, $odczyt4);
     }
 
     public function test_link_z_planera_niesie_porcje_a_brak_wyboru_otwiera_ilosci_autora(): void
@@ -327,9 +331,11 @@ final class PlanerPorcjeTest extends TestCase
         // Kontrola dodatnia: bez zapisanych liczb rollback i ponowne wdrożenie przechodzą.
         DB::table('meal_plan_entries')->update(['planned_servings' => null]);
         Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
-        $this->assertSame(0, $this->kolumny());
+        $odczyt5 = $this->kolumny();
+        $this->assertSame(0, $odczyt5);
         Artisan::call('migrate', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
-        $this->assertSame(1, $this->kolumny());
+        $odczyt6 = $this->kolumny();
+        $this->assertSame(1, $odczyt6);
     }
 
     private function kolumny(): int

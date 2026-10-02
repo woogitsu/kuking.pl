@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\Wspoldzielenie\ZerwijWspoldzielenie;
 use App\Domain\Import\BramkaPublikacjiOdczytu;
 use App\Domain\Import\ModelFragmentow;
@@ -15,11 +16,14 @@ use App\Domain\Moderation\CofniecieUkryciaWersji;
 use App\Domain\Moderation\KolejkiPanelu;
 use App\Domain\Notifications\Push\TransportPush;
 use App\Domain\Notifications\Push\TransportWebPush;
+use App\Domain\Planer\PorcjePrzepisuDlaPlanu;
+use App\Domain\Planer\PrzepisyZeszytuDlaPlanu;
 use App\Domain\Questions\PytaniaBezOdpowiedzi;
 use App\Domain\Recipes\Actions\ZapiszSzkicZPaczki;
 use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Domain\Recipes\Gotowanie\Wspolne\KoniecWspolnegoGotowaniaImpl;
 use App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu;
+use App\Domain\Recipes\Porcje\PorcjePrzepisuPlanu;
 use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
 use App\Domain\Social\Actions\ObserwujGospodarza;
 use App\Domain\Social\BlokadyZmienione;
@@ -103,6 +107,12 @@ class AppServiceProvider extends ServiceProvider
         // D-302): kontrakt w `Users`, implementacja w `Collections` — bez
         // cyklu `Social ↔ Collections` i `Users → Collections → Social`.
         $this->app->bind(KoniecWspolnychZeszytow::class, ZerwijWspoldzielenie::class);
+
+        // Planer (#2483, #2509) czyta zeszyt i porcje przez kontrakty: kontrakt
+        // w `Planer`, implementacja w `Collections` i `Recipes` — bez cykli
+        // `Users → Planer → Collections → Users` i `Planer ↔ Recipes`.
+        $this->app->bind(PrzepisyZeszytuDlaPlanu::class, WidocznaZawartoscZeszytu::class);
+        $this->app->bind(PorcjePrzepisuDlaPlanu::class, PorcjePrzepisuPlanu::class);
 
         // Koniec wspólnego gotowania przy blokadzie i wymazaniu konta (#2385):
         // ten sam wzór — kontrakt w `Users`, implementacja w `Recipes`.

@@ -198,7 +198,8 @@ final class ZakupyPrzeliczonePorcjeTest extends TestCase
 
         $this->dodaj(['porcje' => '2', 'odcisk' => $odcisk])
             ->assertRedirect(route('shopping.recipe.confirm', ['recipe' => $this->przepis->slug, 'porcje' => '2', 'odcisk' => $odcisk]));
-        $this->assertSame(4, ShoppingListItem::query()->count(), 'Ostrzeżenie niczego nie dopisuje.');
+        $odczyt1 = ShoppingListItem::query()->count();
+        $this->assertSame(4, $odczyt1, 'Ostrzeżenie niczego nie dopisuje.');
 
         $html = (string) $this->actingAs($this->ja)
             ->get(route('shopping.recipe.confirm', ['recipe' => $this->przepis->slug, 'porcje' => '2', 'odcisk' => $odcisk]))
@@ -207,7 +208,8 @@ final class ZakupyPrzeliczonePorcjeTest extends TestCase
         $this->assertStringContainsString('name="odcisk" value="'.$odcisk.'"', $html);
 
         $this->dodaj(['potwierdzam' => 1, 'porcje' => '2', 'odcisk' => $odcisk])->assertRedirect(route('shopping.index'));
-        $this->assertSame(8, ShoppingListItem::query()->count());
+        $odczyt2 = ShoppingListItem::query()->count();
+        $this->assertSame(8, $odczyt2);
         $this->assertSame(4, ShoppingListItem::query()->whereNotNull('scaled_servings')->count());
     }
 
@@ -345,9 +347,11 @@ final class ZakupyPrzeliczonePorcjeTest extends TestCase
 
         DB::table('shopping_list_items')->update(['scaled_servings' => null]);
         Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
-        $this->assertSame(0, $this->kolumny());
+        $odczyt3 = $this->kolumny();
+        $this->assertSame(0, $odczyt3);
         Artisan::call('migrate', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
-        $this->assertSame(1, $this->kolumny());
+        $odczyt4 = $this->kolumny();
+        $this->assertSame(1, $odczyt4);
     }
 
     public function test_ten_sam_mechanizm_co_strona_przepisu(): void

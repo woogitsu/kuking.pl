@@ -290,8 +290,11 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
         $this->assertSame(1, $zaproszenie->length);
         $this->assertSame(1, $karta->length);
 
+        // Od #2708 (zapamiętaj mnie) drogi dostawców to przyciski formularza GET
+        // z `formaction`, a nie linki — liczymy jedno i drugie.
         $wejscia = $xpath->query(
-            ".//a[contains(@href, '/wejdz/google')] | .//a[contains(@href, '/wejdz/facebook')]",
+            ".//a[contains(@href, '/wejdz/google')] | .//a[contains(@href, '/wejdz/facebook')]"
+            ." | .//button[contains(@formaction, '/wejdz/google')] | .//button[contains(@formaction, '/wejdz/facebook')]",
             $zaproszenie->item(0),
         );
         $this->assertNotFalse($wejscia);
@@ -307,7 +310,11 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
         $this->assertSame(1, $dane->length);
         $this->assertStringContainsString('Nie bierzemy zdjęcia', $dane->item(0)->textContent);
         $this->assertNotSame(0, $wejscia->item(1)->compareDocumentPosition($dane->item(0)) & \DOMNode::DOCUMENT_POSITION_FOLLOWING);
-        $this->assertSame(0, $xpath->query('.//form', $zaproszenie->item(0))->length);
+        // W lewej kolumnie nie ma formularza logowania; jedyny formularz to pusty
+        // GET dostawców (#2708), do którego przyciski i „Zapamiętaj mnie” są
+        // podpięte atrybutem `form`.
+        $this->assertSame(0, $xpath->query(".//form[not(starts-with(@id, 'wejscie-dostawcy-'))]", $zaproszenie->item(0))->length);
+        $this->assertSame(0, $xpath->query(".//form[starts-with(@id, 'wejscie-dostawcy-') and not(translate(@method, 'get', 'GET') = 'GET')]", $zaproszenie->item(0))->length);
         $formularz = $xpath->query('./form[contains(@class,"panel-formularza")]', $karta->item(0));
         $this->assertNotFalse($formularz);
         $this->assertSame(1, $formularz->length);

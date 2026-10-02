@@ -223,16 +223,19 @@ class ZeszytDoPlaneraTest extends TestCase
         $odcisk = $this->odcisk();
 
         $this->zatwierdz($odcisk)->assertRedirect();
-        $this->assertSame(3, $this->wPlanie());
+        $odczyt1 = $this->wPlanie();
+        $this->assertSame(3, $odczyt1);
 
         // Stary formularz wysłany drugi raz: zestaw jest już w planie, odcisk się zmienił.
         $this->zatwierdz($odcisk)->assertOk()->assertSee('nic nie zostało dodane');
-        $this->assertSame(3, $this->wPlanie());
+        $odczyt2 = $this->wPlanie();
+        $this->assertSame(3, $odczyt2);
 
         // Świeży podgląd i zatwierdzenie: nic nowego.
         $odcisk2 = $this->odcisk();
         $this->zatwierdz($odcisk2)->assertRedirect();
-        $this->assertSame(3, $this->wPlanie());
+        $odczyt3 = $this->wPlanie();
+        $this->assertSame(3, $odczyt3);
     }
 
     public function test_przepis_usuniety_z_zeszytu_po_podgladzie_zatrzymuje_zapis_i_nie_zdradza_tytulu(): void
@@ -245,13 +248,15 @@ class ZeszytDoPlaneraTest extends TestCase
         $odpowiedz->assertSee('Zestaw albo dostęp do przepisów zmienił się od chwili podglądu')
             ->assertSee('Pominięte, bo nie są już dostępne w tym zeszycie: 1.')
             ->assertDontSee('Pieczeń z sosem');
-        $this->assertSame(0, $this->wPlanie());
+        $odczyt4 = $this->wPlanie();
+        $this->assertSame(0, $odczyt4);
 
         // Ponowne zatwierdzenie świeżego podglądu zapisuje dwa pozostałe.
         $html = (string) $odpowiedz->getContent();
         preg_match('/name="odcisk" value="([0-9a-f]{64})"/', $html, $m);
         $this->zatwierdz($m[1])->assertRedirect();
-        $this->assertSame(2, $this->wPlanie());
+        $odczyt5 = $this->wPlanie();
+        $this->assertSame(2, $odczyt5);
     }
 
     public function test_utrata_widocznosci_przepisu_blokuje_zapis_zmienionego_zestawu(): void

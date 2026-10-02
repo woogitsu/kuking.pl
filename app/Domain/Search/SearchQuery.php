@@ -44,7 +44,7 @@ use Illuminate\Support\Str;
  */
 final class SearchQuery
 {
-    public const MAX_PHRASE_LENGTH = 120;
+    public const MAX_PHRASE_LENGTH = FrazaWyszukiwania::MAX_DLUGOSC;
 
     /** Najdłuższa nazwa produktu w filtrze „Bez składnika” (#2526). */
     public const MAX_SKLADNIK_DO_POMINIECIA = 60;
