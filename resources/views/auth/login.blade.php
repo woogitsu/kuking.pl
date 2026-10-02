@@ -35,6 +35,8 @@
 
         <x-field name="password" label="Hasło" type="password" required autocomplete="current-password" />
 
+        <x-zapamietaj-mnie />
+
         <x-turnstile miejsce="logowanie" />
 
         <div class="form-actions">
