@@ -44,6 +44,7 @@ OCZEKUJ = {
     'JSON-LD dekoduje więcej niż dwie warstwy (#2564)': r'IMPORT_2564_TYLKO_DWIE_WARSTWY',
     'Koszt: druga ilość wraca do wyceny pierwszej (#2578)': r'KOSZT_2578_DRUGA_ILOSC_NIE_ZANIZA_MASY',
     'Koszt: grupowane tysiące stają się sztukami (#2561)': r'KOSZT_2561_GRUPOWANE_TYSIACE_NIE_SA_SZTUKAMI',
+    "Prywatny zeszyt obiecuje odebranie dostepu (#2601)": r"ZESZYT_2601_PRYWATNY_NIE_ODBIERA_ZAPROSZONYM",
     "Spiżarnia usuwa bez pytania (#2467)": r'SPIZARNIA_2467_USUNIECIE_WYMAGA_PYTANIA',
     'Planer usuwa bez pytania (#2468)': r'PLANER_2468_PIERWSZY_KLIK_BEZ_DELETE',
     "Zmiana porcji zachowuje stare odmierzenie (#2502)": r'PORCJE_2502_NOWA_ILOSC_NIE_PRZYGOTOWANA',

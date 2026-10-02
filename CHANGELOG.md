@@ -9,6 +9,7 @@
 - Naprawione (#2578): zapis kilku bezpośrednich ilości przy jednym składniku, np. „1 kg i 200 g mąki”, nie daje zaniżonego kosztu policzonego tylko z pierwszej ilości. Gdy nie da się bezpiecznie ustalić masy, szacunek pokazuje przyczynę zamiast kwoty; zapis autora pozostaje bez zmian.
 
 - Naprawione (#2561): orientacyjny koszt rozpoznaje masę zapisaną z grupowaniem tysięcy (np. „1 000 g jajek”) jako całą masę, a przy uszkodzonym grupowaniu odmawia wyceny zamiast zamieniać fragment na sztuki.
+- Edycja wspólnego zeszytu wyjaśnia, że ustawienie prywatności zachowuje dostęp zaproszonych osób i nie odwołuje zaproszeń (#2601).
 
 - Wewnętrzne (#2598): test dwóch połączeń przy zapisie do zeszytu czeka na właściwą barierę transakcji. Wcześniejsza, obca blokada nie daje fałszywej czerwieni; osobny przeplot i kontrola ujemna sprawdzają ten warunek w CI.
 - Wewnętrzne (#2596): lokalny serwer testu checklisty składników przyjmuje tylko dodatnią liczbę porcji. Nie odbija tekstu z adresu w HTML; test HTTP i kontrola ujemna pilnują tego w CI.
