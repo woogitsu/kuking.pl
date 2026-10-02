@@ -119,7 +119,7 @@ final class ParserMikrodanychPrzepisu
         $skladniki = [];
 
         foreach (array_merge($wlasciwosci['recipeingredient'] ?? [], $wlasciwosci['ingredients'] ?? []) as $el) {
-            $tekst = $this->jednaLinia($this->tekstElementu($el));
+            $tekst = $this->jednaLinia($this->wartosc($el));
 
             if ($tekst !== '') {
                 $skladniki[] = $tekst;
@@ -246,7 +246,7 @@ final class ParserMikrodanychPrzepisu
 
             foreach (['text', 'name'] as $nazwa) {
                 foreach ($wlasciwosci[$nazwa] ?? [] as $pole) {
-                    array_push($wynik, ...$this->wiersze($this->tekstElementu($pole)));
+                    array_push($wynik, ...$this->wiersze($this->wartosc($pole)));
                 }
 
                 if ($wynik !== []) {
@@ -271,7 +271,7 @@ final class ParserMikrodanychPrzepisu
             return $wynik;
         }
 
-        return $this->wiersze($this->tekstElementu($el));
+        return $this->wiersze($this->wartosc($el));
     }
 
     /**
