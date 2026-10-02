@@ -269,15 +269,18 @@ try {
   await check('minutnik_poprzedniego_kroku_alarmuje_w_nastepnym', async () => {
     const page = await browser.newPage();
     try {
-      await openStep(page, 1, 2);
+      await openStep(page, 1, 8);
       await button(page).click();
-      assert.equal(await remaining(page), 2);
+      assert.equal(await remaining(page), 8);
       // Następny krok, zanim minutnik kroku 1 skończył — krok 2 bez minutnika.
       await openStep(page, 2, 0);
       const pas = page.locator('.cook-alarmy');
-      assert(await pas.isHidden(), 'Pas alarmów nie może się pokazać przed końcem odliczania');
-      await page.waitForTimeout(2600);
       const alarm = page.locator('.cook-alarm');
+      assert(await pas.isVisible(), 'Pas pokazuje trwający minutnik wcześniejszego kroku');
+      assert.equal(await alarm.count(), 0, 'Alarm nie może się pokazać przed końcem odliczania');
+      assert.match(await pas.locator('[role="status"]').innerText(), /Minutnik kroku 1.*nadal odlicza/);
+      assert.equal(await pas.locator('[role="timer"]').count(), 1, 'Pozostały czas musi być dostępny');
+      await alarm.waitFor({ state: 'visible', timeout: 12000 });
       assert.equal(await alarm.count(), 1, 'Dokładnie jeden alarm dla jednego minutnika');
       assert(await alarm.isVisible(), 'Alarm minutnika kroku 1 musi być widoczny na kroku 2');
       assert.equal(await alarm.getAttribute('role'), 'alert');
