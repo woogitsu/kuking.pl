@@ -719,7 +719,7 @@ class CollectionController extends Controller
         $jestPubliczna = $collection->isPublic();
 
         $status = match (true) {
-            $bylaPubliczna && ! $jestPubliczna => 'Zeszyt jest teraz widoczny tylko dla Ciebie. Dawny bezpośredni adres przestał działać dla innych.',
+            $bylaPubliczna && ! $jestPubliczna => 'Zeszyt jest teraz prywatny. Publiczny dostęp został wyłączony.'.($collection->is_default ? '' : ' Zaproszone osoby zachowują swój dostęp. Oczekujące zaproszenia nie zostały odwołane.'),
             ! $bylaPubliczna && $jestPubliczna => 'Zeszyt jest teraz widoczny dla wszystkich.',
             default => 'Zeszyt zaktualizowany.',
         };

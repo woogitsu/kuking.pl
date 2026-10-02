@@ -74,9 +74,26 @@ final class CoUgotuje
         .'Kolejność ustawia tylko data, którą wpisujesz Ty.';
 
     /**
-     * Warunek „ta linijka składnika jest na liście tej osoby”. `ri` to alias
-     * `recipe_ingredients` w zapytaniu, które go używa.
+     * Warunek wspólny dla doboru, braków i pilnych produktów. Zapisane
+     * rdzenie oraz indeks GIN zostają; tylko linijki z całym słowem „bez”
+     * wymagają dodatkowego sprawdzenia po usunięciu zanegowanej części.
+     * Klauzula kończy się przy interpunkcji. Jeśli nie ma takiej granicy,
+     * pozostaje niepewność i nie obiecujemy posiadania składnika.
      */
+    private const PASUJE_SQL = <<<'SQL'
+        (p.rdzenie <@ ri.rdzenie AND CASE
+            WHEN public.kuking_normalize(ri.ingredient_text) ~ '(^|[^a-z])bez[[:space:]]+'
+            THEN p.rdzenie <@ public.kuking_rdzenie_skladnika(
+                regexp_replace(
+                    public.kuking_normalize(ri.ingredient_text),
+                    '(^|[^a-z])bez[[:space:]]+(?:[^,;.!?]|[.](?=[0-9]))+',
+                    '\1', 'g'
+                )
+            )
+            ELSE true
+        END)
+        SQL;
+
     /**
      * Ta sama linijka, ale tylko wobec PILNYCH produktów tej osoby: z terminem
      * do dziś + N dni (także minionym), nie mrożonych (#1903). Parametry:
@@ -85,10 +102,10 @@ final class CoUgotuje
      */
     private const PILNY_SQL = 'EXISTS (SELECT 1 FROM pantry_items p WHERE p.user_id = ? '
         .'AND p.expires_on IS NOT NULL AND p.expires_on <= ? AND NOT p.frozen '
-        .'AND p.rdzenie <@ ri.rdzenie)';
+        .'AND '.self::PASUJE_SQL.')';
 
     private const MAM_SQL = 'EXISTS (SELECT 1 FROM pantry_items p WHERE p.user_id = ? '
-        .'AND p.rdzenie <@ ri.rdzenie)';
+        .'AND '.self::PASUJE_SQL.')';
 
     /**
      * @return array{
@@ -158,7 +175,7 @@ final class CoUgotuje
             $zapytanie->selectRaw(
                 '(SELECT count(*) FROM pantry_items p WHERE p.user_id = ? AND p.expires_on IS NOT NULL '
                 .'AND p.expires_on <= ? AND NOT p.frozen AND EXISTS (SELECT 1 FROM recipe_ingredients ri '
-                .'WHERE ri.recipe_id = recipes.id AND p.rdzenie <@ ri.rdzenie)) AS pilnych_pasuje',
+                .'WHERE ri.recipe_id = recipes.id AND '.self::PASUJE_SQL.')) AS pilnych_pasuje',
                 [$uid, $granica],
             )->orderByDesc('pilnych_pasuje');
         }
@@ -209,7 +226,7 @@ final class CoUgotuje
         $wiersze = DB::select(
             'SELECT DISTINCT ri.recipe_id, p.id, p.name, p.expires_on FROM recipe_ingredients ri '
             .'JOIN pantry_items p ON p.user_id = ? AND p.expires_on IS NOT NULL AND p.expires_on <= ? AND NOT p.frozen '
-            .'AND p.rdzenie <@ ri.rdzenie '
+            .'AND '.self::PASUJE_SQL.' '
             ."WHERE ri.recipe_id IN ({$miejsca}) ORDER BY p.expires_on, p.name, p.id",
             [$uid, $granica, ...$przepisy->modelKeys()],
         );

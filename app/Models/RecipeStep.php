@@ -77,4 +77,14 @@ class RecipeStep extends Model
 
         return implode(' i ', $czesci);
     }
+
+    /** Odcisk czynności bez zapisywania tekstu przepisu w przeglądarce. */
+    public function timerFingerprint(): string
+    {
+        return hash_hmac(
+            'sha256',
+            (string) $this->getKey()."\0".$this->instruction."\0".(string) $this->timer_seconds,
+            (string) config('app.key'),
+        );
+    }
 }

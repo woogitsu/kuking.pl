@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Import\Url;
 
+use App\Domain\Import\ImportOdrzucony;
+
 /**
  * Odczyt pliku `robots.txt` według RFC 9309 — tyle, ile potrzeba, żeby
  * uczciwie odpowiedzieć „czy wolno nam pobrać TĘ ścieżkę" (D-300).
@@ -102,16 +104,18 @@ final class RobotsTxt
      */
     public function wolno(string $sciezka): bool
     {
-        $sciezka = $sciezka === '' ? '/' : $sciezka;
+        $sciezka = self::normalizeOctets($sciezka === '' ? '/' : $sciezka, false);
         $najlepszaDlugosc = -1;
         $wynik = true;
 
         foreach ($this->reguly as [$allow, $wzorzec]) {
+            $wzorzec = self::normalizeOctets($wzorzec, true);
             if (! self::pasuje($wzorzec, $sciezka)) {
                 continue;
             }
 
-            $dlugosc = strlen($wzorzec);
+            // Jeden zakodowany oktet nie jest trzema znakami szczegółowości.
+            $dlugosc = strlen((string) preg_replace('/%[0-9A-F]{2}/', 'x', $wzorzec));
 
             if ($dlugosc > $najlepszaDlugosc || ($dlugosc === $najlepszaDlugosc && $allow)) {
                 $najlepszaDlugosc = $dlugosc;
@@ -129,6 +133,37 @@ final class RobotsTxt
 
         $regex = '#^'.str_replace('\*', '.*', preg_quote($rdzen, '#')).($kotwica ? '$' : '').'#';
 
-        return preg_match($regex, $sciezka) === 1;
+        $wynik = preg_match($regex, $sciezka);
+
+        if ($wynik === false) {
+            // Awaria PCRE nie oznacza zgody wydawcy na pobranie strony.
+            throw new ImportOdrzucony(ImportOdrzucony::ROBOTS_NIEPEWNE);
+        }
+
+        return $wynik === 1;
+    }
+
+    private static function normalizeOctets(string $value, bool $pattern): string
+    {
+        $result = '';
+        for ($index = 0, $length = strlen($value); $index < $length; $index++) {
+            $byte = $value[$index];
+            if ($byte === '%' && $index + 2 < $length && ctype_xdigit(substr($value, $index + 1, 2))) {
+                $hex = strtoupper(substr($value, $index + 1, 2));
+                $decoded = chr(hexdec($hex));
+                // RFC 9309 §2.2.2: tylko unreserved. %2F nie jest separatorem,
+                // %2A operatorem, a %25 nie uruchamia drugiego dekodowania.
+                $result .= preg_match('/^[A-Za-z0-9._~-]$/D', $decoded) === 1 ? $decoded : '%'.$hex;
+                $index += 2;
+            } elseif (ord($byte) >= 128 || ord($byte) <= 32 || (! $pattern && ($byte === '*' || $byte === '$'))) {
+                // UTF-8 porównujemy oktetami. Operatory są tylko we wzorcu,
+                // w adresie oznaczają literalne znaki (RFC 9309, Figure 6).
+                $result .= sprintf('%%%02X', ord($byte));
+            } else {
+                $result .= $byte;
+            }
+        }
+
+        return $result;
     }
 }

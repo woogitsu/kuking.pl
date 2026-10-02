@@ -151,6 +151,14 @@
   @page {
     size: A4;
     margin: 15mm;
+    background: #FFFFFF;
+  }
+
+  /* Ciemny motyw ustawia color-scheme na korzeniu. Samo białe body nie
+     wybiela marginesów kartki ani obszaru poza jego ramą. */
+  html:has(.przepis-uklad, .sciagawka, .zeszyt-druk) {
+    color-scheme: light !important;
+    background: #FFFFFF !important;
   }
 
   body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) {
@@ -194,6 +202,12 @@
     [aria-labelledby="komu-wyszlo"], [aria-labelledby="komentarze"]
   ),
   body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) main :is(.btn, button, form) {
+    display: none !important;
+  }
+
+  /* Wskazówka o przeliczeniu i szacunek odżywczy zostają; samych
+     odnośników/zwijanych przycisków nie da się użyć na papierze. */
+  body:has(.przepis-uklad) :is(.porcje-wybor-uwaga a, .wartosci-odzywcze-jak summary) {
     display: none !important;
   }
 

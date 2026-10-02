@@ -122,7 +122,7 @@ końcowym. Jedna próba (`tries = 1`) jest świadoma: rezerwacja budżetu ma klu
 zadanie zabite w środku kończy w `failed()`, które domyka księgę budżetu.
 Ponowienie należy do człowieka („Wklej adres jeszcze raz”) i liczy się do jego limitu.
 Migracja `2026_09_29_120000_extend_importy_przepisow_kod_bledu_o_adres` dopisuje do
-`kod_bledu` siedem powodów odmowy strony (`docs/DATABASE.md`). 
+`kod_bledu` siedem powodów odmowy strony (`docs/DATABASE.md`).
 **Etap 2 (#28, #2051): import z PDF w kolejce.** Ten sam wzorzec
 (`ZlecImportZPdf` → `ImportujPrzepisZPdf`, kolejka `low`, `tries = 1`, `timeout = 200 s`),
 z jedną różnicą: wejściem jest plik. Żądanie WWW robi tylko tanie kontrole (rozmiar,
@@ -150,6 +150,31 @@ setne z kropką albo przecinkiem w granicach formularza 0,5–999 porcji;
 zakresy, inne jednostki, wartości poza granicą i większa precyzja
 pozostają puste. Te naprawy #2536/#2538/#2539 nie zmieniają schematu ani
 budżetu modelu. Wycofanie kodu przywraca błędy odczytu, ale nie wymaga migracji.
+
+### Kroki w `ListItem.item` (#2570)
+
+Lokalny parser JSON-LD odczytuje instrukcję `HowToStep` albo sekcję
+`HowToSection` z pola `item` w opakowaniu `ListItem`. Nazwa opakowania nie
+zastępuje tekstu instrukcji. Gdy wszystkie elementy jednej listy mają różne,
+dodatnie pozycje, porządek wyznacza `position`; przy brakujących, błędnych
+lub powtarzających się pozycjach pozostaje kolejność w źródle. Adresów i
+`@id` z `item` nie pobieramy, a limit głębokości nadal obowiązuje. Wynik
+pozostaje prywatnym szkicem, bez zdjęć z obcej strony i bez wywołania modelu.
+Samodzielny obiekt `recipeInstructions: {"@id":"#krok"}` również nie jest
+instrukcją (#2582): nie rozwiązujemy referencji w grafie i nie podstawiamy
+identyfikatora za tekst. Przy obecnych składnikach pozostaje częściowy szkic
+do sprawdzenia przez człowieka.
+
+### Granice tekstu zakodowanego HTML (#2564)
+
+JSON-LD dekoduje najwyżej dwie warstwy encji przed rozpoznaniem podziałów
+wierszy. Dopiero potem usuwa znaczniki i porządkuje odstępy wewnątrz wiersza;
+nie dekoduje ponownie już rozdzielonych instrukcji. Zwykły, jednokrotnie i
+dwukrotnie zakodowany `br`, blok `p`/`li` oraz zakodowany znak nowej linii
+zachowują granice tekstu. Limit dwóch warstw i dotychczasowe limity DTO zostają.
+Test pełnego węzła Recipe obejmuje instrukcje tekstowe, listę tekstów oraz
+tekstową listę składników. Mikrodane, pobieranie źródeł i budżet AI bez zmian.
+Wycofanie samego kodu przywraca błąd odczytu; bez migracji i cofania danych.
 
 ### Wycofanie
 `KUKING_IMPORT_URL=false` i/lub `KUKING_IMPORT_PDF=false` zdejmują przyciski

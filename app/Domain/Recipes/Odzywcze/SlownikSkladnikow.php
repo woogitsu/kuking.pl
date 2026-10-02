@@ -23,6 +23,10 @@ use App\Models\SkladnikOdzywczy;
  *    „ser kozi” nie zamieni się w „kozi”, a „mleko kokosowe” w „mleko”;
  *  - słowa PO fragmencie wolno pominąć, chyba że zmieniają produkt
  *    („kokosowe”, „orzechowe”, „sojowe”, „migdałowe”, „owsiane”, „ryżowe”).
+ *    Frazy „z/ze [surowiec]” nie wolno ucinać: „mąka z ciecierzycy”
+ *    nie jest zwykłą mąką pszenną. Pełny alias frazy nadal wygrywa;
+ *  - jawnego stanu obróbki („ugotowany”, „surowy”, „suszony”) nie wolno
+ *    pominąć po żadnej stronie. Pełny alias stanu nadal wygrywa.
  *
  * Brak dopasowania to nie błąd, tylko „tego składnika nie ma w tabeli” —
  * kalkulator liczy go do masy, której nie zna.
@@ -36,6 +40,9 @@ final class SlownikSkladnikow
 
     /** Słowa po nazwie, które zmieniają produkt. */
     private const ZMIENIA_PRODUKT = '/^(kokosow|orzechow|sojow|migdalow|owsian|ryzow|roslinn|arachidow|sezamow|lniane|lnian|konopn)/';
+
+    /** Stany zmieniające kategorię tabeli na 100 g; formy po normalizacji. */
+    private const STAN_PRODUKTU = '/^(ugotowan|gotowan|upieczon|pieczon|usmazon|smazon|surow|suszon|such|wedzon|kiszon)/';
 
     /** Słowa-wypełniacze przed nazwą: „trochę soli”, „kilka pomidorów”. */
     private const WYPELNIACZE = ['troche', 'odrobina', 'odrobine', 'odrobiny', 'kilka', 'pare', 'nieco', 'sporo', 'duzo', 'malo', 'np', 'np.', 'najlepiej', 'ewentualnie'];
@@ -95,7 +102,12 @@ final class SlownikSkladnikow
 
         for ($dlugosc = min(self::NAJDLUZSZY_FRAGMENT, $ile); $dlugosc >= 1; $dlugosc--) {
             for ($od = 0; $od + $dlugosc <= $ile; $od++) {
-                if (! self::moznaPominac(array_slice($slowa, 0, $od), array_slice($slowa, $od + $dlugosc))) {
+                $po = array_slice($slowa, $od + $dlugosc);
+                // „mąki z” bez nazwy surowca nie jest kompletnym aliasem.
+                if ($po !== [] && in_array($slowa[$od + $dlugosc - 1], ['z', 'ze'], true)) {
+                    continue;
+                }
+                if (! self::moznaPominac(array_slice($slowa, 0, $od), $po)) {
                     continue;
                 }
                 $fragmenty[] = ['tekst' => implode(' ', array_slice($slowa, $od, $dlugosc)), 'od' => $od, 'dlugosc' => $dlugosc];
@@ -111,19 +123,34 @@ final class SlownikSkladnikow
      */
     private static function moznaPominac(array $przed, array $po): bool
     {
+        // Przy skracaniu nie wolno gubić wskazanego źródła produktu.
+        // Pełny alias „soku z cytryny” ma pusty ogon i nadal działa.
+        if (in_array('z', $po, true) || in_array('ze', $po, true)) {
+            return false;
+        }
+
         foreach ($przed as $slowo) {
+            if (self::stanProduktu($slowo)) {
+                return false;
+            }
+
             if (! in_array($slowo, self::WYPELNIACZE, true) && preg_match(self::OPIS_PRZED, $slowo) !== 1) {
                 return false;
             }
         }
 
         foreach ($po as $slowo) {
-            if (preg_match(self::ZMIENIA_PRODUKT, $slowo) === 1) {
+            if (self::stanProduktu($slowo) || preg_match(self::ZMIENIA_PRODUKT, $slowo) === 1) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    private static function stanProduktu(string $slowo): bool
+    {
+        return preg_match(self::STAN_PRODUKTU, $slowo) === 1;
     }
 
     /** Alias w postaci, w jakiej parser zostawia nazwę. */

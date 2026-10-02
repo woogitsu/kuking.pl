@@ -71,6 +71,9 @@ składników. Projekt: `docs/research/V2_IMPORT_OCR_ODZYWCZE.md` §8.4
    przeliczyć na gramy, a składniki z ceną to ≥ 90% masy. `no_amount`,
    drobiazgi bez ilości (sól, pieprz, zioła, „do smaku") i woda nie liczą
    się do masy.
+   Zapis `1 000 g` (zwykła spacja, NBSP albo wąska NBSP) oznacza tę samą
+   masę co `1000 g`; uszkodzone grupowanie nie może po cichu zmienić
+   ilości na sztuki (#2561). Tekst autora pozostaje nietknięty.
 5. **Tekst:** „Orientacyjny koszt: ok. 5–7 zł za całość (średnie ceny
    detaliczne GUS z 2025 r.). W Twoim sklepie może być inaczej." Gdy
    warunki nie są spełnione, ale choć jeden składnik ma cenę — jedno zdanie,
