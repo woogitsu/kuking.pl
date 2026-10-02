@@ -11,6 +11,7 @@ use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Zgody\InformacjaTekstuZrodlaAi;
 use App\Jobs\ImportujPrzepisZPdf;
 use App\Models\ImportPrzepisu;
+use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Support\Storage\PlikTymczasowyImportu;
@@ -247,6 +248,34 @@ final class ImportZPdfWKolejceTest extends TestCase
 
         $this->actingAs($autor)->get(route('import.show', $zlecenie))
             ->assertOk()->assertSee('Szkic gotowy do sprawdzenia')->assertSee('Sprawdź i popraw szkic');
+    }
+
+    public function test_tekstowy_pdf_przez_kolejke_zapisuje_dziesietne_ilosci_w_prywatnym_szkicu_bez_ai(): void
+    {
+        $autor = $this->user();
+        config(['queue.default' => 'database']);
+        Http::fake();
+        $pdf = UploadedFile::fake()->createWithContent('placek.pdf', MalyPdf::zTekstem([[
+            'Placek', 'Skladniki', '1.5 kg maki', '0.5 l mleka', '12.5 g soli',
+            'Przygotowanie', 'Wymieszaj skladniki.',
+        ]]));
+
+        $this->actingAs($autor)->post(route('recipes.import.pdf.store'), $this->dane($pdf))->assertRedirect();
+        $this->assertSame(1, DB::table('jobs')->where('queue', 'low')->count());
+
+        Artisan::call('queue:work', ['--once' => true, '--queue' => 'low', '--stop-when-empty' => true]);
+
+        $zlecenie = ImportPrzepisu::query()->where('user_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(ImportPrzepisu::STATUS_GOTOWY, $zlecenie->status);
+        $recipe = Recipe::query()->findOrFail($zlecenie->recipe_id);
+        $this->assertSame(Recipe::STATUS_DRAFT, $recipe->status);
+        $this->assertSame('private', $recipe->visibility);
+        $this->assertSame('tekst_pdf', PrzepisZImportu::query()->findOrFail($recipe->getKey())->droga);
+        $this->assertSame(['1.5 kg maki', '0.5 l mleka', '12.5 g soli'],
+            $recipe->ingredients()->orderBy('position')->pluck('ingredient_text')->all(),
+            'PDF_2614_ILOSC_DZIESIETNA_NIE_JEST_NUMEREM_LISTY');
+        $this->assertSame([], $this->pliki());
+        Http::assertNothingSent();
     }
 
     public function test_skan_bez_zgody_konczy_sie_odmowa_bez_wyslania_do_modelu_a_plik_znika(): void

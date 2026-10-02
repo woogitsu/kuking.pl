@@ -66,7 +66,7 @@ final class IloscZTekstu
 
         // Dwie poprawne liczby po „-”, „do”, „lub” albo „albo” tworzą zakres.
         // Jedno słowo „do” po ilości nie jest jednostką ani górną granicą.
-        $liczba = '(?:\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?)';
+        $liczba = '(?:\d+\s+\d+\/\d+|\d+\/\d+|\d{1,3}(?: \d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?)';
         $wzor = '/(?<![a-z0-9.,\/])('.$liczba.')'
             .'(?:(?:\s*-\s*|\s+(?:do|lub|albo)\s+)('.$liczba.'))?'
             .'\s*(%|[a-z]+\.?)?/';
@@ -92,8 +92,20 @@ final class IloscZTekstu
                 // „300- g”, „300.5.5” ani „300 g do 400 g”.
                 // Spójnik musi przylegać do ilości. W „300 g mąki do 2 porcji”
                 // późniejsze „do” opisuje przeznaczenie, nie następną granicę.
-                if (preg_match('/^[.,\/]\d|^\s*(?:do|lub|albo)\s+\d/', $poDopasowaniu) === 1
+                // Po liczbie bez jednostki kolejna grupa cyfr oznacza
+                // uszkodzone grupowanie, nie nową sztukę: „1 00 g”.
+                if (($slowo === '' && preg_match('/^\s*\d/', $poDopasowaniu) === 1)
+                    || preg_match('/^[.,\/]\d|^\s*(?:do|lub|albo)\s+\d/', $poDopasowaniu) === 1
                     || ($slowo === '' && preg_match('/^\s*-\s*\S/', $poDopasowaniu) === 1)) {
+                    return null;
+                }
+
+                // „1 kg i 200 g”, „1 kg 200 g” i „500 g + 200 g” nie są
+                // jedną odczytaną masą. Nie wiemy, czy chodzi o ten sam produkt;
+                // koszt tylko pierwszej części byłby zaniżony (D-286, #2578).
+                // Sprawdzamy wyłącznie bezpośredni ciąg po ilości, aby opis
+                // produktu „300 g mąki do 2 porcji” zachował swoje 300 g.
+                if (preg_match('/^\s*(?:(?:i|oraz)\s+|\+\s*)?\d/', $poDopasowaniu) === 1) {
                     return null;
                 }
 
@@ -123,7 +135,7 @@ final class IloscZTekstu
     /** ASCII, małe litery, ułamki zapisane cyframi, pojedyncze spacje. */
     public static function normalizuj(string $tekst): string
     {
-        $tekst = strtr($tekst, ['½' => ' 1/2', '¼' => ' 1/4', '¾' => ' 3/4', '⅓' => ' 1/3', '–' => '-', '—' => '-']);
+        $tekst = strtr($tekst, ["\u{00A0}" => ' ', "\u{202F}" => ' ', '½' => ' 1/2', '¼' => ' 1/4', '¾' => ' 3/4', '⅓' => ' 1/3', '–' => '-', '—' => '-']);
         $tekst = Str::lower(Str::ascii($tekst));
 
         return trim((string) preg_replace('/\s+/', ' ', $tekst));
@@ -160,6 +172,6 @@ final class IloscZTekstu
             return (int) $m[2] === 0 ? 0.0 : (int) $m[1] / (int) $m[2];
         }
 
-        return (float) $zapis;
+        return (float) str_replace(' ', '', $zapis);
     }
 }

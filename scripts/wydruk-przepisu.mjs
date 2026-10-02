@@ -13,7 +13,8 @@
  *  w całości na pierwszej stronie, biały podkład i czarne moduły, pismo ≥ 16 pt,
  *  jedna strona A4, a przy zoomie 200% na ekranie brak poziomego przewijania.
  *
- *  Warianty: krótki i długi przepis × motyw jasny i ciemny × gość i autor
+ *  Warianty: krótki i długi przepis × motyw jasny i ciemny × gość i autor;
+ *  dodatkowo 2/6/4 porcje przez rzeczywisty odnośnik „Drukuj przepis”
  *  (autor widzi najwięcej przycisków, a dolną belkę ma tylko zalogowany).
  *
  *  URUCHOMIENIE (lokalna baza z DemoSeederem, po `npm run build`):
@@ -46,6 +47,8 @@ const UKRYTE = [
   '[data-drukuj-przepis]', '.druk-podpowiedz',
   // Objaśnienie „Zgłoś” dla gościa: na papierze nie ma czego kliknąć (każdy wydruk).
   '.zglos-goscia',
+  // #2600: tekst objaśnienia zostaje, ale odnośnik i zwijacz na papierze są martwe.
+  '.porcje-wybor-uwaga a', '.wartosci-odzywcze-jak summary',
 ];
 // Minimum czytelności na papierze: 12 pt (= 16 px CSS) dla KAŻDEGO tekstu na
 // kartce — składników, kroków, ale też autora, daty, adresu i podpisów.
@@ -91,6 +94,20 @@ async function podniesSerwer() {
 
 function stronyPdf(bufor) {
   return (bufor.toString('latin1').match(/\/Type\s*\/Page(?!s)/g) ?? []).length;
+}
+
+async function bledyKorzeniaDruku(strona) {
+  return strona.evaluate(() => {
+    const korzen = getComputedStyle(document.documentElement);
+    const bledy = [];
+    if (korzen.backgroundColor !== 'rgb(255, 255, 255)') {
+      bledy.push(`tło korzenia wydruku nie jest białe: ${korzen.backgroundColor}`);
+    }
+    if (korzen.colorScheme !== 'light') {
+      bledy.push(`schemat kolorów korzenia wydruku nie jest jasny: ${korzen.colorScheme}`);
+    }
+    return bledy;
+  });
 }
 
 async function zmierz(strona, pomocnik = null) {
@@ -213,6 +230,13 @@ async function zmierzCzasKroku(strona, zeszyt = false) {
       if (etykiety(kroki[indeks]).length) bledy.push(`krok ${indeks + 1} z czasem 0/NULL ma fałszywą etykietę`);
     }
     if (kroki.flatMap(etykiety).length !== 1) bledy.push('liczba etykiet czasu na kartce różni się od jednej');
+    for (const element of zakres?.querySelectorAll('.cook-timer, [role="timer"]') ?? []) {
+      const r = element.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && getComputedStyle(element).visibility !== 'hidden') {
+        bledy.push('interaktywny minutnik jest widoczny na papierze');
+        break;
+      }
+    }
     return bledy;
   }, zeszyt);
 }
@@ -226,6 +250,150 @@ async function sprawdzMutacjeCzasu(strona, zeszyt = false) {
       .find(p => p.textContent.trim().startsWith('Czas kroku:'))?.remove();
   }, zeszyt);
   return (await zmierzCzasKroku(strona, zeszyt)).includes('pierwszy krok bez dokładnego czasu 10 minut na kartce');
+}
+
+// #2474: idziemy pod rzeczywisty href z wybranego ekranu, a nie składamy
+// drugiego adresu w teście. Dzięki temu błąd w samym przycisku oblewa pomiar.
+async function adresDrukuWybranychPorcji(strona, ile, sciezka) {
+  const link = await strona.locator('a[data-drukuj-przepis]').getAttribute('href');
+  if (!link) throw new Error(`${sciezka}: brak głównego odnośnika „Drukuj przepis”`);
+  const cel = new URL(link, strona.url());
+  const obecny = new URL(strona.url());
+  const oczekiwanePorcje = ile === 6 ? null : String(ile); // 6 to liczba autora w obu fixture.
+  if (cel.origin !== obecny.origin || cel.pathname !== obecny.pathname
+    || cel.searchParams.get('druk') !== '1'
+    || cel.searchParams.get('porcje') !== oczekiwanePorcje
+    || cel.hash !== '#jak-wydrukowac') {
+    throw new Error(`${sciezka}: link druku nie zachował wyboru ${ile} porcji`);
+  }
+  return cel.href;
+}
+
+async function zmierzWybranePorcjeNaKartce(strona, ile, sciezka) {
+  const bledy = await strona.evaluate(wybrane => {
+    const wynik = [];
+    const wybor = document.querySelector('.porcje-wybor-liczba');
+    const prostokat = wybor?.getBoundingClientRect();
+    const etykieta = { 2: '2 porcje', 4: '4 porcje', 6: '6 porcji' }[wybrane];
+    if (wybor?.textContent.trim() !== etykieta || !prostokat || prostokat.width <= 0
+      || prostokat.height <= 0 || getComputedStyle(wybor).visibility === 'hidden') {
+      wynik.push('na kartce nie widać wybranej liczby porcji');
+    }
+    const pierwszy = document.querySelector('.ingredient-list li');
+    if (!pierwszy) return [...wynik, 'na kartce nie ma pierwszego składnika'];
+    const przeliczone = document.querySelectorAll('.ingredient-list strong.skladnik-przeliczony').length;
+    if (wybrane === 6 && przeliczone !== 0) wynik.push('liczba porcji autora nie powinna przeliczać składników');
+    if (wybrane !== 6 && przeliczone === 0) wynik.push('wybrane porcje nie przeliczyły żadnego składnika');
+    return wynik;
+  }, ile);
+  if (bledy.length) throw new Error(`${sciezka}: ${bledy.join('; ')}`);
+}
+
+// #2600: mutacje rzeczywistego dokumentu w media=print, nie tekstu arkusza.
+// Każda kontrola musi oblać własnym komunikatem i po przywróceniu przejść.
+async function sprawdzMutacjeMartwychElementow(strona) {
+  for (const selektor of ['.porcje-wybor-uwaga a', '.wartosci-odzywcze-jak summary']) {
+    const element = strona.locator(selektor).first();
+    if (await element.count() !== 1) return false;
+    const poprzedniStyl = await element.getAttribute('style');
+    try {
+      await element.evaluate(el => el.style.setProperty('display', 'inline', 'important'));
+      const bledy = (await zmierz(strona)).bledy;
+      if (!bledy.some(blad => blad.includes(`widoczne na papierze: ${selektor}`))) return false;
+    } finally {
+      await element.evaluate((el, styl) => {
+        if (styl === null) el.removeAttribute('style');
+        else el.setAttribute('style', styl);
+      }, poprzedniStyl);
+    }
+    if ((await zmierz(strona)).bledy.some(blad => blad.includes(`widoczne na papierze: ${selektor}`))) return false;
+  }
+  return true;
+}
+
+async function sprawdzMutacjeCiemnejRamy(strona) {
+  // Zmieniamy tę samą deklarację, która wybiela wydruk. Mutacja inline
+  // nie zmieniła mierzonego tła w CI.
+  const zmieniono = await strona.evaluate(() => {
+    const znajdz = reguly => {
+      for (const regula of reguly) {
+        if (regula.selectorText?.includes('html:has(')
+          && regula.selectorText.includes('.przepis-uklad')
+          && regula.selectorText.includes('.sciagawka')
+          && regula.selectorText.includes('.zeszyt-druk')
+          && regula.style.getPropertyValue('background')) return regula;
+        if (regula.cssRules) {
+          const wewnatrz = znajdz(regula.cssRules);
+          if (wewnatrz) return wewnatrz;
+        }
+      }
+      return null;
+    };
+    const reguly = [...document.styleSheets].flatMap(arkusz => {
+      try { return [...arkusz.cssRules]; } catch { return []; }
+    });
+    const regula = znajdz(reguly);
+    if (!regula) return false;
+    window.__drukMutacjaCiemnejRamy = {
+      regula,
+      wartosc: regula.style.getPropertyValue('background'),
+      priorytet: regula.style.getPropertyPriority('background'),
+    };
+    regula.style.setProperty('background', '#000', 'important');
+    return true;
+  });
+  if (!zmieniono) throw new Error('Kontrola ujemna #2600 nie znalazła rzeczywistej reguły białego korzenia wydruku');
+  try {
+    const bledy = await bledyKorzeniaDruku(strona);
+    if (!bledy.some(blad => blad.includes('tło korzenia wydruku nie jest białe'))) return false;
+  } finally {
+    await strona.evaluate(() => {
+      const { regula, wartosc, priorytet } = window.__drukMutacjaCiemnejRamy;
+      regula.style.setProperty('background', wartosc, priorytet);
+      delete window.__drukMutacjaCiemnejRamy;
+    });
+  }
+  return (await bledyKorzeniaDruku(strona)).length === 0;
+}
+
+async function sprawdzMutacje2600WOsobnejStronie(strona) {
+  // Próba jest osobną stroną tego samego kontekstu: mutacja stylów nie może
+  // zabarwić PDF generowanego chwilę później z głównej strony.
+  const proba = await strona.context().newPage();
+  try {
+    const rozmiar = strona.viewportSize();
+    if (rozmiar) await proba.setViewportSize(rozmiar);
+    const odp = await proba.goto(strona.url(), { waitUntil: 'load' });
+    if (odp.status() !== 200) throw new Error(`Kontrola ujemna #2600: HTTP ${odp.status()}`);
+    const motyw = await strona.evaluate(() => document.documentElement.dataset.theme ?? null);
+    await proba.evaluate(wartosc => {
+      if (wartosc === null) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = wartosc;
+    }, motyw);
+    await proba.emulateMedia({ media: 'print' });
+    if ((await bledyKorzeniaDruku(proba)).length) throw new Error('Kontrola ujemna #2600: nowa strona ma błędny stan bazowy');
+    return {
+      martwe: await sprawdzMutacjeMartwychElementow(proba),
+      korzen: await sprawdzMutacjeCiemnejRamy(proba),
+    };
+  } finally {
+    await proba.close();
+  }
+}
+
+// Kontrola ujemna linku: usunięcie parametru z href musi zostać wykryte.
+async function sprawdzMutacjeLinkuPorcji(strona, sciezka) {
+  await strona.locator('a[data-drukuj-przepis]').evaluate(link => {
+    const cel = new URL(link.href);
+    cel.searchParams.delete('porcje');
+    link.href = cel.href;
+  });
+  try {
+    await adresDrukuWybranychPorcji(strona, 2, sciezka);
+    return false;
+  } catch (blad) {
+    return blad instanceof Error && blad.message.includes('link druku nie zachował wyboru 2 porcji');
+  }
 }
 
 // Pomiar karty z kodem QR w emulacji druku: geometria i kontrast. Samego
@@ -340,6 +508,7 @@ try {
         await strona.evaluate(m => { if (m === 'ciemny') document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme; }, motyw);
         await strona.emulateMedia({ media: 'print' });
         const wynik = await zmierz(strona);
+        wynik.bledy.push(...await bledyKorzeniaDruku(strona));
         if (dlugosc === 'dlugi') wynik.bledy.push(...await zmierzCzasKroku(strona));
         const pdf = await strona.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } });
         const plik = `${KATALOG}/${dlugosc}-${motyw}-${kto}.pdf`;
@@ -359,6 +528,56 @@ try {
       }
     }
 
+    // #2474/#2484: fizyczna nawigacja od wybranych porcji przez główny
+    // odnośnik, potem A4 PDF. Długi przepis sprawdza także czas 10/0/NULL.
+    for (const [dlugosc, sciezka] of [['krotki', przepisy.krotki], ['dlugi', przepisy.dlugi]]) {
+      for (const ile of [2, 6, 4]) {
+        for (const motyw of ['jasny', 'ciemny']) {
+          const wybrane = `${sciezka}${sciezka.includes('?') ? '&' : '?'}porcje=${ile}`;
+          const ekran = await strona.goto(adres + wybrane, { waitUntil: 'load' });
+          if (ekran.status() !== 200) throw new Error(`${wybrane}: HTTP ${ekran.status()}`);
+          const link = await adresDrukuWybranychPorcji(strona, ile, wybrane);
+          if (dlugosc === 'dlugi' && ile === 2 && motyw === 'jasny' && kto === 'gosc'
+            && !await sprawdzMutacjeLinkuPorcji(strona, wybrane)) {
+            bledow++;
+            console.log('✗ kontrola ujemna: brak porcji w linku druku nie został wykryty');
+          }
+          const odp = await strona.goto(link, { waitUntil: 'load' });
+          if (odp.status() !== 200) throw new Error(`${link}: HTTP ${odp.status()}`);
+          await strona.evaluate(m => { if (m === 'ciemny') document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme; }, motyw);
+          await strona.emulateMedia({ media: 'print' });
+          const wynik = await zmierz(strona);
+          wynik.bledy.push(...await bledyKorzeniaDruku(strona));
+          try { await zmierzWybranePorcjeNaKartce(strona, ile, link); } catch (blad) { wynik.bledy.push(blad.message); }
+          if (dlugosc === 'dlugi') wynik.bledy.push(...await zmierzCzasKroku(strona));
+          if (dlugosc === 'krotki' && ile === 2 && motyw === 'jasny' && kto === 'gosc') {
+            const kontrole = await sprawdzMutacje2600WOsobnejStronie(strona);
+            if (kontrole.martwe) {
+              console.log('✓ kontrola ujemna #2600: odnośnik i zwijacz wykryte, stan przywrócony');
+            } else {
+              wynik.bledy.push('kontrola ujemna #2600: martwy odnośnik lub zwijacz nie został wykryty');
+            }
+            if (kontrole.korzen) {
+              console.log('✓ kontrola ujemna #2600: ciemny korzeń wykryty, stan przywrócony');
+            } else {
+              wynik.bledy.push('kontrola ujemna #2600: ciemny korzeń kartki nie został wykryty');
+            }
+          }
+          const pdf = await strona.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } });
+          const plik = `${KATALOG}/${dlugosc}-${ile}-porcje-${motyw}-${kto}.pdf`;
+          writeFileSync(plik, pdf);
+          const opis = `${dlugosc}/${ile} porcji/${motyw}/${kto}: ${stronyPdf(pdf)} str. A4 → ${plik}`;
+          if (wynik.bledy.length) {
+            bledow += wynik.bledy.length;
+            console.log(`✗ ${opis}\n  - ${[...new Set(wynik.bledy)].join('\n  - ')}`);
+          } else {
+            console.log(`✓ ${opis}`);
+          }
+          await strona.emulateMedia({ media: 'screen' });
+        }
+      }
+    }
+
     // Kartka „dla pomocnika” (#2345): bez kodu QR i z kodem QR.
     for (const [dlugosc, sciezka] of [['krotki', przepisy.krotki], ['dlugi', przepisy.dlugi]]) {
       for (const qr of [false, true]) {
@@ -369,6 +588,7 @@ try {
           await strona.evaluate(m => { if (m === 'ciemny') document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme; }, motyw);
           await strona.emulateMedia({ media: 'print' });
           const wynik = await zmierz(strona, { qr });
+          wynik.bledy.push(...await bledyKorzeniaDruku(strona));
           if (dlugosc === 'dlugi') wynik.bledy.push(...await zmierzCzasKroku(strona));
           const pdf = await strona.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } });
           const plik = `${KATALOG}/pomocnik-${dlugosc}${qr ? '-qr' : ''}-${motyw}-${kto}.pdf`;
@@ -392,7 +612,7 @@ try {
       if (odp.status() !== 200) throw new Error(`${przepisy.zeszyt_czas}: HTTP ${odp.status()}`);
       await strona.evaluate(m => { if (m === 'ciemny') document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme; }, motyw);
       await strona.emulateMedia({ media: 'print' });
-      const bledy = await zmierzCzasKroku(strona, true);
+      const bledy = [...await zmierzCzasKroku(strona, true), ...await bledyKorzeniaDruku(strona)];
       const pdf = await strona.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } });
       const plik = `${KATALOG}/zeszyt-czas-${motyw}-${kto}.pdf`;
       writeFileSync(plik, pdf);
@@ -419,6 +639,7 @@ try {
         await strona.evaluate(m => { if (m === 'ciemny') document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme; }, motyw);
         await strona.emulateMedia({ media: 'print' });
         const wynik = await zmierzKarte(strona);
+        wynik.bledy.push(...await bledyKorzeniaDruku(strona));
         const pdf = await strona.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } });
         const plik = `${KATALOG}/${nazwa}-${motyw}-${kto}.pdf`;
         writeFileSync(plik, pdf);
