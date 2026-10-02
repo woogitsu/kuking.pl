@@ -29,6 +29,10 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
             'termin_miesiac' => substr($dzis, 5, 2),
             'termin_rok' => substr($dzis, 0, 4),
         ], $dzis));
+        // Fabryka tworzy profil po sprawdzeniu relacji i zapamiętuje null.
+        // HTTP musi dostać istniejący profil zalogowanej osoby, nie ten cache.
+        $widz->unsetRelation('profile');
+        $this->assertNotNull($widz->profile);
 
         // Jedna operacja SQL zamiast 10 020 obiegów fabryki i obserwatorów.
         // Oba zbiory są stabilne podczas każdego przejścia po odnośniku.
