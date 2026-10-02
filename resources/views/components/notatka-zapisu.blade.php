@@ -24,6 +24,14 @@
     $wiersz = 'notatka-'.$typ.'-'.$pozycja->getKey();
     $worek = \App\Domain\Collections\Actions\UpdateCollectionItemNote::WOREK_BLEDOW;
     $zBledem = \App\Support\WierszFormularza::jestAktywny($wiersz) && $errors->getBag($worek)->any();
+    // Odcisk notatki, którą człowiek TERAZ widzi (#2400). Po błędzie długości
+    // zostaje odcisk z pierwotnego formularza (nie zgubimy zmiany z drugiej
+    // karty); po konflikcie kontroler go nie odsyła, więc liczymy świeży.
+    $odcisk = \App\Domain\Collections\Actions\UpdateCollectionItemNote::odcisk($notatka);
+    $odciskZPowrotu = \App\Support\WierszFormularza::jestAktywny($wiersz) ? old(\App\Domain\Collections\Actions\UpdateCollectionItemNote::POLE_ODCISKU) : null;
+    if (is_string($odciskZPowrotu) && $odciskZPowrotu !== '') {
+        $odcisk = $odciskZPowrotu;
+    }
 @endphp
 @if($jestWlascicielem)
     <div class="notatka-zapisu">
@@ -43,6 +51,7 @@
                 @csrf
                 @method('PATCH')
                 <input type="hidden" name="_wiersz" value="{{ $wiersz }}">
+                <input type="hidden" name="{{ \App\Domain\Collections\Actions\UpdateCollectionItemNote::POLE_ODCISKU }}" value="{{ $odcisk }}">
                 <x-field name="note" :wiersz="$wiersz" :error-bag="$worek" :label="$wspolny ? 'Notatka' : 'Notatka dla siebie'" type="textarea" :rows="3"
                          :value="$notatka" :licznik-znakow="\App\Domain\Collections\Actions\UpdateCollectionItemNote::LIMIT_ZNAKOW"
                          :help="$wspolny
