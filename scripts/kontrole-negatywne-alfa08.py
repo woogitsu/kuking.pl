@@ -1312,6 +1312,11 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    # #2611: wyłączenie preflightu musi oblać izolowane procesy PHP 256M
+    # konkretną odmową (w starym kodzie kończyły się fatalem), a nie bazę CI.
+    ("Paczka JSON bez budżetu struktury (#2611)", "app/Domain/Users/Import/PodgladPaczkiEksportu.php",
+     "BudzetStrukturyPaczkiTest::test_nadmierna_struktura_jest_odrzucona_przed_fatalem_256_mb",
+     lambda s: replace_once(s, "        $this->sprawdzBudzetStruktury($json);\n", "")),
     ("Spiżarnia usuwa bez pytania (#2467)", "resources/views/pages/pantry/_produkty.blade.php",
      "test_pierwszy_klik_w_spizarni_rozwija_pytanie_zamiast_kasowac_produkt", spizarnia_bez_potwierdzenia),
     ("Planer usuwa bez pytania (#2468)", "resources/views/pages/planer/show.blade.php",
