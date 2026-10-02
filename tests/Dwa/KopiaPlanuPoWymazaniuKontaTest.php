@@ -6,8 +6,10 @@ namespace Tests\Dwa;
 
 use App\Domain\Planer\Actions\DodajDoPlanu;
 use App\Domain\Planer\Actions\SkopiujPoprzedniTydzien;
+use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\MealPlanEntry;
+use App\Models\Recipe;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -20,6 +22,25 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('dwa-polaczenia')]
 final class KopiaPlanuPoWymazaniuKontaTest extends TestDwochPolaczen
 {
+    /** @var list<string> */
+    private array $przepisy = [];
+
+    protected function tearDown(): void
+    {
+        if ($this->przepisy !== []) {
+            try {
+                DB::table('meal_plan_entries')->whereIn('recipe_id', $this->przepisy)->delete();
+                DB::table('recipe_versions')->whereIn('recipe_id', $this->przepisy)->delete();
+                DB::table('recipe_slug_redirects')->whereIn('recipe_id', $this->przepisy)->delete();
+                DB::table('recipes')->whereIn('id', $this->przepisy)->delete();
+            } catch (\Throwable $e) {
+                fwrite(STDERR, "\nNie udało się posprzątać przepisu testu #2551: ".$e->getMessage()."\n");
+            }
+        }
+
+        parent::tearDown();
+    }
+
     private function pozycja(User $user, string $dzien, string $tekst): void
     {
         $wpis = new MealPlanEntry(['day' => $dzien, 'label' => $tekst]);
@@ -34,7 +55,18 @@ final class KopiaPlanuPoWymazaniuKontaTest extends TestDwochPolaczen
 
         try {
             $user = $this->konto();
+            $autor = $this->konto();
+            $przepis = Recipe::factory()->create(['author_id' => $autor->getKey()]);
+            $this->przepisy[] = (string) $przepis->getKey();
             $this->pozycja($user, '2026-09-21', 'Prywatny rodzinny obiad');
+            $wpisPrzepisu = new MealPlanEntry(['day' => '2026-09-22', 'recipe_id' => $przepis->getKey()]);
+            $wpisPrzepisu->user_id = $user->getKey();
+            $wpisPrzepisu->save();
+            $zrodlo = app(PlanerTygodnia::class)->pozycje(
+                $user, CarbonImmutable::parse('2026-09-21'), CarbonImmutable::parse('2026-09-27'),
+            );
+            $this->assertCount(2, $zrodlo, 'PLAN_2551_DWA_ZRODLA');
+            $this->assertSame(PlanerTygodnia::STAN_PRZEPIS, $zrodlo[1]['stan'], 'PLAN_2551_PRZEPIS_DOSTEPNY');
             $proces = null;
             $odczytZrodla = false;
             $wymazaniePrzedKopia = false;
