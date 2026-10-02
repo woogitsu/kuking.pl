@@ -187,7 +187,7 @@ bez wartości domyślnej (zmiana samego katalogu, AGENTS.md §6). Wartość to c
 kliknięcia „Włącz listę” w „Ustawienia → Ostatnio oglądane”; `NULL` — funkcja
 wyłączona, i to jest stan domyślny każdego konta, także istniejących (bez
 backfillu). Kolumna poza `$fillable`; włącza i wyłącza ją wyłącznie
-`App\Domain\Recipes\OstatnioOgladane` (POST `…/wlacz` i `…/wylacz`). Wyłączenie
+`App\Domain\Recipes\OstatnioOgladane` (POST `/ustawienia/ostatnio-ogladane/wlacz` i `/ustawienia/ostatnio-ogladane/wylacz`). Wyłączenie
 kasuje w tej samej transakcji wiersze `recent_recipe_views` tej osoby. Opis
 tabeli z wizytami: [`planowanie-v2`](planowanie-v2.md#recent_recipe_views--opcjonalna-prywatna-lista-ostatnio-oglądanych-przepisów-v2-2553).
 Eksport oddaje `konto.ostatnio_ogladane_wlaczone_od`, wymazanie konta zeruje pole.
