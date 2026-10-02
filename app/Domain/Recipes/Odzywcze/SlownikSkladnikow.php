@@ -23,6 +23,8 @@ use App\Models\SkladnikOdzywczy;
  *    „ser kozi” nie zamieni się w „kozi”, a „mleko kokosowe” w „mleko”;
  *  - słowa PO fragmencie wolno pominąć, chyba że zmieniają produkt
  *    („kokosowe”, „orzechowe”, „sojowe”, „migdałowe”, „owsiane”, „ryżowe”).
+ *  - jawnego stanu obróbki („ugotowany”, „surowy”, „suszony”) nie wolno
+ *    pominąć po żadnej stronie. Pełny alias stanu nadal wygrywa.
  *
  * Brak dopasowania to nie błąd, tylko „tego składnika nie ma w tabeli” —
  * kalkulator liczy go do masy, której nie zna.
@@ -36,6 +38,9 @@ final class SlownikSkladnikow
 
     /** Słowa po nazwie, które zmieniają produkt. */
     private const ZMIENIA_PRODUKT = '/^(kokosow|orzechow|sojow|migdalow|owsian|ryzow|roslinn|arachidow|sezamow|lniane|lnian|konopn)/';
+
+    /** Stany zmieniające kategorię tabeli na 100 g; formy po normalizacji. */
+    private const STAN_PRODUKTU = '/^(ugotowan|gotowan|upieczon|pieczon|usmazon|smazon|surow|suszon|such|wedzon|kiszon)/';
 
     /** Słowa-wypełniacze przed nazwą: „trochę soli”, „kilka pomidorów”. */
     private const WYPELNIACZE = ['troche', 'odrobina', 'odrobine', 'odrobiny', 'kilka', 'pare', 'nieco', 'sporo', 'duzo', 'malo', 'np', 'np.', 'najlepiej', 'ewentualnie'];
@@ -112,18 +117,27 @@ final class SlownikSkladnikow
     private static function moznaPominac(array $przed, array $po): bool
     {
         foreach ($przed as $slowo) {
+            if (self::stanProduktu($slowo)) {
+                return false;
+            }
+
             if (! in_array($slowo, self::WYPELNIACZE, true) && preg_match(self::OPIS_PRZED, $slowo) !== 1) {
                 return false;
             }
         }
 
         foreach ($po as $slowo) {
-            if (preg_match(self::ZMIENIA_PRODUKT, $slowo) === 1) {
+            if (self::stanProduktu($slowo) || preg_match(self::ZMIENIA_PRODUKT, $slowo) === 1) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    private static function stanProduktu(string $slowo): bool
+    {
+        return preg_match(self::STAN_PRODUKTU, $slowo) === 1;
     }
 
     /** Alias w postaci, w jakiej parser zostawia nazwę. */

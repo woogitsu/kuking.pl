@@ -1312,6 +1312,13 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    ("Odżywcze: stan przed nazwą znika (#2563)", "app/Domain/Recipes/Odzywcze/SlownikSkladnikow.php",
+     "test_stan_przed_nazwa_nie_pozwala_dopasowac_surowego_produktu",
+     lambda s: replace_once(s, "if (self::stanProduktu($slowo)) {", "if (false && self::stanProduktu($slowo)) {")),
+    ("Odżywcze: stan po nazwie znika (#2563)", "app/Domain/Recipes/Odzywcze/SlownikSkladnikow.php",
+     "test_stan_po_nazwie_nie_pozwala_dopasowac_surowego_produktu",
+     lambda s: replace_once(s, "if (self::stanProduktu($slowo) || preg_match(self::ZMIENIA_PRODUKT, $slowo) === 1) {",
+                            "if (preg_match(self::ZMIENIA_PRODUKT, $slowo) === 1) {")),
     ("Spiżarnia usuwa bez pytania (#2467)", "resources/views/pages/pantry/_produkty.blade.php",
      "test_pierwszy_klik_w_spizarni_rozwija_pytanie_zamiast_kasowac_produkt", spizarnia_bez_potwierdzenia),
     ("Planer usuwa bez pytania (#2468)", "resources/views/pages/planer/show.blade.php",
