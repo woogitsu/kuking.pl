@@ -18,6 +18,16 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Group;
 
+/** Stan zmieniany przez nasłuch zapytań po starcie akcji. */
+final class StanKopiiPoWymazaniu
+{
+    public ?ProcesRownolegly $proces = null;
+
+    public bool $odczytZrodla = false;
+
+    public bool $wymazaniePrzedKopia = false;
+}
+
 /** #2551: pobrany wcześniej plan nie może odtworzyć treści po wymazaniu. */
 #[Group('dwa-polaczenia')]
 final class KopiaPlanuPoWymazaniuKontaTest extends TestDwochPolaczen
@@ -67,26 +77,24 @@ final class KopiaPlanuPoWymazaniuKontaTest extends TestDwochPolaczen
             );
             $this->assertCount(2, $zrodlo, 'PLAN_2551_DWA_ZRODLA');
             $this->assertSame(PlanerTygodnia::STAN_PRZEPIS, $zrodlo[1]['stan'], 'PLAN_2551_PRZEPIS_DOSTEPNY');
-            $proces = null;
-            $odczytZrodla = false;
-            $wymazaniePrzedKopia = false;
+            $stan = new StanKopiiPoWymazaniu;
 
-            DB::listen(function (QueryExecuted $query) use ($user, &$proces, &$odczytZrodla, &$wymazaniePrzedKopia): void {
+            DB::listen(function (QueryExecuted $query) use ($user, $stan): void {
                 $sql = mb_strtolower($query->sql);
-                if ($odczytZrodla || ! str_starts_with(ltrim($sql), 'select')
+                if ($stan->odczytZrodla || ! str_starts_with(ltrim($sql), 'select')
                     || ! str_contains($sql, 'from "meal_plan_entries"')
                     || ! str_contains($sql, 'between')) {
                     return;
                 }
 
-                $odczytZrodla = true;
-                $proces = $this->wTle('wymaz-plan-2551', ['konto' => (string) $user->getKey()]);
+                $stan->odczytZrodla = true;
+                $stan->proces = $this->wTle('wymaz-plan-2551', ['konto' => (string) $user->getKey()]);
 
                 if (DB::transactionLevel() === 0) {
                     // Stary kod czyta źródło PRZED blokadą: pozwalamy
                     // wymazaniu skończyć przed próbą zapisu z tej migawki.
-                    $wynik = $proces->wynik();
-                    $wymazaniePrzedKopia = $wynik['ok'] && $wynik['wartosc'] === true;
+                    $wynik = $stan->proces->wynik();
+                    $stan->wymazaniePrzedKopia = $wynik['ok'] && $wynik['wartosc'] === true;
 
                     return;
                 }
@@ -99,14 +107,14 @@ final class KopiaPlanuPoWymazaniuKontaTest extends TestDwochPolaczen
 
             app(SkopiujPoprzedniTydzien::class)->handle($user, CarbonImmutable::parse('2026-09-28'));
 
-            $this->assertTrue($odczytZrodla, 'PLAN_2551_ZRODLO_NIE_ODCZYTANE');
-            $this->assertNotNull($proces, 'PLAN_2551_WYMAZANIE_NIE_RUSZYLO');
-            $wynik = $proces->wynik();
+            $this->assertTrue($stan->odczytZrodla, 'PLAN_2551_ZRODLO_NIE_ODCZYTANE');
+            $this->assertNotNull($stan->proces, 'PLAN_2551_WYMAZANIE_NIE_RUSZYLO');
+            $wynik = $stan->proces->wynik();
             $this->assertTrue($wynik['ok'] && $wynik['wartosc'] === true, 'PLAN_2551_WYMAZANIE_NIE_ZASZLO: '.$wynik['komunikat']);
             $this->assertSame(User::STATUS_ERASED, User::query()->findOrFail($user->getKey())->status);
             $this->assertSame(0, MealPlanEntry::query()->where('user_id', $user->getKey())->count(),
                 'PLAN_2551_WYMAZANY_NIE_WRACA');
-            $this->assertFalse($wymazaniePrzedKopia, 'PLAN_2551_KOPIA_OMINELA_ZAMEK');
+            $this->assertFalse($stan->wymazaniePrzedKopia, 'PLAN_2551_KOPIA_OMINELA_ZAMEK');
         } finally {
             CarbonImmutable::setTestNow();
             Carbon::setTestNow();
