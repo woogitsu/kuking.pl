@@ -1326,6 +1326,10 @@ checks = [
      lambda s: replace_once(s, "$wiersz->servings_revision !== $widzianaRewizjaPorcji", "false")),
     ("Stary formularz po ponownym włączeniu postępu (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_formularz_sprzed_wylaczenia_i_ponownego_wlaczenia_nie_potwierdza_dawnych_skladnikow",
      lambda s: replace_once(s, "$wiersz->getKey() !== $widzianyPostepId", "false")),
+    ("Moje wpisy: stara strona udaje pusty dorobek (#2473)", "app/Http/Controllers/MojeWpisyController.php", "test_stara_druga_strona_po_usunieciu_wraca_do_istniejacych_wpisow",
+     lambda s: replace_once(s, "if ($wpisy->currentPage() > $wpisy->lastPage())", "if (false)")),
+    ("Moje wpisy: pusta porcja traci kontener (#2473)", "resources/views/pages/collections/moje-wpisy.blade.php", "test_pusta_lista_ma_prawdziwy_pusty_stan_i_kontener_bez_petli",
+     lambda s: replace_once(s, 'id="lista-moich-wpisow"', '''id="{{ $wpisy->isEmpty() ? 'brak-listy' : 'lista-moich-wpisow' }}"''')),
     # #2524: przeliczony składnik i nieprzeliczona kwota autora to sprzeczna strona.
     ("Koszt autora pozostaje bazowy po zmianie porcji (#2524)", "resources/views/pages/recipes/show.blade.php", "test_koszt_autora_i_skladniki_uzywaja_tego_samego_wyboru_porcji_takze_w_wydruku",
      lambda s: replace_once(s, "{{ $kosztAutora }}</p>", "{{ $recipe->costLabel() }}</p>")),

@@ -41,6 +41,8 @@ OCZEKUJ = {
     "Stary formularz przywraca porcje z innego urządzenia (#2502)": r'PORCJE_2502_STARY_FORMULARZ_NIE_PRZYWRACA',
     "Powrót porcji ABA przywraca stare odmierzenie (#2502)": r'PORCJE_2502_ABA_NIE_PRZYWRACA',
     "Stary formularz po ponownym włączeniu postępu (#2502)": r'PORCJE_2502_NOWY_POSTEP_NIE_PRZYWRACA',
+    'Moje wpisy: stara strona udaje pusty dorobek (#2473)': r'MOJE_WPISY_2473_STARA_STRONA_WRACA',
+    'Moje wpisy: pusta porcja traci kontener (#2473)': r'MOJE_WPISY_2473_PUSTA_PORCJA_MA_LISTE',
     'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
     'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',
     "Koszt autora pozostaje bazowy po zmianie porcji (#2524)": r'KOSZT_AUTORA_2524_NIEPRZELICZONY',
