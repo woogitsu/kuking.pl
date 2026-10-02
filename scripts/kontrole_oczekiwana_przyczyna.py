@@ -356,6 +356,8 @@ OCZEKUJ = {
     'Szablon .env bez tokenu czyszczenia CDN': r'\.env\.example ma 0 wystąpień `CLOUDFLARE_PURGE_TOKEN` — oczekiwane',
     'README: „Dopóki ich nie ma” wraca': r'README mówi, że GitHub Actions nie działają, a ci\.yml mówi, że CI',
     'CHANGELOG z tym samym wpisem dwa razy': r'CHANGELOG\.md ma zdublowane wpisy — najczęściej skutek rozwiązania',
+    'Archiwum CHANGELOG z tym samym wpisem dwa razy': r'CHANGELOG\.md ma zdublowane wpisy — najczęściej skutek rozwiązania',
+    'CHANGELOG bez odnośnika do pliku archiwum': r'Pliki w docs/changelog/ bez odnośnika w CHANGELOG\.md',
     'Nowa funkcja bez akapitu na stronie Co nowego': r'CHANGELOG\.md ma w sekcji „## Nieopublikowane” \d+ wpis\(ów\) oznaczonych',
     'Dziennik wdrożeń: down() bez warunku odmowy': r'Cofnięcie przeszło, mimo że w dzienniku jest wiersz\.',
     'Co nowego bez dopisku „od numeru”': r'contains "od Alfa 0\.\d+\.\d+"|Strona „Co nowego” nie pokazuje „od Alfa 0\.\d+\.\d+” przy nagłówku',

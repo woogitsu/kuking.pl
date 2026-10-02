@@ -840,6 +840,11 @@ IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
 CHANGELOG = "CHANGELOG.md"
 CHANGELOG_DUPLIKATY_TEST = "ChangelogBezZdublowanychWpisowTest"
 CHANGELOG_NAGLOWEK = "## Nieopublikowane\n\n"
+# Archiwum starszych wersji (docs/changelog/, 2.10.2026): testy czytają je
+# razem z CHANGELOG.md (tests/Support/PelnyChangelog.php).
+CHANGELOG_ARCHIWUM = "docs/changelog/archiwum-alfa-0.70-0.74.md"
+CHANGELOG_ARCHIWUM_LINK = "- [Alfa 0.69](docs/changelog/archiwum-alfa-0.69.md)\n"
+CHANGELOG_NUMERACJA_TEST = "PodbicieWersjiWymagaWpisuWChangelogTest"
 # Strażnik strony „Co nowego” (issue #1909, AGENTS.md §10): wpis CHANGELOGA
 # oznaczony `[nowa funkcja]` w sekcji „## Nieopublikowane" ma odpowiadający
 # akapit (`### ...`) w sekcji „## Najnowsze zmiany" pliku nowości.
@@ -2193,6 +2198,13 @@ checks = [
     ("CHANGELOG z tym samym wpisem dwa razy", CHANGELOG, CHANGELOG_DUPLIKATY_TEST,
      lambda s: replace_once(s, CHANGELOG_NAGLOWEK, CHANGELOG_NAGLOWEK
                             + "- Wpis zdublowany przez kontrolę dodatnią.\n" * 2)),
+    # Archiwum changelogu czytane razem z plikiem głównym: ten sam wpis
+    # dwa razy w samym archiwum nadal ma zapalić test duplikatów.
+    ("Archiwum CHANGELOG z tym samym wpisem dwa razy", CHANGELOG_ARCHIWUM, CHANGELOG_DUPLIKATY_TEST,
+     lambda s: s + "\n- Wpis zdublowany w archiwum.\n- Wpis zdublowany w archiwum.\n"),
+    # Plik archiwum bez odnośnika w CHANGELOG.md wypadłby po cichu z testów.
+    ("CHANGELOG bez odnośnika do pliku archiwum", CHANGELOG, CHANGELOG_NUMERACJA_TEST,
+     lambda s: replace_once(s, CHANGELOG_ARCHIWUM_LINK, "")),
     # Strona „Co nowego” (issue #1909): nowa funkcja w sekcji
     # „Nieopublikowane” musi mieć akapit w „Najnowszych zmianach”. Dodajemy
     # osierocony wpis, zamiast zdejmować znacznik ze starego wydania: po
