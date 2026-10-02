@@ -92,7 +92,7 @@ final class AlarmPolaczen
             'połączenia PostgreSQL:',
             $co,
             'Co zrobić: NIE dokładaj replik ani workerów, zanim nie wiadomo, co je zajmuje.',
-            'Najpierw `php artisan kuking:budzet-polaczen`, potem porównaj z budżetem w docs/DATABASE.md.',
+            'Najpierw `php artisan kuking:budzet-polaczen`, potem porównaj z budżetem w docs/baza/budzet-polaczen.md.',
         ]);
     }
 }
