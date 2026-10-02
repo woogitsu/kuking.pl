@@ -10,7 +10,14 @@ class InstrukcjeChroniaSrodowiskoTest extends TestCase
 {
     public function test_polecenia_instalacji_nie_cofaja_cudzych_plikow_ani_globalnej_konfiguracji(): void
     {
-        $text = file_get_contents(dirname(__DIR__, 2).'/AGENTS.md');
+        // Procedura instalacji leży w docs/agenci/SRODOWISKO_TESTY_CI.md (przeniesiona z
+        // AGENTS.md bez zmian treści); AGENTS.md ma na nią odnośnik i streszcza zakazy.
+        $agents = file_get_contents(dirname(__DIR__, 2).'/AGENTS.md');
+        $procedura = file_get_contents(dirname(__DIR__, 2).'/docs/agenci/SRODOWISKO_TESTY_CI.md');
+        $this->assertStringContainsString('docs/agenci/SRODOWISKO_TESTY_CI.md', $agents, 'INSTALACJA_ODNOSNIK');
+        $this->assertStringContainsString('MD5 oraz mtime', $agents, 'INSTALACJA_AGENTS_MD5');
+        $this->assertStringContainsString('MD5 oraz mtime', $procedura, 'INSTALACJA_DOCS_MD5');
+        $text = $agents."\n".$procedura;
         $this->assertDoesNotMatchRegularExpression('/git\s+(?:checkout|restore)[^\n]*composer\.(?:json|lock)/', $text);
         $this->assertDoesNotMatchRegularExpression('/composer\s+config\s+(?:-g|--global)\b/', $text);
         $this->assertStringContainsString('MD5 oraz mtime', $text);
@@ -46,7 +53,11 @@ class InstrukcjeChroniaSrodowiskoTest extends TestCase
     public function test_ograniczenia_przegladarki_i_zoom_sa_opisane_we_wlasciwych_sekcjach(): void
     {
         $agents = file_get_contents(dirname(__DIR__, 2).'/AGENTS.md');
-        $browser = explode('### Pull Request zawiera', explode('### Przeglądarka w środowisku agenta', $agents, 2)[1] ?? '', 2)[0];
+        // Sekcja o przeglądarce leży w docs/agenci/SRODOWISKO_TESTY_CI.md (ostatnia w pliku).
+        $this->assertStringContainsString('docs/agenci/SRODOWISKO_TESTY_CI.md', $agents, 'PRZEGLADARKA_ODNOSNIK');
+        $procedura = file_get_contents(dirname(__DIR__, 2).'/docs/agenci/SRODOWISKO_TESTY_CI.md');
+        $this->assertStringContainsString('### Przeglądarka w środowisku agenta', $procedura, 'PRZEGLADARKA_SEKCJA');
+        $browser = explode('### Przeglądarka w środowisku agenta', $procedura, 2)[1] ?? '';
         $this->assertStringContainsString('Najpierw sprawdź aktualny dostęp', $browser);
         $this->assertDoesNotMatchRegularExpression('/Chromium\s+\*\*nie przejdzie|Dotyczy to każdego hosta/', $browser);
 

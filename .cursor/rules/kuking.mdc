@@ -17,7 +17,7 @@ przed pierwszą zmianą.** Poniżej tylko skrót.
 - UX 50+: tekst ≥ 18 px, przyciski ≥ 48 px, brak hover/swipe/long-press jako wymogu,
   etykiety zawsze widoczne, poprawne dane nigdy nie znikają po błędzie walidacji.
 - JavaScript: stosuj AGENTS.md i D-053 — newralgiczne formularze mogą wymagać JS; nie zostawiaj martwych przycisków.
-- Zmiana schematu = migracja + test + `docs/DATABASE.md` + rollback.
+- Zmiana schematu = migracja + test + opis w `docs/baza/` (+ indeks `docs/DATABASE.md`) + rollback.
 - Testy na PostgreSQL, nie na SQLite; izolowana baza oraz jawny host i port zgodnie z AGENTS.md.
 - Przed PR-em: `./scripts/check.sh` — sam `pint` i `artisan test` pomijają składnię, migracje i assety.
 - Nie dodawaj: mikroserwisów, SPA, Redisa, GraphQL, osobnego search engine,
