@@ -187,6 +187,16 @@ daleko na liście. Przycisk „Cały zeszyt” wraca do zwykłego wydruku. Zdję
 włączacie i wyłączacie osobno, a to nie zmienia wybranych przepisów. Niczego
 w zeszycie to nie zmienia.
 
+### Wydruk listy „Do kupienia”
+
+Wolicie iść do sklepu z kartką niż z telefonem? Pod listą „Do kupienia” jest
+teraz przycisk „Wydrukuj do kupienia”. Otwiera podgląd kartki tylko z tym, co
+jeszcze trzeba kupić — odhaczone pozycje zostają poza nią — z pustym
+kwadratem przy każdej, żeby odhaczać długopisem. Na górze jest data i godzina,
+z której pochodzi kopia: kartka nie zmienia się razem z listą, więc po
+dopisaniu czegoś otwórzcie wydruk jeszcze raz. Drukowanie niczego na liście
+nie odhacza ani nie usuwa.
+
 ### Dzień gotowania przy „Ugotowałem”
 
 Gotowaliście w niedzielę, a zdjęcie i kilka słów dodajecie dopiero we wtorek?
