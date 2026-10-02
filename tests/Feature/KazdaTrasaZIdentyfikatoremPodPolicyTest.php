@@ -637,6 +637,22 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $wpisDoWspomnien = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $wpisBezOdpowiedzi = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
 
+        // Przywrócony jako szkic (#2461): dwa osobne wpisy, bo udany POST
+        // publikuje wpis i zmieniłby wynik GET na tym samym zasobie.
+        $szkicDoPodgladu = Post::factory()->draft()->create(['author_id' => $wlasciciel->getKey(), 'published_at' => now()->subYear()]);
+        $szkicDoPublikacji = Post::factory()->draft()->create(['author_id' => $wlasciciel->getKey(), 'published_at' => now()->subYear()]);
+        foreach ([$szkicDoPodgladu, $szkicDoPublikacji] as $szkic) {
+            ModerationAction::create([
+                'moderator_id' => $moderator->getKey(),
+                'report_id' => null,
+                'target_type' => 'post',
+                'target_id' => $szkic->getKey(),
+                'action' => ModerationAction::ACTION_UNHIDE,
+                'reason_code' => 'autor_poprawil',
+                'previous_status' => Post::STATUS_HIDDEN,
+            ]);
+        }
+
         // Osobny wpis dla „Zdejmij z urzędu” (G31) — udany POST go zdejmuje.
         $wpisZUrzedu = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
         // „CSAM — natychmiast ukryj i zabezpiecz” (D-333): udany POST ukrywa
@@ -1090,6 +1106,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('posts.edit', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.update', 'zapis wpisu', 'put',
             route('posts.update', $wpis), ['body' => 'Nowa treść wpisu.'], [$W, $O, $O, $O, $O]);
+        $dodaj('posts.restored.confirm', 'ekran ponownej publikacji przywróconego wpisu', 'get',
+            route('posts.restored.confirm', $szkicDoPodgladu), [], [$W, $O, $O, $O, $O]);
+        $dodaj('posts.restored.publish', 'ponowna publikacja przywróconego wpisu', 'post',
+            route('posts.restored.publish', $szkicDoPublikacji), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.comment', 'komentarz pod prywatnym wpisem', 'post',
             route('posts.comment', $wpis), ['body' => 'Komentarz do wpisu.'], [$W, $O, $O, $O, $O]);
         // „Dopisz przepis” (#1334): formularz pokazuje zdjęcie PRYWATNEGO
