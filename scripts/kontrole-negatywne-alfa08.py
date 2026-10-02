@@ -1345,6 +1345,18 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Dołączenie zdjęcia: podmiana UUID kucharza (#2500)", "app/Policies/CookedEventPolicy.php",
+     "test_obcy_autor_przepisu_i_moderator_nie_dolacza_zdjec",
+     lambda s: replace_once(s, "if ($user->getKey() !== $event->user_id || ! $user->isActive()) {", "if (! $user->isActive()) {")),
+    ("Dołączenie zdjęcia liczy limit bez przypiętych (#2500)", "app/Domain/Recipes/Actions/DolaczZdjeciaDoWykonania.php",
+     "test_limit_liczy_zdjecia_juz_przypiete_i_nowe_razem",
+     lambda s: replace_once(s, "if (count($przypiete) + count($nowe) > LimityZdjec::maksZdjecNaWysylke()) {", "if (count($nowe) > LimityZdjec::maksZdjecNaWysylke()) {")),
+    ("Dołączenie zdjęcia ignoruje świeży stan pod blokadą (#2500)", "app/Domain/Recipes/Actions/DolaczZdjeciaDoWykonania.php",
+     "test_sankcja_albo_utrata_przepisu_miedzy_otwarciem_a_zapisem_blokuje_zapis_pod_blokada",
+     lambda s: replace_once(s, "if (! (new CookedEventPolicy)->addPhotos($swiezyKucharz, $swiezeWykonanie)) {", "if (false) {")),
+    ("Dołączenie zdjęcia przejmuje cudze albo cudzo-przypięte (#2500)", "app/Domain/Recipes/Actions/DolaczZdjeciaDoWykonania.php",
+     "test_cudze_zabezpieczone_i_przypiete_gdzie_indziej_zdjecia_nie_zostaja_przejete",
+     lambda s: replace_once(s, "&& ! in_array($id, $gdzieIndziej, true),", ",")),
     ("Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
      lambda s: replace_once(s, "return $request->user() !== null", "return false")),
     ("Dyktowanie daje mikrofon gościowi (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",

@@ -1167,6 +1167,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/ugotowane/{cookedEvent}/porcje', [CookedEventController::class, 'zapiszPorcje'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('cooked.porcje.update');
+    // Zdjęcie dołączone do zapisanego wykonania (#2500): tylko kucharz
+    // (Policy `addPhotos`), bez nowego wykonania i powiadomienia.
+    Route::get('/ugotowane/{cookedEvent}/zdjecia', [CookedEventController::class, 'zdjecia'])
+        ->name('cooked.photos.create');
+    Route::post('/ugotowane/{cookedEvent}/zdjecia', [CookedEventController::class, 'dolaczZdjecia'])
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('cooked.photos.store');
     Route::delete('/ugotowane/{cookedEvent}', [CookedEventController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('cooked.destroy');

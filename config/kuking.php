@@ -176,6 +176,17 @@ return [
         'probka_magazynu_sekund' => (int) env('KUKING_HEALTH_PROBKA_MAGAZYNU_SEKUND', 60),
     ],
 
+    /*
+     * DOŁĄCZANIE ZDJĘCIA DO ZAPISANEGO „UGOTOWAŁEM” (#2500, D-333 — paczka E).
+     * `dolaczenie_zdjec_dni` — jak długo od zapisu wykonania (`cooked_at`)
+     * kucharz może dołożyć zdjęcie. Wartość najbezpieczniejsza dla publicznej
+     * relacji: tydzień, nie bezterminowo; do potwierdzenia przez właściciela.
+     * Zmiana to zmienna konfiguracji, bez migracji.
+     */
+    'wykonania' => [
+        'dolaczenie_zdjec_dni' => 7,
+    ],
+
     'media' => [
         // Dysk Laravel Filesystem, na którym żyją zdjęcia. Dzięki temu przejście
         // z dysku lokalnego na Cloudflare R2 jest zmianą konfiguracji, nie kodu.

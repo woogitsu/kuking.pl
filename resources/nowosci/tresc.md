@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Zdjęcie dołączone do zapisanego „Ugotowałem”
+
+Zgłosiliście ugotowanie od razu, a zdjęcie macie dopiero po posiłku? Na stronie własnego wykonania jest teraz przycisk „Dołącz zdjęcie”. Dokładacie zdjęcie do tego samego wykonania — nie trzeba zgłaszać gotowania drugi raz, więc data, rozmowa pod wykonaniem i wersja przepisu zostają, a autor przepisu nie dostaje nowego powiadomienia. Przy wykonaniu pojawi się dopisek „Zdjęcie uzupełnione”, żeby było jasne, że zdjęcie dołożono później. Zdjęcie można dołączyć przez 7 dni od zapisania wykonania.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

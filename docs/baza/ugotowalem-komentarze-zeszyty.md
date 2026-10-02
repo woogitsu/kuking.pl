@@ -82,6 +82,25 @@ Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
   (D-088 — to deklaracja człowieka, której kolejny `migrate` nie odtworzy, a
   odtworzenie z `cooked_at` byłoby nieprawdą); inaczej zdejmuje CHECK i
   kolumnę. Test: `tests/Feature/PrywatnyDzienGotowaniaTest.php`.
+- **`photos_added_at timestamptz NULL`** (migracja
+  `2026_10_07_120000_add_photos_added_at_to_cooked_events`, #2500, decyzja
+  właściciela z 2.10.2026, D-333 — paczka E) — chwila, w której kucharz
+  **dołączył zdjęcie do już zapisanego wykonania**. Publiczna karta pokazuje ją
+  jako „Zdjęcie uzupełnione …”; `cooked_at`, przypięta wersja, notatka i
+  komentarze zostają bez zmian. `NULL` = zdjęcia nie dołączano później (także
+  wykonania sprzed migracji, bez backfillu). Poza `$fillable`; ustawia ją
+  wyłącznie `DolaczZdjeciaDoWykonania` (zapytaniem po kluczu, bez zdarzeń
+  modelu). Akcja nie tworzy wykonania, `TYPE_COOKED`, celebracji ani analityki
+  publikacji; dokłada wiersze `cooked_event_media` (kolejne pozycje, istniejące
+  nietknięte, klucz główny (wykonanie, zdjęcie) = ponowienie nie dubluje), pod
+  blokadą `media` → `users` → `cooked_events` i z ponowną oceną
+  `CookedEventPolicy::addPhotos` na świeżym stanie (kucharz, konto aktywne,
+  okno `kuking.wykonania.dolaczenie_zdjec_dni` = 7, przepis dostępny wg
+  `RecipePolicy::cook`). Limit `kuking.media.max_per_post` liczy zdjęcia już
+  przypięte i nowe razem. Eksport: `ugotowalem[].zdjecie_uzupelnione`.
+  **Rollback:** `down()` odmawia, gdy choć jedno wykonanie ma znacznik (D-088 —
+  uzupełnione zdjęcie wyglądałoby jak oryginalne). Test:
+  `tests/Feature/DolaczenieZdjeciaDoWykonaniaTest.php`.
 - **`faktyczne_porcje numeric(5,2) NULL`** (CHECK `faktyczne_porcje IS NULL OR
   (faktyczne_porcje >= 0.5 AND faktyczne_porcje <= 100)`, migracja
   `2026_10_03_180000_add_faktyczne_porcje_to_cooked_events`, #2540, decyzja

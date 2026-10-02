@@ -36,6 +36,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $recipe_version_id
  * @property Carbon|null $dzien_gotowania
  * @property float|null $faktyczne_porcje
+ * @property Carbon|null $photos_added_at
  */
 class CookedEvent extends Model
 {
@@ -71,6 +72,9 @@ class CookedEvent extends Model
             // jako liczba. Poza `$fillable`; zapisuje ją wyłącznie
             // `RecordCookedEvent` i `PoprawPorcjeWykonania`. Widzi ją tylko kucharz.
             'faktyczne_porcje' => 'float',
+            // Chwila dołączenia zdjęcia do zapisanego wykonania (#2500). Poza
+            // `$fillable`; ustawia ją wyłącznie `DolaczZdjeciaDoWykonania`.
+            'photos_added_at' => 'datetime',
             'would_make_again' => 'boolean',
             'actual_minutes' => 'integer',
             // Wspomnienia z własnych wykonań (F6). Poza `$fillable`: zapisuje

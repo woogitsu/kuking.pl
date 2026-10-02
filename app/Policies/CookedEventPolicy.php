@@ -54,6 +54,29 @@ class CookedEventPolicy
         return $user->getKey() === $event->user_id;
     }
 
+    /**
+     * Dołączenie zdjęcia do ISTNIEJĄCEGO wykonania (#2500). Wyłącznie kucharz,
+     * z aktywnym kontem, przy przepisie, który wciąż może ugotować
+     * (`RecipePolicy::cook`: widoczność, blokady, konto autora), i tylko w
+     * oknie `kuking.wykonania.dolaczenie_zdjec_dni` od zapisu wykonania. Samo
+     * prawo odczytu własnego wykonania (`view`) NIE nadaje prawa zapisu: autor
+     * przepisu, moderator i obca osoba tu nie wchodzą.
+     */
+    public function addPhotos(User $user, CookedEvent $event): bool
+    {
+        if ($user->getKey() !== $event->user_id || ! $user->isActive()) {
+            return false;
+        }
+
+        if ($event->cooked_at->lt(now()->subDays((int) config('kuking.wykonania.dolaczenie_zdjec_dni')))) {
+            return false;
+        }
+
+        $przepis = $event->recipe;
+
+        return $przepis !== null && app(RecipePolicy::class)->cook($user, $przepis);
+    }
+
     private function dostep(?User $user, CookedEvent $event, bool $doKomentarza): bool
     {
         // 1. Blokada — pierwsza, bezwarunkowa, w obie strony (`AGENTS.md` §4).

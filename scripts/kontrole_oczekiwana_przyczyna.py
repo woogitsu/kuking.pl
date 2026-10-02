@@ -35,6 +35,10 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Dołączenie zdjęcia: podmiana UUID kucharza (#2500)': r'DOLACZENIE_2500_PODMIANA_UUID',
+    'Dołączenie zdjęcia liczy limit bez przypiętych (#2500)': r'DOLACZENIE_2500_LIMIT',
+    'Dołączenie zdjęcia ignoruje świeży stan pod blokadą (#2500)': r'DOLACZENIE_2500_SWIEZY_STAN',
+    'Dołączenie zdjęcia przejmuje cudze albo cudzo-przypięte (#2500)': r'DOLACZENIE_2500_WLASNOSC_MEDIOW',
     'Rollback udostępnień przepisów kasuje bez pytania (#2650)': r'Rollback skasował udostępnienia bez pytania',
     'Lista ostatnio oglądanych sięga do analityki (#2553)': r'OSTATNIO_OGLADANE_2553_PRYWATNA_LISTA_POZA_ZAMKNIETA_LISTA',
     'Lista ostatnio oglądanych pokazuje przepis konta zbanowanego (#2553)': r'OSTATNIO_OGLADANE_2553_TYTUL_NIEDOSTEPNEGO_PRZEPISU',
