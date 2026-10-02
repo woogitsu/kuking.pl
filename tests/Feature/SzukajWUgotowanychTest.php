@@ -71,8 +71,8 @@ class SzukajWUgotowanychTest extends TestCase
 
         $this->actingAs($kucharz)->get($this->adres('pierogi'))
             ->assertOk()
-            ->assertSee('Nie znaleźliśmy wśród Twoich wykonań przepisu, który ma w tytule „pierogi”.', false)
-            ->assertSee('Spróbuj krótszego kawałka tytułu.')
+            ->assertSee('Nie znaleźliśmy wśród Twoich wykonań niczego z „pierogi” w tytule przepisu, w Twojej uwadze ani w tekście „Po swojemu”.', false)
+            ->assertSee('Spróbuj krótszego kawałka.')
             ->assertSee('value="pierogi"', false)
             ->assertDontSee('wykonanie-'.$sernik->getKey(), false)
             // Brak dopasowań to nie pusty profil — bez „Nie masz jeszcze żadnego wykonania”.
@@ -184,7 +184,7 @@ class SzukajWUgotowanychTest extends TestCase
 
         $this->actingAs($kucharz)->get($this->adres('a'))
             ->assertOk()
-            ->assertSee('Wpisz co najmniej dwie litery z tytułu przepisu.')
+            ->assertSee('Wpisz co najmniej dwie litery z tytułu przepisu, swojej uwagi albo tekstu „Po swojemu”.', false)
             ->assertSee('value="a"', false)
             ->assertSee('aria-invalid="true"', false)
             ->assertDontSee('Wyniki dla', false)
@@ -229,6 +229,107 @@ class SzukajWUgotowanychTest extends TestCase
         }
 
         $this->assertSame($zapytania[2], $zapytania[12], "Zapytania: {$zapytania[2]} przy 2 wynikach, {$zapytania[12]} przy 12.");
+    }
+
+    /** @param array<string, mixed> $atrybuty */
+    private function wykonanieZTekstem(User $kucharz, Recipe $przepis, \DateTimeInterface $kiedy, array $atrybuty): CookedEvent
+    {
+        return CookedEvent::factory()->create($atrybuty + [
+            'user_id' => $kucharz->getKey(),
+            'recipe_id' => $przepis->getKey(),
+            'cooked_at' => $kiedy,
+            'note' => null,
+            'changes_note' => null,
+        ]);
+    }
+
+    public function test_fraza_znajduje_wlasna_uwage_i_tekst_po_swojemu_gdy_tytul_nie_pasuje(): void
+    {
+        $kucharz = $this->user('kucharz');
+        $sliwki = $this->przepis('Ciasto ze śliwkami');
+        $uwaga = $this->wykonanieZTekstem($kucharz, $sliwki, now()->subDays(3), ['note' => 'Wyszło dobrze, mniej cukru niż zwykle']);
+        $poSwojemu = $this->wykonanieZTekstem($kucharz, $this->przepis('Sernik'), now()->subDays(2), ['changes_note' => 'Dałem MNIEJ CUKRU i więcej wanilii']);
+        $inne = $this->wykonanieZTekstem($kucharz, $this->przepis('Chleb'), now()->subDay(), ['note' => 'Bez zmian', 'changes_note' => 'Nic']);
+
+        // Kontrola dodatnia: tytuł dalej działa.
+        $this->assertSame([$uwaga->getKey()], $this->kartyNaStronie($this->actingAs($kucharz)->get($this->adres('sliwkami'))->getContent()));
+
+        $html = $this->actingAs($kucharz)->get($this->adres('mniej cukru'))->assertOk()->getContent();
+
+        // Chronologicznie od najnowszego, bez rankingu; karta niesie datę, uwagę i „Po swojemu”.
+        $this->assertSame([$poSwojemu->getKey(), $uwaga->getKey()], $this->kartyNaStronie($html));
+        $this->assertStringNotContainsString('wykonanie-'.$inne->getKey(), $html);
+        $this->assertStringContainsString('Wyszło dobrze, mniej cukru niż zwykle', $html);
+        $this->assertStringContainsString('Po swojemu:', $html);
+    }
+
+    public function test_uwaga_i_po_swojemu_z_ogonkami_metaznakami_i_pustymi_polami(): void
+    {
+        $kucharz = $this->user('kucharz');
+        $a = $this->wykonanieZTekstem($kucharz, $this->przepis('Zupa'), now()->subDays(2), ['note' => 'Dodałem 100% śmietany_więcej']);
+        $this->wykonanieZTekstem($kucharz, $this->przepis('Barszcz'), now()->subDay(), ['note' => null, 'changes_note' => null]);
+
+        $this->assertSame([$a->getKey()], $this->kartyNaStronie($this->actingAs($kucharz)->get($this->adres('smietany'))->getContent()));
+        $this->assertSame([$a->getKey()], $this->kartyNaStronie($this->actingAs($kucharz)->get($this->adres('100% smie'))->getContent()));
+        // `_` i `%` są zwykłym tekstem, nie wzorcem.
+        $this->assertSame([], $this->kartyNaStronie($this->actingAs($kucharz)->get($this->adres('smietany_wiecej_'))->getContent()));
+        $this->assertSame([], $this->kartyNaStronie($this->actingAs($kucharz)->get($this->adres('zzz'))->getContent()));
+    }
+
+    public function test_cudza_uwaga_nie_jest_przeszukiwana_a_fraza_na_cudzym_profilu_nie_dziala(): void
+    {
+        $kucharz = $this->user('kucharz');
+        $inna = $this->user('inna');
+        $przepis = $this->przepis('Pasztet');
+        $this->wykonanieZTekstem($inna, $przepis, now()->subDay(), ['note' => 'Sekretna uwaga innej osoby']);
+        $moje = $this->wykonanieZTekstem($kucharz, $przepis, now(), ['note' => 'Moja zwykła uwaga']);
+
+        // Właściciel nie znajduje cudzej uwagi.
+        $this->assertSame([], $this->kartyNaStronie($this->actingAs($kucharz)->get($this->adres('sekretna'))->getContent()));
+        // Cudzy profil: pole nie istnieje, a `?szukaj=` niczego nie zawęża (karta innej osoby
+        // jest na liście niezależnie od frazy) ani nie dokłada wyników z naszych wykonań.
+        $cudzy = $this->actingAs($kucharz)->get($this->adres('zzz-nic', 'inna'))->getContent();
+        $this->assertStringNotContainsString('f-szukaj-ugotowane', $cudzy);
+        $this->assertCount(1, $this->kartyNaStronie($cudzy));
+        $this->assertStringNotContainsString('Moja zwykła uwaga', $cudzy);
+        $this->assertSame([$moje->getKey()], $this->kartyNaStronie($this->actingAs($kucharz)->get($this->adres('moja'))->getContent()));
+    }
+
+    public function test_dopasowanie_uwagi_nie_ujawnia_tytulu_przepisu_za_blokada_ani_usunietego(): void
+    {
+        $kucharz = $this->user('kucharz');
+        $autor = $this->user('autor');
+        $zablokowany = $this->przepis('Tajny bigos autora', ['author_id' => $autor->getKey()]);
+        $usuniety = $this->przepis('Tajna nalewka');
+        $a = $this->wykonanieZTekstem($kucharz, $zablokowany, now()->subDays(2), ['note' => 'Zapamiętać: mniej soli']);
+        $b = $this->wykonanieZTekstem($kucharz, $usuniety, now()->subDay(), ['changes_note' => 'mniej soli i pieprzu']);
+        DB::table('blocks')->insert(['blocker_id' => $autor->getKey(), 'blocked_id' => $kucharz->getKey(), 'created_at' => now()]);
+        $usuniety->delete();
+
+        $html = $this->actingAs($kucharz)->get($this->adres('mniej soli'))->assertOk()->getContent();
+
+        $this->assertSame([$b->getKey(), $a->getKey()], $this->kartyNaStronie($html));
+        $this->assertStringNotContainsString('Tajny bigos', $html);
+        $this->assertStringNotContainsString('Tajna nalewka', $html);
+        // Fraza z tytułu schowanego przepisu nadal nic nie znajduje.
+        $this->assertSame([], $this->kartyNaStronie($this->actingAs($kucharz)->get($this->adres('tajny bigos'))->getContent()));
+    }
+
+    public function test_pokaz_wiecej_przy_frazie_z_uwagi_niesie_fraze(): void
+    {
+        $kucharz = $this->user('kucharz');
+        $przepis = $this->przepis('Placki');
+        foreach (range(1, 14) as $i) {
+            $this->wykonanieZTekstem($kucharz, $przepis, now()->subMinutes($i), ['note' => 'mniej cukru '.$i]);
+        }
+
+        $strona1 = $this->actingAs($kucharz)->get($this->adres('mniej cukru'))->getContent();
+        $this->assertCount(12, $this->kartyNaStronie($strona1));
+        $this->assertMatchesRegularExpression('/href="[^"]*szukaj=mniej(\\+|%20)cukru[^"]*page=2|href="[^"]*page=2[^"]*szukaj=mniej(\\+|%20)cukru/', html_entity_decode($strona1));
+
+        $strona2 = $this->actingAs($kucharz)->get($this->adres('mniej cukru').'&page=2')->getContent();
+        $this->assertCount(2, $this->kartyNaStronie($strona2));
+        $this->assertSame([], array_intersect($this->kartyNaStronie($strona1), $this->kartyNaStronie($strona2)));
     }
 
     private function adres(?string $fraza = null, string $kto = 'kucharz'): string

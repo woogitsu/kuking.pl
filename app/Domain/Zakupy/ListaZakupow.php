@@ -6,6 +6,8 @@ namespace App\Domain\Zakupy;
 
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Recipes\GrupySkladnikow;
+use App\Domain\Recipes\Porcje\PrzeliczonySkladnik;
+use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use App\Models\ShoppingListItem;
@@ -69,7 +71,7 @@ final class ListaZakupow
 
     public const WYNIK_BRAK_SKLADNIKOW = 'brak_skladnikow';
 
-    /** Wybór składników (#2462): przepis zmienił się od otwarcia podglądu — nic nie dopisano. */
+    /** Podgląd nie zgadza się już z przepisem — przeliczone porcje (#2489) albo wybór składników (#2462): nic nie dopisano. */
     public const WYNIK_ZMIENIONY = 'zmieniony';
 
     public const COFNIECIE_PRZYWROCONO = 'przywrocono';
@@ -177,6 +179,14 @@ final class ListaZakupow
      * potwierdziła, nic nie jest dopisywane: wynik `juz_jest` niesie datę
      * wcześniejszego dodania, żeby ekran mógł zapytać.
      *
+     * PRZELICZONE PORCJE (V2, #2489): z `$porcje` i `$odcisk` z podglądu
+     * (`podgladPorcji()`) pozycje dostają ilości przeliczone na tę liczbę
+     * porcji tym samym mechanizmem co strona przepisu. Serwer liczy je od nowa
+     * z aktualnych składników; gdy wynik różni się od podglądu (odcisk),
+     * nic się nie dopisuje (`WYNIK_ZMIENIONY`). Linie, których nie wolno
+     * przeliczyć („do smaku”, bez ilości, suma, brak liczby), zostają
+     * oryginalne i NIE niosą oznaczenia przeliczenia.
+     *
      * WYBÓR SKŁADNIKÓW (#2462, V2): z `$wybraneId` dopisujemy dokładnie wskazane
      * linie TEGO przepisu (kolejność przepisu, nie żądania). Identyfikatory nie
      * są treścią ani autoryzacją — tekst czyta serwer, po blokadzie, z linii
@@ -186,32 +196,66 @@ final class ListaZakupow
      * przepisu odrzuca całość. Ostrzeżenie o ponownym dodaniu, limit i zapis
      * „wszystko albo nic” działają jak przy dodaniu wszystkich.
      *
+     * Oba tryby razem nie są obsługiwane (dwa różne podglądy, dwa odciski):
+     * takie żądanie kończy się błędem przy polu, bez zapisu. `$odcisk` należy
+     * do trybu, który jest aktywny.
+     *
      * @param  list<string>|null  $wybraneId
-     * @return array{wynik: string, dodano: int, wczesniej: ?CarbonInterface}
+     * @return array{wynik: string, dodano: int, wczesniej: ?CarbonInterface, przeliczono: int, bez_przeliczenia: int}
      */
-    public function dodajSkladniki(User $user, Recipe $przepis, bool $potwierdzone = false, ?array $wybraneId = null, ?string $odcisk = null): array
+    public function dodajSkladniki(User $user, Recipe $przepis, bool $potwierdzone = false, ?float $porcje = null, ?string $odcisk = null, ?array $wybraneId = null): array
     {
         if (! $this->przepisy->view($user, $przepis)) {
             throw new AuthorizationException;
         }
 
-        $linie = $this->linieSkladnikow($przepis);
+        $wybor = null;
+        if ($porcje !== null) {
+            $wybor = WyborPorcji::dla($przepis, $porcje);
 
-        if ($linie === []) {
-            return ['wynik' => self::WYNIK_BRAK_SKLADNIKOW, 'dodano' => 0, 'wczesniej' => null];
+            if (! $wybor->przeliczone() || $wybor->odrzucone) {
+                throw ValidationException::withMessages([
+                    'porcje' => 'Nie rozpoznajemy tej liczby porcji. Wybierz ją jeszcze raz na stronie przepisu.',
+                ]);
+            }
         }
 
-        return DB::transaction(function () use ($user, $przepis, $linie, $potwierdzone, $wybraneId, $odcisk): array {
+        if ($porcje !== null && $wybraneId !== null) {
+            throw ValidationException::withMessages([
+                'skladniki' => 'Wybierz albo liczbę porcji, albo pojedyncze składniki — oba naraz nie działają. Wróć do przepisu i spróbuj jeszcze raz.',
+            ]);
+        }
+
+        $linie = $wybor === null ? $this->linieDoZapisu($this->linieSkladnikow($przepis)) : $this->liniePrzeliczone($przepis, $wybor);
+
+        if ($linie === []) {
+            return ['wynik' => self::WYNIK_BRAK_SKLADNIKOW, 'dodano' => 0, 'wczesniej' => null, 'przeliczono' => 0, 'bez_przeliczenia' => 0];
+        }
+
+        return DB::transaction(function () use ($user, $przepis, $linie, $potwierdzone, $wybor, $odcisk, $wybraneId): array {
             $this->zablokujListe($user);
 
+            // Linie liczone PO blokadzie i od nowa: podgląd musi zgadzać się z zapisem.
+            if ($wybor !== null) {
+                $swieze = $this->liniePrzeliczone($przepis->fresh() ?? $przepis, $wybor);
+
+                if ($odcisk === null || ! hash_equals(self::odcisk($swieze, (float) $wybor->wybrane), $odcisk)) {
+                    return ['wynik' => self::WYNIK_ZMIENIONY, 'dodano' => 0, 'wczesniej' => null, 'przeliczono' => 0, 'bez_przeliczenia' => 0];
+                }
+
+                // Zapisujemy dokładnie to, co zatwierdził podgląd.
+                $linie = $swieze;
+            }
+
+            // Wybór składników (#2462): tylko wskazane linie, z odciskiem podglądu.
             if ($wybraneId !== null) {
                 $wybrane = $this->wybraneLinie($przepis, $wybraneId, (string) $odcisk);
 
                 if ($wybrane === null) {
-                    return ['wynik' => self::WYNIK_ZMIENIONY, 'dodano' => 0, 'wczesniej' => null];
+                    return ['wynik' => self::WYNIK_ZMIENIONY, 'dodano' => 0, 'wczesniej' => null, 'przeliczono' => 0, 'bez_przeliczenia' => 0];
                 }
 
-                $linie = $wybrane;
+                $linie = $this->linieDoZapisu($wybrane);
             }
 
             $wczesniej = ShoppingListItem::query()
@@ -224,18 +268,107 @@ final class ListaZakupow
                     'wynik' => self::WYNIK_JUZ_JEST,
                     'dodano' => 0,
                     'wczesniej' => Carbon::parse($wczesniej),
+                    'przeliczono' => 0,
+                    'bez_przeliczenia' => 0,
                 ];
             }
 
             $this->upewnijSieZeSaMiejsca($user, count($linie));
 
             $pozycja = $this->nastepnaPozycja($user);
+            $przeliczono = 0;
             foreach ($linie as $linia) {
-                $this->zapisz($user, $linia, ShoppingListItem::SOURCE_RECIPE, $przepis, $pozycja++);
+                $skala = $wybor !== null && $linia['przeliczona'] ? (float) $wybor->wybrane : null;
+                $this->zapisz($user, $linia['tekst'], ShoppingListItem::SOURCE_RECIPE, $przepis, $pozycja++, $skala);
+                $przeliczono += $skala !== null ? 1 : 0;
             }
 
-            return ['wynik' => self::WYNIK_DODANO, 'dodano' => count($linie), 'wczesniej' => null];
+            return [
+                'wynik' => self::WYNIK_DODANO,
+                'dodano' => count($linie),
+                'wczesniej' => null,
+                'przeliczono' => $przeliczono,
+                'bez_przeliczenia' => $wybor !== null ? count($linie) - $przeliczono : 0,
+            ];
         });
+    }
+
+    /**
+     * Podgląd „Dodaj składniki na N porcji” (#2489): każda linia autora obok
+     * tego, co trafi na listę, oraz odcisk, który zatwierdzenie odsyła z powrotem.
+     * Nic nie zapisuje.
+     *
+     * @return array{linie: list<array{tekst: string, oryginal: string, przeliczona: bool, uwaga: ?string}>, odcisk: string, przeliczono: int}
+     */
+    public function podgladPorcji(Recipe $przepis, WyborPorcji $wybor): array
+    {
+        $linie = $this->liniePrzeliczone($przepis, $wybor);
+
+        return [
+            'linie' => $linie,
+            'odcisk' => self::odcisk($linie, (float) $wybor->wybrane),
+            'przeliczono' => count(array_filter($linie, fn (array $l): bool => $l['przeliczona'])),
+        ];
+    }
+
+    /**
+     * Linie w kolejności strony przepisu: przeliczone tym samym mechanizmem co
+     * strona (`WyborPorcji::przelicz`) albo oryginalne, gdy ich przeliczyć nie wolno.
+     *
+     * @return list<array{tekst: string, oryginal: string, przeliczona: bool, uwaga: ?string}>
+     */
+    private function liniePrzeliczone(Recipe $przepis, WyborPorcji $wybor): array
+    {
+        $linie = [];
+
+        foreach (GrupySkladnikow::ulozyc($przepis->ingredients()->get()) as $grupa) {
+            foreach ($grupa['skladniki'] as $skladnik) {
+                /** @var RecipeIngredient $skladnik */
+                $oryginal = self::oczysc((string) $skladnik->ingredient_text);
+                if ($oryginal === null) {
+                    continue;
+                }
+
+                $oryginal = mb_substr($oryginal, 0, self::maksZnakow());
+                $wynik = $wybor->przelicz($skladnik);
+                $tekst = $wynik->zmieniony ? self::oczysc($wynik->tekst()) : null;
+
+                if ($tekst !== null && mb_strlen($tekst) <= self::maksZnakow()) {
+                    $linie[] = ['tekst' => $tekst, 'oryginal' => $oryginal, 'przeliczona' => true, 'uwaga' => null];
+
+                    continue;
+                }
+
+                $linie[] = [
+                    'tekst' => $oryginal,
+                    'oryginal' => $oryginal,
+                    'przeliczona' => false,
+                    'uwaga' => $wynik->nieprzeliczony
+                        ? PrzeliczonySkladnik::UWAGA_SUMA
+                        : ($tekst !== null ? 'Po przeliczeniu linia byłaby za długa, więc zostaje oryginalna. Sprawdź ją samodzielnie.' : 'Tej linii nie przeliczamy (bez ilości, „do smaku” albo brak liczby). Sprawdź ją samodzielnie.'),
+                ];
+            }
+        }
+
+        return $linie;
+    }
+
+    /**
+     * @param  list<string>  $linie
+     * @return list<array{tekst: string, oryginal: string, przeliczona: bool, uwaga: ?string}>
+     */
+    private function linieDoZapisu(array $linie): array
+    {
+        return array_map(fn (string $l): array => ['tekst' => $l, 'oryginal' => $l, 'przeliczona' => false, 'uwaga' => null], $linie);
+    }
+
+    /** @param  list<array{tekst: string, oryginal: string, przeliczona: bool, uwaga: ?string}>  $linie */
+    private static function odcisk(array $linie, float $porcje): string
+    {
+        return hash('sha256', json_encode([
+            round($porcje, 2),
+            array_map(fn (array $l): array => [$l['tekst'], $l['przeliczona']], $linie),
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
     }
 
     /** Odhaczenie albo cofnięcie odhaczenia — ustawienie stanu, nie przełącznik (idempotentne). */
@@ -376,6 +509,8 @@ final class ListaZakupow
                     'text' => $p['text'],
                     'source' => $p['source'],
                     'recipe_id' => in_array($p['recipe_id'], $istniejace, true) ? $p['recipe_id'] : null,
+                    // Przeliczenie (#2489) wraca z pozycją; migawki sprzed niego go nie mają.
+                    'scaled_servings' => $p['scaled_servings'] ?? null,
                     'position' => (int) $p['position'],
                     'checked_at' => $p['checked_at'],
                     'edited_at' => $p['edited_at'] ?? null,
@@ -491,6 +626,7 @@ final class ListaZakupow
             'text' => $p->text,
             'source' => $p->source,
             'recipe_id' => $p->recipe_id,
+            'scaled_servings' => $p->scaled_servings,
             'position' => $p->position,
             'checked_at' => $p->checked_at?->toIso8601String(),
             'edited_at' => $p->edited_at?->toIso8601String(),
@@ -698,11 +834,13 @@ final class ListaZakupow
         return $max === null ? 0 : ((int) $max) + 1;
     }
 
-    private function zapisz(User $user, string $tekst, string $zrodlo, ?Recipe $przepis, int $pozycja): ShoppingListItem
+    private function zapisz(User $user, string $tekst, string $zrodlo, ?Recipe $przepis, int $pozycja, ?float $przeliczoneNa = null): ShoppingListItem
     {
         $wpis = new ShoppingListItem(['text' => $tekst]);
         $wpis->user_id = $user->getKey();
         $wpis->source = $zrodlo;
+        // Poza `$fillable`: przeliczenie na porcje ustawia wyłącznie ta akcja (#2489).
+        $wpis->scaled_servings = $przeliczoneNa;
         $wpis->recipe_id = $przepis?->getKey();
         $wpis->position = $pozycja;
         $wpis->save();

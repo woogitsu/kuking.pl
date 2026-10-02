@@ -159,11 +159,24 @@
                                 // Dopisek (#2549) tylko przy pozycji z przepisem; własny wpis ma swój tekst.
                                 $maDopisek = $pozycja['stan'] !== PlanerTygodnia::STAN_WLASNY;
                                 $bladDopisku = $maDopisek && \App\Support\WierszFormularza::jestAktywny($wpis->getKey()) && $errors->has('note');
+                                // Planowane porcje (#2509) tylko przy dostępnym przepisie. `WyborPorcji`
+                                // jest tym samym mechanizmem co `?porcje=` na stronie przepisu.
+                                $maPorcje = $pozycja['stan'] === PlanerTygodnia::STAN_PRZEPIS;
+                                $wyborPorcji = $maPorcje ? \App\Domain\Recipes\Porcje\WyborPorcji::dla($pozycja['przepis'], $wpis->planned_servings) : null;
+                                $adresPrzepisu = $maPorcje
+                                    ? route('recipes.show', array_filter([
+                                        'recipe' => $pozycja['przepis']->slug,
+                                        'porcje' => $wyborPorcji->dostepny() && ! $wyborPorcji->odrzucone && $wpis->planned_servings !== null
+                                            ? $wyborPorcji->doAdresu($wyborPorcji->wybrane)
+                                            : null,
+                                    ], fn ($v) => $v !== null))
+                                    : null;
+                                $bladPorcji = $maPorcje && \App\Support\WierszFormularza::jestAktywny($wpis->getKey()) && $errors->has('porcje');
                             @endphp
                             <li class="planer-pozycja">
                                 <span class="planer-pozycja-tresc">
                                     @if($pozycja['stan'] === PlanerTygodnia::STAN_PRZEPIS)
-                                        <a href="{{ route('recipes.show', $pozycja['przepis']->slug) }}">{{ $pozycja['przepis']->title }}</a>
+                                        <a href="{{ $adresPrzepisu }}">{{ $pozycja['przepis']->title }}</a>
                                     @elseif($pozycja['stan'] === PlanerTygodnia::STAN_WLASNY)
                                         {{ $wpis->label }}
                                     @elseif($pozycja['stan'] === PlanerTygodnia::STAN_NIEDOSTEPNY)
@@ -173,6 +186,9 @@
                                     @endif
                                     @if($wpis->note !== null && $maDopisek)
                                         <span class="planer-dopisek-tekst">Dopisek: {{ $wpis->note }}</span>
+                                    @endif
+                                    @if($maPorcje && $wpis->planned_servings !== null)
+                                        <span class="planer-dopisek-tekst">Planowane porcje: {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wpis->planned_servings) }}@if(! $wyborPorcji->dostepny()) — ten przepis nie podaje liczby porcji, więc ilości zostają jak u autora @endif</span>
                                     @endif
                                     @if($zrobione)
                                         <span class="planer-zrobione">Zrobione</span>
@@ -216,6 +232,22 @@
                                         </form>
                                     </details>
                                 @endif
+                                @if($maPorcje && ($wyborPorcji->dostepny() || $wpis->planned_servings !== null))
+                                    {{-- Planowane porcje (#2509): zwykły formularz; wpisana wartość wraca po błędzie. --}}
+                                    <details class="planer-dopisek" @if($bladPorcji) open @endif>
+                                        <summary class="btn btn-secondary">{{ $wpis->planned_servings === null ? 'Ustaw porcje' : 'Zmień porcje' }}<span class="visually-hidden">: {{ $nazwa }}, {{ PlanerTygodnia::nazwaDnia($dzien['dzien']) }}</span></summary>
+                                        <form class="planer-dopisz mt-3" method="POST" action="{{ route('planer.servings', $wpis) }}" novalidate>
+                                            @csrf @method('PATCH')
+                                            <input type="hidden" name="_wiersz" value="{{ $wpis->getKey() }}">
+                                            <input type="hidden" name="stan" value="{{ \App\Domain\Planer\Actions\UstawPorcjePlanu::znacznik($wpis) }}">
+                                            <x-field name="porcje" label="Na ile porcji w tym dniu? (np. 6)"
+                                                     :help="($wyborPorcji->zPrzepisu !== null ? 'Przepis jest na '.\App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wyborPorcji->zPrzepisu).'. ' : 'Ten przepis nie podaje liczby porcji. ').'Od '.\App\Domain\Recipes\Porcje\WyborPorcji::NAJMNIEJ.' do '.\App\Domain\Recipes\Porcje\WyborPorcji::NAJWIECEJ.'. Zostaw puste, żeby usunąć wybór — przepis otworzy się z ilościami autora. Widzisz to tylko Ty.'"
+                                                     :value="$wpis->planned_servings === null ? '' : \App\Domain\Recipes\Porcje\WyborPorcji::doPola($wpis->planned_servings)"
+                                                     inputmode="decimal" :wiersz="$wpis->getKey()" :bez-oznaczenia="true" />
+                                            <button class="btn btn-secondary" type="submit">Zapisz porcje</button>
+                                        </form>
+                                    </details>
+                                @endif
                                 {{-- Usunięcie jest osobno: pierwszy dotyk rozwija pytanie, nie wysyła DELETE. --}}
                                 <details class="confirm planer-potwierdzenie">
                                     <summary class="btn btn-danger confirm-summary">
@@ -235,6 +267,43 @@
                             </li>
                         @endforeach
                     </ul>
+                    @php
+                        // Do kolejki gotowania (#2450) trafiają tylko przepisy z krokami; wpisy własne,
+                        // niedostępne i usunięte nie mają tu ani tytułu, ani pola wyboru.
+                        $doKolejki = collect($dzien['pozycje'])
+                            ->filter(fn (array $p): bool => $p['stan'] === PlanerTygodnia::STAN_PRZEPIS && isset($zKrokami[(string) $p['przepis']->getKey()]))
+                            ->map(fn (array $p) => $p['przepis'])
+                            ->unique(fn ($r) => $r->getKey())
+                            ->values();
+                    @endphp
+                    @if($doKolejki->isNotEmpty())
+                        {{-- Zestaw dnia do kolejki gotowania (#2450). Kolejka żyje w przeglądarce, więc
+                             formularz odkrywa dopiero skrypt (D-053); bez niego zostają zwykłe linki. --}}
+                        <form class="stack mt-4" data-planer-kolejka data-kolejka-adres="{{ route('kolejka-gotowania') }}" novalidate hidden>
+                            <fieldset class="stack">
+                                <legend><strong>Dodaj do kolejki gotowania</strong></legend>
+                                <p class="meta meta-samodzielne m-0">Zaznacz potrawy, które chcesz gotować razem. Kolejka mieści najwyżej {{ \App\Http\Controllers\KolejkaGotowaniaController::LIMIT }} przepisy; to, co już w niej jest, zostaje.</p>
+                                <div class="choice-grid">
+                                    @foreach($doKolejki as $przepisDoKolejki)
+                                        <label class="choice">
+                                            <input type="checkbox" value="{{ $przepisDoKolejki->slug }}" data-planer-kolejka-pole>
+                                            <span class="choice-label">{{ $przepisDoKolejki->title }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </fieldset>
+                            <p class="m-0" role="status" aria-live="polite" data-planer-kolejka-komunikat></p>
+                            <button type="submit" class="btn btn-secondary">Dodaj zaznaczone do kolejki<span class="visually-hidden"> ({{ \App\Domain\Planer\PlanerTygodnia::nazwaDnia($dzien['dzien']) }})</span></button>
+                        </form>
+                        <div class="stack mt-4" data-planer-kolejka-bez-js>
+                            <p class="meta meta-samodzielne m-0">Kolejka gotowania potrzebuje włączonego JavaScriptu i pamięci przeglądarki. Bez nich gotuj każdy przepis osobno:</p>
+                            <ul class="list-none p-0 m-0 stack-tight">
+                                @foreach($doKolejki as $przepisDoKolejki)
+                                    <li><a class="btn btn-secondary" href="{{ route('cooking.show', $przepisDoKolejki->slug) }}">Gotuj: {{ $przepisDoKolejki->title }}</a></li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                     {{-- Powtórzenie zestawu dnia na inną datę (#2494): osobny ekran z podglądem. --}}
                     <p class="mt-3"><a class="btn btn-secondary" href="{{ route('planer.copyday', ['dzien' => $dataDnia]) }}">Skopiuj ten dzień<span class="visually-hidden">: {{ PlanerTygodnia::nazwaDnia($dzien['dzien']) }}</span></a></p>
                 @endif

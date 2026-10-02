@@ -129,7 +129,7 @@ try {
     assert(state(password).password_changed, 'REFERRER_PASSWORD_NOT_CHANGED');
     await page.locator('main [name=login]').fill(fixture.email);
     await page.locator('main [name=password]').fill(password);
-    await page.locator('main button[type=submit]').click();
+    await page.locator('main form[action$="/login"] button[type=submit]').click();
     await page.waitForURL(url => url.pathname !== '/login');
     const settings = await page.goto(origin + '/ustawienia');
     assert.equal(settings.status(), 200, 'REFERRER_LOGIN_NOT_AUTHENTICATED');

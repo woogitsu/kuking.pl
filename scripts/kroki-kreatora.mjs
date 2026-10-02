@@ -60,7 +60,7 @@ try {
   await page.goto(adres + '/login');
   await page.fill('[name="login"]', 'ania');
   await page.fill('[name="password"]', 'haslo-testowe-123');
-  await Promise.all([page.waitForURL(u => !u.pathname.endsWith('/login')), page.click('button[type="submit"]')]);
+  await Promise.all([page.waitForURL(u => !u.pathname.endsWith('/login')), page.click('form[action$="/login"] button[type=submit]')]);
   const response = await page.goto(`${adres}/dodaj/przepis?szkic=${szkic}`);
   assert.equal(response.status(), 200);
   const cdp = await page.context().newCDPSession(page);

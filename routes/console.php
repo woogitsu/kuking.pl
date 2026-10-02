@@ -193,10 +193,21 @@ Harmonogram::artisan('kuking:sprzataj-sygnaly')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// Retencja `potwierdzenia_zadan_rodo` (#2708, D-233): 36 miesięcy od
+// zamknięcia sprawy, z pominięciem `wstrzymanie_do` i kont z zabezpieczonym
+// dowodem. Slot 02:00 — piętnaście minut przed najbliższym zadaniem (02:15,
+// sprzątanie ostatnio oglądanych, #2553; `HarmonogramBezWspolnychSlotowTest`).
+// Wyłącznik awaryjny: `kuking.potwierdzenia_rodo.retencja_wlaczona`.
+Harmonogram::artisan('kuking:sprzataj-potwierdzenia-rodo')
+    ->name('kuking:sprzataj-potwierdzenia-rodo')
+    ->dailyAt('02:00')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // Retencja `audit_log` (issue #19, docs/decyzje/ADR_RETENCJE.md §5.1):
 // `config('kuking.audit_log.retention_months')` miesięcy od `created_at`,
-// z wyjątkiem kategorii dowodowych RODO/DSA
-// (`App\Models\AuditLogEntry::NIGDY_NIE_KASUJ`, nigdy nie kasowane).
+// z wyjątkiem kategorii niekasowalnych (`App\Models\AuditLogEntry::NIGDY_NIE_KASUJ`,
+// dziś pustej); wpisy `account.*` tylko po przeniesieniu do potwierdzeń RODO.
 // Codziennie w nocy, po sygnałach produktowych — dobowa dokładność
 // wystarcza, liczymy w miesiącach, nie w konkretnej godzinie wygaśnięcia.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
@@ -318,8 +329,8 @@ Harmonogram::artisan('kuking:sprzataj-postep-gotowania')
     ->onOneServer()
     ->withoutOverlapping(120);
 
-// 02:15 — wolny slot przed wszystkimi nocnymi zadaniami (najbliższe: 02:30,
-// odstęp 15 minut; `HarmonogramBezWspolnychSlotowTest`).
+// 02:15 — slot między retencją potwierdzeń RODO (02:00) a 02:30 (odstęp
+// 15 minut z obu stron; `HarmonogramBezWspolnychSlotowTest`).
 // Prywatna lista ostatnio oglądanych przepisów (#2553): wizyty starsze niż
 // `config('kuking.ostatnio_ogladane.dni')` dni, ponad limit pozycji na osobę
 // i osób, które wyłączyły funkcję. Odczyt pomija je sam; to zadanie zabiera dane.

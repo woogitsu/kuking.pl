@@ -26,6 +26,7 @@ use App\Support\PowrotDoRozmowy;
 use App\Support\RejestracjaZamknieta;
 use App\Support\ZamiarDolaczeniaDoZeszytu;
 use App\Support\ZamiarZapisu;
+use App\Support\ZapamietajMnie;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -187,6 +188,11 @@ class FacebookLoginController extends Controller
          */
         if (! Auth::check()) {
             $request->session()->regenerate();
+        }
+
+        // Wybór „Zapamiętaj mnie na tym urządzeniu” (#2708): logowanie kończy się dopiero po powrocie od Facebooka.
+        if (! Auth::check()) {
+            ZapamietajMnie::zapiszWSesji($request);
         }
 
         $state = KlientFacebook::losowaWartosc();

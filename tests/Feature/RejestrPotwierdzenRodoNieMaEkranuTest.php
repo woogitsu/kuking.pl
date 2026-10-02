@@ -186,10 +186,10 @@ class RejestrPotwierdzenRodoNieMaEkranuTest extends TestCase
         // znajdz". Nazwa metody jest dowolna, więc wzorzec po nazwie
         // przepuściłby `poKoncie()` przy pierwszej próbie.
         $this->assertSame(
-            ['domknijJakoCofniete', 'domknijJakoWykonane', 'przyjmijZadanieUsunieciaKonta'],
+            ['domknijJakoCofniete', 'domknijJakoWykonane', 'dopiszZAudytu', 'przyjmijZadanieUsunieciaKonta'],
             $publiczne,
             $this->komunikat(
-                'Rejestr potwierdzeń RODO dostał nową publiczną metodę. Trzy dotychczasowe PISZĄ; '
+                'Rejestr potwierdzeń RODO dostał nową publiczną metodę. Cztery dotychczasowe PISZĄ (w tym `dopiszZAudytu` z backfillu); '
                 .'każda czwarta jest kandydatem na odczyt po `konto_id`.',
             ),
         );

@@ -79,7 +79,7 @@ async function main() {
   await s0.fill('input[name="password"]', HASLO);
   await Promise.all([
     s0.waitForURL((u) => !u.pathname.endsWith('/login'), { timeout: 20000 }),
-    s0.click('button[type="submit"]'),
+    s0.click('form[action$="/login"] button[type="submit"]'),
   ]);
   const stan = await k0.storageState();
   await k0.close();

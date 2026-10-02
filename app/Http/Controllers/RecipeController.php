@@ -11,6 +11,7 @@ use App\Domain\Recipes\Actions\ZapiszPrzepisZFormularza;
 use App\Domain\Recipes\Actions\ZrobWlasnaWersje;
 use App\Domain\Recipes\CoMoznaDopisac;
 use App\Domain\Recipes\ExistingStepDuplicates;
+use App\Domain\Recipes\FrazaWSzkicach;
 use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
@@ -24,6 +25,7 @@ use App\Domain\Recipes\Udostepnienia\OdbierzDostepDoPrzepisu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
 use App\Models\Comment;
+use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\RecipeHint;
@@ -198,7 +200,11 @@ class RecipeController extends Controller
     {
         // Odłożone na później (#2550) to ta sama lista, osobny widok: `?odlozone=1`.
         $odlozone = $request->query('odlozone') === '1';
-        $zapytanie = $request->user()->recipes()->where('status', Recipe::STATUS_DRAFT);
+        // „Szukaj w szkicach” (#2435): zakres autora i `status = draft` jest w zapytaniu
+        // PRZED frazą; fraza tylko zawęża (tytuł, `FrazaWSzkicach`).
+        $fraza = FrazaWSzkicach::zAdresu($request->query('szukaj'));
+        $zapytanie = $request->user()->recipes()->where('status', Recipe::STATUS_DRAFT)
+            ->tap(fn ($query) => $fraza->zawez($query));
         $drafts = KursorListy::strona(
             ($odlozone ? $zapytanie->whereNotNull('odlozony_at') : $zapytanie->whereNull('odlozony_at'))
                 ->orderByDesc('updated_at')
@@ -215,7 +221,17 @@ class RecipeController extends Controller
             ->whereNotNull('odlozony_at')
             ->count();
 
+        // Pusty wynik w jednej zakładce nie znaczy „nie ma takiego szkicu”: mówimy, ile pasuje w drugiej.
+        $wDrugiejZakladce = 0;
+        if ($fraza->aktywna() && $drafts->isEmpty()) {
+            $drugie = $request->user()->recipes()->where('status', Recipe::STATUS_DRAFT)
+                ->tap(fn ($query) => $fraza->zawez($query));
+            $wDrugiejZakladce = ($odlozone ? $drugie->whereNull('odlozony_at') : $drugie->whereNotNull('odlozony_at'))->count();
+        }
+
         return view('pages.recipes.drafts', [
+            'fraza' => $fraza,
+            'wDrugiejZakladce' => $wDrugiejZakladce,
             'drafts' => $drafts,
             'odlozone' => $odlozone,
             'liczbaOdlozonych' => $liczbaOdlozonych,
@@ -670,6 +686,14 @@ class RecipeController extends Controller
                 ->collections()
                 ->whereHas('recipes', fn ($query) => $query->whereKey($model->getKey()))
                 ->exists(),
+            // „Moje próby tego przepisu” (#2412): odnośnik tylko dla osoby,
+            // która ma własne wykonanie. Jedno zapytanie `exists`, wiązane
+            // z `user_id` oglądającego — cudze wykonania nie wchodzą do wyniku.
+            'maWlasneProby' => $request->user() !== null
+                && CookedEvent::query()
+                    ->where('user_id', $request->user()->getKey())
+                    ->where('recipe_id', $model->getKey())
+                    ->exists(),
         ]);
     }
 

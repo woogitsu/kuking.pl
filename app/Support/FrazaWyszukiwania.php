@@ -22,6 +22,16 @@ use Illuminate\Support\Str;
 final class FrazaWyszukiwania
 {
     /**
+     * Najdłuższa fraza w każdym polu szukania. Mieszka tutaj, a nie tylko
+     * w `SearchQuery`, bo pola szukania w modułach `Posts` i `Recipes`
+     * (#2465, #2435) też jej potrzebują, a import `Search` z tych modułów
+     * zamykał cykl `Posts → Search → Recipes → Posts`
+     * (`GrafModulowDomenyBezCykliTest`). `SearchQuery::MAX_PHRASE_LENGTH`
+     * wskazuje na tę samą wartość.
+     */
+    public const MAX_DLUGOSC = 120;
+
+    /**
      * `Str::ascii()` odpowiada temu, co `unaccent` w bazie robi z polskimi
      * znakami diakrytycznymi — „Żurek" ma znaleźć „żurek". Znaki, których
      * `Str::ascii()` nie umie zapisać (np. emoji), ZNIKAJĄ: wynik bywa

@@ -76,6 +76,7 @@ final class JakDobieramyWpisy
                 'zdania' => [
                     'szukaj.przepisy' => 'Przepisy układamy według tego, jak dobrze tytuł pasuje do wpisanych słów, a przy takim samym dopasowaniu — od najnowszych.',
                     'szukaj.osoby' => 'Osoby układamy według tego, jak bardzo nazwa przypomina wpisane słowa.',
+                    'szukaj.obserwowani' => 'Jeśli wybierzesz „Od osób, które obserwuję”, wyniki wyszukiwania zawęzimy do przepisów osób, które obserwujesz. Kolejność zostaje taka sama, a wybór zdejmujesz jednym kliknięciem.',
                 ],
             ],
             'spizarnia' => [

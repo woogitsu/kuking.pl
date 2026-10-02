@@ -34,6 +34,23 @@ final class CoMamWDomu
      */
     public function dodaj(User $user, string $nazwa): array
     {
+        ['nazwa' => $nazwa, 'klucz' => $klucz] = $this->sprawdzNazwe($nazwa);
+
+        return $this->dodajPoSprawdzeniu($user, $nazwa, $klucz);
+    }
+
+    /**
+     * Reguły nazwy produktu (długość, nazwa musi mieć słowa) i klucz porównania —
+     * bez zapisu. Wspólne dla zwykłego dopisania i dla dopisania wielu produktów
+     * naraz (`DodajKupioneDoSpizarni`, #2481), które sprawdza wszystkie nazwy,
+     * zanim cokolwiek zapisze.
+     *
+     * @return array{nazwa: string, klucz: string}
+     *
+     * @throws ValidationException
+     */
+    public function sprawdzNazwe(string $nazwa): array
+    {
         $nazwa = Str::squish($nazwa);
 
         if (mb_strlen($nazwa) < 2) {
@@ -56,6 +73,12 @@ final class CoMamWDomu
             ]);
         }
 
+        return ['nazwa' => $nazwa, 'klucz' => $klucz];
+    }
+
+    /** @return array{produkt: PantryItem, nowy: bool} */
+    private function dodajPoSprawdzeniu(User $user, string $nazwa, string $klucz): array
+    {
         return DB::transaction(function () use ($user, $nazwa, $klucz): array {
             // Blokada wiersza właściciela listy (#1958): bez niej sprawdzenie
             // limitu (`count()`) i późniejszy `create()` nie są atomowe — przy

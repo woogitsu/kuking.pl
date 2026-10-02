@@ -387,6 +387,29 @@
         <x-kolejka-dodaj :recipe="$recipe" />
 
         {{--
+            MOJE NOTATKI Z ZESZYTÓW (#2433). Tylko odczyt: dopiski zapisane przy
+            tym przepisie w WŁASNYCH prywatnych zeszytach. Zwykłe `details`, więc
+            rozwinięcie nie przeładowuje kroku i nie rusza minutnika, porcji ani
+            odhaczeń. Edycja zostaje na ekranie zeszytu.
+        --}}
+        @if($notatkiZeszytow !== [])
+            <section class="cook-sync stack" aria-label="Moje notatki z zeszytów">
+                <details class="cook-notatki-zeszytow">
+                    <summary class="btn btn-secondary">Moje notatki z zeszytów ({{ count($notatkiZeszytow) }})</summary>
+                    <div class="stack">
+                        <p class="m-0">Widzisz je tylko Ty. To Twoje własne dopiski, nie wskazówki autora przepisu. Zmienisz je w zeszycie.</p>
+                        @foreach($notatkiZeszytow as $pozycja)
+                            <div class="stack">
+                                <p class="m-0"><strong>Zeszyt: {{ $pozycja['zeszyt'] }}</strong></p>
+                                <p class="m-0 cook-notatka-tresc">{{ $pozycja['tresc'] }}</p>
+                            </div>
+                        @endforeach
+                    </div>
+                </details>
+            </section>
+        @endif
+
+        {{--
             PRYWATNY ROBOCZY DOPISEK (#2587). Zwijany obszar z jednym polem:
             szczegół zmieniony przy garnku („dolane 50 ml”), zanim umknie.
             Zwykły formularz POST, więc działa bez JavaScriptu; nic się przez

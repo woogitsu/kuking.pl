@@ -346,7 +346,9 @@ Produkcja działa dalej przez cały czas — nic dodatkowo nie tracisz, próbuj�
 6. Usuń pomocniczy serwis `postgres-restored-<data>` — kosztuje, jeśli zostanie.
 7. Jeśli wczytana naprawa dotyka tabel `users`, `profiles`, `posts`,
    `recipes` albo `comments` — wykonaj §3.1 („wymaż ponownie”) z `--od`
-   równym chwili, z której pochodzi naprawa.
+   równym chwili, z której pochodzi naprawa, **od razu po `COMMIT`**: serwis
+   działa na tej bazie, więc każda minuta zwłoki to minuta, w której mogą być
+   widoczne konta wymazane po tej chwili.
 
 **RPO:** ~0 (PITR ma ziarnistość WAL, praktycznie do sekundy) — **o ile PITR
 jest włączony** (patrz pytanie 2 w §2.3). Jeśli nie, jedyna opcja to ostatni
@@ -400,17 +402,29 @@ pg_restore --dbname="$DB_URL_NOWEJ_BAZY" \
   --no-owner --exit-on-error \
   "ostatni-offsite-zrzut.dump"
 
-# 4. Podepnij nowy DB_URL do serwisu kuking.pl
+# 4. NAJPIERW rejestr usunięć, DOPIERO POTEM serwis (§3.1). Do tej chwili
+#    żaden serwis nie czyta nowej bazy, więc nikt nie zobaczy kont, które
+#    wymazaliśmy po dacie kopii. Komenda idzie z Twojego komputera przez
+#    `railway run` (daje dostęp do dysku dziennika wymazań), ale na NOWĄ bazę:
+#    `DB_URL` jest nadpisany w poleceniu.
+railway run --service kuking.pl --environment production \
+  env DB_URL="$DB_URL_NOWEJ_BAZY" \
+  php artisan kuking:wymaz-ponownie --od="<chwila kopii, np. 2026-10-05 02:17>" --na-sucho
+railway run --service kuking.pl --environment production \
+  env DB_URL="$DB_URL_NOWEJ_BAZY" \
+  php artisan kuking:wymaz-ponownie --od="<chwila kopii>"
+#    Komenda ma zakończyć się kodem 0 i „Błędy: 0”. Przy błędzie powtórz ją;
+#    NIE podpinaj bazy do serwisu, dopóki nie przejdzie.
+
+# 5. Dopiero teraz podepnij nowy DB_URL do serwisu kuking.pl
 #    (dziś jeden serwis aplikacyjny w trybie `all` — nie ma osobnych
 #    web/worker/scheduler, patrz sprostowanie w §2.3 i D-038/D-043)
 railway variables --set "DB_URL=<nowy_DATABASE_URL>" --service kuking.pl --environment production
 
-# 5. Redeploy i weryfikacja
+# 6. Redeploy i weryfikacja
 curl -s https://kuking.pl/health   # oczekiwane: {"status":"ok"}
 
-# 6. OBOWIĄZKOWO: wymaż ponownie konta wymazane po dacie kopii (§3.1)
-railway run --service kuking.pl --environment production \
-  php artisan kuking:wymaz-ponownie --od="<chwila kopii, np. 2026-10-05 02:17>" --na-sucho
+# 7. Kontrolnie jeszcze raz (idempotentne; „Wymazano ponownie: 0” jest dobrym wynikiem)
 railway run --service kuking.pl --environment production \
   php artisan kuking:wymaz-ponownie --od="<chwila kopii>"
 ```
@@ -515,8 +529,15 @@ takie konto przed terminem — przed `wymaz-ponownie` przejrzyj listę z
 paczki eksportu; utrata magazynu (nie jego chwilowa awaria) usuwa wpisy.
 Drugi, niezależny magazyn (wariant B z issue #2038) nie jest wdrożony.
 
-Krok, **zanim odtworzona baza przyjmie ruch** (albo najpóźniej zaraz po
-podpięciu `DB_URL`):
+Krok, **zanim odtworzona baza przyjmie ruch** — kolejność jest wiążąca:
+najpierw rejestr usunięć, dopiero potem serwis (analiza prawna z 2.10.2026,
+pytanie 8). Przy odtworzeniu na NOWĄ bazę (3(b), projekt usunięty) komendę
+uruchamiasz przed podpięciem `DB_URL` do serwisu, z `DB_URL` nowej bazy w
+poleceniu. Przy odtworzeniu W MIEJSCU (Volume Backup „Restore”, import do żywej
+bazy z 3(a)) serwis czyta dane od razu, więc **zatrzymaj jego wdrożenie przed
+odtworzeniem**, a uruchom je po tej komendzie; jeśli nie dało się zatrzymać
+serwisu, uruchom komendę natychmiast i zapisz okno, w którym serwis mógł
+pokazywać wymazane konta, jako incydent do oceny przez właściciela:
 
 ```bash
 # podgląd — lista kont do ponownego wymazania, nic nie zmienia

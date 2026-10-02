@@ -150,7 +150,7 @@ try {
   await stronaLogowania.fill('input[name="password"]', 'haslo-testowe-123');
   await Promise.all([
     stronaLogowania.waitForURL((u) => !u.pathname.endsWith('/login'), { timeout: 15000 }),
-    stronaLogowania.click('button[type="submit"]'),
+    stronaLogowania.click('form[action$="/login"] button[type="submit"]'),
   ]);
   const stanZalogowany = await kontekstLogowania.storageState();
   await kontekstLogowania.close();

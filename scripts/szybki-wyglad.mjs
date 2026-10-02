@@ -25,7 +25,7 @@ const account = await b.newPage({viewport:{width:1440,height:900},serviceWorkers
 await account.goto(adres+'/login');
 await account.fill('input[name=login]','ania');
 await account.fill('input[name=password]','haslo-testowe-123');
-await Promise.all([account.waitForURL(u=>!u.pathname.endsWith('/login')),account.click('button[type=submit]')]);
+await Promise.all([account.waitForURL(u=>!u.pathname.endsWith('/login')),account.click('form[action$="/login"] button[type=submit]')]);
 for(const width of [1440,320,390,1440]) {
  await account.setViewportSize({width,height:900});await account.waitForTimeout(120);
  const box=await account.locator('[data-szybki-wyglad] summary').boundingBox();

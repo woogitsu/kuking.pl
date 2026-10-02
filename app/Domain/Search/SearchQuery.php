@@ -13,6 +13,7 @@ use App\Support\ProgPodobienstwa;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -43,7 +44,13 @@ use Illuminate\Support\Str;
  */
 final class SearchQuery
 {
-    public const MAX_PHRASE_LENGTH = 120;
+    public const MAX_PHRASE_LENGTH = FrazaWyszukiwania::MAX_DLUGOSC;
+
+    /** Najdłuższa nazwa produktu w filtrze „Bez składnika” (#2526). */
+    public const MAX_SKLADNIK_DO_POMINIECIA = 60;
+
+    /** Najwięcej słów w nazwie produktu w tym filtrze. */
+    public const MAX_SLOW_SKLADNIKA_DO_POMINIECIA = 4;
 
     /** Wspólna granica dla formularzy GET i bezpośrednich wywołań domeny. */
     public static function phraseValidator(string $phrase, string $label = 'Czego szukasz?'): ValidatorContract
@@ -270,6 +277,49 @@ final class SearchQuery
         return [$m[1], $m[2]];
     }
 
+    /**
+     * Sprawdza nazwę produktu z filtra „Bez składnika" (V2, #2526).
+     *
+     * Zwraca nazwę do filtra (przyciętą na brzegach, ze zbitymi odstępami)
+     * ALBO polski komunikat, co poprawić. Nigdy nie skraca tekstu po cichu.
+     * Puste albo nie-tekstowe wejście to brak filtra (bez błędu). Reguła
+     * dopasowania jest TA SAMA, której używa SQL niżej: rdzenie
+     * (`public.kuking_rdzenie_skladnika`) — nazwa, z której nie wychodzi ani
+     * jeden rdzeń (same cyfry, jedna litera), dałaby filtr wykluczający
+     * wszystko, więc jest odrzucana.
+     *
+     * @return array{wartosc: ?string, blad: ?string}
+     */
+    public static function skladnikDoPominiecia(mixed $surowy): array
+    {
+        if (! is_string($surowy)) {
+            return ['wartosc' => null, 'blad' => null];
+        }
+
+        $nazwa = trim((string) preg_replace('/\s+/u', ' ', $surowy));
+
+        if ($nazwa === '') {
+            return ['wartosc' => null, 'blad' => null];
+        }
+
+        if (mb_strlen($nazwa) > self::MAX_SKLADNIK_DO_POMINIECIA) {
+            return ['wartosc' => null, 'blad' => 'Nazwa produktu jest za długa. Wpisz najwyżej '.self::MAX_SKLADNIK_DO_POMINIECIA.' znaków, na przykład „brokuł”.'];
+        }
+
+        $rdzenie = DB::selectOne('SELECT cardinality(public.kuking_rdzenie_skladnika(?)) AS ile', [$nazwa]);
+        $ile = (int) ($rdzenie->ile ?? 0);
+
+        if ($ile === 0) {
+            return ['wartosc' => null, 'blad' => 'Wpisz nazwę produktu literami, na przykład „brokuł”. Cyfry i pojedyncze litery nie wystarczą.'];
+        }
+
+        if ($ile > self::MAX_SLOW_SKLADNIKA_DO_POMINIECIA) {
+            return ['wartosc' => null, 'blad' => 'Wpisz krótszą nazwę produktu, najwyżej '.self::MAX_SLOW_SKLADNIKA_DO_POMINIECIA.' słowa, na przykład „mąka pszenna”.'];
+        }
+
+        return ['wartosc' => $nazwa, 'blad' => null];
+    }
+
     /** Podobieństwo trigramowe jest zawsze w [0, 1]; wszystko inne to nie nasz kursor. */
     private static function miara(string $wartosc): bool
     {
@@ -286,9 +336,16 @@ final class SearchQuery
      *                                      autora — przepisy niesprawdzone (`unchecked`, `needs_review`)
      *                                      wypadają (fail-closed, jak brak kosztu przy „Do 20 zł”).
      *                                      Nieznane kody są ignorowane. Sam `WHERE`, bez wpływu na kolejność.
+     * @param  bool  $tylkoObserwowani  jawne polecenie widza „Od osób, które obserwuję” (#2440, D-275): sam
+     *                                  `WHERE` na `recipes.author_id` (kierunek `follows.follower_id` = widz),
+     *                                  bez wpływu na kolejność. Dla gościa bez efektu — kontroler mówi to wprost.
+     * @param  string|null  $bezSkladnika  zwykły produkt do pominięcia (V2, #2526; wartość z `skladnikDoPominiecia()`):
+     *                                     wypadają przepisy, w których KTÓRAŚ linijka składnika (`ingredient_text`)
+     *                                     zawiera wszystkie rdzenie tej nazwy. Nie jest to filtr alergenów ani
+     *                                     potwierdzenie składu. Sam `WHERE`, bez wpływu na kolejność.
      * @return Collection<int, Recipe>
      */
-    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null, int $offset = 0, ?int $maksKosztZl = null, ?string $po = null, array $bezAlergenow = []): Collection
+    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null, int $offset = 0, ?int $maksKosztZl = null, ?string $po = null, array $bezAlergenow = [], bool $tylkoObserwowani = false, ?string $bezSkladnika = null): Collection
     {
         $phrase = trim($phrase);
         self::phraseValidator($phrase)->validate();
@@ -404,6 +461,33 @@ final class SearchQuery
             ->when($bezAlergenow !== [], fn ($query) => $query
                 ->where('recipes.allergen_status', Recipe::ALERGENY_ZDEKLAROWANE)
                 ->whereRaw('NOT (recipes.allergens && ?::text[])', ['{'.implode(',', $bezAlergenow).'}']))
+            // „Od osób, które obserwuję” (#2440, D-275): jawne polecenie widza,
+            // sam `WHERE` przed limitem i kursorem. Kierunek: `follower_id` to
+            // WIDZ, `followed_id` to autor przepisu (obserwowanie widza przez
+            // autora nie wystarcza). Podzapytanie czyta świeży stan relacji
+            // przy każdym żądaniu; autor własnego przepisu nie jest „obserwowany”,
+            // więc własne przepisy nie wchodzą do wyniku, dopóki widz sam siebie
+            // nie obserwuje (a nie może).
+            ->when($tylkoObserwowani && $widz !== null, fn ($query) => $query
+                ->whereIn('recipes.author_id', fn ($obserwowani) => $obserwowani->select('follows.followed_id')
+                    ->from('follows')
+                    ->where('follows.follower_id', $widz?->getKey())))
+            // Filtr „Bez składnika” (V2, #2526) — zwykły produkt, który osoba
+            // chce pominąć w TYM wyszukiwaniu. To nie jest filtr alergenów
+            // (wyżej): sprawdza wyłącznie ZAPISANY TEKST linijek składników
+            // autora, regułą rdzeni (odmiany i liczba mnoga: „brokuł” znajdzie
+            // „brokuły”). Linijka „X lub Y” liczy się jako wzmianka o X i o Y;
+            // `substitutes` („Czym można to zastąpić”) NIE jest sprawdzane.
+            // Przepis bez dopasowania zostaje — to nie jest potwierdzenie, że
+            // produktu w nim nie ma. Pierwszy człon `OR` zabezpiecza przed
+            // nazwą bez rdzeni: pusta tablica zawiera się w każdej linijce i
+            // wykluczyłaby wszystko. Sam `WHERE`, kolejność bez zmian.
+            ->when($bezSkladnika !== null, fn ($query) => $query->whereRaw(
+                '(cardinality(public.kuking_rdzenie_skladnika(?)) = 0 OR NOT EXISTS ('
+                .'SELECT 1 FROM recipe_ingredients ri WHERE ri.recipe_id = recipes.id '
+                .'AND ri.rdzenie @> public.kuking_rdzenie_skladnika(?)))',
+                [$bezSkladnika, $bezSkladnika],
+            ))
             // KOLEJNOŚĆ: NAJPIERW TO, CO ZDECYDOWAŁO O TRAFIENIU (issue #187)
             //
             // Wiersz jest w wyniku dlatego, że fraza pasuje do FRAGMENTU

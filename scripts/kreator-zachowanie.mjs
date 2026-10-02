@@ -49,7 +49,7 @@ try {
     await page.goto(base + '/login');
     await page.fill('[name=login]', fixture.login);
     await page.fill('[name=password]', 'Test-kreatora-123!');
-    await Promise.all([page.waitForURL(u => !u.pathname.endsWith('/login')), page.click('button[type=submit]')]);
+    await Promise.all([page.waitForURL(u => !u.pathname.endsWith('/login')), page.click('form[action$="/login"] button[type=submit]')]);
     if (mode === 'drafts') {
         await page.goto(base + '/dodaj');
         await page.getByRole('link', { name: 'Wszystkie szkice', exact: true }).click({ timeout: 5000 });

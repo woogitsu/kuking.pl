@@ -1433,8 +1433,8 @@ checks = [
     ("Identyfikator JSON-LD udaje krok (#2582)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
      "test_json_ld_id_kroku_nie_staje_sie_instrukcja_ani_nie_pobiera_celu",
      lambda s: replace_once(s,
-         "if (! array_is_list($wartosc)) {",
-         "if (isset($wartosc['@type']) || isset($wartosc['itemListElement']) || isset($wartosc['text'])) {")),
+         "zamieniałoby identyfikator w krok.\n        if (! array_is_list($wartosc)) {",
+         "zamieniałoby identyfikator w krok.\n        if (isset($wartosc['@type']) || isset($wartosc['itemListElement']) || isset($wartosc['text'])) {")),
     ("ListItem.item nie trafia do szkicu importu (#2570)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
      "test_import_json_ld_listitem_item_zapisuje_kroki_w_prywatnym_szkicu_bez_modelu",
      lambda s: replace_once(s,
@@ -2701,6 +2701,19 @@ checks = [
     ("Bramka skraca także push z DRAFT=true (D-333, 2.10.2026)", BRAMKA_SKRYPT, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
      lambda s: replace_once(s, 'if [ "${ZDARZENIE:-}" = "pull_request" ] && [ "${DRAFT:-}" = "true" ]; then',
                             'if [ "${DRAFT:-}" = "true" ]; then')),
+    # #2708 (pyt. 8): runbook odtworzenia kazał wymazać konta DOPIERO po podpięciu
+    # odtworzonej bazy do serwisu — okno, w którym serwis pokazuje wymazane osoby.
+    ("Runbook odtworzenia stosuje rejestr usunięć po podpięciu bazy (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_runbook_kaze_zastosowac_rejestr_usuniec_przed_podpieciem_bazy_do_serwisu",
+     lambda s: replace_once(s, "# 4. NAJPIERW rejestr usunięć",
+                            'railway variables --set "DB_URL=<nowy_DATABASE_URL>"\n# 4. NAJPIERW rejestr usunięć')),
+    # Paczka L: komunikat Planera trafił do C w kodowaniu UTF-8 odczytanym jako
+    # Latin-1 („juÅ¼… OdÅ›wieÅ¼”). Strażnik ma znaleźć taki napis w kodzie.
+    ("Zepsute kodowanie polskich liter w komunikacie Planera (paczka L)", "app/Http/Controllers/PlanerController.php",
+     "test_kod_i_widoki_nie_zawieraja_polskich_liter_w_zepsutym_kodowaniu",
+     lambda s: replace_once(s,
+         "            default => redirect()->route('planer.show')\n                ->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),\n        };\n    }\n\n    /**\n     * Ekran „Zmień tekst”",
+         "            default => redirect()->route('planer.show')\n                ->with(Komunikat::blad('Tej pozycji ju\u00c5\u00bc nie ma w planie. Od\u00c5\u203awie\u00c5\u00bc stron\u00c4\u2122.')),\n        };\n    }\n\n    /**\n     * Ekran „Zmień tekst”")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

@@ -1280,6 +1280,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('jak_wyszlo.zamknij', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.create', 'formularz „Ugotowałem" przy prywatnym przepisie', 'get',
             route('cooked.create', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        // #2412: historia własnych prób przepisu otwiera się wyłącznie komuś,
+        // kto przepis może zobaczyć (`RecipePolicy::view`); dane i tak są
+        // wiązane z `user_id` oglądającego.
+        $dodaj('cooked.proby', '„Moje próby tego przepisu” przy prywatnym przepisie', 'get',
+            route('cooked.proby', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.store', 'zapis „Ugotowałem" przy prywatnym przepisie', 'post',
             route('cooked.store', $przepisPrywatny), ['note' => 'Wyszło świetnie.'], [$W, $O, $O, $O, $O]);
         $dodaj('collections.save', 'zapisanie prywatnego przepisu do zeszytu', 'post',
@@ -1480,6 +1485,14 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('collections.recipes.order-reset', 'powrót do kolejności zapisu', 'post',
             route('collections.recipes.order-reset', $zeszyt), [], [$W, $O, $O, $O, $O]);
         // Skrót do własnego zeszytu w „Moje” (#2542) — wyłącznie właściciel.
+        // #2483: planowanie z zeszytu — tylko właściciel zeszytu (`CollectionPolicy::planuj`),
+        // także na krokach podglądu i zapisu (obcy dostaje odmowę, zanim cokolwiek się policzy).
+        $dodaj('collections.planer', 'formularz planowania przepisów z zeszytu', 'get',
+            route('collections.planer', $zeszyt), [], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.planer.podglad', 'podgląd planowania przepisów z zeszytu', 'post',
+            route('collections.planer.podglad', $zeszyt), [], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.planer.store', 'zapis planowania przepisów z zeszytu', 'post',
+            route('collections.planer.store', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.shortcut.store', 'ustawienie skrótu do zeszytu', 'post',
             route('collections.shortcut.store', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.shortcut.destroy', 'usunięcie skrótu do zeszytu', 'delete',
@@ -1576,6 +1589,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('planer.done', $pozycjaPlanu), ['zrobione' => '1', 'stan' => ''], [$W, $O, $O, $O, $O]);
         $dodaj('planer.note', 'dopisek przy przepisie w planerze', 'patch',
             route('planer.note', $pozycjaPlanu), ['note' => 'Kolacja', 'stan' => ''], [$W, $O, $O, $O, $O]);
+        $dodaj('planer.servings', 'planowane porcje przy przepisie w planerze', 'patch',
+            route('planer.servings', $pozycjaPlanu), ['porcje' => '6', 'stan' => ''], [$W, $O, $O, $O, $O]);
         // Przeniesienie na inny dzień (#2447): ekran i zapis — tylko właściciel.
         $dodaj('planer.move.form', 'ekran przenoszenia pozycji planera', 'get',
             route('planer.move.form', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
@@ -1624,6 +1639,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // właściciel ma „dozwolone” (przekierowanie), a reszta — odmowę.
         $dodaj('shopping.recipe.confirm', 'ekran „dodać składniki jeszcze raz?” prywatnego przepisu', 'get',
             route('shopping.recipe.confirm', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+
+        // #2489: podgląd przeliczonych porcji — bramka `view` jak przy `confirm`;
+        // bez przeliczenia (brak parametru) odsyła do przepisu, więc właściciel ma „dozwolone”.
+        $dodaj('shopping.recipe.scaled', 'podgląd składników prywatnego przepisu na wybraną liczbę porcji', 'get',
+            route('shopping.recipe.scaled', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
 
         // ─── TAGI ────────────────────────────────────────────────────────
         // Tag jest wspólną nawigacją serwisu, nie czyjąś własnością

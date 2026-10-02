@@ -84,6 +84,9 @@ final class SkopiujPoprzedniTydzien
                     // w celu `insertOrIgnore` nie rusza, więc jej ręczny tekst
                     // nie zostaje ani nadpisany, ani zdublowany.
                     'note' => $pozycja['wpis']->note,
+                    // Wybrane porcje (#2509) jadą z pozycją; istniejącej pozycji
+                    // w dniu docelowym `insertOrIgnore` nie rusza.
+                    'planned_servings' => $pozycja['wpis']->planned_servings,
                     'created_at' => $teraz,
                     'updated_at' => $teraz,
                 ]);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Collections;
 
+use App\Domain\Planer\PrzepisyZeszytuDlaPlanu;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -21,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  * pierwszej zmianie jednej z nich i akcja wyjęłaby z zeszytu coś, co człowiek
  * nadal na ekranie widzi.
  */
-final class WidocznaZawartoscZeszytu
+final class WidocznaZawartoscZeszytu implements PrzepisyZeszytuDlaPlanu
 {
     /** @return BelongsToMany<Recipe, Collection> */
     public function przepisy(Collection $collection, ?User $viewer): BelongsToMany

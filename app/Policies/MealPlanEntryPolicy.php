@@ -25,6 +25,12 @@ class MealPlanEntryPolicy
         return $user->getKey() === $entry->user_id;
     }
 
+    /** Prywatna liczba planowanych porcji przy pozycji (#2509). */
+    public function editServings(User $user, MealPlanEntry $entry): bool
+    {
+        return $user->getKey() === $entry->user_id;
+    }
+
     /** Przeniesienie pozycji na inny dzień (#2447): tylko właściciel. */
     public function move(User $user, MealPlanEntry $entry): bool
     {

@@ -145,6 +145,46 @@
                 @endif
             </nav>
 
+            {{--
+                PODGLĄD SKŁADNIKÓW (#2469). Tylko aktywna potrawa, domyślnie zwinięty,
+                zwykłe `details` (bez JavaScriptu). Ilości są ORYGINALNE, dla liczby
+                porcji podanej przez autora — bez mnożenia i bez checklisty. Układ
+                grup, uwagi i zamienniki jak w trybie gotowania; dopisek „do smaku”
+                według D-232. Składników nie kopiujemy do `data-kolejka-dane` ani do
+                pamięci przeglądarki.
+            --}}
+            @php($skladnikiAktywnej = $aktywna['recipe']->ingredients)
+            <details class="cook-ingredients" data-kolejka-skladniki>
+                <summary>Składniki: {{ $aktywna['recipe']->title }} ({{ $skladnikiAktywnej->count() }})</summary>
+                @php($porcjeAutora = \App\Domain\Recipes\Porcje\WyborPorcji::dla($aktywna['recipe'], null)->zPrzepisu)
+                @if($porcjeAutora !== null)
+                    <p class="meta">Ilości podał autor {{ \App\Domain\Recipes\Porcje\WyborPorcji::naIle($porcjeAutora) }}. W tym widoku nie są przeliczane.</p>
+                @else
+                    <p class="meta">Ilości podał autor. W tym widoku nie są przeliczane.</p>
+                @endif
+                @if($skladnikiAktywnej->isEmpty())
+                    <p class="meta">Autor jeszcze nie dodał składników.</p>
+                @else
+                    @foreach(\App\Domain\Recipes\GrupySkladnikow::ulozyc($skladnikiAktywnej) as $grupaSkladnikow)
+                        @if($grupaSkladnikow['nazwa'] !== null)
+                            <h3 class="naglowek-grupy">{{ $grupaSkladnikow['nazwa'] }}</h3>
+                        @endif
+                        <ul class="ingredient-list">
+                            @foreach($grupaSkladnikow['skladniki'] as $ingredient)
+                                <li data-kolejka-skladnik>
+                                    {{ $ingredient->ingredient_text }}
+                                    @if($ingredient->no_amount && ! str_contains(mb_strtolower($ingredient->ingredient_text), 'do smaku'))
+                                        <span class="meta"> — do smaku</span>
+                                    @endif
+                                    @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
+                                    @if($ingredient->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $ingredient->substitutes }}</span>@endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endforeach
+                @endif
+            </details>
+
             @if($krokAktywny === $totalAktywny)
                 <section class="cook-finish">
                     <h2 class="mt-0">To już ostatni krok: {{ $aktywna['recipe']->title }}.</h2>

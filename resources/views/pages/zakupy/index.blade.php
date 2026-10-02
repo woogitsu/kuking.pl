@@ -93,6 +93,10 @@
                         <button class="btn btn-primary" type="submit">Tak, usuń odhaczone</button>
                     </form>
                 </details>
+
+                {{-- Kupione do spiżarni (#2481): osobna, świadoma czynność; samo odhaczenie
+                     niczego w „Co mam w domu” nie zmienia. --}}
+                <p class="mt-5 mb-0"><a class="btn btn-secondary" href="{{ route('shopping.pantry.form') }}">Dodaj kupione do „Co mam w domu”</a></p>
             @endif
         </section>
 

@@ -7,6 +7,7 @@ namespace App\Domain\Compliance;
 use App\Models\PotwierdzenieZadaniaRodo;
 use App\Support\UsuwanieWPartiach;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Retencja `potwierdzenia_zadan_rodo` —
@@ -78,9 +79,18 @@ final class PrzedawnionePotwierdzeniaRodo
         $prog = Carbon::now()->subMonthsNoOverflow($miesiecyKarencji)->toDateString();
         $dzis = Carbon::today()->toDateString();
 
+        // CZWARTY WARUNEK (#2708): konto z zabezpieczonym dowodem (ścieżka
+        // CSAM, `zabezpieczenia_dowodow`) zachowuje swoje potwierdzenie —
+        // wymazanie takiego konta w ogóle nie dochodzi do skutku, a organ może
+        // zapytać o całą historię. Wiersze bez `konto_id` nie mają takiego
+        // powiązania i podlegają retencji (stąd `whereNull` obok `NOT IN`,
+        // które przy NULL dałoby „nieznane” i wiersz nigdy by nie znikał).
+        $zatrzymaneKonta = DB::table('zabezpieczenia_dowodow')->whereNotNull('subject_user_id')->select('subject_user_id');
+
         $przedawnione = fn () => PotwierdzenieZadaniaRodo::query()
             ->whereNotNull('zakonczono')
-            ->where('zakonczono', '<', $prog);
+            ->where('zakonczono', '<', $prog)
+            ->where(fn ($q) => $q->whereNull('konto_id')->orWhereNotIn('konto_id', $zatrzymaneKonta));
 
         $wstrzymane = $przedawnione()
             ->whereNotNull('wstrzymanie_do')

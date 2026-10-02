@@ -15,6 +15,7 @@ use App\Rules\UsernameNotTaken;
 use App\Support\ExternalRegistrationDraft;
 use App\Support\NazwaUzytkownika;
 use App\Support\ZadanieDomenowe;
+use App\Support\ZapamietajMnie;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -127,9 +128,10 @@ final readonly class WejdzPrzezDostawce
 
         $zadanie->sesja()->regenerate();
 
-        // `remember: true` jak przy haśle i przy linku e-mail: kto wchodzi
-        // jednym kliknięciem, tym bardziej nie chce robić tego co tydzień.
-        Auth::login($user, remember: true);
+        // Zapamiętanie według wyboru z ekranu startowego (#2708); bez wyboru
+        // (stara zakładka) jak dotąd, czyli `remember: true`.
+        Auth::login($user, remember: ZapamietajMnie::zSesji($zadanie->sesja()));
+        ZapamietajMnie::zapomnij($zadanie->sesja());
 
         return WynikWejscia::Wpuszczony;
     }
@@ -350,8 +352,9 @@ final readonly class WejdzPrzezDostawce
         ExternalRegistrationDraft::forget($zadanie, $this->dostawca->nazwa());
         $this->zapomnij($zadanie);
 
-        Auth::login($konto->user, remember: true);
+        Auth::login($konto->user, remember: ZapamietajMnie::zSesji($zadanie->sesja()));
         $zadanie->sesja()->regenerate();
+        ZapamietajMnie::zapomnij($zadanie->sesja());
 
         return $konto;
     }

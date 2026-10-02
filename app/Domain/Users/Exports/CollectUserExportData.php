@@ -1222,6 +1222,7 @@ final class CollectUserExportData
                 'przepis_niedostepny' => $wpis->recipe_id !== null && $przepis === null,
                 'dodano' => $this->date($wpis->created_at),
                 'dopisek' => $wpis->note,
+                'planowane_porcje' => $wpis->planned_servings,
                 'zrobione' => $wpis->done_at !== null,
                 'oznaczono_jako_zrobione' => $this->date($wpis->done_at),
             ];
@@ -1257,6 +1258,7 @@ final class CollectUserExportData
 
             return [
                 'pozycja' => $pozycja->text,
+                'przeliczona_na_porcje' => $pozycja->scaled_servings,
                 'pochodzenie' => $pozycja->source === ShoppingListItem::SOURCE_RECIPE ? 'z_przepisu' : 'reczna',
                 'przepis' => $przepis?->title,
                 'adres_przepisu' => $przepis !== null ? route('recipes.show', $przepis->slug) : null,

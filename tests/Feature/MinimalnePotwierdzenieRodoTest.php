@@ -355,12 +355,13 @@ class MinimalnePotwierdzenieRodoTest extends TestCase
     #[Test]
     public function test_lista_nigdy_nie_kasuj_jest_nienaruszona(): void
     {
-        // Ta gałąź NIE skraca retencji istniejących wpisów i NIE dodaje
-        // klucza configu sterującego tą listą — potwierdzenie ma ją
-        // ZASTĄPIĆ dopiero po krokach właściciela, a nie przy okazji.
+        // Od 2.10.2026 (#2708) lista jest pusta, a trzy wpisy `account.*` mają
+        // osobną, warunkową listę (kasowane dopiero po przeniesieniu do
+        // potwierdzeń). Dalej NIE ma klucza configu sterującego listą.
+        $this->assertSame([], AuditLogEntry::NIGDY_NIE_KASUJ);
         $this->assertSame(
             ['account.data_erased', 'account.delete_requested', 'account.delete_cancelled'],
-            AuditLogEntry::NIGDY_NIE_KASUJ,
+            AuditLogEntry::DOWODY_USUNIECIA_KONTA,
         );
 
         $this->assertNull(

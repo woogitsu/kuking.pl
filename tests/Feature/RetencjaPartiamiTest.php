@@ -9,6 +9,7 @@ use App\Domain\Analytics\ZapiszSygnal;
 use App\Domain\Compliance\PrzedawnioneSesje;
 use App\Domain\Compliance\PrzedawnioneWpisyAudytu;
 use App\Models\AuditLogEntry;
+use App\Models\User;
 use App\Support\UsuwanieWPartiach;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -199,9 +200,14 @@ class RetencjaPartiamiTest extends TestCase
 
     public function test_audyt_partiami_nie_rusza_kategorii_niekasowalnych(): void
     {
+        // Wpisy `account.*` zostają, dopóki zamknięcie sprawy nie ma
+        // potwierdzenia (#2708) — tu: konto bez potwierdzenia.
+        $konto = User::factory()->create();
         $protected = [];
-        foreach (AuditLogEntry::NIGDY_NIE_KASUJ as $action) {
-            $protected[] = $this->wpisAudytu($action, 30)->getKey();
+        foreach (['account.data_erased', 'account.delete_cancelled'] as $action) {
+            $wpis = AuditLogEntry::record($action, null, $konto, metadata: ['test' => true]);
+            DB::table('audit_log')->where('id', $wpis->getKey())->update(['created_at' => now()->subMonths(30)->subDay()]);
+            $protected[] = $wpis->getKey();
         }
         for ($i = 0; $i < 5; $i++) {
             $this->wpisAudytu('post.hidden', 30);
@@ -211,7 +217,7 @@ class RetencjaPartiamiTest extends TestCase
         $wynik = (new PrzedawnioneWpisyAudytu)->posprzataj(24);
 
         $this->assertSame(5, $wynik['skasowano']);
-        $this->assertSame(3, $wynik['niekasowalne']);
+        $this->assertSame(2, $wynik['niekasowalne']);
         $this->assertEqualsCanonicalizing(
             [...$protected, $mlody],
             AuditLogEntry::query()->whereIn('id', [...$protected, $mlody])->pluck('id')->all(),

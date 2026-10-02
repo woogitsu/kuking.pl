@@ -425,3 +425,17 @@ gałęzi tak chciał. Kolejność niżej jest wiążąca: każdy krok zakłada p
 
 7. **Dopiero teraz wrócić do kroku 7 z §5** — polityka prywatności i
    `COMPLIANCE.md` mogą wreszcie podać okres, bo istnieje.
+
+
+## 7. Stan na 2 października 2026 (#2708)
+
+Właściciel uznał analizę z 2.10.2026 (pytanie 7) za potwierdzenie okresu
+(wiersz w D-333, odsyła do D-233). Wykonane w kolejności z §5 i §6:
+krok 2 (§6) — wpis decyzji; krok 3 — `kuking:przenies-potwierdzenia-rodo`
+(`--dry-run`, idempotentna, §5 pkt 5); krok 4 — włączona retencja 36 miesięcy,
+komenda w harmonogramie o 02:00; §5 pkt 6 — trzy wpisy `account.*` zdjęte z
+`NIGDY_NIE_KASUJ`, kasowane przez `kuking:sprzataj-audyt` dopiero gdy
+`PrzenoszeniePotwierdzenRodo::ileBrakuje() = 0`; §5 pkt 7 — polityka i
+rejestr czynności podają 36 miesięcy. Na produkcji najpierw `--dry-run`, potem
+przeniesienie, dopiero potem nocne kasowanie ma cokolwiek do roboty.
+
