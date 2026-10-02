@@ -704,6 +704,14 @@ polityce („do usunięcia treści przez Ciebie”) i art. 17 RODO.
   dopiero, gdy ostatnie cudze wykonanie zniknie.
 - **Zdjęcia:** po skasowaniu treści `KasujZdjecie::jesliNieuzywane()`;
   gdy dysk zawiedzie, dobiera je `kuking:sprzataj-osierocone-zdjecia`.
+- **Odzyskanie przez autora (#2620, 2.10.2026, D-333):** w tym samym oknie
+  autor z aktywnym kontem może jednym przyciskiem („Usunięte przepisy” w
+  Zeszycie) przywrócić własny przepis jako prywatny szkic
+  (`OdzyskajUsunietyPrzepis`). Okna to nie wydłuża i nie tworzy nowych kopii:
+  po terminie, po nagrobku, po wymazaniu konta i przy jakiejkolwiek sprawie
+  moderacyjnej (ta sama definicja co wyjątek moderacyjny wyżej) przepis nie
+  wraca. Sprzątanie czyta kandydata jeszcze raz pod blokadą wiersza, więc
+  przepis, który właśnie wrócił, nie znika tej samej nocy.
 
 ### 5.8 Wersje przepisu (`recipe_versions`) — dopisane 29.09.2026 (#2024, D-333)
 

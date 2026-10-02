@@ -640,6 +640,9 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $przepis = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $przepisPrywatny = Recipe::factory()->create(['author_id' => $wlasciciel->getKey(), 'visibility' => 'private']);
         $przepisDoKasacji = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
+        // Omyłkowo usunięty przepis właściciela (#2620) — cel „Odzyskaj przepis”.
+        $przepisUsuniety = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
+        $przepisUsuniety->delete();
         // Historia wersji (#2024) idzie tą samą bramką co przepis: dwie wersje,
         // żeby ekran porównania miał z czym porównywać.
         foreach ([1, 2] as $numerWersji) {
@@ -1118,6 +1121,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.unsave', $przepisPrywatny), [], [$W, $W, $W, $W, $O]);
         $dodaj('recipes.destroy', 'usunięcie przepisu', 'delete',
             route('recipes.destroy', $przepisDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // Odzyskanie własnego, usuniętego przepisu (#2620): TYLKO autor z aktywnym
+        // kontem. Moderator nie ma tu furtki — cudzy „kosz” jest prywatny.
+        $dodaj('collections.deleted-recipes.recover', 'odzyskanie usuniętego przepisu', 'post',
+            route('collections.deleted-recipes.recover', $przepisUsuniety->getKey()), [], [$W, $O, $O, $O, $O]);
 
         // ─── WYKONANIA („Ugotowałem") ────────────────────────────────────
         $dodaj('cooked.show', 'wykonanie publicznego przepisu', 'get',

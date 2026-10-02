@@ -14,6 +14,7 @@ use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
+use App\Domain\Recipes\OdzyskajUsunietyPrzepis;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Domain\Recipes\TypowyCzasPrzepisu;
 use App\Exceptions\BladDlaCzlowieka;
@@ -24,6 +25,7 @@ use App\Models\Recipe;
 use App\Models\Unit;
 use App\Support\Komunikat;
 use App\Support\KursorListy;
+use App\Support\Odmiana;
 use App\Support\OdpowiedziWatku;
 use App\Support\PaginationLinks;
 use App\Support\StaryAdresPrzepisu;
@@ -670,6 +672,11 @@ class RecipeController extends Controller
 
         $model->delete();
 
-        return redirect()->route('home')->with(Komunikat::sukces('Przepis usunięty.'));
+        $dni = OdzyskajUsunietyPrzepis::dniOkna();
+
+        return redirect()->route('home')->with(Komunikat::sukces(
+            'Przepis usunięty. Jeśli to pomyłka, przez '.$dni.' '.Odmiana::rzeczownik($dni, 'dzień', 'dni', 'dni')
+            .' możesz go odzyskać w „Zeszyt”, w „Usunięte przepisy”.',
+        ));
     }
 }

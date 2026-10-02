@@ -139,13 +139,34 @@ final class PrzedawnioneUsunieteTresci
             $cudzeWykonania = $przepis->cookedEvents()->where('user_id', '!=', $przepis->author_id)->exists();
 
             if (! $naSucho) {
-                $udane = $this->bezpiecznie(
-                    fn () => $cudzeWykonania ? $this->zamienWNagrobek($przepis) : $przepis->forceDelete(),
-                    'recipe',
-                    $przepis->getKey(),
-                );
+                $odzyskany = false;
 
-                if (! $udane) {
+                $udane = $this->bezpiecznie(function () use ($przepis, $prog, $cudzeWykonania, &$odzyskany): void {
+                    // ODZYSKANIE PRZEZ AUTORA (#2620) bierze ten sam wiersz pod
+                    // blokadą. Kandydata wczytano wcześniej, bez blokady, więc
+                    // tu — już w transakcji — czytamy go jeszcze raz: przepis,
+                    // który w międzyczasie wrócił (`OdzyskajUsunietyPrzepis`)
+                    // albo przestał być za starym terminem, zostaje w spokoju.
+                    $swiezy = Recipe::onlyTrashed()
+                        ->whereKey($przepis->getKey())
+                        ->where('deleted_at', '<', $prog)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($swiezy === null) {
+                        $odzyskany = true;
+
+                        return;
+                    }
+
+                    if ($cudzeWykonania) {
+                        $this->zamienWNagrobek($swiezy);
+                    } else {
+                        $swiezy->forceDelete();
+                    }
+                }, 'recipe', $przepis->getKey());
+
+                if (! $udane || $odzyskany) {
                     continue;
                 }
             }
@@ -247,7 +268,7 @@ final class PrzedawnioneUsunieteTresci
     }
 
     /** @return list<string> */
-    private function zdjeciaPrzepisu(Recipe $przepis): array
+    public function zdjeciaPrzepisu(Recipe $przepis): array
     {
         return array_values(array_filter([
             $przepis->hero_media_id,
@@ -272,8 +293,14 @@ final class PrzedawnioneUsunieteTresci
             || $this->zModeracja('media', $media);
     }
 
-    /** @param list<string> $media */
-    private function przepisZModeracja(Recipe $przepis, array $media): bool
+    /**
+     * Czy przepis (albo jego komentarz, wykonanie, wersja czy zdjęcie) jest
+     * celem sprawy moderacyjnej. Ta sama definicja służy sprzątaniu i
+     * odzyskaniu przez autora (#2620) — jedna lista, bez kopii.
+     *
+     * @param  list<string>  $media
+     */
+    public function przepisZModeracja(Recipe $przepis, array $media): bool
     {
         return $this->zModeracja('recipe', [$przepis->getKey()])
             || $this->zModeracja('comment', Comment::withTrashed()

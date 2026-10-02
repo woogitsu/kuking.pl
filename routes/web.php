@@ -97,6 +97,7 @@ use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UgotujmyRazemController;
 use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
+use App\Http\Controllers\UsunietePrzepisyController;
 use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
@@ -1150,6 +1151,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // „moje-wpisy” trafiłoby do wiązania zeszytu po UUID. Nazwa pod
     // `collections.*`, żeby pozycja „Moje” w nawigacji była bieżąca.
     Route::get('/zeszyt/moje-wpisy', MojeWpisyController::class)->name('collections.own-posts');
+    // „Usunięte przepisy” (#2620, D-333): własny, omyłkowo usunięty przepis
+    // wraca jako prywatny szkic do końca retencji. Też PRZED
+    // `/zeszyt/{collection}`. POST bierze UUID przepisu, ale to nie jest
+    // autoryzacja: `RecipePolicy::odzyskaj()`, a potem blokada w akcji.
+    Route::get('/zeszyt/usuniete-przepisy', [UsunietePrzepisyController::class, 'index'])
+        ->name('collections.deleted-recipes');
+    Route::post('/zeszyt/usuniete-przepisy/{usuniety}', [UsunietePrzepisyController::class, 'odzyskaj'])
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('collections.deleted-recipes.recover');
     // Cofnięcie publicznego udostępnienia bez kasowania zeszytu (issue #777).
     // Własny klucz `zeszyt`, nie `usuwanie` — to nie jest akcja destrukcyjna.
     Route::get('/zeszyt/{collection}/edytuj', [CollectionController::class, 'edit'])->name('collections.edit');
