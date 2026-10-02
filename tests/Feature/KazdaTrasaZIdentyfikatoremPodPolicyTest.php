@@ -1545,6 +1545,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('shopping.recipe.confirm', 'ekran „dodać składniki jeszcze raz?” prywatnego przepisu', 'get',
             route('shopping.recipe.confirm', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
 
+        // #2489: podgląd przeliczonych porcji — bramka `view` jak przy `confirm`;
+        // bez przeliczenia (brak parametru) odsyła do przepisu, więc właściciel ma „dozwolone”.
+        $dodaj('shopping.recipe.scaled', 'podgląd składników prywatnego przepisu na wybraną liczbę porcji', 'get',
+            route('shopping.recipe.scaled', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+
         // ─── TAGI ────────────────────────────────────────────────────────
         // Tag jest wspólną nawigacją serwisu, nie czyjąś własnością
         // (`docs/FEATURES.md`); obserwowanie zapisuje się w relacji osoby

@@ -1233,6 +1233,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->name('shopping.destroy');
     Route::get('/przepisy/{recipe}/lista-zakupow', [ListaZakupowController::class, 'confirmRecipe'])
         ->name('shopping.recipe.confirm');
+    // Podgląd „Dodaj składniki na wybraną liczbę porcji” (#2489): GET, bez zapisu.
+    Route::get('/przepisy/{recipe}/lista-zakupow/porcje', [ListaZakupowController::class, 'previewScaled'])
+        ->name('shopping.recipe.scaled');
     Route::post('/przepisy/{recipe}/lista-zakupow', [ListaZakupowController::class, 'storeRecipe'])
         ->middleware("throttle:{$limits['zakupy']},zakupy")
         ->name('shopping.recipe.store');

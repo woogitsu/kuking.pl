@@ -813,6 +813,14 @@
                             @csrf
                             <button class="btn btn-secondary" type="submit">Dodaj składniki do listy zakupów</button>
                         </form>
+                        {{-- Przeliczone porcje (#2489): osobny, jawny wybór z podglądem; przycisk
+                             wyżej dalej kopiuje ilości autora. --}}
+                        @if($wyborPorcji->przeliczone() && ! $wyborSztuk->przeliczone())
+                            <p class="mt-3 mb-0">
+                                <a class="btn btn-secondary" href="{{ route('shopping.recipe.scaled', ['recipe' => $recipe->slug, 'porcje' => $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane)]) }}">Dodaj składniki na {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta((float) $wyborPorcji->wybrane) }} do listy zakupów</a>
+                            </p>
+                            <p class="meta mt-2">Przycisk wyżej dodaje ilości autora ({{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta((float) $wyborPorcji->zPrzepisu) }}).</p>
+                        @endif
                     @endauth
                 @endif
                 {{-- Alergeny według autora (#1902, D-333): stały blok pod składnikami,

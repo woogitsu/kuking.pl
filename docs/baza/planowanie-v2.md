@@ -112,6 +112,7 @@ jest u nas wolnym tekstem.
 | `recipe_id` | `uuid` NULL | → `recipes(id)` **`ON DELETE SET NULL`**: z KTÓREGO przepisu skopiowano linię; służy do ostrzeżenia przy ponownym dodaniu tego samego przepisu |
 | `position` | `integer` | kolejność dopisywania (kolejność linii przepisu jest częścią przepisu) |
 | `checked_at` | `timestamptz` NULL | `NULL` = do kupienia; data = odhaczona |
+| `scaled_servings` | `numeric(5,2)` NULL | #2489, migracja `2026_10_06_200200`: NULL = dosłowna linia autora albo ręczny wpis; liczba = ilość w `text` policzył Kuking z linii autora na tyle porcji (`WyborPorcji`/`PrzeliczSkladnik`). Trwałe rozróżnienie przeliczonej kopii od linii autora — także po edycji albo utracie dostępu do przepisu |
 | `created_at` / `updated_at` | `timestamptz` | |
 
 **Lista jest prywatna i nie jest furtką do treści.** Nie ma kolumny
@@ -133,6 +134,12 @@ Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
   'recipe'`: ręczna pozycja nie ma przepisu (odwrotnie nie wymuszamy, bo
   `ON DELETE SET NULL` zostawia po twardo usuniętym przepisie `recipe` bez
   `recipe_id`);
+- `shopping_list_items_scaled_servings_check` — `scaled_servings IS NULL OR
+  (scaled_servings >= 1 AND scaled_servings <= 100)` (zakres `WyborPorcji`) oraz
+  `shopping_list_items_scaled_servings_tylko_z_przepisu_check` —
+  `scaled_servings IS NULL OR source = 'recipe'` (#2489; oba `NOT VALID` +
+  `VALIDATE`). Migawka cofnięcia (`shopping_list_undos.items`) niesie
+  `scaled_servings` i przywraca je z pozycją;
 - `shopping_list_items_text_check` — tekst po obcięciu białych znaków ma
   1–240 znaków;
 - `shopping_list_items_user_position_idx` (odczyt listy) i
@@ -144,6 +151,13 @@ tekst, „2 jajka” może stać dwa razy, a ten sam przepis wolno dodać drugi 
 po **ostrzeżeniu** (ekran „Te składniki już są na liście”, GET, bez
 skutku ubocznego). Limity: `kuking.zakupy.pozycji_max` (300 pozycji na listę),
 `kuking.zakupy.znakow_max` (240), własny koszyk `kuking.limits.zakupy`.
+
+**Rollback `scaled_servings` (#2489, D-088).** Migracja
+`2026_10_06_200200_add_scaled_servings_to_shopping_list_items` ODMAWIA cofnięcia,
+gdy choć jedna pozycja ma zapisane przeliczenie (bez kolumny przeliczone ilości
+wyglądałyby jak dosłowne linie autora); komunikat podaje, jak zapisać mapę
+`SELECT id, scaled_servings …`. Bez zapisanych przeliczeń przechodzi. Kod sprzed
+migracji kolumny nie zna. Test: `tests/Feature/ZakupyPrzeliczonePorcjeTest.php`.
 
 **Rollback.** `down()` ODMAWIA, gdy w tabeli są wiersze (D-088): kasowanie
 tabeli zabrałoby ludziom prywatne listy bez śladu. Komunikat mówi, co zrobić
