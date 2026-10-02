@@ -1,6 +1,7 @@
 # Co się zmieniło w Kuking
 
 ## Nieopublikowane
+
 - Naprawione (#2561): orientacyjny koszt rozpoznaje masę zapisaną z grupowaniem tysięcy (np. „1 000 g jajek”) jako całą masę, a przy uszkodzonym grupowaniu odmawia wyceny zamiast zamieniać fragment na sztuki.
 
 - Naprawione (#2480): kartka przypięta do przepisu jest widoczna na jego zwykłej stronie także wtedy, gdy autor nie dodał osoby ani notatki o źródle. Prywatność zdjęcia i wariant dla pomocnika pozostają bez zmian.
