@@ -30,21 +30,27 @@ assert(moduleSource.includes('export function pozostaloSekund'),
 const blade = readFileSync('resources/views/pages/recipes/cooking.blade.php', 'utf8');
 const template = blade.match(/<div class="cook-timer"[\s\S]*?<\/div>/)?.[0];
 assert(template, 'Nie znaleziono rzeczywistego HTML minutnika');
-const html = seconds => template.replace(/\{\{--[\s\S]*?--\}\}/g, '')
+const idKroku = krok => `00000000-0000-4000-8000-${String(krok).padStart(12, '0')}`;
+const odciskKroku = krok => String(krok).padStart(64, 'a');
+const storageKey = krok => `kuking.minutnik.zupa.id_${idKroku(krok)}_${odciskKroku(krok)}`;
+const html = (seconds, krok = 1, fingerprint = odciskKroku(krok)) => template.replace(/\{\{--[\s\S]*?--\}\}/g, '')
   .replaceAll('{{ $aktualnyKrok->timer_seconds }}', String(seconds))
-  .replaceAll('{{ $timerLabel }}', `${seconds} sekund`);
+  .replaceAll('{{ $timerLabel }}', `${seconds} sekund`)
+  .replaceAll('{{ $aktualnyKrok->getKey() }}', idKroku(krok))
+  .replaceAll('{{ $aktualnyKrok->timerFingerprint() }}', fingerprint);
 // Pas alarmów minutników z innych kroków (issue #1301) — też z realnego Blade.
-const alarmyTemplate = blade.match(/<div class="cook-alarmy[^"]*"[^\n]*? hidden><\/div>/)?.[0];
+const alarmyTemplate = blade.match(/<div class="cook-alarmy[\s\S]*? hidden><\/div>/)?.[0];
 assert(alarmyTemplate, 'Nie znaleziono rzeczywistego pasa alarmów innych kroków');
-const importLine = `import { pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza } from './${moduleFileName}';\n`;
+const importLine = `import { pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika } from './${moduleFileName}';\n`;
 // Jedna strona trybu gotowania = jeden krok: pas alarmów + (opcjonalnie)
 // minutnik tego kroku, jak w cooking.blade.php.
-const stepPage = (krok, seconds) => '<p class="cook-progress">Krok ' + krok + '</p>'
+const stepPage = (krok, seconds, identities = [1, 2, 3, 4], fingerprints = identities.map(odciskKroku)) => '<p class="cook-progress">Krok ' + krok + '</p>'
   + alarmyTemplate.replaceAll('{{ $recipe->slug }}', 'zupa')
     .replaceAll('{{ $krok }}', String(krok))
     .replaceAll('{{ $adresGotowania() }}', '/gotuj')
+    .replace(/data-alarmy-kroki="[^"]*"/, `data-alarmy-kroki="${JSON.stringify(identities.map((id, index) => ({id: idKroku(id), fingerprint: fingerprints[index]}))).replaceAll('"', '&quot;')}"`)
     .replace(/\{\{ route\([^}]*\}\}/, '/gotuj')
-  + (seconds ? html(seconds).replaceAll('{{ $recipe->slug }}', 'zupa').replaceAll('{{ $krok }}', String(krok)) : '');
+  + (seconds ? html(seconds, identities[krok - 1] ?? krok, fingerprints[krok - 1]).replaceAll('{{ $recipe->slug }}', 'zupa').replaceAll('{{ $krok }}', String(krok)) : '');
 // Wyjście z trybu gotowania (przegląd #1301) — oba linki z realnego Blade.
 const zakonczTemplate = blade.match(/<a class="btn btn-secondary cook-exit"[\s\S]*?<\/a>/)?.[0];
 const ugotowalemTemplate = blade.match(/<a class="btn btn-primary btn-cook" href="\{\{ route\('cooked\.create'[^\n]*?<\/a>/)?.[0];
@@ -98,7 +104,7 @@ const results = [];
 async function fixture(durations, run) {
   const page = await browser.newPage();
   try {
-    currentBody = durations.map(html).join('\n');
+    currentBody = durations.map((seconds, index) => html(seconds, index + 1)).join('\n');
     await page.goto(baseUrl);
     // Obserwacja końca nie zastępuje działania minutnika ani API dźwięku.
     await page.evaluate(() => {
@@ -120,8 +126,8 @@ async function fixture(durations, run) {
 // `telefon`: jak iOS Safari / Chrome na Androidzie — AudioContext bez gestu
 // startuje zawieszony, a `resume()` przechodzi tylko w trakcie gestu
 // (bezgłowy Chromium ignoruje --autoplay-policy, więc politykę odgrywamy tu).
-async function openStep(page, krok, seconds, { exits = false, telefon = false } = {}) {
-  currentBody = exits ? withExits(stepPage(krok, seconds)) : stepPage(krok, seconds);
+async function openStep(page, krok, seconds, { exits = false, telefon = false, identities = [1, 2, 3, 4], fingerprints = identities.map(odciskKroku) } = {}) {
+  currentBody = exits ? withExits(stepPage(krok, seconds, identities, fingerprints)) : stepPage(krok, seconds, identities, fingerprints);
   await page.goto(baseUrl + '?krok=' + krok);
   await page.evaluate((telefon) => {
     window.alarmBeeps = 0;
@@ -263,15 +269,18 @@ try {
   await check('minutnik_poprzedniego_kroku_alarmuje_w_nastepnym', async () => {
     const page = await browser.newPage();
     try {
-      await openStep(page, 1, 2);
+      await openStep(page, 1, 8);
       await button(page).click();
-      assert.equal(await remaining(page), 2);
+      assert.equal(await remaining(page), 8);
       // Następny krok, zanim minutnik kroku 1 skończył — krok 2 bez minutnika.
       await openStep(page, 2, 0);
       const pas = page.locator('.cook-alarmy');
-      assert(await pas.isHidden(), 'Pas alarmów nie może się pokazać przed końcem odliczania');
-      await page.waitForTimeout(2600);
       const alarm = page.locator('.cook-alarm');
+      assert(await pas.isVisible(), 'Pas pokazuje trwający minutnik wcześniejszego kroku');
+      assert.equal(await alarm.count(), 0, 'Alarm nie może się pokazać przed końcem odliczania');
+      assert.match(await pas.locator('[role="status"]').innerText(), /Minutnik kroku 1.*nadal odlicza/);
+      assert.equal(await pas.locator('[role="timer"]').count(), 1, 'Pozostały czas musi być dostępny');
+      await alarm.waitFor({ state: 'visible', timeout: 12000 });
       assert.equal(await alarm.count(), 1, 'Dokładnie jeden alarm dla jednego minutnika');
       assert(await alarm.isVisible(), 'Alarm minutnika kroku 1 musi być widoczny na kroku 2');
       assert.equal(await alarm.getAttribute('role'), 'alert');
@@ -285,7 +294,7 @@ try {
       const wylacz = page.getByRole('button', { name: 'Wyłącz alarm' });
       assert.equal(await page.getByRole('link', { name: 'Przejdź do kroku 1' }).getAttribute('href'), '/gotuj?krok=1');
       // Zapis zniknął przed alarmem — nic nie zadzwoni drugi raz.
-      assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.1')), null);
+      assert.equal(await page.evaluate(key => sessionStorage.getItem(key), storageKey(1)), null);
       await wylacz.click();
       assert.equal(await alarm.count(), 0, 'Wyłącz alarm musi usunąć komunikat');
       assert(await pas.isHidden());
@@ -328,9 +337,9 @@ try {
       // 20 minut w kroku 3, potem „Zakończ gotowanie” bez „Anuluj”.
       await openStep(page, 3, 1200, { exits: true });
       await button(page).click();
-      assert.notEqual(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.3')), null);
+      assert.notEqual(await page.evaluate(key => sessionStorage.getItem(key), storageKey(3)), null);
       await Promise.all([page.waitForURL('**/przepis'), page.getByRole('link', { name: 'Zakończ gotowanie' }).click()]);
-      assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.3')), null,
+      assert.equal(await page.evaluate(key => sessionStorage.getItem(key), storageKey(3)), null,
         '„Zakończ gotowanie” musi wyczyścić minutniki tego przepisu');
 
       // To samo przez „Ugotowałem”.
@@ -338,7 +347,7 @@ try {
       await button(page).click();
       await openStep(page, 3, 0, { exits: true });
       await Promise.all([page.waitForURL('**/ugotowalem'), page.getByRole('link', { name: 'Ugotowałem' }).click()]);
-      assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.2')), null,
+      assert.equal(await page.evaluate(key => sessionStorage.getItem(key), storageKey(2)), null,
         '„Ugotowałem” musi wyczyścić minutniki tego przepisu');
 
       // Wyjście inną drogą (zamknięty link, wpisany adres): zapis zostaje,
@@ -358,11 +367,12 @@ try {
   });
   // Zapis minutnika, którego termin minął `minutyPo` minut temu — tak jak
   // po zablokowanym telefonie, z którego iOS wyrzucił kartę z pamięci.
-  const zapiszPoTerminie = (page, krok, minutyPo) => page.evaluate(({ krok, minutyPo }) => {
-    sessionStorage.setItem(`kuking.minutnik.zupa.${krok}`, JSON.stringify({
+  const zapiszPoTerminie = (page, krok, minutyPo) => page.evaluate(({ key, krok, id, fingerprint, minutyPo }) => {
+    sessionStorage.setItem(key, JSON.stringify({
       sekundyCalkiem: 1200, terminEpoka: Date.now() - minutyPo * 60 * 1000,
+      stepId: id, fingerprint, krokPierwotny: krok,
     }));
-  }, { krok, minutyPo });
+  }, { key: storageKey(krok), krok, id: idKroku(krok), fingerprint: odciskKroku(krok), minutyPo });
   const obserwujKoniec = page => page.evaluate(() => {
     window.timerEnds = [0];
     const node = document.querySelector('.cook-timer-komunikat');
@@ -388,7 +398,7 @@ try {
       assert(await page.evaluate(() => window.alarmBeeps) >= 1, 'Spóźniony minutnik musi zagrać sygnał');
       assert.equal((await button(page).innerText()).trim(), 'Uruchom minutnik jeszcze raz');
       assert(await anulujButton(page).isHidden());
-      assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.3')), null,
+      assert.equal(await page.evaluate(key => sessionStorage.getItem(key), storageKey(3)), null,
         'Zapis znika po alarmie');
       // Na telefonie komunikat w bloku minutnika jest tylko dla czytnika
       // ekranu, a sygnał bez gestu milczy — alarm musi być WIDOCZNY.
@@ -432,7 +442,7 @@ try {
       assert(await button(page).isVisible(), 'Porzucony minutnik: zwykły przycisk startu');
       assert.equal((await button(page).innerText()).trim(), 'Uruchom minutnik w tej przeglądarce');
       assert(await block(page).locator('.cook-timer-odliczanie').isHidden());
-      assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.3')), null,
+      assert.equal(await page.evaluate(key => sessionStorage.getItem(key), storageKey(3)), null,
         'Porzucony zapis znika po cichu');
     } finally { await page.close(); }
   });
@@ -448,7 +458,7 @@ try {
       assert.equal((await page.locator('.cook-alarm-tekst').innerText()).trim(),
         'Minutnik kroku 3 skończył odliczanie.');
       assert(await page.evaluate(() => window.alarmBeeps) >= 1);
-      assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.3')), null);
+      assert.equal(await page.evaluate(key => sessionStorage.getItem(key), storageKey(3)), null);
     } finally { await page.close(); }
   });
   await check('widoczny_krok_minutnik_w_toku_bez_alarmu', async () => {
@@ -483,7 +493,7 @@ try {
       assert.equal(await page.locator('.cook-alarm').count(), 1, 'Po powrocie z bfcache spóźniony minutnik alarmuje raz');
       assert(await page.locator('.cook-alarm').isVisible());
       assert.equal(await remaining(page), 0);
-      assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.3')), null);
+      assert.equal(await page.evaluate(key => sessionStorage.getItem(key), storageKey(3)), null);
       await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
       await page.waitForTimeout(300);
       assert.equal(await page.locator('.cook-alarm').count(), 1, 'Drugi pageshow nie dubluje alarmu');
@@ -587,6 +597,60 @@ try {
       assert(await page.locator('.cook-alarm').isVisible());
       assert.equal(await page.evaluate(() => window.alarmBeeps), beeps,
         'Bez gestu zawieszony kontekst nie gra (inaczej test nie udaje telefonu)');
+    } finally { await page.close(); }
+  });
+  await check('edycja_zamienia_kroki_bez_podmiany_czynnosci_2589', async () => {
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 2, 4);
+      await button(page).click();
+      const terminPrzed = await page.evaluate(key => JSON.parse(sessionStorage.getItem(key)).terminEpoka, storageKey(2));
+      // Statyczna scena Blade: B przechodzi z numeru 2 na 1. Rzeczywisty
+      // PublishRecipe + HTTP mierzy osobny minutnik-edycja-http-2589.mjs.
+      await openStep(page, 2, 8, { identities: [2, 1, 3, 4] });
+      assert(await button(page).isVisible(), 'Nowy krok 2 nie może przejąć minutnika dawnego B');
+      assert(await block(page).locator('.cook-timer-odliczanie').isHidden());
+      assert.equal(await page.evaluate(key => JSON.parse(sessionStorage.getItem(key)).terminEpoka, storageKey(2)), terminPrzed,
+        'Edycja nie może restartować ani skasować pierwotnego terminu');
+      await openStep(page, 1, 4, { identities: [2, 1, 3, 4] });
+      assert(await anulujButton(page).isVisible(), 'Ten sam krok B po przeniesieniu zachowuje minutnik');
+      assert(await remaining(page) > 0, 'Przeniesiony minutnik nadal odlicza');
+      await page.waitForTimeout(4300);
+      assert.equal(await page.locator('.cook-alarm').count(), 1, 'Single po edycji: tylko jeden alarm');
+      assert.equal(await page.evaluate(key => sessionStorage.getItem(key), storageKey(2)), null);
+    } finally { await page.close(); }
+  });
+  await check('zmieniona_tresc_i_czas_nie_otrzymuja_starego_minutnika_2589', async () => {
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 2, 4);
+      await button(page).click();
+      const odciskiPoEdycji = [odciskKroku(1), 'b'.repeat(64), odciskKroku(3), odciskKroku(4)];
+      await openStep(page, 2, 8, { fingerprints: odciskiPoEdycji });
+      assert(await button(page).isVisible(), 'Zmiana instrukcji/czasu nie przywiązuje starego licznika do nowej treści');
+      assert.match(await page.locator('.cook-alarmy [role="status"]').innerText(), /Przepis się zmienił/);
+      assert(await page.getByRole('button', { name: 'Anuluj minutnik wcześniejszego kroku 2' }).isVisible());
+      await page.waitForTimeout(4300);
+      assert.equal(await page.locator('.cook-alarm').count(), 1);
+      assert.equal(await page.locator('.cook-alarm a').count(), 0, 'Brak odnośnika do zmienionej czynności');
+      assert.match(await page.locator('.cook-alarm-tekst').innerText(), /wcześniejszym kroku 2/);
+    } finally { await page.close(); }
+  });
+  await check('stary_zapis_bez_tozsamosci_nie_udaje_edycji_2589', async () => {
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 2, 120);
+      const legacyKey = 'kuking.minutnik.zupa.2';
+      await page.evaluate(key => sessionStorage.setItem(key,
+        JSON.stringify({ sekundyCalkiem: 120, terminEpoka: Date.now() + 120000 })), legacyKey);
+      await openStep(page, 2, 120);
+      const opis = await page.locator('.cook-alarmy [role=status]').innerText();
+      assert.match(opis, /Nie można potwierdzić kroku/);
+      assert.doesNotMatch(opis, /Przepis się zmienił/);
+      assert(await page.locator('.cook-timer-start').isVisible());
+      assert(await page.locator('.cook-alarmy [role=timer]').isVisible());
+      assert.equal(await page.locator('.cook-alarm').count(), 0);
+      assert(await page.evaluate(key => sessionStorage.getItem(key) !== null, legacyKey));
     } finally { await page.close(); }
   });
 } finally { await browser.close(); server.close(); }

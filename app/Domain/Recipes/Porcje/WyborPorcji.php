@@ -100,7 +100,9 @@ final readonly class WyborPorcji
 
         $kandydat = self::calkowita($this->wybrane) ? $this->wybrane - 1 : floor($this->wybrane);
 
-        return $kandydat >= self::NAJMNIEJ ? $kandydat : null;
+        // Liczba autora może przekraczać zakres wyboru widza. Następny link
+        // musi prowadzić do wartości, którą `dla()` naprawdę przyjmie.
+        return $kandydat >= self::NAJMNIEJ ? min($kandydat, self::NAJWIECEJ) : null;
     }
 
     /** Jedna porcja więcej (do pełnej liczby), albo `null` powyżej limitu. */

@@ -27,6 +27,10 @@
              'slug' => $p['recipe']->slug,
              'krok' => $p['krok'],
              'tytul' => $p['recipe']->title,
+             'tozsamoscKrokow' => $p['recipe']->steps->map(fn ($step): array => [
+                 'id' => (string) $step->getKey(),
+                 'fingerprint' => $step->timerFingerprint(),
+             ])->all(),
          ], $pozycje), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) }}">
         <h1 class="m-0">Gotuję kilka potraw naraz</h1>
 
@@ -112,7 +116,8 @@
                 @if($etykietaMinutnika)
                     <div class="cook-timer" data-kolejka-minutnik
                          data-slug="{{ $slugAktywny }}" data-krok="{{ $krokAktywny }}"
-                         data-sekundy="{{ $krokModel->timer_seconds }}" data-etykieta="{{ $etykietaMinutnika }}">
+                         data-sekundy="{{ $krokModel->timer_seconds }}" data-etykieta="{{ $etykietaMinutnika }}"
+                         data-step-id="{{ $krokModel->getKey() }}" data-fingerprint="{{ $krokModel->timerFingerprint() }}">
                         {{-- Baza bez JS: samo zdanie. Przycisk odkrywa dopiero skrypt (D-053). --}}
                         <p>Ustaw sobie kuchenny minutnik na {{ $etykietaMinutnika }}.</p>
                         <button type="button" class="btn btn-secondary btn-cook" data-kolejka-minutnik-start hidden>
