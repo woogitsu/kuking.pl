@@ -595,6 +595,12 @@ const EKRANY = [
    */
   { nazwa: 'bezpieczeństwo konta', adres: '/ustawienia/bezpieczenstwo', zalogowany: true },
   { nazwa: 'urządzenia z dostępem', adres: '/ustawienia/urzadzenia', zalogowany: true },
+  /*
+   * „Mój rok w kuchni” (#2353, D-333) — prywatne podsumowanie roku, tylko dla
+   * zalogowanego. Krótkie listy i przełącznik lat jako rząd przycisków, który
+   * przy 320 px i tekście 200% musi się zawinąć, a nie wypchnąć stronę.
+   */
+  { nazwa: 'mój rok w kuchni', adres: '/moj-rok', zalogowany: true },
 
   /* ===========================================================================
    * PACZKA S (#2393) — EKRANY, KTÓRYCH NIE MIERZYŁ NIKT
@@ -624,6 +630,10 @@ const EKRANY = [
   { nazwa: 'historia wersji przepisu', znajdz: 's:historia', wymaga: '.historia-wersja-naglowek' },
   { nazwa: 'historia wersji — jedna wersja', znajdz: 's:wersja', wymaga: 'a:has-text("Zgłoś wersję 2")' },
   { nazwa: 'historia wersji — co się zmieniło', znajdz: 's:zmiany', wymaga: '#hz-skladniki' },
+  // Wspólne gotowanie (#2385): ekran sesji dla gospodarza (panel zapraszania,
+  // odwołanie linku, pomocnicy) i ekran linku dla osoby spoza sesji.
+  { nazwa: 'wspólne gotowanie — ekran sesji', znajdz: 's:wspolneGotowanie', zalogowany: true, wymaga: 'button:has-text("Utwórz nowy link")' },
+  { nazwa: 'wspólne gotowanie — link zaproszenia', znajdz: 's:wspolneGotowanieLink', zalogowany: true, wymaga: 'button:has-text("Dołączam")' },
 ];
 
 /*
@@ -4762,6 +4772,101 @@ if (rozjazdySzynyGoscia.length > 0) {
       log(`      ${blad}`);
     }
   }
+}
+
+/* ============================================================================
+   CAŁA KARTA PRZEPISU JEST CELEM DOTYKU (decyzja właściciela z 1.10.2026)
+   Sam link tytułu ma ok. 21 px wysokości, a wymóg to ≥ 48 px obszaru dotyku.
+   Rozwiązanie to „stretched link" (`::after` na całą kartę), więc mierzymy
+   to, co widzi palec: trafienie w środek i w rogi karty ma wpaść w link
+   tytułu, karta ma ≥ 48 px, a fokus ma obrysować całą kartę (obrys na
+   `::after`). Przy podwojonej czcionce przeglądarki mierzymy to samo.
+   ========================================================================== */
+log('');
+log('Karta przepisu jako cel dotyku:');
+
+const rozjazdyKartyPrzepisu = [];
+let zmierzoneKartyPrzepisu = 0;
+
+for (const szerokosc of SZYBKO ? [320] : [320, 1280]) {
+  for (const duzaCzcionka of [false, true]) {
+    const kontekst = await przegladarka.newContext({ viewport: { width: szerokosc, height: 900 } });
+    const strona = await kontekst.newPage();
+    if (duzaCzcionka) {
+      await (await kontekst.newCDPSession(strona)).send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } });
+    }
+    await strona.goto(`${adres}/szukaj?sekcja=przepisy&q=rosol`, { waitUntil: 'domcontentloaded' });
+    await poczekajNaFonty(strona);
+
+    const pomiar = await strona.evaluate(() => [...document.querySelectorAll('.recipe-card-wiersz')].map((karta) => {
+      const link = karta.querySelector('a.link-tytul');
+      const r = karta.getBoundingClientRect();
+      const zlapanyPrzez = (x, y) => {
+        // Pomijamy przypięte nakładki spoza karty (np. podpowiedź na dole
+        // okna): pytanie brzmi, co na KARCIE dostaje kliknięcie.
+        const el = document.elementsFromPoint(x, y).find((e) => karta.contains(e));
+        return el !== undefined && link !== null && link.contains(el);
+      };
+      const wLinku = link ? link.getBoundingClientRect() : null;
+      karta.scrollIntoView({ block: 'center', behavior: 'instant' });
+      const rr = karta.getBoundingClientRect();
+      // Karta przy czcionce 200% bywa wyższa niż okno: punkty bierzemy
+      // z części karty, którą widać (elementFromPoint poza oknem daje null).
+      const gora = Math.max(rr.top, 0);
+      const dol = Math.min(rr.bottom, window.innerHeight);
+      const punkty = [
+        [rr.left + rr.width / 2, (gora + dol) / 2],
+        [rr.left + 16, gora + 16],
+        [rr.right - 16, dol - 16],
+      ];
+      // Trafienia liczymy PRZED fokusem. `focus()` przewija stronę, żeby link
+      // zmieścił się pod `scroll-padding-top` (przy czcionce 200% i 1280 px to
+      // 15rem = 480 px), więc po nim karta stoi gdzie indziej niż punkty
+      // wyliczone wyżej — i pomiar trafiał w pusty margines obok karty
+      // (CI, #2421: „karta 1, 1280 px, czcionka 200%"), a nie w nakładkę.
+      const trafienia = punkty.map(([x, y]) => zlapanyPrzez(x, y));
+      link?.focus({ focusVisible: true });
+      const po = link ? getComputedStyle(link, '::after') : null;
+      return {
+        wysokoscKarty: Math.round(r.height),
+        wysokoscSamegoLinku: wLinku ? Math.round(wLinku.height) : null,
+        linkow: karta.querySelectorAll('a').length,
+        zagniezdzone: karta.querySelectorAll('a a').length,
+        trafienia,
+        obrysNaKarcie: po ? po.outlineStyle !== 'none' && parseFloat(po.outlineWidth) >= 3 : false,
+        pokrycieKarty: po ? po.position === 'absolute' : false,
+      };
+    }));
+
+    for (const [i, k] of pomiar.entries()) {
+      zmierzoneKartyPrzepisu += 1;
+      const bledy = [];
+      if (k.wysokoscKarty < 48) bledy.push(`karta ma ${k.wysokoscKarty} px wysokości (< 48)`);
+      if (! k.pokrycieKarty) bledy.push('::after linku tytułu nie jest rozciągniętą nakładką');
+      if (k.trafienia.some((t) => ! t)) bledy.push('trafienie w środek albo róg karty nie wpada w link tytułu');
+      if (k.linkow !== 1 || k.zagniezdzone !== 0) bledy.push(`karta ma ${k.linkow} linków (zagnieżdżonych: ${k.zagniezdzone}), a ma mieć jeden`);
+      if (! k.obrysNaKarcie) bledy.push('fokus linku nie obrysowuje całej karty');
+      if (bledy.length > 0) {
+        rozjazdyKartyPrzepisu.push({ karta: i + 1, szerokosc, duzaCzcionka, bledy });
+      }
+    }
+
+    if (pomiar.length === 0) {
+      rozjazdyKartyPrzepisu.push({ karta: 0, szerokosc, duzaCzcionka, bledy: ['na /szukaj?sekcja=przepisy&q=rosol nie ma karty przepisu do zmierzenia'] });
+    }
+
+    await kontekst.close();
+  }
+}
+
+if (rozjazdyKartyPrzepisu.length > 0) {
+  process.exitCode = 1;
+  console.error(`BŁĄD: karta przepisu nie jest w całości celem dotyku (${rozjazdyKartyPrzepisu.length} rozjazdów).`);
+  for (const r of rozjazdyKartyPrzepisu) {
+    console.error(`  karta ${r.karta}, ${r.szerokosc} px${r.duzaCzcionka ? ', czcionka 200%' : ''}: ${r.bledy.join('; ')}`);
+  }
+} else {
+  log(`  ✓ ${zmierzoneKartyPrzepisu} kart: cała powierzchnia to jeden link, ≥ 48 px, fokus obrysowuje kartę`);
 }
 
 // OAuth: własny serwer pomiarowy, bez włazu do sesji w aplikacji (#345).

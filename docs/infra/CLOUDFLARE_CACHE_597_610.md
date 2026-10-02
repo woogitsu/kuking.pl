@@ -471,6 +471,19 @@ Czyszczenie cache HTML przy edycji przepisu (punkt 4 issue) **nie jest
 zrobione** — krótki TTL jest jedynym ograniczeniem. To temat na osobne
 zadanie, jeśli 120 s okaże się za dużo.
 
+**Wskazówki od gotujących (#2352).** Sekcja „Wskazówki od gotujących” jest częścią
+HTML przepisu (`recipes.show`). Gdy `KUKING_HTML_EDGE_CACHE_SECONDS` > 0, gość może
+więc zobaczyć z brzegu wskazówkę, na którą kucharz właśnie **wycofał zgodę** (albo
+którą moderacja ukryła), **do TTL** (najwyżej 300 s) — i odwrotnie, nie zobaczyć
+jeszcze wskazówki przywróconej albo świeżo przyjętej. Aplikacja nie czyści cache
+HTML stron przepisu przy żadnej zmianie (`PurgePublicMediaCache` dotyczy tylko
+zdjęć), więc to jest to samo okno nieświeżości co przy przepisie ukrytym przez
+moderację, opisane wyżej; wycofanie zgody (RODO art. 7 ust. 3) działa w
+aplikacji natychmiast — wskazówka znika dla zalogowanych i dla gości, którzy
+dostali świeżą stronę — a opóźnienie dotyczy wyłącznie kopii u brzegu. Dlatego TTL
+ma zostać krótki (proponowane 120 s). Sama strona wykonania kucharza
+(`cooked.show`) nie jest na liście `PublicznyHtmlGoscia::TRASY`, więc nie ma tego okna.
+
 **Alergeny przepisu (#1902, flaga `KUKING_ALERGENY_WLACZONE`).** Gdy oznaczenie
 alergenów jest włączone, HTML przepisu z brzegu pokazuje listę „Alergeny według
 autora” (albo jej brak) tak, jak wyglądała przy ostatnim pobraniu przez gościa.

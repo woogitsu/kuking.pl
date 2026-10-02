@@ -85,6 +85,16 @@ class EnsureAccountIsActive
         // D-296: wycofanie zgody „odczyt AI” — RODO art. 7 ust. 3, tak łatwe
         // jak udzielenie. Udzielenie (`zgoda.odczyt-ai.udziel`) celowo NIE.
         'zgoda.odczyt-ai.wycofaj',
+        // #2352: odpowiedź „Nie" i wycofanie zgody na wskazówkę — RODO art. 7
+        // ust. 3 (cofnięcie zgody tak łatwe jak jej udzielenie). Niczego nie
+        // publikują, tylko odbierają; „Zgadzam się" i prośbę autora zawieszenie
+        // zatrzymuje, bo to pisanie.
+        'hints.decline',
+        'hints.withdraw',
+        // #2352: autor wycofuje WŁASNĄ czekającą prośbę. Niczego nie publikuje,
+        // tylko odbiera nacisk z kucharza (prośba znika z jego odpowiedzi);
+        // zawieszenie odcina od pisania, a nie od wycofania własnej prośby.
+        'hints.cancel',
         // #926: prywatny zeszyt i postęp gotowania zostają dostępne.
         // Widoczności zeszytu i treści nadal pilnują ich polityki.
         'collections.store',

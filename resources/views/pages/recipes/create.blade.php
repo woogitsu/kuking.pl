@@ -146,6 +146,7 @@
 pietruszka
 sól do smaku"
                  help="Każdy składnik w osobnej linijce. Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”. Nie musisz nic przeliczać na gramy. To pole możesz zostawić puste i dopisać składniki później." />
+        <x-dyktowanie cel="f-skladniki_tekst" separator="nowa-linia" />
 
         {{-- 4. PRZYGOTOWANIE — jedno pole, pusta linia rozdziela kroki. --}}
         <x-field name="przygotowanie_tekst" label="Przygotowanie" type="textarea" :rows="10" required
@@ -155,6 +156,7 @@ Wrzuć warzywa i gotuj na małym ogniu trzy godziny.
 
 Posól na końcu."
                  help="Pisz spokojnie, po swojemu. Zostaw pustą linijkę tam, gdzie zaczyna się nowa czynność — zrobimy z tego osobne kroki." />
+        <x-dyktowanie cel="f-przygotowanie_tekst" separator="akapit" />
 
         {{-- 5. KTO MA WIDZIEĆ — dwie opcje, bo to jest pytanie o prywatność,
              a nie o ustawienia. Trzecia możliwość („tylko obserwujący")

@@ -23,6 +23,7 @@ use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
 use App\Models\Comment;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Models\Unit;
 use App\Support\Komunikat;
 use App\Support\KursorListy;
@@ -497,6 +498,27 @@ class RecipeController extends Controller
         $wersje = MojaWersja::wersjeDlaWidza($model, $request->user())
             ->paginate(6, ['*'], 'wersje');
 
+        // „Wskazówki od gotujących" (#2352, D-333) — wyłącznie PRZYJĘTE, tylko
+        // z wykonań, które ten widz może zobaczyć (blokady, zbanowani
+        // kucharze: `CookedEvent::widoczneDla`), w kolejności zgód, bez
+        // rankingu. Limit 10 pilnuje PRÓŚB (`ZaproponujWskazowke`), a przywrócenie
+        // ukrytej wskazówki wolno ponad nim, więc strona pokazuje do
+        // `na_stronie_max` (sufit techniczny, domyślnie 20): ponad limit przepisu
+        // da się wejść tylko przywróceniem przez moderację, więc w praktyce
+        // zobaczymy 10 plus garść przywróconych, a sufit chroni stronę przed
+        // wskazówkami, których nie przewidzieliśmy (np. wielokrotne ukrycia
+        // i przywrócenia).
+        // Jedno zapytanie o wskazówki z kucharzem, profilem i awatarem; numer najnowszej wersji dopiero, gdy jest co oznaczać.
+        $wskazowki = RecipeHint::query()
+            ->przyjeteDlaPrzepisu($model)
+            ->whereHas('cookedEvent', fn ($wykonanie) => $wykonanie->widoczneDla($request->user()))
+            ->with(['cookedEvent.user.profile.avatar'])
+            ->limit((int) config('kuking.wskazowki.na_stronie_max'))
+            ->get();
+        $najnowszaWersja = $wskazowki->isEmpty()
+            ? null
+            : $model->versions()->reorder()->max('version_number');
+
         foreach ([$komentarze, $cookedEvents, $wersje] as $cel) {
             foreach ([$komentarze, $cookedEvents, $wersje] as $inna) {
                 if ($cel !== $inna) {
@@ -549,6 +571,8 @@ class RecipeController extends Controller
             // jak na karcie i stronie wpisu (D-281, D-309). `total()`
             // stronicowania liczy same wątki, więc zostaje do paginacji.
             'komentarzyRazem' => Comment::policzRozmowe($model->comments(), $request->user()),
+            'wskazowki' => $wskazowki,
+            'najnowszaWersja' => $najnowszaWersja,
             'cookedEvents' => $cookedEvents,
             // LICZNIK LICZY DOKŁADNIE TO, CO POKAZUJE GALERIA WYŻEJ.
             //

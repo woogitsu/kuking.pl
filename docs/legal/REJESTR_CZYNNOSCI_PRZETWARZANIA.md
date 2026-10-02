@@ -11,6 +11,9 @@ Uzupełnienie z 30 września 2026 (#2283, audyt prywatności Z7, Z8, Z11):
 §3.8 (zakres `profile` przy Google obejmuje zdjęcie, którego nie zapisujemy),
 §3.12 (ślad nieudanej wysyłki w `failed_jobs` — 30 dni), §3.19 i §4
 (kanał alarmów Discord działa — odbiorca techniczny bez danych osobowych).
+Uzupełnienie z 1 października 2026 (#2377, decyzja właściciela „Budujemy
+z ostrzeżeniem”, D-333, wersja polityki `2026-09-30`, zmiana drobna): §3.3
+(dyktowanie w przeglądarce — Kuking nie przetwarza dźwięku).
 
 **Skąd wzięła się treść tego dokumentu.** Każda czynność niżej jest
 **wyprowadzona z kodu tego repozytorium**, nie z wyobraźni i nie z polityki
@@ -142,6 +145,16 @@ egzekwuje.
   napisze** — łącznie z danymi, o które serwis nie pyta (dieta, zdrowie,
   osoby trzecie). Polityka prywatności §2 mówi o tym wprost.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
+- **Dyktowanie w kreatorze przepisu (#2377):** przycisk „Dyktuj” korzysta
+  wyłącznie z Web Speech API **przeglądarki** (`resources/js/dyktowanie.js`).
+  Dźwięk może trafić do dostawcy przeglądarki (np. Google, Apple) na jego
+  zasadach — to nie jest nasz podmiot przetwarzający i nie dostaje od nas
+  żadnych danych. **Kuking nie nagrywa dźwięku, nie ma endpointu na dźwięk
+  ani transkrypcję i nie dostaje niczego poza tekstem, który człowiek sam
+  wstawi do pola przepisu** — od tej chwili to zwykła treść przepisu (ten
+  sam cel, podstawa i termin). Mikrofon jest odblokowany w nagłówku
+  `Permissions-Policy` tylko na trasach tworzenia i edycji przepisu
+  (`ApplySecurityHeaders::TRASY_KREATORA_PRZEPISU`).
 - **Odbiorcy:** Railway, OpenAI — tylko treść publiczna (§3.7).
 - **Termin usunięcia:** do usunięcia treści albo konta; **wcześniejsze
   wersje przepisu** krócej — wersja starsza niż 24 miesiące (data w Polsce)
@@ -347,10 +360,10 @@ egzekwuje.
 
 - **Cel:** potwierdzenie adresu, przypomnienie hasła, link do zalogowania,
   powiadomienia e-mailem.
-- **Dane:** adres e-mail odbiorcy, treść listu. **Dostawca dokłada od siebie
-  obrazek liczący otwarcia** — moment otwarcia, adres IP i program pocztowy.
-  Serwis tych danych nie odczytuje i nie używa; wyłącznik jest w panelu
-  dostawcy, nie w kodzie.
+- **Dane:** adres e-mail odbiorcy, treść listu. **Liczenie otwarć jest
+  wyłączone** w panelu dostawcy (D-333, 2.10.2026), więc do listów nie trafia
+  obrazek liczący otwarcia. Śledzenie odnośników wyłącza nagłówek
+  `X-TRACKING-OFF`.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
 - **Odbiorca:** EmailLabs (Vercom S.A., Poznań) — dane zostają w Polsce.
   Kod: `config/mail.php` (własny sterownik `emaillabs`),
@@ -750,6 +763,30 @@ trafi tam pierwszy rekord.
   liczba porcji, przygotowane składniki, daty; tytuł przepisu i teksty składników
   tylko gdy przepis jest dziś widoczny dla osoby).
 
+### 3.24a Wspólne gotowanie (V2, issue #2385)
+
+- **Cel:** gotowanie jednego przepisu przez gospodarza i do trzech pomocników ze wspólnym postępem kroków.
+- **Dane:** identyfikatory gospodarza, pomocników i przepisu, identyfikatory
+  odhaczonych kroków z informacją, kto i kiedy je odhaczył, numer rewizji,
+  termin wygaśnięcia, skrót SHA-256 wielorazowego (do trzech osób) linku zaproszenia
+  (`cooking_sessions`, `cooking_session_participants`, `cooking_session_steps`,
+  `cooking_session_invitations`). Tylko na świadome założenie sesji przez
+  gospodarza i przyjęcie zaproszenia przez pomocnika. Bez wiadomości, bez adresu
+  IP, bez publikacji.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — funkcja uruchamiana na własne życzenie.
+- **Odbiorcy:** Railway. Dane widzą wyłącznie osoby w sesji (gospodarz i do trzech pomocników; każdy widzi nazwy pozostałych)
+  (`CookingSessionPolicy`; obcy i moderator dostają 404). Każde wejście sprawdza
+  też `RecipePolicy::view` — link nie daje dostępu do treści, której osoba nie
+  mogłaby zobaczyć. Nic nie jest wysyłane do podmiotów trzecich.
+- **Termin usunięcia:** 24 godziny od założenia
+  (`kuking.wspolne_gotowanie.retencja_godziny`; wygasła sesja jest ignorowana
+  przy odczycie, a `kuking:sprzataj-wspolne-gotowanie` kasuje ją co noc o 02:30),
+  zakończenie przez gospodarza (kasuje od razu), blokada między osobami (kończy
+  udział pomocnika wobec gospodarza, a gdy zablokowani są dwaj pomocnicy — udział zablokowanego), wymazanie konta (`EraseAccountData`).
+- **Eksport:** `wspolne_gotowanie` (rola, tytuł przepisu tylko gdy widoczny dla
+  osoby, numery kroków odhaczonych przez tę osobę, daty). Bez danych drugiej osoby.
+- **Projekt i uzasadnienia:** `docs/product/PROJEKT_WSPOLNE_GOTOWANIE_2385.md`.
+
 ### 3.25 Plan na tydzień (V2, #27, D-310)
 
 - **Cel:** prywatny plan posiłków jednej osoby.
@@ -859,6 +896,39 @@ trafi tam pierwszy rekord.
   dziś widoczny dla osoby, treść dopisku, daty).
 
 ---
+
+### 3.29 Wskazówki od gotujących (V2, #2352, D-333)
+
+- **Cel:** pokazanie uwagi z cudzego „Ugotowałem” przy przepisie jako
+  wskazówki — wyłącznie za zgodą osoby, która ugotowała.
+- **Dane:** prośba i odpowiedź (`recipe_hints`: przepis, wykonanie, autor
+  przepisu, kucharz, stan, daty prośby, odpowiedzi i wycofania zgody, numer
+  wersji przepisu z chwili prośby). Tekstu nie kopiujemy — wskazówką jest
+  `cooked_events.note`. Przy przepisie widać uwagę, nazwę i datę ugotowania
+  kucharza; autor przepisu nie dostaje wiadomości o odmowie ani o wycofaniu.
+  Od 1.10.2026: prośba bez odpowiedzi wygasa po 30 dniach (liczone z daty
+  prośby, bez zmiany stanu), autor może anulować własną czekającą prośbę
+  (stan `cancelled`), a zgoda kucharza powiadamia autora w serwisie. Zakres
+  danych się nie zmienia — to te same pola, nowe znaczenia stanu.
+- **Podstawa:** art. 6 ust. 1 lit. a RODO — zgoda kucharza, udzielana osobno
+  przy każdej prośbie („Zgadzam się”), brak odpowiedzi to brak publikacji,
+  wycofanie w każdej chwili przyciskiem „Wycofaj zgodę” (art. 7 ust. 3), także
+  przy blokadzie i zawieszeniu konta. Weryfikacja przez prawnika zostaje w #8.
+- **Odbiorcy:** Railway. Zgodna wskazówka jest widoczna dla każdego, kto
+  widzi przepis i to wykonanie (blokady i konta zbanowane ją chowają).
+- **Termin usunięcia:** do wycofania zgody (wskazówka znika ze strony
+  przepisu, wiersz zostaje jako ślad, że prośba nie wraca), usunięcia
+  wykonania (kaskada) albo konta (`EraseAccountData` kasuje wiersze kucharza
+  niezależnie od zakresu usunięcia, a czekające i anulowane prośby autora też).
+  Zapis wygasłej, anulowanej i odrzuconej prośby zostaje, żeby prośba o to
+  samo wykonanie nie wróciła.
+- **Eksport:** `wskazowki_z_moich_wykonan` (uwaga, stan zgody, daty) i
+  `wskazowki_do_moich_przepisow` (stan próśb, bez danych kucharza).
+- **Moderacja:** wskazówka ma własny cel zgłoszenia (`recipe_hint`, #2352,
+  decyzja z 1.10.2026): moderacja ukrywa samą wskazówkę
+  (`recipe_hints.moderation_hidden_at`), wykonanie zostaje; adresatem decyzji
+  i odwołania jest kucharz. Zgłoszenie całego wykonania (`cooked_event`) działa
+  osobno.
 
 ## 4. Kategorie odbiorców (art. 30 ust. 1 lit. d)
 

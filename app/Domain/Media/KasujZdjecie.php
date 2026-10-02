@@ -7,6 +7,7 @@ namespace App\Domain\Media;
 use App\Jobs\PurgePublicMediaCache;
 use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
+use App\Support\ZabezpieczoneDowody;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -139,7 +140,10 @@ final class KasujZdjecie
         return DB::transaction(function () use ($zdjecie): ?Media {
             $swieze = Media::query()->whereKey($zdjecie->getKey())->lockForUpdate()->first();
 
-            if ($swieze === null || $this->jestUzywane($swieze)) {
+            // ZDJĘCIE ZABEZPIECZONE JAKO DOWÓD NIE ODCHODZI (ścieżka CSAM,
+            // D-333). Pytamy o status ORAZ o rejestr: status mógłby ktoś
+            // przestawić, rejestr nie ma drogi zdjęcia z panelu.
+            if ($swieze === null || $this->jestZabezpieczone($swieze) || $this->jestUzywane($swieze)) {
                 return null;
             }
 
@@ -176,6 +180,12 @@ final class KasujZdjecie
         return DB::transaction(function () use ($zdjecie): ?Media {
             $swieze = Media::query()->whereKey($zdjecie->getKey())->lockForUpdate()->first();
 
+            // Wymazanie konta zabezpieczonego zdjęcia nie rusza (ścieżka CSAM,
+            // D-333). `null` znaczy dla wołającego „nie ma czego kasować”.
+            if ($swieze !== null && $this->jestZabezpieczone($swieze)) {
+                return null;
+            }
+
             if ($swieze !== null && $swieze->status !== Media::STATUS_DELETED) {
                 $swieze->status = Media::STATUS_DELETED;
                 $swieze->save();
@@ -183,6 +193,13 @@ final class KasujZdjecie
 
             return $swieze;
         });
+    }
+
+    /** Zdjęcie zabezpieczone jako dowód: status `secured` albo wpis w rejestrze. */
+    public function jestZabezpieczone(Media $zdjecie): bool
+    {
+        return $zdjecie->status === Media::STATUS_SECURED
+            || ZabezpieczoneDowody::zdjecie((string) $zdjecie->getKey());
     }
 
     public function jestUzywane(Media $zdjecie): bool

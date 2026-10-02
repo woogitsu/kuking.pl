@@ -1,25 +1,16 @@
 @props(['recipe', 'uklad' => 'wiersz', 'pokazWidocznosc' => false])
-<article @class(['card', 'recipe-card-kafel' => $uklad === 'kafel']) data-klucz="przepis-{{ $recipe->getKey() }}">
+<article @class(['card', 'recipe-card-kafel' => $uklad === 'kafel', 'recipe-card-wiersz' => $uklad !== 'kafel']) data-klucz="przepis-{{ $recipe->getKey() }}">
     <div class="flex gap-4 items-start recipe-card-uklad">
         @if($recipe->heroMedia)
-            @if($uklad === 'kafel')
-                <div class="recipe-card-miniatura">
-            @else
-                <a href="{{ route('recipes.show', $recipe->slug) }}" class="recipe-card-miniatura"
-                   aria-label="Zobacz przepis: {{ $recipe->title }}">
-            @endif
-                {{-- `zoom` wyłączone: wiersz ma link na miniaturze,
-                     a kafel jeden odnośnik rozszerzony na całą kartę.
-                     Zdjęcie prowadzi do przepisu, bez dodatkowego linku
-                     powiększania i bez zagnieżdżonych odnośników. --}}
+            <div class="recipe-card-miniatura">
+                {{-- `zoom` wyłączone: cała karta (wiersz i kafel) ma jeden
+                     odnośnik rozszerzony na całą kartę, więc zdjęcie nie
+                     dostaje własnego linku ani powiększania i nie ma
+                     zagnieżdżonych odnośników. --}}
                 <x-photo :media="$recipe->heroMedia" :variant="$uklad === 'kafel' ? 'feed' : 'thumb'"
                          :sizes="$uklad === 'kafel' ? '(min-width: 768px) 360px, 100vw' : '120px'"
                          class="post-photo" :zoom="false" tresc="przepis" />
-            @if($uklad === 'kafel')
-                </div>
-            @else
-                </a>
-            @endif
+            </div>
         @endif
         <div class="min-w-0">
             <h3 class="m-0 mb-2">

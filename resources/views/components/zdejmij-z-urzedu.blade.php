@@ -27,4 +27,17 @@
             <a class="btn btn-quiet" href="{{ route('admin.z-urzedu.create', ['typ' => $typ, 'id' => $tresc->getKey()]) }}">Zdejmij z urzędu</a>
         </div>
     @endif
+
+    {{--
+        CSAM (D-333) — niezależnie od „Zdejmij z urzędu”: działa także na treści
+        niewidocznej dla innych i na treści autora o równej lub wyższej roli.
+        Tylko odnośnik na ekran potwierdzenia, który niczego nie robi bez „tak”.
+        `isModerator()` idzie pierwsze, jak wyżej — zwykły użytkownik nie płaci
+        za żadne zapytanie.
+    --}}
+    @if(auth()->user()->isModerator() && auth()->user()->can('secureCsam', \App\Models\User::class))
+        <div class="danger-zone">
+            <a class="btn btn-quiet" href="{{ route('admin.csam.create', ['typ' => $typ, 'id' => $tresc->getKey()]) }}">CSAM — natychmiast ukryj i zabezpiecz</a>
+        </div>
+    @endif
 @endauth

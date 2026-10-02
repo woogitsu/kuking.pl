@@ -86,6 +86,21 @@ OCZEKUJ = {
     'Odżywcze: masa razem mnożona przez puszki (#2487)': r'ODZYWCZE_2487_LACZNA_MASA_BEZ_MNOZENIA',
     'Odżywcze: sprzeczna masa wpada w domyślną miarę (#2487)': r'ODZYWCZE_2487_SPRZECZNY_NAWIAS_ODMAWIA',
     'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
+    'Wspólna sesja traci zamiennik autora (#2485)': r'WSPOLNE_2485_ZAMIENNIK_PRZY_SKLADNIKU',
+    'Wspólna sesja traci zdjęcie kroku (#2486)': r'WSPOLNE_2486_ZDJECIE_PRZY_KROKU',
+    'Historia ignoruje wybór Bez ilości (#2449)': r'HISTORIA_BEZ_ILOSCI_ZMIANA',
+    'Historia zgaduje wybór w starej migawce (#2449)': r'HISTORIA_BEZ_ILOSCI_BRAK_DANYCH',
+    'Grupowanie tysięcy rozbite na fragmenty (#2455)': r'GRUPOWANIE_TYSIECY_WYNIK',
+    'Pasteryzacja wraca do słownika bez przeglądu (#2434)': r'PASTERYZACJA_USUNIETA_DO_PRZEGLADU',
+    'Sparzyć znów łapie oparzenie (#2343)': r'SLOWNIK_RDZEN_INNE_ZNACZENIE',
+    'Zaprawić zupę znów łapie przetwory (#2343)': r'SLOWNIK_RDZEN_INNE_ZNACZENIE',
+    'Karmelizowana cebula trafia w karmel z cukru (#2343)': r'SLOWNIK_KARMEL_ROZDZIELONY',
+    'Marynowanie bez lodówki (#2343)': r'SLOWNIK_MARYNOWANIE_W_LODOWCE',
+    'Uwaga słownika gwarantuje parametry autora (#2434)': r'PASTERYZACJA_UWAGA_NIE_GWARANTUJE',
+    # Paczka V: kontrole dodatnie trzech strażników tekstu.
+    'Pasek przy kolumnowym znaku znowu przypięty': r'Przy progu układu kolumnowego znaku pasek ma przestać być przypięty\.',
+    'Uwaga słownika terminów wraca do .meta': r'Uwaga pod słownikiem terminów zeszła do \.meta albo poniżej 18 px',
+    'Przełącznik rejestracji bez Shared Variable': r'Bez referencji `ctx\.shared` zamknięcie rejestracji z panelu zniknie przy pierwszym `apply`\.',
     'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',
     "Koszt autora pozostaje bazowy po zmianie porcji (#2524)": r'KOSZT_AUTORA_2524_NIEPRZELICZONY',
     'Pusty Recipe zasłania pełny w JSON-LD (#2536)': r'JSONLD_PUSTY_NIE_ZASLANIA',
@@ -501,6 +516,13 @@ OCZEKUJ = {
     'Cache przeglądarki odtwarza inną wersję (#2299)': r'przeglądarka innej wersji nie może być odtwarzana \(#2299\)',
     'Pomiar portu zależny od rodzaju runnera (#2299)': r'warunek runnera stoi na kroku innym niż cache przeglądarki',
     'Cache przeglądarki na własnym runnerze (#2299)': r'cache przeglądarki na własnym runnerze podmieniałby wspólny katalog',
+    # #2405 i #2406: dostępność formy zwracania się i kroków onboardingu.
+    'Błąd wyboru formy bez stabilnego id (#2405)': r'Komunikat błędu wyboru formy musi mieć jeden stabilny id',
+    'Radia formy nie wskazują błędu w aria-describedby (#2405)': r'Radio nie wskazuje komunikatu błędu przez aria-describedby',
+    'Radia formy bez aria-invalid (#2405)': r'Radio nie ma aria-invalid="true"',
+    'Onboarding bez aria-current na bieżącym kroku (#2406)': r'elementów z aria-current="step", powinien być jeden',
+    'Onboarding bez grupy z nazwą kroków (#2406)': r'nie ma grupy kroków z role="group"',
+    'Odwołanie od blokady CSAM bez ochrony decyzji (#2427)': r'CSAM_BAN_APPEAL_MUST_STAY_OPEN',
 }
 
 

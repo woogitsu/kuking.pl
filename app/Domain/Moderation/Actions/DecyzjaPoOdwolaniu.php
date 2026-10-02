@@ -7,10 +7,12 @@ namespace App\Domain\Moderation\Actions;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Moderation\WskazanieWersji;
+use App\Domain\Moderation\WskazanieWskazowki;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
+use App\Models\RecipeHint;
 use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
@@ -131,6 +133,12 @@ final class DecyzjaPoOdwolaniu
             $wiadomosc = trim(WskazanieWersji::tekst($cel->recipe, $cel->version_number).' '.trim((string) $wiadomosc));
         }
 
+        // WSKAZÓWKA OD GOTUJĄCYCH (#2352): kucharz ma przeczytać, której
+        // wskazówki dotyczy nowa decyzja — jak przy decyzji ze zgłoszenia.
+        if ($cel instanceof RecipeHint && $cel->recipe !== null) {
+            $wiadomosc = WskazanieWskazowki::wiadomosc($cel, $nowa->akcja, $wiadomosc);
+        }
+
         // Skutek PRZED zapisem decyzji: `suspend()`/`ban()` pisze do wiersza
         // konta, a `INSERT` decyzji bierze na nim `FOR KEY SHARE` — ta sama
         // kolejność co w reszcie ścieżek kar, bez odwróconych blokad.
@@ -197,6 +205,11 @@ final class DecyzjaPoOdwolaniu
             return null;
         }
 
+        // Wskazówka (#2352): konta, potem wiersz — kolejność z „Wycofaj zgodę”.
+        if ($cel instanceof RecipeHint) {
+            return RecipeHint::zablokujDoDecyzji((string) $cel->getKey());
+        }
+
         $zapytanie = $cel::query();
 
         // To samo co `withTrashed()` — przez nazwę zakresu, bo `$cel::query()`
@@ -217,9 +230,13 @@ final class DecyzjaPoOdwolaniu
     private function wykonaj(Model $cel, ?User $osoba, NowaDecyzja $nowa): void
     {
         match ($nowa->akcja) {
-            ModerationAction::ACTION_HIDE => ModeratedContent::daSieUkryc($cel)
-                ? $cel->forceFill(['status' => ModeratedContent::UKRYTY[$cel::class]])->save()
-                : null,
+            // Wskazówka (#2352) nie ma `status` do ustawienia; ukrywa ją osobny
+            // znacznik. Stan (czy w ogóle stoi przy przepisie) sprawdzono wyżej.
+            ModerationAction::ACTION_HIDE => $cel instanceof RecipeHint
+                ? $cel->ukryjPrzezModeracje()
+                : (ModeratedContent::daSieUkryc($cel)
+                    ? $cel->forceFill(['status' => ModeratedContent::UKRYTY[$cel::class]])->save()
+                    : null),
             // `remove` nie jest dozwolone dla celu `user` (macierz), więc tu
             // nie trafi konto — tylko miękkie usunięcie treści.
             ModerationAction::ACTION_REMOVE => $cel->delete(),

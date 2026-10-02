@@ -36,4 +36,23 @@
   .pasek-liczb {
     white-space: normal;
   }
+
+  /*
+   * Wskazówki od gotujących (#2352): cytat uwagi kucharza przy przepisie i
+   * w prośbie o zgodę. Pionowa kreska jak przy odpowiedziach w wątku
+   * (`.watek-odpowiedzi`), bez cudzysłowów rysowanych ozdobnie — tekst
+   * ma być czytany, nie podziwiany. Przyciski odpowiedzi zawijają się w
+   * rzędach (320 px, 200% skali), każdy zostaje pełnym celem dotyku.
+   */
+  .wskazowka-cytat {
+    margin: 0;
+    padding-left: var(--spacing-4);
+    border-left: 3px solid var(--color-border);
+  }
+
+  .wskazowka-akcje {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+  }
 }

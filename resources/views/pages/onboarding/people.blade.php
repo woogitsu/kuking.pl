@@ -1,12 +1,12 @@
 <x-layout title="Kogo obserwować" :noindex="true">
-    <p class="wizard-steps">
-        <span class="wizard-steps-current">Krok 2 z 3</span>
+    <div class="wizard-steps" role="group" aria-label="Postęp zakładania konta">
+        <span class="wizard-steps-current" aria-current="step">Krok 2 z 3</span>
         <span class="wizard-steps-track" aria-hidden="true">
             <span class="wizard-steps-dot" data-done="true"></span>
             <span class="wizard-steps-dot" data-done="true"></span>
             <span class="wizard-steps-dot"></span>
         </span>
-    </p>
+    </div>
 
     <h1>Kogo chcesz obserwować?</h1>
     <p class="mb-5">
