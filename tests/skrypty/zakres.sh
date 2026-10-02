@@ -84,6 +84,7 @@ pull_request|scripts/testy-dwa-polaczenia.sh|tfffft
 pull_request|scripts/kontrola-negatywna-2402.py|tfffft
 pull_request|scripts/kontrola-negatywna-2403.py|tfffft
 pull_request|scripts/kontrola-negatywna-2404.py|tfffft
+pull_request|scripts/kontrola-negatywna-2551.py|tfffft
 pull_request|Dockerfile|tfftff
 pull_request|composer.lock|ttftft
 pull_request|pint.json|tfffff
