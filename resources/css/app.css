@@ -3401,6 +3401,29 @@
     font-size: var(--text-body-lg);
   }
 
+  .porcje-wybor-pole {
+    margin-top: var(--spacing-3);
+  }
+
+  .porcje-wybor-etykieta {
+    display: block;
+    margin: 0 0 var(--spacing-2);
+    font-size: var(--text-body);
+  }
+
+  .porcje-wybor-wejscie {
+    min-height: 3rem;
+    width: 8rem;
+    max-width: 100%;
+    padding: 0 var(--spacing-3);
+    border: 2px solid var(--color-border-strong, var(--color-border));
+    border-radius: var(--radius-sm);
+    background: var(--color-surface, #fff);
+    color: inherit;
+    font: inherit;
+    font-size: var(--text-body-lg);
+  }
+
   .porcje-wybor-uwaga {
     margin: 0 0 var(--spacing-4);
     padding: var(--spacing-3) var(--spacing-4);
