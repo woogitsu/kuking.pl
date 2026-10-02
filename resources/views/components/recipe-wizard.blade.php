@@ -122,6 +122,16 @@ new class extends Component
     public bool $sprawdzilemOdczyt = false;
 
     /**
+     * Co import pominął albo uciął (#2521): liczby i nazwy pól z
+     * `przepisy_z_importu.pominiete`, bez treści. `#[Locked]` — ostrzeżenie
+     * czyta się z bazy, klient nie może go podmienić ani zdjąć.
+     *
+     * @var ?array{skladniki: int, kroki: int, obciete: list<string>}
+     */
+    #[Locked]
+    public ?array $pominiete = null;
+
+    /**
      * Szkic z odczytu zdjęcia kartki (V2, D-298): baner, zdjęcie obok pól
      * i bramka „Odczytany tekst jest sprawdzony” przed publikacją. `#[Locked]`,
      * bo o tym, czy bramka obowiązuje, decyduje baza, nie przeglądarka —
@@ -292,8 +302,11 @@ new class extends Component
         $this->juzOpublikowany = $recipe->isPublished();
 
         $pochodzenie = PrzepisZImportu::query()->find($recipe->getKey());
-        $this->zrodloImportu = $pochodzenie?->zrodlo;
-        $this->wymagaSprawdzenia = $pochodzenie !== null && ! $pochodzenie->sprawdzony() && ! $recipe->isPublished();
+        // Szkic ze zdjęcia ma własny baner i własną bramkę; jego wiersz w
+        // `przepisy_z_importu` służy tylko do pamiętania o pominiętych wierszach.
+        $this->zrodloImportu = $pochodzenie?->zrodlo === PrzepisZImportu::ZRODLO_ZDJECIE ? null : $pochodzenie?->zrodlo;
+        $this->wymagaSprawdzenia = $pochodzenie !== null && $pochodzenie->wymagaPotwierdzeniaOdczytu() && ! $recipe->isPublished();
+        $this->pominiete = $recipe->isPublished() ? null : $pochodzenie?->pominieteWImporcie()?->doTablicy();
         $this->zOdczytu = ! $this->juzOpublikowany && BramkaPublikacjiOdczytu::maOdczyt($recipe);
         $this->heroMediaId = $recipe->hero_media_id;
         $this->sourceScanMediaId = $recipe->source_scan_media_id;
@@ -891,7 +904,9 @@ new class extends Component
         }
 
         if (! $this->odczytSprawdzony) {
-            $this->addError('odczyt_sprawdzony', BramkaPublikacjiOdczytu::KOMUNIKAT_SPRAWDZENIE);
+            $this->addError('odczyt_sprawdzony', $this->pominiete !== null
+                ? BramkaPublikacjiOdczytu::KOMUNIKAT_SPRAWDZENIE_NIEPELNY
+                : BramkaPublikacjiOdczytu::KOMUNIKAT_SPRAWDZENIE);
             $ok = false;
         }
 
@@ -1341,6 +1356,11 @@ new class extends Component
         </div>
     @endif
 
+    @if($pominiete !== null && ! $juzOpublikowany)
+        {{-- Niepełny import (#2521) — na KAŻDYM kroku, przy każdym otwarciu szkicu. --}}
+        @include('pages.import.partials.pominiete', ['niepelny' => \App\Domain\Import\PominieteWImporcie::zTablicy($pominiete)])
+    @endif
+
     {{-- Plakietka autosave. aria-live="polite", żeby czytnik ekranu ogłosił
          „Szkic zapisany.” bez przerywania pisania. --}}
     <div aria-live="polite">
@@ -1497,7 +1517,7 @@ new class extends Component
                         <input type="checkbox" wire:model="sprawdzilemOdczyt" id="f-sprawdzilem">
                         <span class="choice-label">Sprawdziłem odczytany tekst</span>
                     </label>
-                    <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem.</span>
+                    <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem.@if($pominiete !== null) Wiem, że ten import jest niepełny — brakujące pozycje są dopisane albo świadomie ich nie dodaję.@endif</span>
                 </div>
             @endif
 
@@ -1521,7 +1541,7 @@ new class extends Component
                                @error('odczyt_sprawdzony') aria-invalid="true" aria-describedby="f-odczyt_sprawdzony-error" @enderror>
                         <span>
                             <span class="choice-label">Odczytany tekst jest sprawdzony ze zdjęciem</span>
-                            <span class="choice-help">Każda linijka zgadza się z kartką, a znaczniki [? ?] są usunięte.</span>
+                            <span class="choice-help">Każda linijka zgadza się z kartką, a znaczniki [? ?] są usunięte.@if($pominiete !== null) Wiem, że ten odczyt jest niepełny — brakujące pozycje są dopisane albo świadomie ich nie dodaję.@endif</span>
                         </span>
                     </label>
                     @error('odczyt_sprawdzony')<span class="field-error" id="f-odczyt_sprawdzony-error">{{ $message }}</span>@enderror

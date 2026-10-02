@@ -77,6 +77,7 @@ final class ZapiszSzkicZImportu
                 'droga' => $droga,
                 'source_url' => $zAdresu ? $sourceUrl : null,
                 'tekst_zrodla' => $zAdresu && $przepis !== null ? $przepis->tekstKrokow() : null,
+                'pominiete' => $przepis?->pominiete->doTablicy(),
             ])->save();
 
             return $recipe;

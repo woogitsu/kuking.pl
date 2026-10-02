@@ -374,7 +374,7 @@ class RecipeController extends Controller
         } catch (BladDlaCzlowieka $e) {
             // Brak „Sprawdziłem odczytany tekst” przy szkicu z importu (D-300)
             // — błąd przy tym polu, nie przy nazwie przepisu (AGENTS.md §5).
-            $pole = $e->getMessage() === StrazImportu::KOMUNIKAT_SPRAWDZ ? 'sprawdzilem_odczyt' : 'title';
+            $pole = in_array($e->getMessage(), [StrazImportu::KOMUNIKAT_SPRAWDZ, StrazImportu::KOMUNIKAT_SPRAWDZ_NIEPELNY], true) ? 'sprawdzilem_odczyt' : 'title';
 
             return back()->withInput($request->input())->withErrors([$pole => $e->getMessage()]);
         }

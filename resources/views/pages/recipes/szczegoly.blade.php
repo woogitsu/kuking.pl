@@ -131,7 +131,9 @@
     @php
         // Szkic z importu (D-300): baner, zablokowane źródło, „Sprawdziłem”.
         $pochodzenie = $isEdit ? \App\Models\PrzepisZImportu::query()->find($recipe->getKey()) : null;
-        $wymagaSprawdzenia = $pochodzenie !== null && ! $pochodzenie->sprawdzony() && ! $recipe->isPublished();
+        $wymagaSprawdzenia = $pochodzenie !== null && $pochodzenie->wymagaPotwierdzeniaOdczytu() && ! $recipe->isPublished();
+        // Niepełny import (#2521): ostrzeżenie z bazy przy każdym otwarciu szkicu.
+        $niepelnyImport = $pochodzenie !== null && ! $recipe->isPublished() ? $pochodzenie->pominieteWImporcie() : null;
         $ostrzezeniePodobienstwa = $wymagaSprawdzenia && app(\App\Domain\Import\PodobienstwoDoZrodla::class)
             ->ostrzegac($recipe, $recipe->steps->pluck('instruction')->implode("\n"));
         // Szkic z odczytu zdjęcia kartki (V2, D-298): baner, zdjęcie nad
@@ -140,7 +142,8 @@
         $zOdczytu = $isEdit && $recipe->status === \App\Models\Recipe::STATUS_DRAFT
             && \App\Domain\Import\BramkaPublikacjiOdczytu::maOdczyt($recipe);
     @endphp
-    @if($pochodzenie !== null && ! $recipe->isPublished())
+    @include('pages.import.partials.pominiete', ['niepelny' => $niepelnyImport])
+    @if($pochodzenie !== null && $pochodzenie->zrodlo !== \App\Models\PrzepisZImportu::ZRODLO_ZDJECIE && ! $recipe->isPublished())
         <div class="notice" role="note">
             <p class="mt-0 mb-0">
                 <strong>Ten tekst odczytał komputer.</strong>
@@ -640,7 +643,7 @@
                     <input type="checkbox" name="sprawdzilem_odczyt" value="1" id="f-sprawdzilem_odczyt" @checked(old('sprawdzilem_odczyt'))>
                     <span class="choice-label">Sprawdziłem odczytany tekst</span>
                 </label>
-                <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem. Bez tego przepis zapisze się tylko jako szkic.</span>
+                <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem. Bez tego przepis zapisze się tylko jako szkic.@if($niepelnyImport !== null) Wiem, że ten import jest niepełny — brakujące pozycje są dopisane albo świadomie ich nie dodaję.@endif</span>
             </div>
         @endif
 
@@ -652,7 +655,7 @@
                            @checked(old('odczyt_sprawdzony'))>
                     <span>
                         <span class="choice-label">Odczytany tekst jest sprawdzony ze zdjęciem</span>
-                        <span class="choice-help">Każda linijka zgadza się z kartką, a znaczniki [? ?] są usunięte.</span>
+                        <span class="choice-help">Każda linijka zgadza się z kartką, a znaczniki [? ?] są usunięte.@if($niepelnyImport !== null) Wiem, że ten odczyt jest niepełny — brakujące pozycje są dopisane albo świadomie ich nie dodaję.@endif</span>
                     </span>
                 </label>
                 @error('odczyt_sprawdzony')<span class="field-error" id="f-odczyt_sprawdzony-error">{{ $message }}</span>@enderror

@@ -26,6 +26,11 @@ final class StrazImportu implements StrazPochodzeniaPrzepisu
     public const KOMUNIKAT_SPRAWDZ = 'Zanim opublikujesz, porównaj odczytany tekst ze źródłem i zaznacz '
         .'„Sprawdziłem odczytany tekst”. Nic nie zginęło — szkic jest zapisany.';
 
+    /** Gdy import pominął lub uciął treść (#2521) — potwierdzenie mówi o tym wprost. */
+    public const KOMUNIKAT_SPRAWDZ_NIEPELNY = 'Ten import jest niepełny: część przepisu została pominięta lub skrócona. '
+        .'Zanim opublikujesz, porównaj szkic ze źródłem, dopisz brakujące pozycje i zaznacz '
+        .'„Sprawdziłem odczytany tekst”. Nic nie zginęło — szkic jest zapisany.';
+
     public function przedZapisem(User $author, Recipe $existing, array $attributes, bool $publish): array
     {
         $pochodzenie = PrzepisZImportu::query()->find($existing->getKey());
@@ -44,9 +49,9 @@ final class StrazImportu implements StrazPochodzeniaPrzepisu
 
         if ($publish
             && $existing->status === Recipe::STATUS_DRAFT
-            && ! $pochodzenie->sprawdzony()
+            && $pochodzenie->wymagaPotwierdzeniaOdczytu()
             && ($attributes['sprawdzilem_odczyt'] ?? false) !== true) {
-            throw new BladDlaCzlowieka(self::KOMUNIKAT_SPRAWDZ);
+            throw new BladDlaCzlowieka($pochodzenie->pominieteWImporcie() === null ? self::KOMUNIKAT_SPRAWDZ : self::KOMUNIKAT_SPRAWDZ_NIEPELNY);
         }
 
         return $attributes;
