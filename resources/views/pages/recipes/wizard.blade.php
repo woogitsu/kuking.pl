@@ -52,6 +52,19 @@
         @if($draft->jestWersja() && ! $draft->isPublished())
             <p class="notice">Zmień to, co robisz po swojemu — składniki, kroki, czas albo liczbę porcji. Wersji bez żadnej zmiany nie da się opublikować.</p>
         @endif
+        {{-- Odłożony szkic (#2550): stan jest widoczny, a pisanie go nie zdejmuje po cichu.
+             Zdejmuje go przycisk „Wróć do pracy” albo publikacja. --}}
+        @if($draft->odlozony_at !== null && ! $draft->isPublished())
+            <div class="notice">
+                <p class="mt-0"><strong>Ten szkic jest odłożony na później.</strong> Nic z niego nie zniknęło. Możesz go dalej pisać — zostanie odłożony, dopóki nie klikniesz „Wróć do pracy” albo go nie opublikujesz.</p>
+                <form method="POST" action="{{ route('recipes.drafts.resume', $draft->getKey()) }}" class="mb-0">
+                    @csrf @method('DELETE')
+                    <input type="hidden" name="stan" value="{{ \App\Domain\Recipes\Actions\OdlozSzkicPrzepisu::znacznik($draft) }}">
+                    <input type="hidden" name="dokad" value="kreator">
+                    <button class="btn btn-secondary" type="submit">Wróć do pracy</button>
+                </form>
+            </div>
+        @endif
     @endif
     <p class="mb-5">
         @if($opublikowany)

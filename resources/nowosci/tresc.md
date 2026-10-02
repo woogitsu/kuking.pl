@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Odłóż szkic na później
+
+Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.
+
 ### Przeliczanie miar przy składniku
 
 Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrach, szklankach, łyżkach albo łyżeczkach znajdziecie rozwijany napis „Przelicz”. Po dotknięciu pokazuje to samo w innej jednostce, na przykład 25 dag to 250 g, a pół szklanki to około 125 ml. Przeliczamy tylko wagę na wagę i objętość na objętość — gramów nie zamieniamy na szklanki, bo zależy to od produktu. Przelicznik bierze ilość z wybranej liczby porcji, a tekst przepisu zostaje taki, jak napisał autor.

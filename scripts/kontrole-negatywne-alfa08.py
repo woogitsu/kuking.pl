@@ -2267,6 +2267,17 @@ checks = [
      lambda s: replace_once(s, "        if ($zDopiskiem > 0) {", "        if (false) {")),
     ("Dopisek w Planerze: polityka bez wiersza o dopisku (#2549)", POLITYKA_TEKST, "test_dopisek_w_planie_ma_wiersz_w_polityce_z_limitem_z_kodu",
      lambda s: replace_once(s, "| Dopisek przy przepisie w planie |", "| Notatka przy planie |")),
+    # #2550: „Odłóż na później” szkicu — własność, bieżąca lista, publikacja i rollback.
+    ("Odłożenie szkicu: policy wpuszcza cudzą osobę (#2550)", "app/Policies/RecipePolicy.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "        return $user->getKey() === $recipe->author_id\n            && $recipe->status === Recipe::STATUS_DRAFT", "        return true\n            && $recipe->status === Recipe::STATUS_DRAFT")),
+    ("Odłożenie szkicu: domena nie sprawdza autorstwa (#2550)", "app/Domain/Recipes/Actions/OdlozSzkicPrzepisu.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "                ->where('author_id', $swiezy->getKey())\n", "")),
+    ("Odłożenie szkicu: bieżąca lista pokazuje też odłożone (#2550)", "app/Http/Controllers/RecipeController.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "($odlozone ? $zapytanie->whereNotNull('odlozony_at') : $zapytanie->whereNull('odlozony_at'))", "$zapytanie")),
+    ("Odłożenie szkicu: publikacja nie zdejmuje oznaczenia (#2550)", "app/Domain/Recipes/Actions/PublishRecipe.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "                        $recipe->forceFill(['odlozony_at' => null]);\n", "")),
+    ("Odłożenie szkicu: rollback nie odmawia przy odłożonych (#2550)", "database/migrations/2026_10_03_150000_add_odlozony_at_to_recipes.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "        if ($odlozone > 0) {", "        if (false) {")),
     # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
     # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
     ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,
