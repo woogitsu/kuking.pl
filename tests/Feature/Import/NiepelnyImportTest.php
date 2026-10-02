@@ -345,12 +345,14 @@ final class NiepelnyImportTest extends TestCase
             'content_revision' => $szkic->content_revision,
             'ingredients' => [['text' => 'sól']], 'steps' => [['instruction' => 'Gotuj.']],
         ])->assertSessionHasErrors(['odczyt_sprawdzony' => BramkaPublikacjiOdczytu::KOMUNIKAT_SPRAWDZENIE_NIEPELNY]);
-        $this->assertSame(Recipe::STATUS_DRAFT, $szkic->fresh()->status);
+        $poFormularzu = $szkic->fresh()->status;
+        $this->assertSame(Recipe::STATUS_DRAFT, $poFormularzu);
 
         Livewire::actingAs($autor)->test('recipe-wizard', ['recipeId' => $szkic->getKey()])
             ->set('step', 4)->call('publish')
             ->assertHasErrors(['odczyt_sprawdzony']);
-        $this->assertSame(Recipe::STATUS_DRAFT, $szkic->fresh()->status);
+        $poKreatorze = $szkic->fresh()->status;
+        $this->assertSame(Recipe::STATUS_DRAFT, $poKreatorze);
 
         // Kontrola dodatnia: z potwierdzeniem publikuje się (bramka nie blokuje na stałe).
         try {
@@ -362,7 +364,8 @@ final class NiepelnyImportTest extends TestCase
         } catch (ValidationException $e) {
             $this->fail('Bramka odrzuciła zapis szkicu: '.json_encode($e->errors()));
         }
-        $this->assertSame(Recipe::STATUS_DRAFT, $szkic->fresh()->status);
+        $poPotwierdzeniu = $szkic->fresh()->status;
+        $this->assertSame(Recipe::STATUS_DRAFT, $poPotwierdzeniu);
     }
 
     public function test_ocr_kompletna_kartka_nie_tworzy_wiersza_pochodzenia(): void

@@ -24,6 +24,15 @@ class CofniecieMigracjiNieKasujeListCoMamWDomuTest extends TestCase
 
     private const SCIEZKA = 'database/migrations/2026_09_28_233700_create_pantry_items_table.php';
 
+    /**
+     * Późniejsze migracje z kluczem obcym do `pantry_items`. `migrate:rollback`
+     * cofa je PRZED tą tabelą, więc test robi to samo — inaczej DROP TABLE
+     * padłby na zależnym kluczu, a nie na regule D-088, którą tu mierzymy.
+     */
+    private const ZALEZNE = [
+        'database/migrations/2026_10_03_200000_create_pantry_second_packages_table.php',
+    ];
+
     protected function tearDown(): void
     {
         putenv('KUKING_ROLLBACK_KASUJE_SPIZARNIE');
@@ -66,6 +75,10 @@ class CofniecieMigracjiNieKasujeListCoMamWDomuTest extends TestCase
 
     private function migracja(): object
     {
+        foreach (self::ZALEZNE as $zalezna) {
+            (require base_path($zalezna))->down();
+        }
+
         return require base_path(self::SCIEZKA);
     }
 }
