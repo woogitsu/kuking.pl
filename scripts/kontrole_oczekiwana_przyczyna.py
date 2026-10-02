@@ -552,6 +552,7 @@ OCZEKUJ = {
     'Onboarding bez aria-current na bieżącym kroku (#2406)': r'elementów z aria-current="step", powinien być jeden',
     'Onboarding bez grupy z nazwą kroków (#2406)': r'nie ma grupy kroków z role="group"',
     'Odwołanie od blokady CSAM bez ochrony decyzji (#2427)': r'CSAM_BAN_APPEAL_MUST_STAY_OPEN',
+    'Zabezpieczony awatar znów ma wariant do pokazania (#2708)': r'CSAM_AWATAR_2708_NIE_WYCIEKA',
     'Runbook odtworzenia stosuje rejestr usunięć po podpięciu bazy (#2708)': r'RUNBOOK_REJESTR_PO_PODPIECIU',
     'Zepsute kodowanie polskich liter w komunikacie Planera (paczka L)': r'Polskie litery zapisane w zepsutym kodowaniu.*PlanerController\.php',
 }
