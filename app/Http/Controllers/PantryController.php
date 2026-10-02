@@ -217,7 +217,10 @@ class PantryController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $od = max(0, min(10_000, (int) $request->query('od', '0')));
+        // Głębszy OFFSET jest kosztowny; ostatnia dostępna strona zaczyna się tutaj.
+        // Widok nie może proponować adresu, który ponownie sprowadzi tu człowieka.
+        $maksOd = 10_000;
+        $od = max(0, min($maksOd, (int) $request->query('od', '0')));
         $najpierwTermin = $request->query('najpierw') === 'termin';
         $wynik = $dobor->dla($user, $od, CoUgotuje::NA_STRONE, $najpierwTermin);
 
@@ -233,6 +236,7 @@ class PantryController extends Controller
             ...$wynik,
             'od' => $od,
             'nastepne' => $od + CoUgotuje::NA_STRONE,
+            'granicaPrzegladania' => $od >= $maksOd,
             'najpierwTermin' => $najpierwTermin,
             'regula' => $najpierwTermin ? CoUgotuje::REGULA_NAJPIERW_TERMIN : CoUgotuje::REGULA,
         ]);
