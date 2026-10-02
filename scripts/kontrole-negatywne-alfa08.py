@@ -1269,6 +1269,16 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    ("Koszt: opis celu kasuje rozpoznaną masę (#2508)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "opis_celu_po_produkcie_nie_kasuje_odczytanej_masy",
+     lambda s: replace_once(s, r'^\s*(?:do|lub|albo)\s+\d', r'(?:^|\s)(?:do|lub|albo)\s+\d')),
+    ("Koszt: słowny zakres gubi granice i miarę (#2477)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "slowne_zakresy_zachowuja_obie_granice_i_miare",
+     lambda s: replace_once(s, r'(?:\s*-\s*|\s+(?:do|lub|albo)\s+)', r'\s*-\s*')),
+    ("Koszt: uszkodzony zakres przyjmuje początek (#2477)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "uszkodzony_zakres_nie_liczy_poprawnego_poczatku",
+     lambda s: replace_once(s, "if (preg_match('/^[.,\\/]\\d|^\\s*(?:do|lub|albo)\\s+\\d/', $poDopasowaniu) === 1",
+         "if (false && preg_match('/^[.,\\/]\\d|^\\s*(?:do|lub|albo)\\s+\\d/', $poDopasowaniu) === 1")),
+    ("Koszt: uszkodzona pojedyncza liczba daje wycenę (#2477)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "uszkodzony_ogon_jednej_liczby_nie_udaje_poprawnej_ilosci",
+     lambda s: replace_once(s, "                $poDopasowaniu = substr($t, $trafienie[0][1] + strlen($trafienie[0][0]));",
+         "                if (($trafienie[2][0] ?? '') === '') { return self::zMiara(self::liczba($trafienie[1][0]), $slowo); }\n                $poDopasowaniu = substr($t, $trafienie[0][1] + strlen($trafienie[0][0]));")),
     # #2476: dwa bieżące składniki z identycznym tekstem/ile=null są różne.
     ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/CollectUserExportData.php",
      "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",
