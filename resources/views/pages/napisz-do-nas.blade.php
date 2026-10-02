@@ -126,7 +126,7 @@
         </fieldset>
 
         <x-field name="message" label="Co chcesz nam powiedzieć?"
-                 type="textarea" :rows="8" required :value="old('message')"
+                 type="textarea" :rows="8" required :value="old('message')" dyktowanie
                  help="Napisz własnymi słowami. Jeśli coś nie działa, przydaje się jedno zdanie o tym, co się działo tuż przedtem — i czy to było na telefonie, czy na komputerze." />
 
         @guest

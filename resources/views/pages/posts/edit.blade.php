@@ -50,6 +50,7 @@
             name="body"
             :label="$question ? 'Napisz trochę więcej' : 'Napisz kilka słów'"
             type="textarea"
+            dyktowanie
             :rows="5"
             :licznik-znakow="\App\Http\Requests\Posts\ZapisWpisuRequest::LIMIT_ZNAKOW_TRESCI"
             :value="$post->body"

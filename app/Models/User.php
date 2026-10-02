@@ -42,6 +42,7 @@ use Laravel\Sanctum\TransientToken;
  * Tu jest tylko to, co dotyczy logowania, ustawień i stanu konta.
  *
  * @property bool $wants_pantry_reminder zgoda na sobotnie przypomnienie o produktach do zużycia (#1903); kolumna dodana surowym SQL, więc Larastan nie zna jej z migracji
+ * @property CarbonInterface|null $ostatnio_ogladane_wlaczone_at kiedy osoba świadomie włączyła prywatną listę ostatnio oglądanych przepisów (#2553); NULL = wyłączona (stan domyślny); kolumna dodana surowym SQL, więc Larastan nie zna jej z migracji
  * @property string|null $ulubiony_zeszyt_id własny zeszyt jako skrót w „Moje” (#2542); kolumna dodana surowym SQL (FK NOT VALID + VALIDATE), więc Larastan nie zna jej z migracji
  */
 class User extends Authenticatable implements MustVerifyEmailContract
@@ -390,6 +391,26 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->sprzeciw_statystyk_at !== null;
     }
 
+    /**
+     * Czy osoba świadomie włączyła prywatną listę ostatnio oglądanych
+     * przepisów (#2553). Domyślnie NIE — pole zmienia wyłącznie
+     * `App\Domain\Recipes\OstatnioOgladane` (nigdy masowe przypisanie).
+     */
+    public function maWlaczoneOstatnioOgladane(): bool
+    {
+        return $this->ostatnio_ogladane_wlaczone_at !== null;
+    }
+
+    /**
+     * Zapisane wizyty w przepisach (#2553) — pusta, dopóki funkcja jest wyłączona.
+     *
+     * @return HasMany<RecentRecipeView, $this>
+     */
+    public function recentRecipeViews(): HasMany
+    {
+        return $this->hasMany(RecentRecipeView::class);
+    }
+
     protected function casts(): array
     {
         return [
@@ -412,6 +433,10 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // ustawia i zdejmuje go wyłącznie `PrzestawSprzeciwWobecStatystyk`
             // (dwa przyciski w ustawieniach prywatności), nigdy masowe przypisanie.
             'sprzeciw_statystyk_at' => 'datetime',
+            // Jawne włączenie listy ostatnio oglądanych przepisów (#2553). Poza
+            // `$fillable`: włącza i wyłącza je wyłącznie `OstatnioOgladane`
+            // (zwykły POST w ustawieniach), nigdy masowe przypisanie z żądania.
+            'ostatnio_ogladane_wlaczone_at' => 'datetime',
             // Poza `$fillable`: ustawiają to wyłącznie żądania POST
             // `OnboardingController` (koniec, „Pomiń ten krok”, „Nie przypominaj”)
             // i `DemoSeeder`, nigdy formularz ustawień (#985).

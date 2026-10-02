@@ -47,6 +47,10 @@ brakuje. Zeszytów publicznych i wspólnych nie da się odzyskać, o czym
 informuje komunikat po usunięciu. Po upływie terminu zeszyt jest usuwany na
 stałe, tak samo po usunięciu konta.
 
+### Dwa opakowania jednego produktu w „Co mam w domu”
+
+Kupiliście drugie mleko, a pierwsze jeszcze stoi w lodówce? Na ekranie „Ustaw termin” jest teraz przycisk „Dodaj drugie opakowanie”. Każde opakowanie ma własny termin („Należy zużyć do” albo „Najlepiej spożyć przed”), własną ilość i własne oznaczenie „Mam to w zamrażarce”. Zwykłe dopisanie tej samej nazwy do listy niczego nie dubluje — drugie opakowanie powstaje dopiero po tym przycisku. Gdy jedno opakowanie jest po terminie „Należy zużyć do”, a drugie dobre, lista ostrzega przy tym pierwszym, a „Co ugotuję” korzysta z dobrego. Usunięcie jednego opakowania nie rusza drugiego, a usunięcie całego produktu jest osobnym, nazwanym przyciskiem. Widzicie to tylko Wy.
+
 ### Przeliczanie miar przy składniku
 
 Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrach, szklankach, łyżkach albo łyżeczkach znajdziecie rozwijany napis „Przelicz”. Po dotknięciu pokazuje to samo w innej jednostce, na przykład 25 dag to 250 g, a pół szklanki to około 125 ml. Przeliczamy tylko wagę na wagę i objętość na objętość — gramów nie zamieniamy na szklanki, bo zależy to od produktu. Przelicznik bierze ilość z wybranej liczby porcji, a tekst przepisu zostaje taki, jak napisał autor.
@@ -284,6 +288,19 @@ Niczego nie publikuje: sprawdzicie tekst, składniki i kroki, a o publikacji
 zdecydujecie sami. Jeśli któregoś zdjęcia nie da się już użyć, ekran powie
 o tym wprost. Po upływie terminu przepis jest usuwany na stałe i nie ma już
 drogi powrotu, tak samo po wymazaniu konta.
+
+### Prywatna lista ostatnio oglądanych przepisów
+
+Przepis obejrzany, ale niezapisany, łatwo zgubić: po godzinie trudno sobie
+przypomnieć, jak się nazywał. Dlatego można włączyć krótką listę ostatnio
+oglądanych przepisów. Jest
+domyślnie wyłączona i włącza ją dopiero przycisk „Włącz listę” w ustawieniach
+(odnośnik jest też w „Moje”). Zapamiętujemy tylko, który przepis otwarto i
+kiedy — do 10 przepisów z ostatnich 7 dni, a starsze znikają same. Widzicie
+ją tylko Wy: nie wpływa na to, co pokazujemy w serwisie, i niczego nie
+zapisuje w zeszycie ani w „Ugotowałem”. Przycisk „Wyczyść listę” albo
+wyłączenie listy usuwa wszystko od razu. Przepis, który przestał być dla
+Was dostępny, sam znika z listy.
 
 ## Alfa 0.78
 

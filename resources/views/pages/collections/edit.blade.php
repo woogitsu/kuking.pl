@@ -18,7 +18,7 @@
         @csrf
         @method('PATCH')
         <x-field name="name" label="Nazwa zeszytu" required :value="$collection->name" />
-        <x-field name="description" label="Krótki opis" type="textarea" :rows="2" :value="$collection->description" />
+        <x-field name="description" label="Krótki opis" type="textarea" :rows="2" :value="$collection->description" dyktowanie />
         <fieldset class="border-0 p-0 mt-4" id="f-visibility"
                   @error('visibility') tabindex="-1" aria-invalid="true" aria-describedby="f-visibility-error" @enderror>
             <legend class="font-bold mb-3">Kto ma widzieć ten zeszyt?</legend>

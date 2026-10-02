@@ -14,7 +14,7 @@
         <x-field name="username" label="Nazwa użytkownika" required :value="$profile->username"
                  autocomplete="username"
                  help="Zmiana nazwy zmienia adres Twojego profilu. Stare linki przestaną działać." />
-        <x-field name="bio" label="Kilka słów o sobie" type="textarea" :rows="4" :value="$profile->bio"
+          <x-field name="bio" label="Kilka słów o sobie" type="textarea" :rows="4" :value="$profile->bio" dyktowanie
                  help="Na przykład: „Gotuję od czterdziestu lat. Najlepiej wychodzą mi zupy i ciasto drożdżowe.”" />
         <x-field name="region" label="Skąd jesteś" :value="$profile->region" placeholder="Podkarpacie"
                  help="Sam region wystarczy. Nie podawaj dokładnego adresu." />

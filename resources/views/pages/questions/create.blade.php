@@ -14,7 +14,7 @@
         <div class="field" data-tagi-opis data-tagi-endpoint="{{ route('tags.suggestions') }}"
              data-tagi-min="{{ \App\Support\LimityTagow::minZnakow() }}"
              data-tagi-max="{{ config('kuking.tags.suggestions_query_max_length') }}">
-            <x-field name="body" label="Napisz trochę więcej" type="textarea" :rows="5" help="Możesz dopisać, co już udało Ci się spróbować. Najwyżej 4000 znaków." />
+            <x-field name="body" label="Napisz trochę więcej" type="textarea" :rows="5" dyktowanie help="Możesz dopisać, co już udało Ci się spróbować. Najwyżej 4000 znaków." />
             <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" :maks-tagow="3" :pytanie="true" />
         </div>
         @php

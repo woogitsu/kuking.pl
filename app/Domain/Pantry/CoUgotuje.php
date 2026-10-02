@@ -100,12 +100,12 @@ final class CoUgotuje
      * id konta, granica pilnych i dziś (`Y-m-d`). Reguła pilności mieszka
      * w `PriorytetZuzycia`, tu tylko jej wyraz w SQL.
      */
-    private const PILNY_SQL = 'EXISTS (SELECT 1 FROM pantry_items p WHERE p.user_id = ? '
+    private const PILNY_SQL = 'EXISTS (SELECT 1 FROM '.PriorytetZuzycia::OPAKOWANIA_SQL.' p WHERE p.user_id = ? '
         .'AND p.expires_on IS NOT NULL AND p.expires_on <= ? AND NOT p.frozen '
         .'AND '.PriorytetZuzycia::DOSTEPNY_SQL.' '
         .'AND '.self::PASUJE_SQL.')';
 
-    private const MAM_SQL = 'EXISTS (SELECT 1 FROM pantry_items p WHERE p.user_id = ? '
+    private const MAM_SQL = 'EXISTS (SELECT 1 FROM '.PriorytetZuzycia::OPAKOWANIA_SQL.' p WHERE p.user_id = ? '
         .'AND '.PriorytetZuzycia::DOSTEPNY_SQL.' '
         .'AND '.self::PASUJE_SQL.')';
 
@@ -139,7 +139,7 @@ final class CoUgotuje
         // odpowiedzią na to pytanie.
         $rdzenie = collect(DB::select(
             'SELECT DISTINCT ON (p.id) t AS rdzen '
-            .'FROM pantry_items p, unnest(p.rdzenie) AS t '
+            .'FROM '.PriorytetZuzycia::OPAKOWANIA_SQL.' p, unnest(p.rdzenie) AS t '
             .'WHERE p.user_id = ? '
             .($najpierwTermin ? 'AND p.expires_on IS NOT NULL AND p.expires_on <= ? AND NOT p.frozen ' : '')
             .'AND '.PriorytetZuzycia::DOSTEPNY_SQL.' '
@@ -153,7 +153,7 @@ final class CoUgotuje
             // stan niż „nic nie pasuje”, więc ekran mówi to wprost. Reguły
             // doboru to nie zmienia (D-333).
             $dostepnych = (int) (DB::selectOne(
-                'SELECT count(*) AS n FROM pantry_items p WHERE p.user_id = ? AND '.PriorytetZuzycia::DOSTEPNY_SQL,
+                'SELECT count(DISTINCT p.id) AS n FROM '.PriorytetZuzycia::OPAKOWANIA_SQL.' p WHERE p.user_id = ? AND '.PriorytetZuzycia::DOSTEPNY_SQL,
                 [$uid, $dzis],
             )->n ?? 0);
 
@@ -188,7 +188,7 @@ final class CoUgotuje
             // Ile Twoich PILNYCH produktów pasuje do składników tego przepisu
             // (produkty, nie linijki). Pierwszy klucz kolejności w tym trybie.
             $zapytanie->selectRaw(
-                '(SELECT count(*) FROM pantry_items p WHERE p.user_id = ? AND p.expires_on IS NOT NULL '
+                '(SELECT count(DISTINCT p.id) FROM '.PriorytetZuzycia::OPAKOWANIA_SQL.' p WHERE p.user_id = ? AND p.expires_on IS NOT NULL '
                 .'AND p.expires_on <= ? AND NOT p.frozen AND '.PriorytetZuzycia::DOSTEPNY_SQL.' AND EXISTS (SELECT 1 FROM recipe_ingredients ri '
                 .'WHERE ri.recipe_id = recipes.id AND '.self::PASUJE_SQL.')) AS pilnych_pasuje',
                 [$uid, $granica, $dzis],
@@ -239,11 +239,11 @@ final class CoUgotuje
         $miejsca = implode(', ', array_fill(0, $przepisy->count(), '?'));
 
         $wiersze = DB::select(
-            'SELECT DISTINCT ri.recipe_id, p.id, p.name, p.expires_on FROM recipe_ingredients ri '
-            .'JOIN pantry_items p ON p.user_id = ? AND p.expires_on IS NOT NULL AND p.expires_on <= ? AND NOT p.frozen '
+            'SELECT ri.recipe_id, p.id, p.name, min(p.expires_on) AS expires_on FROM recipe_ingredients ri '
+            .'JOIN '.PriorytetZuzycia::OPAKOWANIA_SQL.' p ON p.user_id = ? AND p.expires_on IS NOT NULL AND p.expires_on <= ? AND NOT p.frozen '
             .'AND '.PriorytetZuzycia::DOSTEPNY_SQL.' '
             .'AND '.self::PASUJE_SQL.' '
-            ."WHERE ri.recipe_id IN ({$miejsca}) ORDER BY p.expires_on, p.name, p.id",
+            ."WHERE ri.recipe_id IN ({$miejsca}) GROUP BY ri.recipe_id, p.id, p.name ORDER BY min(p.expires_on), p.name, p.id",
             [$uid, $granica, $dzis, ...$przepisy->modelKeys()],
         );
 

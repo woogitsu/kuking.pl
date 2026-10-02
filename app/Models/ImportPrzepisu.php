@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Import\PominieteWImporcie;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -141,6 +142,16 @@ class ImportPrzepisu extends Model
     public function zPdf(): bool
     {
         return $this->zrodlo === self::ZRODLO_PDF;
+    }
+
+    /** Co import pominął lub uciął (#2521); `null` = kompletny albo brak szkicu. */
+    public function pominieteWImporcie(): ?PominieteWImporcie
+    {
+        if ($this->recipe_id === null) {
+            return null;
+        }
+
+        return PrzepisZImportu::query()->find($this->recipe_id)?->pominieteWImporcie();
     }
 
     /** Droga odczytu zapisana przy szkicu z adresu (`json_ld`, `fragmenty`, `bez_tresci`) — `null`, dopóki szkicu nie ma. */

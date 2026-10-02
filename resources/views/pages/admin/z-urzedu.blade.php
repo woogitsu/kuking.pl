@@ -75,10 +75,10 @@
                 @endif
             </div>
 
-            <x-field name="user_message" label="Uzasadnienie dla autora" type="textarea" :rows="4" required
+            <x-field name="user_message" label="Uzasadnienie dla autora" type="textarea" :rows="4" required dyktowanie
                      help="Co konkretnie narusza zasady — własnymi słowami. Informację, że nikt tego nie zgłosił,
                            brak automatu i termin odwołania powiadomienie dopisze samo." />
-            <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2"
+            <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" dyktowanie
                      help="Nieobowiązkowa. Widzi ją tylko moderacja." />
 
             <div class="danger-zone">

@@ -107,7 +107,7 @@
         </fieldset>
 
         <x-field name="illegality_explanation" label="Dlaczego uważasz, że ta treść łamie prawo?"
-                 type="textarea" :rows="6" required :value="old('illegality_explanation')"
+                 type="textarea" :rows="6" required :value="old('illegality_explanation')" dyktowanie
                  help="Napisz własnymi słowami. Nie musisz znać numerów przepisów — wystarczy, żebyśmy zrozumieli, na czym polega problem i czego dotyczy." />
 
         <h2>Jak się z Tobą skontaktować</h2>

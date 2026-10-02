@@ -16,10 +16,25 @@
     Enter w polu „Ilość”. Bez niego Enter uruchamiałby pierwszy szybki przycisk
     i cicho ustawiał datę, której nikt nie wybrał.
 
+    DWA OPAKOWANIA (#2568). Ten sam formularz edytuje pierwsze albo drugie
+    opakowanie (`?opakowanie=drugie`). Nad formularzem stoi blok „Które
+    opakowanie” z obydwoma opakowaniami słowami i znacznikiem „to edytujesz”;
+    drugie opakowanie powstaje dopiero po „Dodaj drugie opakowanie” (zwykły
+    zapis, retry bezpieczny). Przy dwóch opakowaniach formularz pierwszego
+    niesie odcisk jego treści, a drugiego — identyfikator wiersza, żeby stary
+    formularz nie zapisał się na opakowaniu, którego człowiek nie widział.
+
     Terminy z przeszłości wolno wpisać — ktoś dopisuje produkt już po terminie.
     Uwaga pod formularzem nie pozwala odczytać terminu jako oceny produktu.
 --}}
-<x-layout :title="'Ustaw termin: '.$produkt->name" :noindex="true">
+@php
+    $drugie = $cel === 'drugie';
+    $maDwa = count($opakowania) > 1;
+    $nowe = $drugie && $opakowanie === null;
+    $oznaczone = $maDwa || $drugie;
+    $bladOpakowania = $errors->first('opakowanie');
+@endphp
+<x-layout :title="'Ustaw termin: '.$produkt->name.($oznaczone ? ($drugie ? ' — drugie opakowanie' : ' — pierwsze opakowanie') : '')" :noindex="true">
     <h1>Ustaw termin: {{ $produkt->name }}</h1>
 
     <p class="text-lead">
@@ -27,16 +42,48 @@
         Tę informację widzisz tylko Ty.
     </p>
 
-    <p data-stan-produktu><strong>{{ $stan }}</strong></p>
-
     <x-error-summary :fieldIds="['rodzaj' => 'f-rodzaj']" />
+
+    @if($oznaczone)
+        <section class="sekcja-strony" id="f-opakowanie" tabindex="-1" aria-labelledby="ktore-opakowanie" data-ktore-opakowanie
+                 @if($bladOpakowania) aria-invalid="true" aria-describedby="f-opakowanie-error" @endif>
+            <h2 class="mt-0" id="ktore-opakowanie">
+                @if($nowe) Dodajesz drugie opakowanie @else Edytujesz: {{ mb_strtolower($drugie ? 'Drugie opakowanie' : 'Pierwsze opakowanie') }} @endif
+            </h2>
+            @if($bladOpakowania)
+                <p class="field-error" id="f-opakowanie-error">{{ $bladOpakowania }}</p>
+            @endif
+            <ul class="lista-naga stack-tight">
+                @foreach($opakowania as $o)
+                    <li data-opakowanie="{{ $o->numer }}">
+                        <strong>{{ $o->etykieta() }}</strong>@if($o->numer === $cel) — to edytujesz @endif<br>
+                        {{ $o->quantity_note ? $o->quantity_note.'. ' : '' }}{{ \App\Domain\Pantry\PriorytetZuzycia::opisStanu($o) }}
+                        @if($o->numer !== $cel)
+                            <br><a class="btn btn-secondary mt-2" href="{{ route('pantry.edit', ['pantryItem' => $produkt, 'opakowanie' => $o->numer]) }}"
+                                   aria-label="Zmień termin: {{ $produkt->name }}, {{ mb_strtolower($o->etykieta()) }}">Zmień to opakowanie</a>
+                        @endif
+                    </li>
+                @endforeach
+                @if($nowe)
+                    <li data-opakowanie="drugie"><strong>Drugie opakowanie</strong> — to dodajesz. Wpisz poniżej jego termin, ilość i czy jest w zamrażarce.</li>
+                @endif
+            </ul>
+            <p class="meta">
+                @if($nowe) Pierwsze opakowanie zostaje bez zmian.
+                @else Zmiana dotyczy tylko tego opakowania — {{ $drugie ? 'pierwsze' : 'drugie' }} zostaje bez zmian.
+                @endif
+            </p>
+        </section>
+    @else
+        <p data-stan-produktu><strong>{{ $stan }}</strong></p>
+    @endif
 
     @php
         $poBledzie = old('_formularz') === 'termin';
-        $wybranyRodzaj = $poBledzie ? (string) old('rodzaj', '') : ($produkt->expiry_kind ?? '');
-        $wybranyDzien = $poBledzie ? (string) old('termin_dzien', '') : (string) ($produkt->expires_on?->day ?? '');
-        $wybranyMiesiac = $poBledzie ? (string) old('termin_miesiac', '') : (string) ($produkt->expires_on?->month ?? '');
-        $wybranyRok = $poBledzie ? (string) old('termin_rok', '') : (string) ($produkt->expires_on?->year ?? '');
+        $wybranyRodzaj = $poBledzie ? (string) old('rodzaj', '') : ($opakowanie?->expiry_kind ?? '');
+        $wybranyDzien = $poBledzie ? (string) old('termin_dzien', '') : (string) ($opakowanie?->expires_on?->day ?? '');
+        $wybranyMiesiac = $poBledzie ? (string) old('termin_miesiac', '') : (string) ($opakowanie?->expires_on?->month ?? '');
+        $wybranyRok = $poBledzie ? (string) old('termin_rok', '') : (string) ($opakowanie?->expires_on?->year ?? '');
         // Po błędzie „szybki przycisk bez rodzaju”: data z przycisku wraca na
         // listy (chyba że osoba wybrała już coś na listach — wtedy jej wybór).
         $dataZPrzycisku = $poBledzie && $wybranyDzien === '' && $wybranyMiesiac === '' && $wybranyRok === '' ? $dataZPrzycisku : null;
@@ -44,7 +91,7 @@
             [$wybranyRok, $wybranyMiesiac, $wybranyDzien] = array_map('intval', explode('-', $dataZPrzycisku));
             [$wybranyRok, $wybranyMiesiac, $wybranyDzien] = [(string) $wybranyRok, (string) $wybranyMiesiac, (string) $wybranyDzien];
         }
-        $mrozone = $poBledzie ? (bool) old('mrozone', false) : $produkt->frozen;
+        $mrozone = $poBledzie ? (bool) old('mrozone', false) : (bool) ($opakowanie?->frozen ?? false);
         $bladRodzaju = $errors->first('rodzaj');
         $bladDnia = $errors->first('termin_dzien');
         $bladRoku = $errors->first('termin_rok');
@@ -54,6 +101,12 @@
         @csrf
         @method('PUT')
         <input type="hidden" name="_formularz" value="termin">
+        <input type="hidden" name="opakowanie" value="{{ $cel }}">
+        @if($drugie && $opakowanie !== null)
+            <input type="hidden" name="opakowanie_id" value="{{ $opakowanie->opakowanieId }}">
+        @elseif(! $drugie && $maDwa && $opakowanie !== null)
+            <input type="hidden" name="odcisk" value="{{ $opakowanie->odcisk() }}">
+        @endif
         <button type="submit" class="sr-only" tabindex="-1" aria-hidden="true">Zapisz</button>
 
         <fieldset class="border-0 p-0" id="f-rodzaj"
@@ -129,7 +182,7 @@
             @endif
         </div>
 
-        <x-field name="ilosc" label="Ilość" :value="$poBledzie ? old('ilosc') : $produkt->quantity_note" autocomplete="off"
+        <x-field name="ilosc" label="Ilość" :value="$poBledzie ? old('ilosc') : $opakowanie?->quantity_note" autocomplete="off"
                  help="Nie trzeba. Wpisz słowami, na przykład „pół kostki” albo „1 litr”. Najwyżej 40 znaków." />
 
         <div class="field">
@@ -137,7 +190,7 @@
                 <input id="f-mrozone" type="checkbox" name="mrozone" value="1" @checked($mrozone)>
                 <span>
                     <span class="choice-label">Mam to w zamrażarce</span>
-                    <span class="choice-help">Produkt z zamrażarki nie trafia do sekcji „Zużyj w pierwszej kolejności”. Wpisany termin zostaje.</span>
+                    <span class="choice-help">Produkt z zamrażarki nie trafia do sekcji „Zużyj w pierwszej kolejności”. Wpisany termin zostaje.@if($oznaczone) Dotyczy tylko tego opakowania.@endif</span>
                 </span>
             </label>
         </div>
@@ -148,11 +201,22 @@
         </p>
 
         <div class="form-actions">
-            <button class="btn btn-primary" type="submit">Zapisz</button>
-            @if($produkt->expires_on !== null)
+            <button class="btn btn-primary" type="submit">{{ $nowe ? 'Dodaj drugie opakowanie' : 'Zapisz' }}</button>
+            @if($opakowanie?->expires_on !== null)
                 <button class="btn btn-secondary" type="submit" name="wyczysc" value="1">Wyczyść termin</button>
             @endif
             <a class="btn btn-quiet" href="{{ route('pantry.index') }}">Wróć do listy</a>
         </div>
     </form>
+
+    @if(! $oznaczone)
+        {{-- Drugie opakowanie powstaje wyłącznie z tego jawnego przycisku (#2568). Zwykłe
+             dodanie tej samej nazwy do listy nadal nie tworzy niczego nowego. --}}
+        <section class="sekcja-strony mt-8" aria-labelledby="drugie-opakowanie" data-drugie-opakowanie>
+            <h2 class="mt-0" id="drugie-opakowanie">Masz drugie opakowanie tego produktu?</h2>
+            <p>Jeśli drugie opakowanie ma inny termin albo jest w zamrażarce, dodaj je osobno. Każde będzie miało własny termin i ilość. Pierwsze zostaje bez zmian.</p>
+            <a class="btn btn-secondary" href="{{ route('pantry.edit', ['pantryItem' => $produkt, 'opakowanie' => 'drugie']) }}"
+               aria-label="Dodaj drugie opakowanie: {{ $produkt->name }}">Dodaj drugie opakowanie</a>
+        </section>
+    @endif
 </x-layout>

@@ -1525,6 +1525,9 @@ jobs:
         run: node --test scripts/panel-czesci.test.mjs
       - name: Przeglądarka
         run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
+      - name: Regresja błędów walidacji obok hostów dyktowania
+        if: matrix.czesc == 2
+        run: node --test scripts/przegladarka/panel-validation-errors.test.mjs
       - name: Nowa baza bez danych demonstracyjnych i rzeczywiste assety
         run: |
           cp .env.example .env

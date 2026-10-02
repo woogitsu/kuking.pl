@@ -97,7 +97,7 @@ TXT;
      * napisy przycięte do limitów kolumn, liczba wierszy do limitów przepisu.
      *
      * @param  array<string, mixed>  $dane
-     * @return ?array{tytul: ?string, porcje: ?string, uwagi: ?string, skladniki: list<array{text: string, group_name: ?string}>, kroki: list<array{instruction: string}>}
+     * @return ?array{tytul: ?string, porcje: ?string, uwagi: ?string, skladniki: list<array{text: string, group_name: ?string}>, kroki: list<array{instruction: string}>, pominiete: ?array{skladniki: int, kroki: int, obciete: list<string>}}
      */
     public static function wynik(array $dane): ?array
     {
@@ -106,15 +106,35 @@ TXT;
         }
 
         $skladniki = [];
+        $obciete = [];
+        $pominieteSkladniki = 0;
+        $pominieteKroki = 0;
 
         foreach (is_array($dane['skladniki'] ?? null) ? $dane['skladniki'] : [] as $wiersz) {
             $tekst = is_array($wiersz) ? self::napis($wiersz['tekst'] ?? null, LimityTekstuPrzepisu::POLA['ingredients.*.text']) : null;
 
-            if ($tekst !== null && count($skladniki) < Recipe::MAX_INGREDIENTS) {
-                $skladniki[] = [
-                    'text' => $tekst,
-                    'group_name' => self::napis($wiersz['grupa'] ?? null, LimityTekstuPrzepisu::POLA['ingredients.*.group_name']),
-                ];
+            if ($tekst === null) {
+                continue;
+            }
+
+            if (count($skladniki) >= Recipe::MAX_INGREDIENTS) {
+                $pominieteSkladniki++;
+
+                continue;
+            }
+
+            $skladniki[] = [
+                'text' => $tekst,
+                'group_name' => self::napis($wiersz['grupa'] ?? null, LimityTekstuPrzepisu::POLA['ingredients.*.group_name']),
+            ];
+            $nr = count($skladniki);
+
+            if (self::uciety($wiersz['tekst'] ?? null, LimityTekstuPrzepisu::POLA['ingredients.*.text'])) {
+                $obciete[] = 'skladnik:'.$nr;
+            }
+
+            if (self::uciety($wiersz['grupa'] ?? null, LimityTekstuPrzepisu::POLA['ingredients.*.group_name'])) {
+                $obciete[] = 'grupa:'.$nr;
             }
         }
 
@@ -123,8 +143,20 @@ TXT;
         foreach (is_array($dane['kroki'] ?? null) ? $dane['kroki'] : [] as $wiersz) {
             $tekst = is_array($wiersz) ? self::napis($wiersz['tekst'] ?? null, LimityTekstuPrzepisu::POLA['steps.*.instruction']) : null;
 
-            if ($tekst !== null && count($kroki) < Recipe::MAX_STEPS) {
-                $kroki[] = ['instruction' => $tekst];
+            if ($tekst === null) {
+                continue;
+            }
+
+            if (count($kroki) >= Recipe::MAX_STEPS) {
+                $pominieteKroki++;
+
+                continue;
+            }
+
+            $kroki[] = ['instruction' => $tekst];
+
+            if (self::uciety($wiersz['tekst'] ?? null, LimityTekstuPrzepisu::POLA['steps.*.instruction'])) {
+                $obciete[] = 'krok:'.count($kroki);
             }
         }
 
@@ -132,16 +164,56 @@ TXT;
             return null;
         }
 
+        $limityPol = ['tytul' => ['tytul', LimityTekstuPrzepisu::POLA['title']], 'porcje' => ['porcje', 60], 'uwagi' => ['opis', LimityTekstuPrzepisu::POLA['summary'] - 100]];
+        $obcietePola = [];
+
+        foreach ($limityPol as $klucz => [$nazwa, $limit]) {
+            if (self::uciety($dane[$klucz] ?? null, $limit)) {
+                $obcietePola[] = $nazwa;
+            }
+        }
+
+        $tytul = self::napis($dane['tytul'] ?? null, LimityTekstuPrzepisu::POLA['title']);
+        $porcje = self::napis($dane['porcje'] ?? null, 60);
+        $uwagi = self::napis($dane['uwagi'] ?? null, LimityTekstuPrzepisu::POLA['summary'] - 100);
+
         return [
-            'tytul' => self::napis($dane['tytul'] ?? null, LimityTekstuPrzepisu::POLA['title']),
-            'porcje' => self::napis($dane['porcje'] ?? null, 60),
-            'uwagi' => self::napis($dane['uwagi'] ?? null, LimityTekstuPrzepisu::POLA['summary'] - 100),
+            'tytul' => $tytul,
+            'porcje' => $porcje,
+            'uwagi' => $uwagi,
             'skladniki' => $skladniki,
             'kroki' => $kroki,
+            'pominiete' => (new PominieteWImporcie($pominieteSkladniki, $pominieteKroki, [...$obcietePola, ...$obciete]))->doTablicy(),
         ];
     }
 
     private static function napis(mixed $wartosc, int $limit): ?string
+    {
+        $wartosc = self::oczysc($wartosc);
+
+        if ($wartosc === null) {
+            return null;
+        }
+
+        $limit = max(1, $limit);
+
+        if (mb_strlen($wartosc) <= $limit) {
+            return $wartosc;
+        }
+
+        // Jak `OdczytanyPrzepis::przytnij()`: ucięty tekst kończy się „…”, nie urywa się po cichu (#2521).
+        return $limit === 1 ? '…' : rtrim(mb_substr($wartosc, 0, $limit - 1)).'…';
+    }
+
+    /** Czy `napis()` z tym limitem skróci tę wartość — do listy obciętych pól. */
+    private static function uciety(mixed $wartosc, int $limit): bool
+    {
+        $wartosc = self::oczysc($wartosc);
+
+        return $wartosc !== null && mb_strlen($wartosc) > max(1, $limit);
+    }
+
+    private static function oczysc(mixed $wartosc): ?string
     {
         if (! is_string($wartosc)) {
             return null;
@@ -151,10 +223,6 @@ TXT;
         // szukać w przepisie — wycinamy, zanim trafią do bazy i widoku.
         $wartosc = trim((string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $wartosc));
 
-        if ($wartosc === '') {
-            return null;
-        }
-
-        return mb_substr($wartosc, 0, max(1, $limit));
+        return $wartosc === '' ? null : $wartosc;
     }
 }

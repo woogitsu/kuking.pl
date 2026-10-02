@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Collection;
+use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -22,8 +24,8 @@ use Tests\TestCase;
  *
  * Trzy rzeczy po stronie serwera:
  *
- *  1. Mikrofon jest odblokowany (`microphone=(self)`) WYŁĄCZNIE na trasach
- *     tworzenia i edycji przepisu. Wszędzie indziej zostaje `microphone=()`.
+ *  1. Mikrofon jest odblokowany (`microphone=(self)`) dla zalogowanego na
+ *     ekranach z dłuższym polem. Gość i pozostałe ekrany mają `microphone=()`.
  *  2. Przycisk „Dyktuj” nie istnieje w HTML-u: stoi tam tylko pusty host,
  *     który wypełnia skrypt, i to tylko w przeglądarce z rozpoznawaniem
  *     mowy (D-053 — bez skryptu formularz działa jak dotąd, bez martwego
@@ -55,7 +57,6 @@ class DyktowanieNaTrasachKreatoraTest extends TestCase
     {
         return [
             'start' => ['home'],
-            'strona przepisu' => ['recipes.show'],
             'tryb gotowania' => ['cooking.show'],
             'profil' => ['profile.show'],
         ];
@@ -88,7 +89,7 @@ class DyktowanieNaTrasachKreatoraTest extends TestCase
         $this->assertSame(self::POLITYKA_DOMYSLNA, $odpowiedz->headers->get('Permissions-Policy'));
     }
 
-    public function test_kontrola_ujemna_dokladnie_jedna_trasa_z_czterech_ma_mikrofon(): void
+    public function test_dyktowanie_obejmuje_komentarze_ale_nie_tryb_gotowania_ani_start(): void
     {
         $autor = $this->user();
         $mikrofon = [];
@@ -102,8 +103,79 @@ class DyktowanieNaTrasachKreatoraTest extends TestCase
             'recipes.create' => true,
             'home' => false,
             'cooking.show' => false,
-            'recipes.show' => false,
+            'recipes.show' => true,
         ], $mikrofon);
+    }
+
+    public function test_zalogowany_przy_publicznym_przepisie_ma_mikrofon_ale_nigdy_cache_cdn(): void
+    {
+        config(['kuking.html_cache.edge_seconds' => 120]);
+        $autor = $this->user();
+        $odpowiedz = $this->actingAs($autor)->get($this->adres('recipes.show', $autor))->assertOk();
+
+        $this->assertSame(self::POLITYKA_Z_MIKROFONEM, $odpowiedz->headers->get('Permissions-Policy'), 'DICTATION_AUTH_HEADER');
+        $this->assertTrue($odpowiedz->headers->hasCacheControlDirective('private'));
+        $this->assertTrue($odpowiedz->headers->hasCacheControlDirective('no-store'));
+        $this->assertFalse($odpowiedz->headers->hasCacheControlDirective('s-maxage'));
+        $odpowiedz->assertHeaderMissing('CDN-Cache-Control')
+            ->assertHeaderMissing('Cloudflare-CDN-Cache-Control')
+            ->assertHeaderMissing('Surrogate-Control');
+    }
+
+    public function test_gosc_przy_publicznym_przepisie_ma_cache_brzegu_ale_nie_mikrofon(): void
+    {
+        config(['kuking.html_cache.edge_seconds' => 120]);
+        $autor = $this->user();
+        $odpowiedz = $this->get($this->adres('recipes.show', $autor))->assertOk();
+
+        $this->assertSame(self::POLITYKA_DOMYSLNA, $odpowiedz->headers->get('Permissions-Policy'), 'DICTATION_GUEST_HEADER');
+        $this->assertTrue($odpowiedz->headers->hasCacheControlDirective('public'));
+        $this->assertSame('120', (string) $odpowiedz->headers->getCacheControlDirective('s-maxage'));
+        $this->assertStringNotContainsString('data-dyktowanie', (string) $odpowiedz->getContent());
+    }
+
+    /** @return array<string, array{string}> */
+    public static function publicCommentAndNoteRoutes(): array
+    {
+        return [
+            'wpis' => ['posts.show'],
+            'pytanie' => ['questions.show'],
+            'wykonanie' => ['cooked.show'],
+            'zeszyt' => ['collections.show'],
+        ];
+    }
+
+    #[DataProvider('publicCommentAndNoteRoutes')]
+    public function test_publiczny_ekran_z_dluzszym_polem_oddziela_goscia_od_zalogowanego(string $route): void
+    {
+        config(['kuking.html_cache.edge_seconds' => 120, 'kuking.questions.enabled' => true]);
+        $author = $this->user();
+        $subject = match ($route) {
+            'posts.show' => Post::factory()->create(['author_id' => $author->id]),
+            'questions.show' => Post::factory()->question()->create(['author_id' => $author->id]),
+            'cooked.show' => CookedEvent::factory()->create([
+                'user_id' => $author->id,
+                'recipe_id' => Recipe::factory()->create(['author_id' => $author->id])->id,
+            ]),
+            'collections.show' => Collection::create([
+                'owner_id' => $author->id, 'name' => 'Zeszyt do dyktowania',
+                'visibility' => 'public', 'is_default' => false,
+            ]),
+            default => throw new \InvalidArgumentException('Nieznana trasa testowa: '.$route),
+        };
+        $url = route($route, $subject);
+        $guest = $this->get($url)->assertOk();
+        $this->assertSame(self::POLITYKA_DOMYSLNA, $guest->headers->get('Permissions-Policy'), 'DICTATION_GUEST_HEADER');
+        $this->assertStringNotContainsString('data-dyktowanie', (string) $guest->getContent());
+
+        $authenticated = $this->actingAs($author)->get($url)->assertOk();
+        $this->assertSame(self::POLITYKA_Z_MIKROFONEM, $authenticated->headers->get('Permissions-Policy'), 'DICTATION_AUTH_HEADER');
+        $this->assertTrue($authenticated->headers->hasCacheControlDirective('private'));
+        $this->assertTrue($authenticated->headers->hasCacheControlDirective('no-store'));
+        $this->assertFalse($authenticated->headers->hasCacheControlDirective('s-maxage'));
+        $authenticated->assertHeaderMissing('CDN-Cache-Control')
+            ->assertHeaderMissing('Cloudflare-CDN-Cache-Control')
+            ->assertHeaderMissing('Surrogate-Control');
     }
 
     #[DataProvider('trasyKreatora')]

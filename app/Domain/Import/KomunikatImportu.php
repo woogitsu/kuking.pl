@@ -17,6 +17,26 @@ final class KomunikatImportu
     /** @return array{tytul: string, tresc: string} */
     public static function dla(ImportPrzepisu $import): array
     {
+        $komunikat = self::podstawowy($import);
+
+        // #2521: gotowy, ale niepełny — nie wygląda jak zwykły gotowy wynik.
+        if ($import->status === ImportPrzepisu::STATUS_GOTOWY) {
+            $niepelny = $import->pominieteWImporcie();
+
+            if ($niepelny !== null) {
+                return [
+                    'tytul' => 'Szkic gotowy, ale import jest niepełny',
+                    'tresc' => $niepelny->komunikat().' '.$komunikat['tresc'],
+                ];
+            }
+        }
+
+        return $komunikat;
+    }
+
+    /** @return array{tytul: string, tresc: string} */
+    private static function podstawowy(ImportPrzepisu $import): array
+    {
         if ($import->zAdresu()) {
             return self::dlaAdresu($import);
         }

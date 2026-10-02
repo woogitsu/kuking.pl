@@ -271,12 +271,12 @@
                                 @endif
                             </div>
 
-                            <x-field name="user_message" label="Wiadomość dla autora treści" type="textarea" :rows="3"
+                            <x-field name="user_message" label="Wiadomość dla autora treści" type="textarea" :rows="3" dyktowanie
                                      :wiersz="$appeal->id"
                                      help="Co konkretnie się stało — własnymi słowami. Autor nie zobaczy odwołania ani tego, kto zgłosił. Podstawę, termin i drogę odwołania powiadomienie dopisuje samo." />
                         @endif
 
-                        <x-field name="decision_note" label="Uzasadnienie dla tej osoby" type="textarea" :rows="4" required
+                        <x-field name="decision_note" label="Uzasadnienie dla tej osoby" type="textarea" :rows="4" required dyktowanie
                                  :wiersz="$appeal->id"
                                  help="To jest odpowiedź, którą ona przeczyta. Wymóg DSA art. 20: wynik bez wyjaśnienia nie jest odpowiedzią." />
 

@@ -32,6 +32,9 @@
         @if(auth()->user()->memories_enabled)
             <a class="btn btn-secondary" href="{{ route('moj-rok.show') }}" data-link-moj-rok>Mój rok w kuchni</a>
         @endif
+        {{-- Opcjonalna, prywatna lista do powrotu (#2553): domyślnie wyłączona,
+             więc ten odnośnik prowadzi na ekran, który to wyjaśnia, a nie na pustą listę. --}}
+        <a class="btn btn-secondary" href="{{ route('settings.ogladane') }}">Ostatnio oglądane</a>
     </p>
 
     {{-- Błąd przy polu ORAZ w podsumowaniu (docs/UX_50_PLUS.md). Bez tego
@@ -228,7 +231,7 @@
                 <a class="btn btn-secondary" href="{{ route('search') }}">Szukaj</a>
             @endif
             <x-field name="name" label="Nazwa zeszytu" required placeholder="Na święta" />
-            <x-field name="description" label="Krótki opis" type="textarea" :rows="2" />
+            <x-field name="description" label="Krótki opis" type="textarea" :rows="2" dyktowanie />
             {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty
                  ARIA wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
             <fieldset class="border-0 p-0 mt-4" id="f-visibility"
