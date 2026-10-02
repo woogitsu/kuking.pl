@@ -521,6 +521,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(ShoppingListItem::class);
     }
 
+    /** Migawka ostatniego usunięcia z listy zakupów (#2630) — najwyżej jedna. */
+    public function shoppingListUndo(): HasOne
+    {
+        return $this->hasOne(ShoppingListUndo::class);
+    }
+
     /**
      * @return HasMany<Media, $this>
      */

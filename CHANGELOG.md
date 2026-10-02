@@ -6,6 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Lista zakupów: „Cofnij usunięcie” (#2630, decyzja właściciela z 2.10.2026, rozszerzenie D-333) [nowa funkcja]. Po „Usuń” przy pozycji albo „Wyczyść odhaczone” u góry listy stoi informacja, co usunięto, z przyciskiem „Cofnij usunięcie” (zwykły formularz, bez skryptu, bez gestów), ważna 15 minut i widoczna też po odświeżeniu; wcześniejsze pytanie przed usunięciem zostaje. Cofnięcie przywraca tylko usunięte pozycje: z tekstem, pochodzeniem, przepisem, datą dopisania i odhaczeniem (odhaczone wracają odhaczone i ekran mówi to wprost), na swoje miejsca, nie ruszając pozycji dopisanych w międzyczasie. Pamiętana jest jedna ostatnia operacja (kolejne usunięcie ją zastępuje), a po upływie czasu kopia jest kasowana (zadanie `kuking:sprzataj-cofniecia-zakupow` co kwadrans). Podwójne kliknięcie nie powiela pozycji, limit 300 pozycji obowiązuje także przy cofnięciu (brak miejsca daje komunikat po polsku i nie kasuje tego, co można jeszcze przywrócić), wymazanie konta usuwa też oczekującą kopię. Nowa tabela `shopping_list_undos` (migracja `2026_10_02_100000`, rollback odmawia przy świeżych wierszach, D-088).
 ## Alfa 0.78 — co zużyć najpierw, lista zakupów i wydruk zeszytu
 
 - Naprawione (#2621): wklejona pusta linia z nierozdzielającą spacją nie dodaje niewidocznego składnika ani nie skleja dwóch kroków przepisu. Spacja wewnątrz wpisanej ilości zostaje bez zmian.
