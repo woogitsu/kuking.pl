@@ -93,6 +93,10 @@ już były na liście, zapytamy, czy dodać je jeszcze raz.
 
 Chcecie widzieć zaplanowany obiad także w kalendarzu w telefonie? W Planerze jest przycisk „Plan do kalendarza (plik)”. Zaznaczacie pozycje z jednego tygodnia, widzicie dokładnie, jaka nazwa i jaka data trafią do pliku, i pobieracie go. Plik otwieracie w swoim kalendarzu jak zwykły załącznik. To jednorazowa kopia: bez godzin, składników i Waszych dopisków, bez żadnego stałego adresu czy synchronizacji. Pamiętajcie, że po zaimportowaniu kopia żyje już w Waszym kalendarzu (może być w jego chmurze) i nie zmieni się, gdy zmienicie plan w Kuking.
 
+### Zdjęcie dołączone do zapisanego „Ugotowałem”
+
+Zgłosiliście ugotowanie od razu, a zdjęcie macie dopiero po posiłku? Na stronie własnego wykonania jest teraz przycisk „Dołącz zdjęcie”. Dokładacie zdjęcie do tego samego wykonania — nie trzeba zgłaszać gotowania drugi raz, więc data, rozmowa pod wykonaniem i wersja przepisu zostają, a autor przepisu nie dostaje nowego powiadomienia. Przy wykonaniu pojawi się dopisek „Zdjęcie uzupełnione”, żeby było jasne, że zdjęcie dołożono później. Zdjęcie można dołączyć przez 7 dni od zapisania wykonania.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

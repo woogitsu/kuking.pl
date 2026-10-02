@@ -36,6 +36,10 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 
 OCZEKUJ = {
     'Kolaż hero bez podpisu autora przy zdjęciu (#2708)': r'Kafel nie ma podpisu z nazwą dokładnie jednego autora',
+    'Dołączenie zdjęcia: podmiana UUID kucharza (#2500)': r'DOLACZENIE_2500_PODMIANA_UUID',
+    'Dołączenie zdjęcia liczy limit bez przypiętych (#2500)': r'DOLACZENIE_2500_LIMIT',
+    'Dołączenie zdjęcia ignoruje świeży stan pod blokadą (#2500)': r'DOLACZENIE_2500_SWIEZY_STAN',
+    'Dołączenie zdjęcia przejmuje cudze albo cudzo-przypięte (#2500)': r'DOLACZENIE_2500_WLASNOSC_MEDIOW',
     'Rollback udostępnień przepisów kasuje bez pytania (#2650)': r'Rollback skasował udostępnienia bez pytania',
     'Listy zakupów mieszają pozycje (#2528)': r'LISTY_2528_POZYCJE_NIE_MIESZAJA_SIE',
     'Cudza lista zakupów otwiera ekran i przyjmuje zapis (#2528)': r'LISTY_2528_CUDZA_LISTA_ODMOWA',

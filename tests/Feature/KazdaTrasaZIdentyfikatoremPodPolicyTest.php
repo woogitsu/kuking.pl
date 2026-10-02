@@ -1358,6 +1358,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooked.edit', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.update', 'zapis korekty wykonania', 'put',
             route('cooked.update', $wykonanie), ['note' => 'Poprawiona uwaga.'], [$W, $O, $O, $O, $O]);
+        // #2500: zdjęcie dołączone do zapisanego wykonania — wyłącznie kucharz
+        // (`CookedEventPolicy::addPhotos`); autor przepisu i moderator dostają odmowę.
+        $dodaj('cooked.photos.create', 'ekran dołączania zdjęcia do wykonania', 'get',
+            route('cooked.photos.create', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooked.photos.store', 'dołączenie zdjęcia do wykonania', 'post',
+            route('cooked.photos.store', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.destroy', 'usunięcie wykonania', 'delete',
             route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $O, $O]);
         // Wskazówki od gotujących (#2352): prosi wyłącznie autor przepisu

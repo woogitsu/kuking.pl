@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\KomentujWykonanie;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Notifications\Actions\OtworzKomusWyszlo;
+use App\Domain\Recipes\Actions\DolaczZdjeciaDoWykonania;
 use App\Domain\Recipes\Actions\PoprawPorcjeWykonania;
 use App\Domain\Recipes\Actions\PoprawWykonanie;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
@@ -31,7 +32,9 @@ use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\RecipeHint;
+use App\Rules\ObslugiwaneZdjecie;
 use App\Support\Komunikat;
+use App\Support\LimityZdjec;
 use App\Support\OdpowiedziWatku;
 use App\Support\StaryAdresPrzepisu;
 use Illuminate\Http\RedirectResponse;
@@ -441,6 +444,75 @@ class CookedEventController extends Controller
      * Prywatna liczba faktycznych porcji (#2540): ekran poprawy. Obcy dostaje
      * 403 z Policy — adres z UUID nie jest autoryzacją.
      */
+    /**
+     * Dołączenie zdjęcia do ZAPISANEGO wykonania (#2500) — formularz. To nie
+     * jest drugie gotowanie: ekran mówi wprost, że data, wersja przepisu i
+     * rozmowa zostają, a wykonanie dostanie znacznik „Zdjęcie uzupełnione”.
+     */
+    public function zdjecia(Request $request, CookedEvent $cookedEvent): View
+    {
+        $this->authorize('addPhotos', $cookedEvent);
+
+        return view('pages.cooked.zdjecia', [
+            'event' => $cookedEvent->loadMissing(['recipe', 'media']),
+            'zachowane' => $this->zdjecia->zachowane(old('media_ids', []), $request->user()),
+            'dni' => (int) config('kuking.wykonania.dolaczenie_zdjec_dni'),
+        ]);
+    }
+
+    public function dolaczZdjecia(Request $request, CookedEvent $cookedEvent, DolaczZdjeciaDoWykonania $dolacz): RedirectResponse
+    {
+        $this->authorize('addPhotos', $cookedEvent);
+
+        $user = $request->user();
+
+        $request->validate([
+            'photos' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
+            'photos.*' => ['file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'media_ids' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
+            'media_ids.*' => ['uuid'],
+        ], [
+            'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
+            'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
+            'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
+            'media_ids.*.uuid' => LimityZdjec::komunikatZepsutegoZachowanegoZdjecia(),
+        ]);
+
+        $wejscie = fn (array $ids): array => $request->except('photos', 'media_ids', 'usun_zdjecie') + ['media_ids' => $ids];
+
+        try {
+            $mediaIds = $this->zdjecia->handle($request->input('media_ids', []), $request->file('photos', []), $user, $cookedEvent->media()->count());
+        } catch (BladZdjecFormularza $e) {
+            return back()->withInput($wejscie($e->mediaIds))->withErrors(['photos' => $e->getMessage()]);
+        }
+
+        if ($request->filled('usun_zdjecie')) {
+            $mediaIds = array_values(array_filter($mediaIds, fn (string $id): bool => $id !== $request->input('usun_zdjecie')));
+
+            return redirect()->route('cooked.photos.create', $cookedEvent)->withInput($wejscie($mediaIds));
+        }
+
+        if ($mediaIds === []) {
+            // Ponowienie tej samej wysyłki: zdjęcie już jest przy wykonaniu.
+            $zgloszone = array_filter((array) $request->input('media_ids', []), 'is_string');
+            if ($zgloszone !== [] && $cookedEvent->media()->whereIn('media.id', $zgloszone)->count() === count($zgloszone)) {
+                return redirect()->route('cooked.show', $cookedEvent)->with(Komunikat::informacja('To zdjęcie jest już przy Twoim wykonaniu. Niczego nie dopisaliśmy drugi raz.'));
+            }
+
+            return back()->withInput($wejscie([]))->withErrors(['photos' => 'Wybierz zdjęcie, które chcesz dołączyć do tego wykonania.']);
+        }
+
+        try {
+            $ile = $dolacz->handle($user, $cookedEvent, $mediaIds);
+        } catch (BladDlaCzlowieka $e) {
+            return back()->withInput($wejscie($mediaIds))->withErrors(['photos' => $e->getMessage()]);
+        }
+
+        return redirect()->route('cooked.show', $cookedEvent)->with($ile === 0
+            ? Komunikat::informacja('Tego zdjęcia nie trzeba było dołączać drugi raz — jest już przy wykonaniu.')
+            : Komunikat::sukces('Zdjęcie dołączone do wykonania. To nadal to samo gotowanie: data, wersja przepisu i rozmowa zostały bez zmian, a nikt nie dostał nowego powiadomienia o ugotowaniu.'));
+    }
+
     public function edytujPorcje(Request $request, CookedEvent $cookedEvent): View
     {
         $this->authorize('poprawPorcje', $cookedEvent);

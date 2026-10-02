@@ -612,6 +612,8 @@ final class CollectUserExportData
             // bez treści wersji; `null` = nie wiadomo (wykonanie sprzed zmiany
             // albo wersja usunięta retencją).
             'numer_wersji_przepisu' => $event->recipeVersion?->version_number,
+            // Kiedy dołączono zdjęcie do zapisanego wykonania (#2500); `null` = nie dołączano.
+            'zdjecie_uzupelnione' => $this->date($event->photos_added_at),
             'notatka' => $event->note,
             'zrobie_jeszcze_raz' => $event->would_make_again,
             'moja_ocena_trudnosci' => $event->perceived_difficulty,
