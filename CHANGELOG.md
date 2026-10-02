@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2418): „Mój rok w kuchni” ponownie sprawdza dostęp do przepisu i autora przed pokazaniem tytułu oraz odnośnika. Przepis ukryty w trakcie wczytywania strony nie ujawnia już swojej nazwy.
+
 - Naprawione (#2485, #2486): wspólna sesja pokazuje zamienniki wpisane przez autora przy składnikach i przetworzone zdjęcia przy właściwych krokach. Dostęp nadal zależy od członkostwa i prawa do przepisu.
 
 - Naprawione (#2449): porównanie zapisanych wersji przepisu pokazuje zmianę wyboru „Bez ilości” przy składniku, nawet gdy tekst pozostał ten sam. Jeśli starsza wersja nie zapisała tego wyboru, ekran mówi, że nie da się go porównać, zamiast zgadywać.

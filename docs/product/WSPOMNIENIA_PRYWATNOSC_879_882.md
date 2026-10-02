@@ -140,3 +140,10 @@ konta pokrywają ten ekran bez zmian; polityka prywatności nie wymaga nowej
 wersji (brak nowych danych i celów). Nie liczymy cudzych wykonań ani nie
 pokazujemy cudzych imion. Wycofanie: usunięcie trasy `moj-rok.show`,
 kontrolera i odnośnika w „Moje” — bez operacji na bazie.
+
+Poprawka #2418: także ostatnie zapytanie pobierające tytuł i slug ponownie
+stosuje widoczność dla właściciela oraz dostępność autora. Zmiana
+zatwierdzona po agregacji wykonań nie może ujawnić nazwy niewidocznego
+przepisu na prywatnym ekranie. Test dwóch połączeń zatrzymuje HTTP po
+agregacji, zatwierdza zmianę na drugim połączeniu i sprawdza odpowiedź.
+Rollback samej poprawki przywraca okno wycieku; schemat pozostaje bez zmian.
