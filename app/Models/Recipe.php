@@ -291,6 +291,17 @@ class Recipe extends Model
     }
 
     /**
+     * Osoby, którym autor udostępnił ten przepis do czytania (#2650).
+     * Reguła dostępu: `RecipePolicy::readShared()`, nie ta relacja.
+     *
+     * @return HasMany<RecipeShare, $this>
+     */
+    public function shares(): HasMany
+    {
+        return $this->hasMany(RecipeShare::class);
+    }
+
+    /**
      * @return HasMany<CookedEvent, $this>
      */
     public function cookedEvents(): HasMany

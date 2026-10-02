@@ -23,6 +23,7 @@ use App\Models\Collection;
 use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeShare;
 use App\Models\User;
 use App\Support\FrazaWyszukiwania;
 use App\Support\Komunikat;
@@ -95,6 +96,9 @@ class CollectionController extends Controller
                 ->withQueryString(),
             // Prawa szyna (issue #205) — patrz `ostatnioZapisane()` niżej.
             'ostatnioZapisane' => $this->ostatnioZapisane($user),
+            // „Przepisy udostępnione mi" (#2650) — odnośnik tylko wtedy, gdy
+            // jest do czego prowadzić. Sama lista filtruje dalej przez Policy.
+            'maUdostepnionePrzepisy' => RecipeShare::query()->where('recipient_id', $user->getKey())->exists(),
             // WSPÓLNE ZESZYTY (#1743, D-302) — OSOBNĄ LISTĄ, nie wmieszane
             // w własne: „mój" i „czyjś, do którego mnie wpuszczono" to dwie
             // różne rzeczy (kto może usunąć, kto zmienia nazwę). Ten sam

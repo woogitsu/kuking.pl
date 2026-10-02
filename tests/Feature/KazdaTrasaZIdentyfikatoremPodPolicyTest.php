@@ -8,6 +8,7 @@ use App\Domain\Collections\Odzyskiwanie\UsunZeszyt;
 use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
 use App\Domain\Recipes\Gotowanie\Wspolne\SesjaWspolnegoGotowania;
 use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
+use App\Domain\Recipes\Udostepnienia\UdostepnijPrzepis;
 use App\Domain\UgotujmyRazem\TydzienGotowania;
 use App\Models\Appeal;
 use App\Models\Collection;
@@ -1535,6 +1536,34 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.invitations.accept', $zaproszenieDoPrzyjecia), [], [$O, $W, $O, $O, $O]);
         $dodaj('collections.invitations.decline', 'odrzucenie zaproszenia', 'post',
             route('collections.invitations.decline', $zaproszenieDoOdrzucenia), [], [$O, $W, $O, $O, $O]);
+
+        // ─── UDOSTĘPNIENIE PRZEPISU WYBRANEJ OSOBIE (#2650) ──────────────
+        // Ekranem i odebraniem dostępu zarządza wyłącznie autorka
+        // (`RecipePolicy::manageShares`/`share`). Stronę czytania otwiera
+        // odbiorca (`readShared`) — tu `obcy`, więc to on ma KONTROLĘ
+        // DODATNIĄ; autorkę ta trasa odsyła na zwykłą stronę przepisu.
+        // Rezygnacja: wyłącznie odbiorca (`RecipeSharePolicy::leave`).
+        $udostepnianie = app(UdostepnijPrzepis::class);
+        $nowyPrzepisPrywatny = fn (): Recipe => Recipe::factory()->create(['author_id' => $wlasciciel->getKey(), 'visibility' => 'private']);
+        $przepisDoUdostepnien = $nowyPrzepisPrywatny();
+        $przepisDoOdebrania = $nowyPrzepisPrywatny();
+        $przepisDoRezygnacji = $nowyPrzepisPrywatny();
+        $udostepnianie->poNazwie($wlasciciel, $przepisDoUdostepnien, $obcy->profile->username);
+        // Osobny odbiorca: `obserwowana` bywa celem blokady w innych
+        // wierszach tabeli, a blokada kasuje udostępnienie (#2650).
+        [$udostepnienieDoOdebrania] = $udostepnianie->poNazwie($wlasciciel, $przepisDoOdebrania, $this->user('odbiorcaprzepisu')->profile->username);
+        [$udostepnienieDoRezygnacji] = $udostepnianie->poNazwie($wlasciciel, $przepisDoRezygnacji, $obcy->profile->username);
+
+        $dodaj('recipes.shares.index', 'ekran „Komu pokazuję" przepisu', 'get',
+            route('recipes.shares.index', $przepisDoUdostepnien), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.shares.store', 'udostępnienie przepisu po nazwie konta (krok sprawdzenia)', 'post',
+            route('recipes.shares.store', $przepisDoUdostepnien), ['nazwa' => $zaproszonaOsoba->profile->username], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.shares.destroy', 'odebranie dostępu do przepisu', 'delete',
+            route('recipes.shares.destroy', ['recipe' => $przepisDoOdebrania, 'share' => $udostepnienieDoOdebrania]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.shared.show', 'strona czytania udostępnionego przepisu', 'get',
+            route('recipes.shared.show', $przepisDoUdostepnien), [], [$W, $W, $O, $O, $O]);
+        $dodaj('recipes.shared.leave', 'rezygnacja odbiorcy z dostępu', 'delete',
+            route('recipes.shared.leave', $udostepnienieDoRezygnacji), [], [$O, $W, $O, $O, $O]);
 
         // ─── PLANER TYGODNIA ─────────────────────────────────────────────
         // Planer jest prywatny (#27, D-310): pozycję usuwa wyłącznie

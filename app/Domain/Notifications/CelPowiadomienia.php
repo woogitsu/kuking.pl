@@ -111,6 +111,11 @@ final class CelPowiadomienia
             // odbiorca nadal może ją zobaczyć (autor wersji mógł ją usunąć
             // albo zawęzić); inaczej brak „Zobacz" zamiast 403 lub 404 (#23).
             Notification::TYPE_FORKED => $this->wersjaDoPokazania($powiadomienie)?->url(),
+            // Pokazany przepis (#2650) — na stronę czytania odbiorcy, tylko
+            // gdy `readShared()` dziś przepuszcza. Inaczej brak „Zobacz".
+            Notification::TYPE_RECIPE_SHARED => ($przepis = $this->przepisUdostepniony($powiadomienie)) !== null
+                ? route('recipes.shared.show', $przepis)
+                : null,
             // ISSUE #734: po AKTUALNYM profilu sprawcy (`actor_id`), nie po
             // `data.username` zapamiętanym w chwili obserwowania. Po zmianie
             // nazwy stara prowadziła na 404 — albo, gdy ktoś ją potem zajął,
@@ -222,6 +227,86 @@ final class CelPowiadomienia
         $powiadomienie->zapamietajWersjePrzepisu($wersja);
 
         return $wersja;
+    }
+
+    /**
+     * Przepis z `recipe.shared` (#2650), jeśli odbiorca może go DZIŚ czytać
+     * przez udostępnienie — `RecipePolicy::readShared()` z bieżącego stanu
+     * bazy: wiersz `recipe_shares`, oba konta czynne, brak blokady, przepis
+     * opublikowany i nieusunięty. Każda inna odpowiedź to `null`, a karta
+     * nie pokazuje wtedy tytułu (powiadomienie nie przechowuje go wcale).
+     * Wynik jest podręczny na powiadomieniu na czas jednego żądania.
+     */
+    public function przepisUdostepniony(Notification $powiadomienie): ?Recipe
+    {
+        if ($powiadomienie->type !== Notification::TYPE_RECIPE_SHARED) {
+            return null;
+        }
+
+        if ($powiadomienie->zapamietanyPrzepisUdostepniony() !== false) {
+            return $powiadomienie->zapamietanyPrzepisUdostepniony();
+        }
+
+        $id = ($powiadomienie->data ?? [])['recipe_id'] ?? null;
+        $odbiorca = $powiadomienie->user;
+        $przepis = is_string($id) && Str::isUuid($id) ? Recipe::query()->with('author')->find($id) : null;
+
+        if ($przepis !== null && ($odbiorca === null || ! Gate::forUser($odbiorca)->allows('readShared', $przepis))) {
+            $przepis = null;
+        }
+
+        $powiadomienie->zapamietajPrzepisUdostepniony($przepis);
+
+        return $przepis;
+    }
+
+    /**
+     * `przepisUdostepniony()` dla całej strony listy: przepisy z autorami
+     * JEDNYM zapytaniem (zamiast leniwego `user`/`author` na wiersz, którego
+     * tryb ścisły i tak by nie przepuścił), a prawo do odczytu — dalej
+     * `RecipePolicy::readShared()` dla każdego wiersza, z bieżącego stanu.
+     *
+     * @param  list<Notification>  $notifications
+     */
+    public function wczytajPrzepisyUdostepnione(array $notifications, User $viewer): void
+    {
+        $wiersze = [];
+
+        foreach ($notifications as $notification) {
+            if ($notification->type !== Notification::TYPE_RECIPE_SHARED) {
+                continue;
+            }
+
+            $id = ($notification->data ?? [])['recipe_id'] ?? null;
+
+            // Cudzy wiersz albo zły identyfikator — „brak dostępu", bez zapytania.
+            if (! is_string($id) || ! Str::isUuid($id) || (string) $notification->user_id !== (string) $viewer->getKey()) {
+                $notification->zapamietajPrzepisUdostepniony(null);
+
+                continue;
+            }
+
+            $wiersze[$id][] = $notification;
+        }
+
+        if ($wiersze === []) {
+            return;
+        }
+
+        $przepisy = Recipe::query()
+            ->with('author')
+            ->whereIn('id', array_keys($wiersze))
+            ->get()
+            ->keyBy(fn (Recipe $przepis): string => (string) $przepis->getKey());
+
+        foreach ($wiersze as $id => $grupa) {
+            $przepis = $przepisy->get($id);
+            $przepis = $przepis !== null && Gate::forUser($viewer)->allows('readShared', $przepis) ? $przepis : null;
+
+            foreach ($grupa as $notification) {
+                $notification->zapamietajPrzepisUdostepniony($przepis);
+            }
+        }
     }
 
     /**

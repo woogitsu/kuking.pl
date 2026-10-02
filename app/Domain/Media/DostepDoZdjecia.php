@@ -157,7 +157,8 @@ final class DostepDoZdjecia
         }
 
         foreach ($this->rodzice($zdjecie) as $rodzic) {
-            if (Gate::forUser($widz)->allows('view', $rodzic)) {
+            if (Gate::forUser($widz)->allows('view', $rodzic)
+                || $this->przezUdostepnienie($widz, $rodzic, $zdjecie)) {
                 return true;
             }
         }
@@ -203,7 +204,8 @@ final class DostepDoZdjecia
         $dlaAnonima = false;
 
         foreach ($this->rodzice($zdjecie) as $rodzic) {
-            if (! $dlaWidza && Gate::forUser($widz)->allows('view', $rodzic)) {
+            if (! $dlaWidza && (Gate::forUser($widz)->allows('view', $rodzic)
+                || $this->przezUdostepnienie($widz, $rodzic, $zdjecie))) {
                 $dlaWidza = true;
             }
 
@@ -265,6 +267,36 @@ final class DostepDoZdjecia
      * Pytamy dziś WPROST o to, o co chodziło od początku: czy jest już
      * wariant. Wyjątku dla właściciela jak nie było, tak nie ma.
      */
+    /**
+     * Zdjęcie przepisu UDOSTĘPNIONEGO widzowi (#2650): zdjęcie główne i zdjęcia
+     * kroków — te same, które pokazuje strona `recipes.shared.show`. SKANU
+     * KARTKI (`source_scan_media_id`) udostępnienie nie otwiera: bywa na nim
+     * rodzinny adres i nazwiska, a strona udostępnienia go nie pokazuje.
+     *
+     * Reguła jest w `RecipePolicy::readShared()`, tu tylko pytamy `Gate` —
+     * tak jak o każdego innego rodzica. Pytanie dotyczy wyłącznie widza:
+     * anonim nie ma udostępnień, więc `dlaAnonima` (nagłówek cache) się nie
+     * zmienia i takie zdjęcie zawsze idzie z `private, no-store`.
+     */
+    private function przezUdostepnienie(?User $widz, Model $rodzic, Media $zdjecie): bool
+    {
+        if ($widz === null) {
+            return false;
+        }
+
+        if ($rodzic instanceof Recipe) {
+            return $rodzic->hero_media_id === $zdjecie->getKey()
+                && Gate::forUser($widz)->allows('readShared', $rodzic);
+        }
+
+        if ($rodzic instanceof RecipeStep) {
+            return $rodzic->recipe !== null
+                && Gate::forUser($widz)->allows('readShared', $rodzic->recipe);
+        }
+
+        return false;
+    }
+
     private function gotoweDoSerwowania(Media $zdjecie): bool
     {
         return $zdjecie->maWariantDoPokazania();

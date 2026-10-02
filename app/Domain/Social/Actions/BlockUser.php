@@ -7,6 +7,7 @@ namespace App\Domain\Social\Actions;
 use App\Domain\Social\BlokadyZmienione;
 use App\Domain\Social\ListyWidza;
 use App\Domain\Social\ZamekPary;
+use App\Domain\Users\KoniecUdostepnienPrzepisow;
 use App\Domain\Users\KoniecWspolnegoGotowania;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Exceptions\BladDlaCzlowieka;
@@ -112,6 +113,10 @@ final class BlockUser
             // Wspólne gotowanie (#2385) kończy się tak samo, w obie strony:
             // pomocnik traci dostęp do sesji gospodarza w tej samej transakcji.
             app(KoniecWspolnegoGotowania::class)->miedzy($blokujacy, $blokowany);
+
+            // Udostępnione przepisy też, w obie strony (#2650). Odblokowanie
+            // ich nie przywraca — autor udostępnia od nowa, jeśli zechce.
+            app(KoniecUdostepnienPrzepisow::class)->miedzy($blokujacy, $blokowany);
         });
 
         AuditLogEntry::recordBezWywracania(
