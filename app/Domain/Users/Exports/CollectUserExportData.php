@@ -352,6 +352,11 @@ final class CollectUserExportData
             'wspomnienia_wlaczone' => (bool) $user->memories_enabled,
             // „Mój stół" (#1749, D-304): jedyna zapisana preferencja półki.
             'moj_stol_wlaczony' => (bool) $user->moj_stol_enabled,
+            // Skrót do własnego zeszytu w „Moje” (#2542): nazwa zeszytu
+            // (paczka nie podaje identyfikatorów); `null` — skrótu nie ma.
+            'zeszyt_skrot_w_moje' => $user->ulubiony_zeszyt_id === null
+                ? null
+                : $user->ulubionyZeszyt()->value('collections.name'),
             'ostatnie_podsumowanie_tygodnia_wyslano' => $this->date($user->weekly_digest_sent_at),
             // Dzień ostatniego listu z życzeniami (#1755) — jak podsumowanie wyżej.
             'ostatni_list_urodzinowy_wyslano' => $this->date($user->birthday_email_sent_on),

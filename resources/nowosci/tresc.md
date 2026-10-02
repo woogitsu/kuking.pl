@@ -40,6 +40,14 @@ w których to zaplanowano, razem z rokiem. Przycisk przy wyniku otwiera właści
 Szukamy tylko w Waszych własnych planach, w tym, co sami dopisaliście, i w
 nazwach przepisów, które nadal możecie zobaczyć. Wielkość liter i polskie
 znaki nie mają znaczenia. Pokazujemy do 50 najnowszych wyników.
+### Skrót do ulubionego zeszytu
+
+Jeśli wracacie głównie do jednego zeszytu, na jego stronie jest teraz
+przycisk „Ustaw jako skrót w »Moje«”. Od tej chwili na górze ekranu „Moje”
+czeka duży przycisk „Otwórz: nazwa zeszytu”, także gdy na liście macie
+zeszytów dużo. Skrót można ustawić tylko do własnego zeszytu, widzicie go
+tylko Wy i w każdej chwili usuniecie go przyciskiem „Usuń skrót” — zeszyt
+i zapisy zostają. Skrót nie zmienia tego, dokąd trafia „Zapisuję”.
 
 ## Alfa 0.78
 

@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Collections\Actions\RemoveUnavailableFromCollection;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Collections\Actions\UstawSkrotDoZeszytu;
 use App\Domain\Collections\CollectionSaveContext;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\Wspoldzielenie\ZaproszeniaDoZeszytow;
@@ -104,6 +105,10 @@ class CollectionController extends Controller
                 ->simplePaginate(self::ZESZYTOW_NA_STRONE, pageName: 'udostepnione')
                 ->withQueryString(),
             'zaproszenia' => app(ZaproszeniaDoZeszytow::class)->oczekujaceDla($user),
+            // Skrót (#2542): tylko WŁASNY, istniejący zeszyt; brak skrótu = null.
+            'skrot' => $user->ulubiony_zeszyt_id === null
+                ? null
+                : $user->ulubionyZeszyt()->first(['collections.id', 'collections.name']),
         ] + $this->szukajWZapisach($request));
     }
 
@@ -971,6 +976,30 @@ class CollectionController extends Controller
             : Komunikat::sukces('Wyjęliśmy z tego zeszytu '.$ile.' '
                 .Odmiana::rzeczownik($ile, 'niedostępny zapis', 'niedostępne zapisy', 'niedostępnych zapisów')
                 .'. Reszta zeszytu została bez zmian.'));
+    }
+
+    public function setShortcut(Request $request, Collection $collection, UstawSkrotDoZeszytu $action): RedirectResponse
+    {
+        $this->authorize('setShortcut', $collection);
+
+        try {
+            $action->ustaw($request->user(), $collection);
+        } catch (BladDlaCzlowieka $e) {
+            return redirect()->route('collections.index')->with(Komunikat::blad($e->getMessage()));
+        }
+
+        return redirect()->route('collections.show', $collection)
+            ->with(Komunikat::sukces('Gotowe. Zeszyt „'.$collection->name.'” jest teraz skrótem na górze ekranu „Moje”.'));
+    }
+
+    public function clearShortcut(Request $request, Collection $collection, UstawSkrotDoZeszytu $action): RedirectResponse
+    {
+        $this->authorize('setShortcut', $collection);
+
+        $action->usun($request->user(), $collection);
+
+        return redirect()->route('collections.show', $collection)
+            ->with(Komunikat::sukces('Skrót usunięty. Zeszyt i jego zapisy zostały bez zmian.'));
     }
 
     public function destroy(Request $request, Collection $collection): RedirectResponse

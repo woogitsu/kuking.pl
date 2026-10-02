@@ -561,6 +561,9 @@ final class EraseAccountData
                 // „Mój stół" (#1749, D-304): usunięcie konta zdejmuje też
                 // preferencję półki propozycji — issue wymaga tego wprost.
                 'moj_stol_enabled' => false,
+                // Skrót do zeszytu w „Moje” (#2542): wiersz konta zostaje
+                // (anonimizacja), więc wybór czyścimy jawnie.
+                'ulubiony_zeszyt_id' => null,
                 // Urodziny (issue #1755) — dana osobowa podana przez człowieka.
                 'birthday_day' => null,
                 'birthday_month' => null,
