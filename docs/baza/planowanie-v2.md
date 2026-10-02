@@ -315,6 +315,50 @@ przechodzi bez pytania. Wymuszenie po kopii tabeli:
 `php artisan kuking:sprzataj-postep-gotowania --wszystkie`). Test:
 `CofniecieMigracjiNieKasujePostepuGotowaniaTest`.
 
+## cooking_notes — prywatny roboczy dopisek z gotowania (V2, #2587)
+
+Jeden krótki dopisek zalogowanej osoby do jednego przepisu, zrobiony w trakcie
+trybu „Gotuję” („mniej soli”, „dłuższy czas”). Migracja
+`2026_10_02_220000_create_cooking_notes_table`. To NIE jest wykonanie: wiersz
+nie tworzy `cooked_events`, powiadomienia ani oznaczenia „Ugotowałem”. Do pola
+„Coś po swojemu?” trafia dopiero na wyraźną prośbę osoby (odnośnik na
+formularzu „Ugotowałem”) i nadal wymaga wysłania formularza.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | właściciel; poza `$fillable` (model ma pusty `$fillable`, zmienia go tylko `RoboczyDopisek`) |
+| `recipe_id` | `uuid NOT NULL` → `recipes` (`ON DELETE CASCADE`) | przepis |
+| `body` | `text NOT NULL` | treść; `CHECK` 1–500 znaków (`cooking_notes_body_check`) |
+| `revision` | `integer NOT NULL DEFAULT 1` | rośnie o 1 przy każdym zapisie; formularz niesie rewizję, którą widział, a zapis ze starą rewizją jest odrzucany jako konflikt (`cooking_notes_revision_check`: `>= 1`) |
+| `expires_at` | `timestamptz NOT NULL` | ważność: `kuking.cooking_note.retention_hours` (24 h) od OSTATNIEJ zmiany; wygasły wiersz jest dla serwisu nieistniejący |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+Ograniczenia i indeksy:
+- `UNIQUE (user_id, recipe_id)` — jeden dopisek na osobę i przepis, więc nie
+  przechodzi na inny przepis ani konto (obsługuje też zapytania po `user_id`);
+- indeks po `expires_at` — nocne sprzątanie.
+
+Życie dopisku: wygasa po 24 h od ostatniej zmiany; znika po zapisaniu
+wykonania tego przepisu (`CookedEventController::store`), po przycisku „Usuń
+dopisek” i przy wymazaniu konta. Nocne `kuking:sprzataj-postep-gotowania`
+(03:00) kasuje wygasłe wiersze razem z postępem gotowania — bez osobnego
+zadania w harmonogramie.
+
+Prywatność: widoczne wyłącznie dla właściciela (`CookingNotePolicy`), każde
+wejście przechodzi też przez `RecipePolicy::view`. Tekst nie trafia do adresu,
+cache, SEO ani telemetrii. Paczka danych ma sekcję `dopiski_z_gotowania`
+(tytuł przepisu tylko przy przepisie widocznym dla osoby), `EraseAccountData`
+kasuje wiersze jawnie (konta się anonimizuje). Wpis w rejestrze czynności:
+`docs/legal/REJESTR_CZYNNOSCI_PRZETWARZANIA.md` §3.29.
+
+Rollback (D-088): `down()` usuwa tabelę, ale ODMAWIA, gdy jest choć jeden
+niewygasły wiersz. Na pustej tabeli, przy samych wygasłych wierszach i w CI
+(`migrate:refresh`) przechodzi bez pytania. Wymuszenie po kopii tabeli:
+`KUKING_ROLLBACK_KASUJE_DOPISKI_GOTOWANIA=1` (albo wcześniej
+`php artisan kuking:sprzataj-postep-gotowania --wszystkie`). Test:
+`CofniecieMigracjiNieKasujeDopiskowZGotowaniaTest`.
+
 ## weekly_recipe_picks — „Ugotujmy razem” (F3, 30.09.2026)
 
 Przepis tygodnia wybrany przez gospodarza. Migracja

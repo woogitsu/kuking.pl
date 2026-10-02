@@ -60,6 +60,17 @@ piekarnik, i zawsze opisany jako „około”. Tekst przepisu zostaje taki, jak
 napisał go autor, a samo „180 stopni” bez jednostki nie jest przeliczane.
 Rozwijanie działa bez żadnych ustawień i niczego nie zapisuje.
 
+### Prywatny dopisek podczas gotowania
+
+W trybie gotowania jest teraz zwijany obszar „Prywatny dopisek z gotowania
+(roboczy)”. Gdy w drugim kroku dolejecie 50 ml płynu albo zmienicie czas,
+wpiszecie to jednym zdaniem i gotujecie dalej — bez wychodzenia do formularza
+„Ugotowałem”. Dopisek widzicie tylko Wy, niczego nie publikuje i nikogo nie
+powiadamia. Trzymamy go 24 godziny od ostatniej zmiany albo do zapisania
+wykonania; można go też usunąć przyciskiem. Gdy później zapiszecie „Ugotowałem”,
+formularz tylko zaproponuje wstawienie dopisku do pola „Coś po swojemu?” —
+nic nie wchodzi tam samo, a to, co już wpisaliście, zostaje nietknięte.
+
 ## Alfa 0.78
 
 **Co zużyć najpierw, lista zakupów i wydruk zeszytu.**

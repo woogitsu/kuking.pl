@@ -317,6 +317,10 @@ final class EraseAccountData
              */
             $fresh->cookingProgress()->delete();
 
+            // Prywatne dopiski z gotowania (#2587) — jak postęp wyżej: jawnie,
+            // bo konto się anonimizuje, a kaskada by nie zadziałała.
+            $fresh->cookingNotes()->delete();
+
             /*
              * PRYWATNE UKRYCIA (`hides`, #1810) ZNIKAJĄ RAZEM Z KONTEM
              * (przegląd #1781). To są decyzje tej osoby o tym, czego nie chce

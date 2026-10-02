@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
+use App\Domain\Recipes\Gotowanie\RoboczyDopisek;
 use App\Models\CookingProgress;
 use Illuminate\Console\Command;
 
@@ -25,7 +26,7 @@ class SprzatajPostepGotowania extends Command
 
     protected $description = 'Kasuje wygasły, zapamiętany na koncie postęp gotowania (#2016).';
 
-    public function handle(PostepGotowania $postep): int
+    public function handle(PostepGotowania $postep, RoboczyDopisek $dopiski): int
     {
         $naSucho = (bool) $this->option('na-sucho');
         $wszystkie = (bool) $this->option('wszystkie');
@@ -46,10 +47,15 @@ class SprzatajPostepGotowania extends Command
         }
 
         $ile = $postep->posprzataj($naSucho, $wszystkie);
+        // Prywatne dopiski z gotowania (#2587) żyją tak samo krótko, więc sprząta je to samo nocne zadanie.
+        $ileDopiskow = $dopiski->posprzataj($naSucho, $wszystkie);
 
         $this->info($naSucho
             ? "Do skasowania: {$ile} zapamiętanych postępów gotowania."
             : "Skasowano {$ile} zapamiętanych postępów gotowania.");
+        $this->info($naSucho
+            ? "Do skasowania: {$ileDopiskow} dopisków z gotowania."
+            : "Skasowano {$ileDopiskow} dopisków z gotowania.");
 
         return self::SUCCESS;
     }

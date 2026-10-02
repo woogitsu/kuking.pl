@@ -1102,6 +1102,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooking.sync.skladniki', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.sync.porcje', 'zapis liczby porcji prywatnego przepisu', 'post',
             route('cooking.sync.porcje', $przepisPrywatny), ['wybor' => '6'], [$W, $O, $O, $O, $O]);
+        // Prywatny roboczy dopisek (#2587): wiersz wybiera para „ta osoba + przepis”,
+        // więc przepis prywatny zamyka oba zapisy.
+        $dodaj('cooking.dopisek.zapisz', 'zapis roboczego dopisku do prywatnego przepisu', 'post',
+            route('cooking.dopisek.zapisz', $przepisPrywatny), ['dopisek' => 'mniej soli'], [$W, $O, $O, $O, $O]);
+        $dodaj('cooking.dopisek.usun', 'usunięcie roboczego dopisku z prywatnego przepisu', 'post',
+            route('cooking.dopisek.usun', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         // „Jak wyszło?” (F1, D-333): oba przyciski ze Startu — ta sama granica co przepis.
         $dodaj('jak_wyszlo.pokaz', '„Pokaż zdjęcie” pod „Jak wyszło?” przy prywatnym przepisie', 'post',
             route('jak_wyszlo.pokaz', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);

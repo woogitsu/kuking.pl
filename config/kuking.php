@@ -3348,6 +3348,15 @@ return [
         'retention_hours' => 24,
     ],
 
+    'cooking_note' => [
+        // Prywatny roboczy dopisek z gotowania (#2587). Ile godzin od OSTATNIEJ
+        // zmiany dopisek jest ważny: tyle co postęp gotowania, żeby nie
+        // dołączył się do następnego gotowania tego samego przepisu i nie
+        // stał się trwałą historią konta. Wygasły wiersz jest ignorowany
+        // przy odczycie i kasowany co noc przez `kuking:sprzataj-postep-gotowania`.
+        'retention_hours' => 24,
+    ],
+
     'sessions' => [
         // RETENCJA TABELI `sessions` (RZ-01, 21.09.2026).
         //
