@@ -3,6 +3,8 @@
 ## Nieopublikowane
 
 - Naprawione (#2473): stary adres dalszej strony „Moich wpisów” po usunięciu wpisu albo wyłączeniu pytań wraca do ostatniej istniejącej strony. „Pokaż więcej” zachowuje wcześniej wczytane karty i rozpoznaje koniec listy także po jej opróżnieniu.
+- Naprawione (#2477, #2508): koszt zachowuje obie granice słownego zakresu ilości. Dopisek celu, np. „300 g mąki do 2 porcji”, zachowuje rozpoznaną masę; nie zmieniamy tekstu autora.
+
 - Naprawione (#2476, #2478, #2479): osobista paczka danych zachowuje sam rok rodzinny w HTML, odróżnia przepis ukryty od szkicu i zapisuje jawny wybór „Bez ilości” w bieżących składnikach JSON.
 - Wewnętrzne (pomiar dostępności): lokalne dane wspomnienia obejmują także następny dzień, żeby audyt przechodzący przez północ w Polsce nadal oglądał właściwy, niepusty ekran. Zasada pokazywania wspomnień w serwisie pozostaje taka sama.
 

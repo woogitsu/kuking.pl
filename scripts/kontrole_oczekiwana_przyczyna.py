@@ -37,6 +37,10 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 OCZEKUJ = {
     'Moje wpisy: stara strona udaje pusty dorobek (#2473)': r'MOJE_WPISY_2473_STARA_STRONA_WRACA',
     'Moje wpisy: pusta porcja traci kontener (#2473)': r'MOJE_WPISY_2473_PUSTA_PORCJA_MA_LISTE',
+    'Koszt: opis celu kasuje rozpoznaną masę (#2508)': r'KOSZT_2508_OPIS_CELU_NIE_KASUJE_MASY',
+    'Koszt: słowny zakres gubi granice i miarę (#2477)': r'KOSZT_2477_SLOWNY_ZAKRES_ZACHOWUJE_GRANICE_I_MIARE',
+    'Koszt: uszkodzony zakres przyjmuje początek (#2477)': r'KOSZT_2477_USZKODZONY_ZAKRES_NIE_LICZY_POCZATKU',
+    'Koszt: uszkodzona pojedyncza liczba daje wycenę (#2477)': r'KOSZT_2477_USZKODZONA_JEDNA_LICZBA_NIE_DAJE_WYCENY',
     'Szyna zeszytu ponownie czyta całą historię (#2030)': r'SZYNA_2030_CALA_HISTORIA',
     'Bieżący eksport pomija wybór Bez ilości (#2476)': r'EKSPORT_BIEZACY_BEZ_ILOSCI',
     'Ukryty przepis nazwany szkicem w eksporcie (#2479)': r'EKSPORT_UKRYTY_NIE_JEST_SZKICEM',
