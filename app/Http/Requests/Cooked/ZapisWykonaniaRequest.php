@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Cooked;
 
 use App\Domain\Recipes\Gotowanie\DzienGotowania;
+use App\Domain\Recipes\Gotowanie\PorcjeWykonania;
 use App\Models\Recipe;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
@@ -150,7 +151,17 @@ final class ZapisWykonaniaRequest extends FormRequest
                     $niepowodzenie($blad);
                 }
             }],
+            // Prywatna liczba faktycznych porcji (#2540). Jedna reguła w
+            // `PorcjeWykonania` (też w akcji), z komunikatem mówiącym, co zrobić.
+            'faktyczne_porcje' => ['nullable', 'string', function (string $pole, mixed $wartosc, \Closure $niepowodzenie): void {
+                $blad = is_string($wartosc) ? PorcjeWykonania::blad(trim($wartosc)) : PorcjeWykonania::KOMUNIKAT_NIEZROZUMIALY;
+
+                if ($blad !== null) {
+                    $niepowodzenie($blad);
+                }
+            }],
         ], [
+            'faktyczne_porcje.string' => PorcjeWykonania::KOMUNIKAT_NIEZROZUMIALY,
             'dzien_gotowania.string' => DzienGotowania::KOMUNIKAT_NIEZROZUMIALY,
             'note.max' => 'Ta uwaga jest za długa. Zmieść się w 2000 znakach.',
             'changes_note.max' => 'To jest za długie. Zmieść się w 1000 znakach.',

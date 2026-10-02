@@ -5245,6 +5245,16 @@
     margin: 0 0 var(--spacing-4);
 }
 
+/* Nazwa etapu przygotowania (#2652) nad treścią kroku w trybie gotowania.
+   Tylko tokeny: --color-ink ma kontrast w obu motywach. Pod numerem kroku,
+   więc margines górny cofa dolny odstęp numeru. */
+.cook-step-etap {
+    font-size: var(--text-title-sm);
+    font-weight: 700;
+    color: var(--color-ink);
+    margin: calc(-1 * var(--spacing-2)) 0 var(--spacing-4);
+}
+
 .cook-step-tekst {
     /* Świadomie ponad --text-title-lg (36px) — patrz komentarz na górze
        bloku. `calc()` zewnętrzny utrzymuje skalowanie przez

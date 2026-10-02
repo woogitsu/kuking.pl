@@ -134,8 +134,8 @@ final class WierszePrzepisuKreatoraTest extends TestCase
         ]);
 
         $this->assertSame([
-            ['id' => null, 'instruction' => 'Zagotuj wodę.', 'timer_minutes' => '10', 'media_id' => 'zdjecie-1'],
-            ['id' => null, 'instruction' => str_repeat('k', 4000), 'timer_minutes' => '', 'media_id' => null],
+            ['id' => null, 'instruction' => 'Zagotuj wodę.', 'timer_minutes' => '10', 'section_name' => null, 'media_id' => 'zdjecie-1'],
+            ['id' => null, 'instruction' => str_repeat('k', 4000), 'timer_minutes' => '', 'section_name' => null, 'media_id' => null],
         ], $kroki);
     }
 

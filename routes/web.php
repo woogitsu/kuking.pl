@@ -37,6 +37,7 @@ use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CollectionItemNoteController;
 use App\Http\Controllers\CollectionPrintController;
+use App\Http\Controllers\CollectionRecipeOrderController;
 use App\Http\Controllers\CollectionSharingController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
@@ -59,6 +60,7 @@ use App\Http\Controllers\MojStolController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NowosciController;
+use App\Http\Controllers\OdlozenieSzkicuController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PantryController;
 use App\Http\Controllers\PlanerController;
@@ -102,10 +104,12 @@ use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\UgotujmyRazemController;
 use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
+use App\Http\Controllers\UsunietePrzepisyController;
 use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WskazowkaController;
 use App\Http\Controllers\WspolneGotowanieController;
 use App\Http\Controllers\WspomnienieController;
+use App\Http\Controllers\ZeszytyUsunieteController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use App\Http\Controllers\ZgodaOdczytuAiController;
 use App\Http\Controllers\ZmianaPolitykiController;
@@ -1033,6 +1037,16 @@ Route::middleware('auth')->group(function () use ($limits): void {
 
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
     Route::get('/dodaj/szkice', [RecipeController::class, 'drafts'])->name('recipes.drafts');
+    // „Odłóż na później” / „Wróć do pracy” przy własnym szkicu (#2550, V2):
+    // prywatne oznaczenie listy, nie status. Zwykłe formularze bez JS, Policy `postpone`.
+    Route::post('/dodaj/szkice/{szkic}/odlozenie', [OdlozenieSzkicuController::class, 'odloz'])
+        ->whereUuid('szkic')
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('recipes.drafts.postpone');
+    Route::delete('/dodaj/szkice/{szkic}/odlozenie', [OdlozenieSzkicuController::class, 'przywroc'])
+        ->whereUuid('szkic')
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('recipes.drafts.resume');
     Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');
     // Import przepisu z adresu strony i z pliku PDF (V2, D-300). Wynik to
     // zawsze prywatny szkic w kreatorze; limit na osobę w `LimitImportu`,
@@ -1121,6 +1135,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/ugotowane/{cookedEvent}/komentarz', [CookedEventController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.comment');
+    // Prywatna liczba faktycznych porcji (#2540): poprawa albo usunięcie przy
+    // istniejącym wykonaniu, tylko kucharz (Policy `poprawPorcje`).
+    Route::get('/ugotowane/{cookedEvent}/porcje', [CookedEventController::class, 'edytujPorcje'])
+        ->name('cooked.porcje.edit');
+    Route::put('/ugotowane/{cookedEvent}/porcje', [CookedEventController::class, 'zapiszPorcje'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('cooked.porcje.update');
     Route::delete('/ugotowane/{cookedEvent}', [CookedEventController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('cooked.destroy');
@@ -1178,6 +1199,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::patch('/planer/{wpis}/zrobione', [PlanerController::class, 'markDone'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.done');
+    Route::patch('/planer/{wpis}/dopisek', [PlanerController::class, 'saveNote'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.note');
     Route::delete('/planer/{wpis}', [PlanerController::class, 'destroy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.destroy');
@@ -1263,6 +1287,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // „moje-wpisy” trafiłoby do wiązania zeszytu po UUID. Nazwa pod
     // `collections.*`, żeby pozycja „Moje” w nawigacji była bieżąca.
     Route::get('/zeszyt/moje-wpisy', MojeWpisyController::class)->name('collections.own-posts');
+    // „Usunięte przepisy” (#2620, D-333): własny, omyłkowo usunięty przepis
+    // wraca jako prywatny szkic do końca retencji. Też PRZED
+    // `/zeszyt/{collection}`. POST bierze UUID przepisu, ale to nie jest
+    // autoryzacja: `RecipePolicy::odzyskaj()`, a potem blokada w akcji.
+    Route::get('/zeszyt/usuniete-przepisy', [UsunietePrzepisyController::class, 'index'])
+        ->name('collections.deleted-recipes');
+    Route::post('/zeszyt/usuniete-przepisy/{usuniety}', [UsunietePrzepisyController::class, 'odzyskaj'])
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('collections.deleted-recipes.recover');
     // „Mój rok w kuchni” (#2353, D-333): prywatne podsumowanie roku, tylko
     // dla właściciela. Bez identyfikatora konta w adresie; rok to cztery cyfry
     // (dłuższa liczba nie mieści się w int), zakres sprawdza kontroler.
@@ -1288,6 +1321,16 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereIn('typ', ['przepis', 'wpis'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.note');
+    // Ręczna kolejność przepisów w własnym, prywatnym zeszycie (#2544): zwykłe
+    // POST-y z przycisków, Policy `reorder`. Odwracalne, nikogo nie powiadamia
+    // i nie rusza dat zapisów — budżet `zeszyt`, jak notatka.
+    Route::post('/zeszyt/{collection}/przepisy/{pozycja}/kolejnosc', [CollectionRecipeOrderController::class, 'przesun'])
+        ->whereUuid('pozycja')
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
+        ->name('collections.recipes.move');
+    Route::post('/zeszyt/{collection}/kolejnosc/zapis', [CollectionRecipeOrderController::class, 'przywroc'])
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
+        ->name('collections.recipes.order-reset');
     // Skrót do własnego zeszytu w „Moje” (#2542): odwracalne ustawienie konta,
     // własny budżet `zeszyt`. Policy `setShortcut` — tylko właściciel.
     Route::post('/zeszyt/{collection}/skrot', [CollectionController::class, 'setShortcut'])
@@ -1299,6 +1342,16 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/zeszyt/{collection}', [CollectionController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('collections.destroy');
+    // „Usunięte zeszyty” (#2567, D-333): własny, omyłkowo usunięty prywatny
+    // zeszyt wraca do końca retencji. Ścieżka ma stały człon, więc nie
+    // koliduje z `/zeszyt/{collection}` (wzorzec UUID). POST bierze dawny UUID
+    // zeszytu, ale to nie jest autoryzacja: `DeletedCollectionPolicy::odzyskaj()`,
+    // a potem blokada w akcji.
+    Route::get('/zeszyt/usuniete-zeszyty', [ZeszytyUsunieteController::class, 'index'])
+        ->name('collections.deleted');
+    Route::post('/zeszyt/usuniete-zeszyty/{zeszytUsuniety}', [ZeszytyUsunieteController::class, 'odzyskaj'])
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('collections.deleted.recover');
     // Wspólny zeszyt (#1743, D-302). Zaproszenie po nazwie powiadamia
     // drugiego człowieka, więc wszystkie zmiany idą pod własnym kluczem
     // `zaproszenia`, nie pod budżetem prywatnego zapisu `zeszyt`.

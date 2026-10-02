@@ -33,7 +33,7 @@
     przepis. Konto wymazane plakietki nie dostaje — znika razem z imieniem.
     Bez liczników i bez kolorów rywalizacji: to opis roli, nie odznaka.
 --}}
-@props(['comments', 'action', 'ile' => null, 'answers' => false, 'canComment' => auth()->user()?->isActive() ?? false, 'autorPrzepisu' => null])
+@props(['comments', 'action', 'ile' => null, 'answers' => false, 'canComment' => auth()->user()?->isActive() ?? false, 'autorPrzepisu' => null, 'tekstStartowy' => null])
 @php($wszystkich = $ile ?? $comments->count())
 {{-- „Dziękuję” (issue #2355): które komentarze na tej liście mają podziękowanie —
      JEDNO zapytanie dla całej listy, tylko dla zalogowanych, i tylko o wiersze
@@ -342,9 +342,16 @@
 
     @auth
         @if($canComment)
-        <form class="panel-formularza" method="POST" action="{{ $action }}" novalidate>
+        <form class="panel-formularza" id="nowy-komentarz" method="POST" action="{{ $action }}" novalidate>
             @csrf
             <input type="hidden" name="_wiersz" value="nowy-komentarz">
+            {{-- Pytanie o krok przepisu (#2556): pole dostało cytat z adresu
+                 „Zapytaj o ten krok”. Uwaga stoi tylko, gdy cytat naprawdę
+                 jest w polu (po błędzie walidacji wraca to, co człowiek
+                 wpisał, więc uwagi nie powtarzamy). Nic nie jest wysłane. --}}
+            @if($tekstStartowy !== null && old('body') === null)
+                <p class="notice" role="note">Wstawiliśmy do pola początek kroku, o który pytasz. Nic jeszcze nie zostało wysłane. Dopisz pytanie pod cytatem. Cytat możesz poprawić albo usunąć.</p>
+            @endif
             {{-- `bez-oznaczenia`: to jedyne pole w tym formularzu, więc dopisek
                  „(wymagane)" nie miałby czego odróżniać — pełne uzasadnienie
                  przy tym parametrze w `components/field.blade.php`.
@@ -361,7 +368,7 @@
                  mądrego do powiedzenia o daniu, a chciałby zapytać o zamiennik
                  mąki. Razem mówią „tyle wystarczy", a nie „pisz tak".
                  Uzasadnienie: `docs/brand/GLOS_MARKI.md` §5. --}}
-            <x-field name="body" :wiersz="old('_wiersz') !== null ? 'nowy-komentarz' : null" :label="$answers ? 'Napisz odpowiedź' : 'Napisz komentarz'" type="textarea" :rows="4"
+            <x-field name="body" :wiersz="old('_wiersz') !== null ? 'nowy-komentarz' : null" :label="$answers ? 'Napisz odpowiedź' : 'Napisz komentarz'" type="textarea" :rows="4" :value="$tekstStartowy"
                      :help="$answers ? 'Napisz, co sprawdziło się w Twojej kuchni.' : 'Choćby jedno zdanie. Pytanie do autora też jest w porządku.'"
                      :licznik-znakow="4000"
                      required bez-oznaczenia />

@@ -172,6 +172,16 @@
                  :min="\App\Domain\Recipes\Gotowanie\DzienGotowania::NAJWCZESNIEJSZY" :max="\App\Support\Czas::dzisiajData()"
                  help="Wypełnij, jeśli gotowanie było innego dnia niż dziś. Ten dzień zobaczysz tylko Ty — wykonanie zapiszemy z dzisiejszą datą dodania." />
 
+        {{-- PRYWATNA LICZBA FAKTYCZNIE UGOTOWANYCH PORCJI (#2540). Pole
+             drugorzędne, domyślnie PUSTE: nie wypełniamy go liczbą porcji
+             przepisu, wyborem z adresu ani Plannerem — żadne z nich nie jest
+             dowodem, ile ugotowano. Zwykłe pole tekstowe (przecinek dziesiętny
+             działa tak samo na każdej klawiaturze), bez JavaScriptu.
+             Widzi je tylko kucharz. --}}
+        <x-field name="faktyczne_porcje" label="Ile porcji wyszło (tylko dla Ciebie)" type="text"
+                 inputmode="decimal"
+                 help="Na przykład 8 albo 2,5. Wpisz, jeśli gotowano na inną liczbę porcji niż w przepisie. Tę liczbę zobaczysz tylko Ty — nie zmienia przepisu i nie trafia do powiadomienia dla autora przepisu." />
+
         {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
              wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
         <fieldset class="border-0 p-0 mt-6" id="f-would_make_again"
