@@ -1516,6 +1516,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('planer.done', $pozycjaPlanu), ['zrobione' => '1', 'stan' => ''], [$W, $O, $O, $O, $O]);
         $dodaj('planer.note', 'dopisek przy przepisie w planerze', 'patch',
             route('planer.note', $pozycjaPlanu), ['note' => 'Kolacja', 'stan' => ''], [$W, $O, $O, $O, $O]);
+        $dodaj('planer.servings', 'planowane porcje przy przepisie w planerze', 'patch',
+            route('planer.servings', $pozycjaPlanu), ['porcje' => '6', 'stan' => ''], [$W, $O, $O, $O, $O]);
         $dodaj('planer.destroy', 'pozycja planera tygodnia', 'delete',
             route('planer.destroy', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
 

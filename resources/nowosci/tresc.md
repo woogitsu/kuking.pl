@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Porcje przy pozycji dnia w Planerze
+
+Ten sam przepis na środę dla dwóch osób i na niedzielę dla sześciu? W Planerze przy przepisie jest nieobowiązkowy przycisk „Ustaw porcje”. Wpisujecie liczbę porcji dla danego dnia, a link z Planera otwiera przepis od razu przeliczony na tę liczbę. Pusta wartość usuwa wybór i wracają ilości autora. Widzicie to tylko Wy, a sam przepis autora się nie zmienia.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.

@@ -1202,6 +1202,10 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::patch('/planer/{wpis}/dopisek', [PlanerController::class, 'saveNote'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.note');
+    // Prywatna liczba planowanych porcji przy pozycji (#2509): ten sam budżet co dopisek.
+    Route::patch('/planer/{wpis}/porcje', [PlanerController::class, 'savePortions'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.servings');
     Route::delete('/planer/{wpis}', [PlanerController::class, 'destroy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.destroy');

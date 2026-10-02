@@ -17,6 +17,7 @@ zakupów tu nie ma i nie było w tej zmianie.
 | `label` | `varchar(120)` NULL | własny wpis, gdy pozycja nie jest przepisem |
 | `done_at` | `timestamptz(6)` NULL | prywatne „Zrobione” (#2593, migracja `2026_10_02_190000`); NULL = nieoznaczona, wartość = chwila oznaczenia i znacznik wersji stanu |
 | `note` | `varchar(80)` NULL | prywatny dopisek przy pozycji z przepisem (#2549, migracja `2026_10_03_130000`); NULL = brak |
+| `planned_servings` | `numeric(5,2)` NULL | prywatna, świadomie wybrana liczba porcji na ten dzień (#2509, migracja `2026_10_06_200100`); NULL = ilości autora. Nie migawka składników: otwarcie z planu przelicza AKTUALNĄ treść przepisu przez `WyborPorcji` |
 | `created_at` / `updated_at` | `timestamptz` | |
 
 **Plan jest prywatny.** Nie ma kolumny widoczności, bo nie ma czego pokazywać
@@ -40,6 +41,19 @@ Ograniczenia:
 - `meal_plan_entries_user_day_idx` (odczyt tygodnia) i
   `meal_plan_entries_recipe_idx` (klucz obcy — bez niego kasowanie przepisu
   robi pełny skan).
+
+- `meal_plan_entries_planned_servings_check` — `planned_servings IS NULL OR
+  (planned_servings >= 1 AND planned_servings <= 100)` (zakres `WyborPorcji`);
+- `meal_plan_entries_planned_servings_nie_przy_wlasnym_check` —
+  `planned_servings IS NULL OR label IS NULL` (nie przy własnym wpisie; celowo
+  bez wymogu `recipe_id`, bo `ON DELETE SET NULL` zostawia pozycję bez przepisu).
+
+**Rollback `planned_servings` (#2509, D-088).** Migracja
+`2026_10_06_200100_add_planned_servings_to_meal_plan_entries` ODMAWIA cofnięcia,
+gdy choć jedna pozycja ma zapisaną liczbę (komunikat podaje, jak zapisać mapę
+`SELECT id, planned_servings …` i wyzerować kolumnę); bez zapisanych liczb
+przechodzi. Kod sprzed migracji kolumny nie zna, więc awaryjny rollback
+wdrożenia nie wymaga cofania schematu. Test: `tests/Feature/PlanerPorcjeTest.php`.
 
 **Rollback.** `down()` ODMAWIA, gdy w tabeli są wiersze: kasowanie tabeli
 zabrałoby ludziom prywatne plany bez śladu. Komunikat mówi, co zrobić ręcznie
