@@ -2084,6 +2084,22 @@ jobs:
           php artisan migrate --force --no-interaction
           node scripts/referrer-sekret-browser.mjs
 
+      # #2466–#2468: odrębna baza w istniejącej usłudze PG18 i ta sama
+      # przeglądarka joba. Żadnego migrate:fresh na kuking_test ani produkcji.
+      - name: Potwierdzenia usuwania bez JavaScriptu (320 px i 200%)
+        env:
+          # Laravel w `testing` pomija sprawdzanie tokenu CSRF. Mierzymy
+          # prawdziwe żądanie HTTP i wymagamy odmowy 419 bez tokenu.
+          APP_ENV: local
+          DB_DATABASE: kuking_port_confirm_2466_68
+          CONFIRM_BROWSER_DB_PORT: ${{ job.services.postgres.ports[5432] }}
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$DB_PASSWORD"
+          createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -O "$DB_USERNAME" "$DB_DATABASE"
+          php artisan migrate --force --no-interaction
+          node scripts/potwierdzenia-usuwania-browser.mjs
+
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
       # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.

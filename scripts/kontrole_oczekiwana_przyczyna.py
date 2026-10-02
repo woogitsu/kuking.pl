@@ -35,6 +35,8 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    "Spiżarnia usuwa bez pytania (#2467)": r'SPIZARNIA_2467_USUNIECIE_WYMAGA_PYTANIA',
+    'Planer usuwa bez pytania (#2468)': r'PLANER_2468_PIERWSZY_KLIK_BEZ_DELETE',
     'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
     'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',
     "Koszt autora pozostaje bazowy po zmianie porcji (#2524)": r'KOSZT_AUTORA_2524_NIEPRZELICZONY',
@@ -306,6 +308,7 @@ OCZEKUJ = {
     'Lista zakupów bez ostrzeżenia przy ponownym dodaniu przepisu': r"-'http://localhost:8000/przepisy/[^']+/lista-zakupow' \+'http://localhost:8000/lista-zakupow'",
     'Lista zakupów bez limitu pozycji': r'Session is missing expected key \[errors\]\.',
     'Lista zakupów: usunięcie pozycji bez Policy': r'Expected response status code \[403\] but received 302\.',
+    'Lista zakupów: pojedyncze usunięcie bez pytania (#2466)': r'BRAK_POTWIERDZENIA_2466',
     'Wymazanie konta nie kasuje listy zakupów': r"-\s+0 => 'lista zostaje',\s+\+\s+0 => 'lista do skasowania',",
     'Rollback listy zakupów nie odmawia przy danych': r'Rollback skasował listy zakupów ludzi bez pytania\.',
     'Limit push nie liczy rezerwacji w transporcie': r'Drugi worker przekroczył limit 1\.',

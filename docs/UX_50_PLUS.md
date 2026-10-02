@@ -202,6 +202,16 @@ Użytkownik widzi:
 
 Usunięcie wymaga jasnego potwierdzenia. Preferować soft delete / możliwość odzyskania, jeśli pasuje do polityki.
 
+**Lista zakupów (#2466).** Przy pojedynczej pozycji pierwszy przycisk „Usuń”
+otwiera natywne `<details>` z pytaniem i nazwą pozycji; nie wysyła żądania.
+Otwarte podsumowanie pokazuje „Nie usuwaj” i zamyka pytanie bez zmiany listy.
+Dopiero osobny „Tak, usuń tę pozycję” wysyła istniejący formularz DELETE.
+Dotyczy to pozycji dopisanych ręcznie i skopiowanych z przepisu. `Odhacz`
+pozostaje odwracalną akcją obok; autoryzacja usunięcia się nie zmienia.
+Przy wycofaniu samego interfejsu przywraca się poprzedni widok i CSS; nie ma
+migracji ani zmiany zapisanych pozycji. Powrót do usuwania jednym kliknięciem
+przywróciłby jednak ryzyko przypadkowej utraty wpisu.
+
 ## Accessibility
 
 Cel WCAG 2.2 AA.

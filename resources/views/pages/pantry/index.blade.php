@@ -9,10 +9,9 @@
     (AGENTS.md §5). Bez skryptu podpowiedzi po prostu nie ma; przycisk
     „Dodaj” działa tak samo (D-053: żadnego martwego przycisku).
 
-    Usunięcie produktu nie ma potwierdzenia: to jedna linijka na własnej
-    liście, którą dopisuje się z powrotem jednym polem — nie treść, nie
-    dorobek i nic, co widzi ktoś inny. Przycisk ma pełny napis z nazwą
-    produktu, więc czytnik ekranu nie czyta dziesięć razy samego „Usuń”.
+    Usunięcie produktu wymaga pytania przy konkretnej pozycji (#2467).
+    Pierwszy dotyk je rozwija, a „Anuluj” zamyka bez żądania do serwera.
+    Dopiero osobny formularz wysyła DELETE; nazwa jest dostępna dla czytnika.
 --}}
 <x-layout title="Co mam w domu" :noindex="true">
     <h1>Co mam w domu</h1>
