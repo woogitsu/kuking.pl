@@ -164,6 +164,18 @@ nic nie znika. Przy takim wyniku zobaczycie datę ostatniego gotowania; widzicie
 ją tylko Wy, a wykonania innych osób się nie liczą. Można to łączyć z szukaniem
 po tytule albo składniku, a „Wyczyść wyszukiwanie” wraca do zwykłego widoku.
 
+### Przenoszenie zapisu do innego zeszytu
+
+Odkładaliście przepisy do „Zapisanych”, a teraz zakładacie zeszyty tematyczne?
+Przy każdym przepisie i wpisie w Waszym prywatnym zeszycie jest przycisk
+„Przenieś do innego zeszytu”. Wybieracie drugi własny, prywatny zeszyt i
+klikacie „Przenieś” — zapis idzie z całą notatką i datą zapisu, więc nic nie
+trzeba przepisywać. Autor przepisu nie dostaje żadnego powiadomienia. Jeśli
+w docelowym zeszycie ta pozycja już jest, nic się nie przenosi i nic nie
+nadpisujemy — zobaczycie obie notatki. Pomyłkę cofacie tym samym przyciskiem,
+wskazując zeszyt, z którego zapis wyszedł. Zeszyty publiczne i wspólne na razie
+w to nie wchodzą.
+
 ### Dzień gotowania przy „Ugotowałem”
 
 Gotowaliście w niedzielę, a zdjęcie i kilka słów dodajecie dopiero we wtorek?

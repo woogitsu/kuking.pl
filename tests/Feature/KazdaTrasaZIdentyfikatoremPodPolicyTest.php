@@ -1456,6 +1456,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('collections.recipes.move', 'przesunięcie przepisu w zeszycie', 'post',
             route('collections.recipes.move', ['collection' => $zeszyt, 'pozycja' => $przepis->getKey()]),
             ['kierunek' => 'wyzej'], [$W, $O, $O, $O, $O]);
+        // Przeniesienie pozycji między własnymi zeszytami prywatnymi (#2430) —
+        // wyłącznie właściciel (`CollectionPolicy::przenies`). Brak celu =
+        // błąd walidacji, więc nic nie jest przenoszone przy pomiarze.
+        $dodaj('collections.move.form', 'wybór zeszytu docelowego przy przenoszeniu', 'get',
+            route('collections.move.form', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
+            [], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.move.store', 'zapis przeniesienia pozycji', 'post',
+            route('collections.move.store', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
+            [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.recipes.order-reset', 'powrót do kolejności zapisu', 'post',
             route('collections.recipes.order-reset', $zeszyt), [], [$W, $O, $O, $O, $O]);
         // Skrót do własnego zeszytu w „Moje” (#2542) — wyłącznie właściciel.

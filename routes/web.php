@@ -35,6 +35,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\RegistrationInviteController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
+use App\Http\Controllers\CollectionItemMoveController;
 use App\Http\Controllers\CollectionItemNoteController;
 use App\Http\Controllers\CollectionPrintController;
 use App\Http\Controllers\CollectionRecipeOrderController;
@@ -1380,6 +1381,18 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/zeszyt/{collection}/kolejnosc/zapis', [CollectionRecipeOrderController::class, 'przywroc'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.recipes.order-reset');
+    // Przeniesienie pozycji do innego własnego, prywatnego zeszytu (#2430):
+    // dwa zwykłe ekrany (wybór celu i zapis), Policy `przenies`. Odwracalne,
+    // nikogo nie powiadamia — budżet `zeszyt`, jak notatka.
+    Route::get('/zeszyt/{collection}/przenies/{typ}/{pozycja}', [CollectionItemMoveController::class, 'form'])
+        ->whereIn('typ', ['przepis', 'wpis'])
+        ->whereUuid('pozycja')
+        ->name('collections.move.form');
+    Route::post('/zeszyt/{collection}/przenies/{typ}/{pozycja}', [CollectionItemMoveController::class, 'store'])
+        ->whereIn('typ', ['przepis', 'wpis'])
+        ->whereUuid('pozycja')
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
+        ->name('collections.move.store');
     // Skrót do własnego zeszytu w „Moje” (#2542): odwracalne ustawienie konta,
     // własny budżet `zeszyt`. Policy `setShortcut` — tylko właściciel.
     Route::post('/zeszyt/{collection}/skrot', [CollectionController::class, 'setShortcut'])

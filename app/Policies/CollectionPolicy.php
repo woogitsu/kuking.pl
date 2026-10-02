@@ -107,6 +107,20 @@ class CollectionPolicy
     }
 
     /**
+     * Przeniesienie pozycji między dwoma zeszytami (#2430, V2).
+     *
+     * Pytana o KAŻDY z dwóch zeszytów (źródło i cel). Zakres pierwszego etapu
+     * jest taki jak przy układaniu kolejności: tylko właściciel, tylko zeszyt
+     * PRYWATNY i tylko bez zaproszonych osób — publiczne i wspólne zeszyty są
+     * poza zakresem (D-302). Przeniesienie z albo do zeszytu współdzielonego
+     * zmieniałoby widok innych osób, a nowych uprawnień nie nadajemy.
+     */
+    public function przenies(User $user, Collection $collection): bool
+    {
+        return $this->reorder($user, $collection);
+    }
+
+    /**
      * Dopisanie pozycji do zeszytu („Zapisuję", notatka przy pozycji).
      *
      * Właściciel — dokładnie jak `update()` (zawieszony tylko do prywatnego,
