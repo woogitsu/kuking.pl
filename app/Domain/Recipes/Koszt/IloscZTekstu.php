@@ -64,8 +64,12 @@ final class IloscZTekstu
     {
         $t = self::normalizuj($tekst);
 
-        // Liczba (także „1,5", „1/2", „1 1/2", „2-3"), po niej opcjonalnie słowo.
-        $wzor = '/(?<![a-z0-9.,\/])(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?)(?:\s*-\s*(\d+(?:[.,]\d+)?))?\s*(%|[a-z]+\.?)?/';
+        // Dwie poprawne liczby po „-”, „do”, „lub” albo „albo” tworzą zakres.
+        // Jedno słowo „do” po ilości nie jest jednostką ani górną granicą.
+        $liczba = '(?:\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?)';
+        $wzor = '/(?<![a-z0-9.,\/])('.$liczba.')'
+            .'(?:(?:\s*-\s*|\s+(?:do|lub|albo)\s+)('.$liczba.'))?'
+            .'\s*(%|[a-z]+\.?)?/';
 
         if (preg_match_all($wzor, $t, $trafienia, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) > 0) {
             foreach ($trafienia as $trafienie) {
@@ -75,6 +79,22 @@ final class IloscZTekstu
                 // „śmietana 18%", „mąka typ 650" — to nie są ilości.
                 if ($slowo === '%' || str_ends_with($przed, 'typ ')) {
                     continue;
+                }
+
+                if (in_array($slowo, ['do', 'lub', 'albo'], true)) {
+                    return null;
+                }
+
+                $poDopasowaniu = substr($t, $trafienie[0][1] + strlen($trafienie[0][0]));
+
+                // Nie bierzemy poprawnego początku uszkodzonego zapisu,
+                // także gdy parser znalazł tylko pierwszą liczbę:
+                // „300- g”, „300.5.5” ani „300 g do 400 g”.
+                // Spójnik musi przylegać do ilości. W „300 g mąki do 2 porcji”
+                // późniejsze „do” opisuje przeznaczenie, nie następną granicę.
+                if (preg_match('/^[.,\/]\d|^\s*(?:do|lub|albo)\s+\d/', $poDopasowaniu) === 1
+                    || ($slowo === '' && preg_match('/^\s*-\s*\S/', $poDopasowaniu) === 1)) {
+                    return null;
                 }
 
                 $ilosc = self::liczba($trafienie[1][0]);
