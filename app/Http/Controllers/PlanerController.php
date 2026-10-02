@@ -19,6 +19,7 @@ use App\Support\Odmiana;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -91,6 +92,9 @@ class PlanerController extends Controller
             'wyniki' => $wyniki,
             'poniedzialek' => $poniedzialek,
             'dni' => $dni,
+            // Przepisy z opisanymi krokami: tylko takie da się dodać do kolejki
+            // gotowania (#2450). Jedno zapytanie na cały tydzień.
+            'zKrokami' => $this->przepisyZKrokami($dni),
             'dzis' => Czas::dzisiajData(),
             'tenTydzien' => PlanerTygodnia::poniedzialek(null)->equalTo($poniedzialek),
             'poprzedniMaPozycje' => $user->mealPlanEntries()
@@ -98,6 +102,31 @@ class PlanerController extends Controller
                 ->exists(),
             'wpisowNaDzien' => PlanerTygodnia::wpisowNaDzien(),
         ]);
+    }
+
+    /**
+     * @param  array<string, array{dzien: CarbonImmutable, pozycje: list<array<string, mixed>>}>  $dni
+     * @return array<string, bool> identyfikatory przepisów (z dnia) mających co najmniej jeden krok
+     */
+    private function przepisyZKrokami(array $dni): array
+    {
+        $idPrzepisow = [];
+
+        foreach ($dni as $dzien) {
+            foreach ($dzien['pozycje'] as $pozycja) {
+                if ($pozycja['stan'] === PlanerTygodnia::STAN_PRZEPIS && $pozycja['przepis'] instanceof Recipe) {
+                    $idPrzepisow[] = (string) $pozycja['przepis']->getKey();
+                }
+            }
+        }
+
+        if ($idPrzepisow === []) {
+            return [];
+        }
+
+        return DB::table('recipe_steps')->whereIn('recipe_id', array_unique($idPrzepisow))
+            ->distinct()->pluck('recipe_id')
+            ->mapWithKeys(fn ($id): array => [(string) $id => true])->all();
     }
 
     public function store(Request $request, DodajDoPlanu $dodaj): RedirectResponse
