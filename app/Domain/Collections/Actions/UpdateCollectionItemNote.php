@@ -116,8 +116,17 @@ final class UpdateCollectionItemNote
             // Porównanie POD zamkiem: między odczytem a zapisem nikt nie zdąży
             // zmienić notatki. Ta sama reguła dla właściciela i współtwórcy.
             $aktualna = $pozycja->note === null ? null : trim((string) $pozycja->note);
+            $aktualna = $aktualna === '' ? null : $aktualna;
             if ($odciskPrzed === null || ! hash_equals(self::odcisk($aktualna), $odciskPrzed)) {
-                throw new KonfliktNotatki($aktualna === '' ? null : $aktualna);
+                // Podwójne kliknięcie albo ponowne wysłanie tego samego tekstu
+                // niesie stary odcisk, ale w bazie jest już dokładnie to, co
+                // człowiek wpisał — to nie konflikt. Zwracamy sukces bez
+                // zapisu (akcja nie pisze audytu ani nie rusza dat).
+                if ($aktualna === $note) {
+                    return 1;
+                }
+
+                throw new KonfliktNotatki($aktualna);
             }
 
             return DB::table('collection_items')

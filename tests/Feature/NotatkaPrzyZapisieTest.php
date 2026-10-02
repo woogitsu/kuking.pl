@@ -231,6 +231,49 @@ final class NotatkaPrzyZapisieTest extends TestCase
         $this->assertSame('C', $this->notatka($zeszyt));
     }
 
+    public function test_podwojny_zapis_tego_samego_tekstu_nie_jest_konfliktem(): void
+    {
+        [$wlasciciel, $autor] = [$this->user('wlasciciel'), $this->user('autor')];
+        $zeszyt = $this->zeszyt($wlasciciel, 'Obiady');
+        $przepis = Recipe::factory()->create(['author_id' => $autor->getKey(), 'visibility' => 'public']);
+        $zeszyt->recipes()->attach($przepis->id, ['note' => 'A']);
+
+        // Ta sama karta wysłana dwa razy: oba żądania niosą odcisk notatki „A".
+        $karta = $this->pola($zeszyt, 'przepis', $przepis->id, 'Mniej soli');
+        $adres = $this->adres($zeszyt, 'przepis', $przepis->id);
+
+        $this->actingAs($wlasciciel)->patch($adres, $karta)->assertSessionHas('status');
+        $this->actingAs($wlasciciel)->patch($adres, $karta)
+            ->assertSessionHas('status')
+            ->assertSessionHasNoErrors();
+        $this->assertSame('Mniej soli', $this->notatka($zeszyt));
+
+        // Ten sam tekst różniący się tylko białymi znakami na końcu — też bez konfliktu.
+        $stara = $this->pola($zeszyt, 'przepis', $przepis->id, 'x');
+        DB::table('collection_items')->where('collection_id', $zeszyt->id)->update(['note' => 'Nowa']);
+        $this->actingAs($wlasciciel)->patch($adres, ['note' => "Nowa  \n"] + $stara)
+            ->assertSessionHas('status')
+            ->assertSessionHasNoErrors();
+        $this->assertSame('Nowa', $this->notatka($zeszyt));
+    }
+
+    public function test_komunikat_konfliktu_escapuje_cudza_notatke(): void
+    {
+        [$wlasciciel, $autor] = [$this->user('wlasciciel'), $this->user('autor')];
+        $zeszyt = $this->zeszyt($wlasciciel, 'Obiady');
+        $przepis = Recipe::factory()->create(['author_id' => $autor->getKey(), 'visibility' => 'public']);
+        $zeszyt->recipes()->attach($przepis->id, ['note' => 'A']);
+        $stara = $this->pola($zeszyt, 'przepis', $przepis->id, 'C');
+        DB::table('collection_items')->where('collection_id', $zeszyt->id)->update(['note' => '<b>x</b>']);
+
+        $html = (string) $this->actingAs($wlasciciel)->from(route('collections.show', $zeszyt))->followingRedirects()
+            ->patch($this->adres($zeszyt, 'przepis', $przepis->id), $stara + ['_wiersz' => 'notatka-przepis-'.$przepis->id])
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('&lt;b&gt;x&lt;/b&gt;', $html);
+        $this->assertStringNotContainsString('<b>x</b>', $html);
+    }
+
     public function test_zapis_z_aktualnym_odciskiem_przechodzi_takze_dla_pustej_notatki(): void
     {
         [$wlasciciel, $autor] = [$this->user('wlasciciel'), $this->user('autor')];
