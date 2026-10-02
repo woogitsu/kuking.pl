@@ -1084,6 +1084,18 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('recipes.fork', $przepis), [], [$O, $W, $O, $W, $O]);
         $dodaj('recipes.fork', 'moja wersja prywatnego przepisu', 'post',
             route('recipes.fork', $przepisPrywatny), [], [$O, $O, $O, $O, $O]);
+        // Zapamiętana liczba porcji (#2602): jawny zapis przy przepisie, który
+        // osoba widzi (`RecipePolicy::view`); właściciel wiersza to zawsze
+        // zalogowana osoba, więc cudzego wyboru nie da się ruszyć. Prywatny
+        // przepis otwiera się tylko autorowi.
+        $dodaj('recipes.porcje.store', 'zapamiętanie porcji przy publicznym przepisie', 'post',
+            route('recipes.porcje.store', $przepis), ['porcje' => '2'], [$W, $W, $O, $W, $O]);
+        $dodaj('recipes.porcje.store', 'zapamiętanie porcji przy prywatnym przepisie', 'post',
+            route('recipes.porcje.store', $przepisPrywatny), ['porcje' => '2'], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.porcje.destroy', 'zapomnienie porcji przy publicznym przepisie', 'delete',
+            route('recipes.porcje.destroy', $przepis), [], [$W, $W, $O, $W, $O]);
+        $dodaj('recipes.porcje.destroy', 'zapomnienie porcji przy prywatnym przepisie', 'delete',
+            route('recipes.porcje.destroy', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.show', 'tryb gotowania z prywatnego przepisu', 'get',
             route('cooking.show', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.zaznacz', 'odhaczenie kroku w prywatnym przepisie', 'post',
@@ -1103,6 +1115,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooking.sync.skladniki', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.sync.porcje', 'zapis liczby porcji prywatnego przepisu', 'post',
             route('cooking.sync.porcje', $przepisPrywatny), ['wybor' => '6'], [$W, $O, $O, $O, $O]);
+        // Prywatny roboczy dopisek (#2587): wiersz wybiera para „ta osoba + przepis”,
+        // więc przepis prywatny zamyka oba zapisy.
+        $dodaj('cooking.dopisek.zapisz', 'zapis roboczego dopisku do prywatnego przepisu', 'post',
+            route('cooking.dopisek.zapisz', $przepisPrywatny), ['dopisek' => 'mniej soli'], [$W, $O, $O, $O, $O]);
+        $dodaj('cooking.dopisek.usun', 'usunięcie roboczego dopisku z prywatnego przepisu', 'post',
+            route('cooking.dopisek.usun', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         // „Jak wyszło?” (F1, D-333): oba przyciski ze Startu — ta sama granica co przepis.
         $dodaj('jak_wyszlo.pokaz', '„Pokaż zdjęcie” pod „Jak wyszło?” przy prywatnym przepisie', 'post',
             route('jak_wyszlo.pokaz', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);

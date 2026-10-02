@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * "Ugotowałem" — realne wykonanie czyjegoś przepisu.
@@ -33,6 +34,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * `RecordCookedEvent`.
  *
  * @property string|null $recipe_version_id
+ * @property Carbon|null $dzien_gotowania
  */
 class CookedEvent extends Model
 {
@@ -60,6 +62,10 @@ class CookedEvent extends Model
     {
         return [
             'cooked_at' => 'datetime',
+            // Prywatny dzień gotowania (#2583): sam dzień kalendarzowy, bez
+            // godziny i strefy. Poza `$fillable`; zapisuje go wyłącznie
+            // `RecordCookedEvent`. Widzi go tylko kucharz.
+            'dzien_gotowania' => 'date:Y-m-d',
             'would_make_again' => 'boolean',
             'actual_minutes' => 'integer',
             // Wspomnienia z własnych wykonań (F6). Poza `$fillable`: zapisuje

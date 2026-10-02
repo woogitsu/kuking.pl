@@ -304,6 +304,17 @@ final class EraseAccountData
             $fresh->shoppingListUndo()->delete();
 
             /*
+             * PRYWATNY DZIEŃ GOTOWANIA ZNIKA RAZEM Z KONTEM (#2583).
+             *
+             * Wykonanie przy zakresie `minimum` zostaje (D-022), ale dzień,
+             * który kucharz podał tylko dla siebie, nigdy nie był pokazany
+             * nikomu innemu — więc nie ma po co go zostawiać przy zanonimizowanym
+             * koncie. Przy `everything` wykonania poszły już wyżej. Wiersze
+             * kluczem `user_id`, bez wspólnych wierszy między egzekucjami.
+             */
+            $fresh->cookedEvents()->whereNotNull('dzien_gotowania')->update(['dzien_gotowania' => null]);
+
+            /*
              * „CO MAM W DOMU” ZNIKA RAZEM Z KONTEM (D-285).
              *
              * Lista produktów z kuchni to dana prywatna, której nikt poza
@@ -325,6 +336,17 @@ final class EraseAccountData
              * zadziała. Klucz to `user_id` tego jednego konta.
              */
             $fresh->cookingProgress()->delete();
+
+            // Prywatne dopiski z gotowania (#2587) — jak postęp wyżej: jawnie,
+            // bo konto się anonimizuje, a kaskada by nie zadziałała.
+            $fresh->cookingNotes()->delete();
+
+            /*
+             * ZAPAMIĘTANE LICZBY PORCJI PRZY PRZEPISACH ZNIKAJĄ RAZEM Z KONTEM
+             * (#2602). Prywatna preferencja osoby; jawnie, a nie kaskadą, bo
+             * konta anonimizujemy (D-022), nie kasujemy.
+             */
+            $fresh->servingPreferences()->delete();
 
             /*
              * PRYWATNE UKRYCIA (`hides`, #1810) ZNIKAJĄ RAZEM Z KONTEM

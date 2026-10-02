@@ -47,6 +47,17 @@ Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrac
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Dzień gotowania przy „Ugotowałem”
+
+Gotowaliście w niedzielę, a zdjęcie i kilka słów dodajecie dopiero we wtorek?
+W formularzu „Ugotowałem” jest teraz nieobowiązkowe pole „Dzień gotowania
+(tylko dla Ciebie)”. Zostawcie je puste, jeśli gotowanie było dziś — nic więcej
+nie trzeba robić. Gdy wybierzecie wcześniejszy dzień, zobaczycie go przy
+własnym wykonaniu jako „Gotowane”, obok daty dodania. Widzicie go tylko Wy:
+inni, także autor przepisu, dalej widzą dzień, w którym wykonanie dodano,
+a kolejność wpisów i powiadomienie dla autora przepisu zostają takie jak
+dotąd. Nie można wybrać dnia z przyszłości.
+
 ### Szukaj w moich planach
 
 W Planerze jest teraz pole „Szukaj w moich planach”. Pamiętacie, że w planie
@@ -93,6 +104,43 @@ skąd pochodziły i z odhaczeniem, które miały — odhaczone wracają odhaczon
 a to, co dopisaliście w międzyczasie, zostaje. Pamiętamy tylko ostatnie
 usunięcie, a po 15 minutach kopia znika. Pytanie przed usunięciem zostaje
 jak było.
+
+### Prywatny dopisek podczas gotowania
+
+W trybie gotowania jest teraz zwijany obszar „Prywatny dopisek z gotowania
+(roboczy)”. Gdy w drugim kroku dolejecie 50 ml płynu albo zmienicie czas,
+wpiszecie to jednym zdaniem i gotujecie dalej — bez wychodzenia do formularza
+„Ugotowałem”. Dopisek widzicie tylko Wy, niczego nie publikuje i nikogo nie
+powiadamia. Trzymamy go 24 godziny od ostatniej zmiany albo do zapisania
+wykonania; można go też usunąć przyciskiem. Gdy później zapiszecie „Ugotowałem”,
+formularz tylko zaproponuje wstawienie dopisku do pola „Coś po swojemu?” —
+nic nie wchodzi tam samo, a to, co już wpisaliście, zostaje nietknięte.
+
+### Własna liczba porcji przy przepisie
+
+Gotujecie zwykle ten sam rodzinny obiad dla dwojga, choć autor napisał go na
+sześć porcji? Wybierzcie „Na ile porcji?” jak dotąd, a potem naciśnijcie
+„Zapamiętaj dla mnie”. Następnym razem ten przepis otworzy się od razu na
+Waszą liczbę, a ekran powie, że to Wasze ustawienie. Zapomnicie je jednym
+przyciskiem, a „Pokaż ilości z przepisu” pokaże ilości autora bez kasowania
+ustawienia. Zapisujemy tylko jedną liczbę przy jednym przepisie, tylko wtedy,
+gdy sami o to poprosicie, i widzicie ją tylko Wy. Liczba z adresu strony
+zawsze wygrywa z zapamiętaną.
+
+### Ile sztuk wychodzi z przepisu
+
+Przy pierogach, bułkach czy ciasteczkach liczy się nie liczba porcji, tylko
+liczba sztuk. Autor może teraz dopisać do przepisu, ile gotowych sztuk
+wychodzi z podanych ilości, na przykład „24 pierogi”. To osobna informacja:
+liczba pierogów nie mówi, ile osób nakarmi przepis, więc porcje zostają
+tak, jak były.
+
+Na stronie przepisu, nad składnikami, wpisujecie, ile sztuk chcecie zrobić,
+na przykład 36, i naciskacie „Przelicz składniki”. Ilości przeliczają się
+jak przy porcjach: 24 na 36 to półtora raza więcej. Działa bez
+JavaScriptu, a link z wybraną liczbą możecie wysłać rodzinie. Wybieracie
+albo porcje, albo sztuki — nigdy oba naraz. Przepisy, w których autor
+nie podał sztuk, wyglądają tak jak dotąd.
 
 ## Alfa 0.78
 

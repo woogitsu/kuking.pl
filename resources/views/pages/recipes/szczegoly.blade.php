@@ -241,6 +241,16 @@
                          :value="$isEdit ? $recipe->cook_minutes : null" :min="0" :max="10080" />
             </div>
 
+            {{-- Gotowe sztuki (#2645) — opcjonalnie, osobno od porcji. --}}
+            <div class="siatka-pol">
+                <x-field name="yield_count" label="Ile gotowych sztuk wychodzi z tej ilości" type="number" inputmode="numeric"
+                         :value="$isEdit ? \App\Domain\Recipes\Porcje\GotoweSztuki::doPola($recipe->yield_count) : null" :min="1" :max="9999" :step="1"
+                         help="Na przykład 24. Pomaga przeliczyć przepis na inną liczbę sztuk. Zostaw puste, jeśli nie dotyczy." />
+                <x-field name="yield_unit" label="Czego to sztuki"
+                         :value="$isEdit ? $recipe->yield_unit : null"
+                         help="Na przykład pierogi albo bułki. Pole nieobowiązkowe." />
+            </div>
+
             {{-- Koszt wg autora (D-286). `type="text"` z `inputmode="decimal"`,
                  a nie `type="number"`: po polsku pisze się „24,50", a pole
                  liczbowe w części przeglądarek odrzuca przecinek po cichu —

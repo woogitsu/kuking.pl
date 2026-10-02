@@ -40,6 +40,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
 use App\Http\Controllers\CookingModeController;
 use App\Http\Controllers\CspReportController;
+use App\Http\Controllers\DopisekGotowaniaController;
 use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
@@ -60,6 +61,7 @@ use App\Http\Controllers\PantryController;
 use App\Http\Controllers\PlanerController;
 use App\Http\Controllers\PodsumowanieTygodniaController;
 use App\Http\Controllers\PodziekowanieZaKomentarzController;
+use App\Http\Controllers\PorcjeZapamietaneController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
@@ -397,6 +399,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/przepisy/{recipe}/gotuj/postep', [CookingModeController::class, 'postepZapamietany'])
         ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
         ->name('cooking.sync.postep');
+    // Prywatny roboczy dopisek podczas gotowania (#2587): zwykłe POST-y,
+    // nic się nie publikuje, każde wejście przechodzi przez Policy.
+    Route::post('/przepisy/{recipe}/gotuj/dopisek', [DopisekGotowaniaController::class, 'zapisz'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.dopisek.zapisz');
+    Route::post('/przepisy/{recipe}/gotuj/dopisek/usun', [DopisekGotowaniaController::class, 'usun'])
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('cooking.dopisek.usun');
 });
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
@@ -1006,6 +1016,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/przepisy/{recipe}/moja-wersja', [RecipeController::class, 'fork'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('recipes.fork');
+    // „Zapamiętaj dla mnie N porcji" (#2602): jawny, prywatny zapis jednej
+    // liczby przy jednym przepisie. POST i DELETE bez JavaScriptu; Policy
+    // `view`, właściciel zawsze z sesji.
+    Route::post('/przepisy/{recipe}/moje-porcje', [PorcjeZapamietaneController::class, 'zapisz'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('recipes.porcje.store');
+    Route::delete('/przepisy/{recipe}/moje-porcje', [PorcjeZapamietaneController::class, 'zapomnij'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('recipes.porcje.destroy');
     Route::delete('/przepisy/{recipe}', [RecipeController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('recipes.destroy');

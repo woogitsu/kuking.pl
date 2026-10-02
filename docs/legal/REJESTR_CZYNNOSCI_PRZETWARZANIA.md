@@ -817,6 +817,23 @@ trafi tam pierwszy rekord.
 - **Eksport:** `udostepnione_przepisy` (`udostepniam`, `udostepnione_mi` — tytuł
   i autor, bez treści cudzego przepisu).
 
+### 3.29 Zapamiętana liczba porcji przy przepisie (V2, issue #2602)
+
+- **Cel:** wygoda osoby, która zwykle robi dany przepis na inną liczbę porcji
+  niż autor.
+- **Dane:** identyfikator konta i przepisu, jedna liczba porcji (1-100), daty
+  zapisu i zmiany (`recipe_serving_preferences`). Tylko po świadomym przycisku
+  „Zapamiętaj dla mnie”, osobno dla każdego przepisu; bez zapisu automatycznego,
+  bez backfillu, bez wniosków o składzie rodziny. Gość nie zapisuje niczego.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO - funkcja włączana na własne życzenie,
+  jak „Co mam w domu” i postęp gotowania; opis w polityce §2.
+- **Odbiorcy:** Railway. Widzi wyłącznie właściciel; liczba nie wpływa na feed,
+  rankingi ani powiadomienia.
+- **Termin usunięcia:** do przycisku „Zapomnij moje ustawienie” albo do
+  wymazania konta (`EraseAccountData`). Limit 500 przepisów na osobę.
+- **Eksport:** `zapamietane_porcje` (przepis i adres tylko gdy przepis jest dziś
+  widoczny dla osoby, liczba, daty).
+
 ### 3.28 Sieć, CDN i ochrona przed atakami (Cloudflare jako pośrednik, #2282)
 
 - **Cel:** dostarczenie serwisu: zakończenie połączenia HTTPS, podawanie
@@ -836,6 +853,27 @@ trafi tam pierwszy rekord.
 - **Termin usunięcia:** po stronie Cloudflare — **DO UZUPEŁNIENIA PRZEZ
   WŁAŚCICIELA** z DPA i ustawień konta (dzienniki żądań). W repozytorium nie
   ma żadnego pobierania dzienników Cloudflare do serwisu.
+
+### 3.29 Prywatny roboczy dopisek z gotowania (V2, issue #2587)
+
+- **Cel:** zanotowanie przy garnku zmiany w przepisie i świadome użycie jej
+  później w formularzu „Ugotowałem”.
+- **Dane:** identyfikator konta i przepisu, krótki tekst wpisany przez osobę
+  (do 500 znaków), numer rewizji, daty ostatniej zmiany i wygaśnięcia
+  (`cooking_notes`). Tylko dla zalogowanych; goście tej funkcji nie mają.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — funkcja, z której osoba świadomie
+  korzysta, tak jak z planu na tydzień. Weryfikacja przez prawnika zostaje w #8.
+- **Odbiorcy:** Railway. Dane widzi wyłącznie właściciel
+  (`CookingNotePolicy`); nic nie jest wysyłane do podmiotów trzecich, nie
+  trafia do adresu, cache, telemetrii ani do autora przepisu. Do pola „Coś po
+  swojemu?” (widocznego przy wykonaniu) przechodzi tylko na prośbę osoby.
+- **Termin usunięcia:** 24 godziny od ostatniej zmiany
+  (`kuking.cooking_note.retention_hours`; wygasły wiersz jest ignorowany przy
+  odczycie, a `kuking:sprzataj-postep-gotowania` kasuje go co noc o 03:00),
+  zapisanie wykonania tego przepisu, przycisk „Usuń dopisek” albo wymazanie
+  konta (`EraseAccountData`).
+- **Eksport:** `dopiski_z_gotowania` (tytuł przepisu tylko gdy przepis jest
+  dziś widoczny dla osoby, treść dopisku, daty).
 
 ---
 
