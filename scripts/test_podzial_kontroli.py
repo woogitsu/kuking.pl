@@ -5,6 +5,7 @@ części, a lokalny przebieg (bez części) ma obejmować wszystkie. Gubiący al
 dubluący wpisy podział dawałby zielone CI z mniejszym pokryciem.
 """
 
+import json
 import os
 import re
 import sys
@@ -40,7 +41,17 @@ def wpisy_checks():
 
 
 def numery_czesci_z_ci():
-    return sorted(int(n) for n in re.findall(r"^ +kontrole_czesc: (\d+)$", WORKFLOW.read_text(), re.M))
+    # Od 2.10.2026 (D-333) `include` macierzy `test` to wyrażenie: lista części
+    # kontroli na pełnym przebiegu, pusta na drafcie. Czytamy listę z gałęzi
+    # `pelny == 'true'` — dokładnie tę, która rusza na pełnym przebiegu.
+    m = re.search(
+        r"^        include: \$\{\{ fromJSON\(needs\.zakres\.outputs\.pelny == 'true' && '(\[[^']*\])' \|\| '\[\]'\) \}\}$",
+        WORKFLOW.read_text(),
+        re.M,
+    )
+    if m is None:
+        raise AssertionError("ci.yml: brak `include` z częściami kontroli w oczekiwanym kształcie (pelny == 'true').")
+    return sorted(int(w["kontrole_czesc"]) for w in json.loads(m.group(1)) if w.get("czesc") == "kontrole")
 
 
 class PodzialKontroliTest(unittest.TestCase):

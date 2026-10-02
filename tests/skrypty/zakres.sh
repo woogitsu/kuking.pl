@@ -2,19 +2,21 @@
 # =============================================================================
 #  Kuking.pl — test jednostkowy bramki `zakres` (scripts/ci/zakres.sh, #611)
 # =============================================================================
-#  Bramka to skrypt, który z listy zmienionych plików wylicza sześć wyjść
-#  joba `zakres`: kod, widok, dokumenty, obraz, obciazenie, wyscigi. Ten test
+#  Bramka to skrypt, który z listy zmienionych plików wylicza siedem wyjść
+#  joba `zakres`: kod, widok, dokumenty, obraz, obciazenie, wyscigi i (od
+#  2.10.2026) pelny — `false` tylko na draft PR-ze. Ten test
 #  puszcza PRAWDZIWY skrypt (tryb testowy ZAKRES_LISTA_PLIK — lista z pliku
 #  zamiast z polecenia diff) na tabeli przypadków i porównuje wszystkie
-#  sześć wyjść naraz.
+#  siedem wyjść naraz.
 #
 #  Cztery części:
-#   1. TABELA: zdarzenie + lista plików -> oczekiwane sześć wyjść;
+#   1. TABELA: zdarzenie (z opcjonalnym `@draft`/`@nie-draft`) + lista plików
+#      -> oczekiwane siedem wyjść;
 #   2. ŚCIEŻKI BEZ LISTY Z PLIKU: brak bazy i nieosiągalna baza dają pełny
 #      zestaw (baza = HEAD, czyli pusty diff -> same `false`, sprawdza
 #      `tests/Feature/BramkaZakresuSkryptTest.php`);
 #   3. DUŻY DIFF: lista 450 kB nie gubi trafienia przez SIGPIPE;
-#   4. KONTROLA UJEMNA NA KAŻDYM Z SZEŚCIU WYJŚĆ: kopia skryptu z jednym
+#   4. KONTROLA UJEMNA NA KAŻDYM Z SIEDMIU WYJŚĆ: kopia skryptu z jednym
 #      zepsutym wyjściem MUSI obleć tabelę. Mutacja, która nie trafiła albo
 #      nie zmieniła pliku, kończy test błędem (PULAPKI_TESTOW §5) — no-op nie
 #      udaje kontroli. Kontrola dodatnia: tabela przechodzi na skrypcie
@@ -34,19 +36,27 @@ SKRYPT="scripts/ci/zakres.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-KLUCZE="kod widok dokumenty obraz obciazenie wyscigi"
+KLUCZE="kod widok dokumenty obraz obciazenie wyscigi pelny"
 
 # wyjscia SKRYPT ZDARZENIE PLIK... -> "kod=t widok=f ..." (pierwsza litera wartości)
+# ZDARZENIE może mieć przyrostek `@draft` (DRAFT=true) albo `@nie-draft`
+# (DRAFT=false); bez przyrostka zmiennej DRAFT w środowisku NIE MA.
 wyjscia() {
-    local skrypt="$1" zdarzenie="$2" lista="${TMP}/lista" wyjscie="${TMP}/wyjscie" k v wynik="" kod_wyjscia
+    local skrypt="$1" zdarzenie="$2" lista="${TMP}/lista" wyjscie="${TMP}/wyjscie" k v wynik="" kod_wyjscia draft=""
     shift 2
+    case "$zdarzenie" in
+        *@draft) draft=true; zdarzenie="${zdarzenie%@draft}" ;;
+        *@nie-draft) draft=false; zdarzenie="${zdarzenie%@nie-draft}" ;;
+    esac
     : > "$lista"
     for plik in "$@"; do printf '%s\n' "$plik" >> "$lista"; done
     : > "$wyjscie"
-    if [ -n "$zdarzenie" ]; then
-        ZDARZENIE="$zdarzenie" GITHUB_OUTPUT="$wyjscie" ZAKRES_LISTA_PLIK="$lista" bash "$skrypt" >/dev/null 2>&1
+    if [ -n "$zdarzenie" ] && [ -n "$draft" ]; then
+        env -u DRAFT ZDARZENIE="$zdarzenie" DRAFT="$draft" GITHUB_OUTPUT="$wyjscie" ZAKRES_LISTA_PLIK="$lista" bash "$skrypt" >/dev/null 2>&1
+    elif [ -n "$zdarzenie" ]; then
+        env -u DRAFT ZDARZENIE="$zdarzenie" GITHUB_OUTPUT="$wyjscie" ZAKRES_LISTA_PLIK="$lista" bash "$skrypt" >/dev/null 2>&1
     else
-        env -u ZDARZENIE GITHUB_OUTPUT="$wyjscie" ZAKRES_LISTA_PLIK="$lista" bash "$skrypt" >/dev/null 2>&1
+        env -u ZDARZENIE -u DRAFT GITHUB_OUTPUT="$wyjscie" ZAKRES_LISTA_PLIK="$lista" bash "$skrypt" >/dev/null 2>&1
     fi
     kod_wyjscia=$?
     [ "$kod_wyjscia" -eq 0 ] || { echo "SKRYPT-PADL(${kod_wyjscia})"; return; }
@@ -60,46 +70,54 @@ wyjscia() {
 }
 
 # Tabela: zdarzenie|pliki (spacją)|oczekiwane wyjścia (t/f).
-# Kolejność: kod widok dokumenty obraz obciazenie wyscigi.
+# Kolejność: kod widok dokumenty obraz obciazenie wyscigi pelny.
 # Wartości wyliczone na wersji sprzed wyniesienia skryptu (różnicowo: 2187
 # porównań starego i nowego skryptu, jedyna różnica to `scripts/ci/`)
 # i przejrzane ręcznie.
 TABELA=$(cat <<'KONIEC'
-pull_request|docs/PRODUCT.md|fftfff
-pull_request|README.md|fftfff
-pull_request|docs/A.md docs/B.md|fftfff
-pull_request|docs/DEPLOYMENT.md|tftfff
-pull_request|docs/design/references/wzorzec.html|tttfff
-pull_request|app/Models/Recipe.php|ttffft
-pull_request|app/Providers/AppServiceProvider.php|ttftft
-pull_request|routes/web.php|ttffft
-pull_request|resources/css/app.css|ttffff
-pull_request|tests/Feature/ZmianaObokTest.php|tfffff
-pull_request|tests/Dwa/Scenariusz.php|tfffft
-pull_request|scripts/dostepnosc.mjs|ttffff
-pull_request|scripts/przegladarka/kolaz-lcp.test.mjs|ttffff
-pull_request|scripts/generator-obciazenia-605.mjs|tffftf
-pull_request|scripts/fixtures/obciazenie605/dane.json|ttfftf
-pull_request|scripts/testy-dwa-polaczenia.sh|tfffft
-pull_request|scripts/kontrola-negatywna-2402.py|tfffft
-pull_request|scripts/kontrola-negatywna-2403.py|tfffft
-pull_request|scripts/kontrola-negatywna-2404.py|tfffft
-pull_request|scripts/kontrola-negatywna-2427.py|tfffft
-pull_request|scripts/kontrola-negatywna-2437.py|tfffft
-pull_request|scripts/kontrola-negatywna-2551.py|tfffft
-pull_request|Dockerfile|tfftff
-pull_request|composer.lock|ttftft
-pull_request|pint.json|tfffff
-pull_request|docker/Caddyfile|ttftff
-pull_request|.github/workflows/ci.yml|ttfttt
-pull_request|.github/actions/php/action.yml|ttffft
-pull_request|scripts/ci/zakres.sh|ttfttt
-pull_request|scripts/ci/nowy-krok.sh|ttfttt
-pull_request|docs/PRODUCT.md app/Models/Recipe.php|tttfft
-push|docs/PRODUCT.md|fttttt
-push|tests/Feature/ZmianaObokTest.php|ttfttt
-push|pint.json|ttfttt
-push|scripts/ci/zakres.sh|ttfttt
+pull_request|docs/PRODUCT.md|fftffft
+pull_request|README.md|fftffft
+pull_request|docs/A.md docs/B.md|fftffft
+pull_request|docs/DEPLOYMENT.md|tftffft
+pull_request|docs/design/references/wzorzec.html|tttffft
+pull_request|app/Models/Recipe.php|ttffftt
+pull_request|app/Providers/AppServiceProvider.php|ttftftt
+pull_request|routes/web.php|ttffftt
+pull_request|resources/css/app.css|ttfffft
+pull_request|tests/Feature/ZmianaObokTest.php|tffffft
+pull_request|tests/Dwa/Scenariusz.php|tfffftt
+pull_request|scripts/dostepnosc.mjs|ttfffft
+pull_request|scripts/przegladarka/kolaz-lcp.test.mjs|ttfffft
+pull_request|scripts/generator-obciazenia-605.mjs|tffftft
+pull_request|scripts/fixtures/obciazenie605/dane.json|ttfftft
+pull_request|scripts/testy-dwa-polaczenia.sh|tfffftt
+pull_request|scripts/kontrola-negatywna-2402.py|tfffftt
+pull_request|scripts/kontrola-negatywna-2403.py|tfffftt
+pull_request|scripts/kontrola-negatywna-2404.py|tfffftt
+pull_request|scripts/kontrola-negatywna-2427.py|tfffftt
+pull_request|scripts/kontrola-negatywna-2437.py|tfffftt
+pull_request|scripts/kontrola-negatywna-2551.py|tfffftt
+pull_request|Dockerfile|tfftfft
+pull_request|composer.lock|ttftftt
+pull_request|pint.json|tffffft
+pull_request|docker/Caddyfile|ttftfft
+pull_request|.github/workflows/ci.yml|ttftttt
+pull_request|.github/actions/php/action.yml|ttffftt
+pull_request|scripts/ci/zakres.sh|ttftttt
+pull_request|scripts/ci/nowy-krok.sh|ttftttt
+pull_request|docs/PRODUCT.md app/Models/Recipe.php|tttfftt
+push|docs/PRODUCT.md|ftttttt
+push|tests/Feature/ZmianaObokTest.php|ttftttt
+push|pint.json|ttftttt
+push|scripts/ci/zakres.sh|ttftttt
+pull_request@draft|app/Models/Recipe.php|ttffftf
+pull_request@draft|.github/workflows/ci.yml|ttftttf
+pull_request@draft|docs/PRODUCT.md|fftffff
+pull_request@nie-draft|app/Models/Recipe.php|ttffftt
+pull_request@nie-draft|.github/workflows/ci.yml|ttftttt
+push@draft|app/Models/Recipe.php|ttftttt
+workflow_dispatch@draft|app/Models/Recipe.php|ttftttt
+workflow_dispatch|docs/PRODUCT.md|ftttttt
 KONIEC
 )
 
@@ -139,7 +157,8 @@ fi
 echo "Tabela: ${liczba_wierszy} przypadków zgodnych"
 
 # --- 2. Ścieżki bez listy z pliku ------------------------------------------------
-pelny="kod=true widok=true dokumenty=true obraz=true obciazenie=true wyscigi=true"
+pelny="kod=true widok=true dokumenty=true obraz=true obciazenie=true wyscigi=true pelny=true"
+pelny_draft="kod=true widok=true dokumenty=true obraz=true obciazenie=true wyscigi=true pelny=false"
 
 odczyt_wyjsc() {
     local w="$1" k wynik=""
@@ -147,18 +166,26 @@ odczyt_wyjsc() {
     echo "${wynik% }"
 }
 
-# baza_daje NAZWA BAZA OCZEKIWANE — skrypt bez trybu testowego, z podaną bazą.
+# baza_daje NAZWA BAZA OCZEKIWANE [DRAFT] — skrypt bez trybu testowego, z podaną bazą.
 baza_daje() {
-    local nazwa="$1" baza="$2" oczekiwane="$3" w="${TMP}/wb"
+    local nazwa="$1" baza="$2" oczekiwane="$3" draft="${4:-}" w="${TMP}/wb"
     : > "$w"
-    env -u ZAKRES_LISTA_PLIK ZDARZENIE=pull_request BAZA="$baza" GITHUB_OUTPUT="$w" bash "$SKRYPT" >/dev/null 2>&1 \
+    env -u ZAKRES_LISTA_PLIK -u DRAFT ${draft:+DRAFT="$draft"} ZDARZENIE=pull_request BAZA="$baza" GITHUB_OUTPUT="$w" bash "$SKRYPT" >/dev/null 2>&1 \
         || { echo "Skrypt padł: ${nazwa}"; exit 1; }
+    # Każde wyjście dokładnie raz — także `pelny` na ścieżce wczesnego wyjścia.
+    for k in $KLUCZE; do
+        [ "$(grep -c "^${k}=" "$w")" = 1 ] || { echo "Wyjście ${k} nie raz: ${nazwa}"; exit 1; }
+    done
     [ "$(odczyt_wyjsc "$w")" = "$oczekiwane" ] || { echo "Zły wynik: ${nazwa}"; exit 1; }
 }
 
 baza_daje "pusta baza" "" "$pelny"
 baza_daje "baza z samych zer" "0000000000000000000000000000000000000000" "$pelny"
 baza_daje "nieosiągalna baza" "1111111111111111111111111111111111111111" "$pelny"
+# Draft bez punktu odniesienia: ciężkie wyjścia pełne, ale `pelny=false`.
+baza_daje "pusta baza na drafcie" "" "$pelny_draft" true
+baza_daje "nieosiągalna baza na drafcie" "1111111111111111111111111111111111111111" "$pelny_draft" true
+baza_daje "pusta baza, PR nie-draft" "" "$pelny" false
 echo "Ścieżki bez listy: pełny zestaw przy braku i nieosiągalności bazy"
 # Ścieżkę z prawdziwą bazą (pusty diff = same false) sprawdza
 # `BramkaZakresuSkryptTest`.
@@ -202,5 +229,11 @@ mutuj wyscigi '240[234]' '9999' || exit 1
 mutuj wyscigi '|2427' '' || exit 1
 mutuj wyscigi '|2437' '' || exit 1
 
-echo "Kontrola ujemna: wszystkie sześć wyjść pilnowanych"
+# `pelny` (2.10.2026): odwrócony warunek, zgubione sprawdzenie zdarzenia
+# (push z DRAFT=true musiałby dać pełny) i zgubione sprawdzenie draftu.
+mutuj pelny '[ "${DRAFT:-}" = "true" ]; then' '[ "${DRAFT:-}" != "true" ]; then' || exit 1
+mutuj pelny 'if [ "${ZDARZENIE:-}" = "pull_request" ] && [ "${DRAFT:-}"' 'if [ "${DRAFT:-}"' || exit 1
+mutuj pelny '[ "${ZDARZENIE:-}" = "pull_request" ] && [ "${DRAFT:-}" = "true" ]' '[ "${ZDARZENIE:-}" = "pull_request" ]' || exit 1
+
+echo "Kontrola ujemna: wszystkie siedem wyjść pilnowanych"
 echo "Bramka zakres: OK"

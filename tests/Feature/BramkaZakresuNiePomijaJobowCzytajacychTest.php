@@ -755,6 +755,9 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
             'GITHUB_OUTPUT' => $wyjscie,
             'ZAKRES_LISTA_PLIK' => $lista,
             'ZDARZENIE' => $zdarzenie ?? false,
+            // Nie-draft: ten strażnik mierzy zawężanie po OBSZARZE zmiany.
+            // Zakres draftu pilnuje `CiNaDrafcieMaSkroconyZakresTest`.
+            'DRAFT' => false,
         ]);
         $proces->run();
 

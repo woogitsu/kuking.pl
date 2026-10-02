@@ -51,7 +51,8 @@ class PreviewPominiecieMaUzasadnienieTest extends TestCase
         $this->assertSame(0, $proces->getExitCode(), $proces->getOutput().$proces->getErrorOutput());
         $this->assertStringContainsString('Bramka preview: OK', $proces->getOutput());
         // Kontrola dodatnia przyrządu: kontrola ujemna naprawdę poszła po regułach.
-        $this->assertSame(6, substr_count($proces->getOutput(), ': mutacja zapaliła tabelę'));
+        // Osiem reguł: sześć z #611 etap 7 i dwie reguły draftu (2.10.2026, D-333).
+        $this->assertSame(8, substr_count($proces->getOutput(), ': mutacja zapaliła tabelę'));
     }
 
     public function test_smoke_czeka_na_bramke_i_nie_ma_juz_zmiennej_w_warunku_joba(): void
@@ -76,8 +77,10 @@ class PreviewPominiecieMaUzasadnienieTest extends TestCase
         $decyzja = $bramka['steps'][1];
         $this->assertSame('decyzja', $decyzja['id']);
         $this->assertSame('bash '.self::SKRYPT, trim((string) $decyzja['run']));
-        $this->assertSame(['ZDARZENIE', 'FLAGA'], array_keys($decyzja['env']));
+        $this->assertSame(['ZDARZENIE', 'FLAGA', 'DRAFT'], array_keys($decyzja['env']));
         $this->assertStringContainsString('vars.KUKING_DEPLOY_ENABLED', (string) $decyzja['env']['FLAGA']);
+        // Draft PR -> test dymny pominięty z powodem (2.10.2026, D-333).
+        $this->assertSame('${{ github.event.pull_request.draft }}', (string) $decyzja['env']['DRAFT']);
         $this->assertSame(
             ['uruchom', 'powod'],
             array_keys($bramka['outputs']),
@@ -113,6 +116,7 @@ class PreviewPominiecieMaUzasadnienieTest extends TestCase
             $proces = new Process(['bash', self::SKRYPT], base_path(), [
                 'ZDARZENIE' => 'pull_request',
                 'FLAGA' => '',
+                'DRAFT' => false,
                 'GITHUB_STEP_SUMMARY' => $plik,
             ]);
             $proces->run();

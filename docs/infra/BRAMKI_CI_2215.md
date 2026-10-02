@@ -100,6 +100,13 @@ sprawdź je w zakładce Checks pierwszego przebiegu, zanim oznaczysz jako wymaga
 (zła nazwa = check, który nigdy nie powstaje, i PR czeka w nieskończoność).
 Nie oznaczaj `Zakres zmiany` ani `Przyrząd testu obciążeniowego (#605)`.
 
+**Draft PR-y (od 2.10.2026, wiersz w D-333).** Na drafcie CI biegnie w zakresie
+skróconym: Pint, Larastan i testy w częściach 1–4. Pozycje 4–9 są wtedy
+`skipped` (czyli dla GitHuba „przechodzące”), a agregaty 1 i 10 są zielone
+z adnotacją „draft — zakres skrócony”. Pełny przebieg rusza po
+`ready_for_review`. Szczegóły i lista jobów: `SELF_HOSTED_RUNNER.md` →
+„Zakres CI na draft PR-ach”.
+
 ### #2025: wdrożenie mimo czerwonego albo anulowanego CI
 
 Bramka Railway (`docs/infra/RAILWAY_CI_GATE.md`,

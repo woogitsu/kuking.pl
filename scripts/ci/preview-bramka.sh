@@ -17,11 +17,15 @@
 #  WEJŚCIE (zmienne środowiska):
 #    ZDARZENIE — `github.event_name`;
 #    FLAGA     — `vars.KUKING_DEPLOY_ENABLED` (pusta, gdy zmiennej nie ma);
+#    DRAFT     — `github.event.pull_request.draft` (`true` na draft PR-ze);
 #    GITHUB_OUTPUT, GITHUB_STEP_SUMMARY — opcjonalne pliki (poza Actions ich brak).
 #
 #  REGUŁY:
 #    - ZDARZENIE puste                      -> kod 2 (nie zgadujemy);
 #    - ZDARZENIE inne niż pull_request      -> uruchom=false, powód „nie dotyczy”;
+#    - DRAFT dokładnie `true`               -> uruchom=false, powód „draft —
+#      zakres skrócony” (decyzja właściciela z 2.10.2026, D-333: na draftach
+#      nie chodzi nic ciężkiego; test dymny ruszy po `ready_for_review`);
 #    - FLAGA dokładnie `true`               -> uruchom=true;
 #    - FLAGA pusta albo `false`             -> uruchom=false, notice z powodem;
 #    - FLAGA inna (`TRUE`, `1`, ` true`...) -> uruchom=false, ale GŁOŚNO
@@ -33,6 +37,7 @@ set -euo pipefail
 
 zdarzenie="${ZDARZENIE:-}"
 flaga="${FLAGA:-}"
+draft="${DRAFT:-}"
 
 if [ -z "$zdarzenie" ]; then
   echo "::error title=Brak zdarzenia::Bramka preview nie dostała nazwy zdarzenia (ZDARZENIE). Sprawdź krok w preview.yml."
@@ -44,6 +49,8 @@ poziom=notice
 tytul="Preview pominięty"
 if [ "$zdarzenie" != pull_request ]; then
   powod="Zdarzenie '${zdarzenie//[^A-Za-z0-9_]/?}' nie jest pull_requestem — test dymny preview dotyczy tylko PR-ów."
+elif [ "$draft" = true ]; then
+  powod="Test dymny preview POMINIĘTY: draft PR — zakres skrócony (decyzja właściciela z 2.10.2026). Nic nie sprawdzono. Ruszy po oznaczeniu PR-a jako gotowego (ready_for_review)."
 elif [ "$flaga" = true ]; then
   uruchom=true
   tytul="Preview uruchomiony"
