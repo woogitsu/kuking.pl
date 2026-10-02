@@ -410,6 +410,77 @@ niewygasły wiersz. Na pustej tabeli, przy samych wygasłych wierszach i w CI
 `php artisan kuking:sprzataj-postep-gotowania --wszystkie`). Test:
 `CofniecieMigracjiNieKasujeDopiskowZGotowaniaTest`.
 
+## recent_recipe_views — opcjonalna, prywatna lista ostatnio oglądanych przepisów (V2, #2553)
+
+Lista tylko do powrotu do przepisu, który osoba obejrzała, ale nie zapisała.
+**Domyślnie wyłączona**; włącza ją wyłącznie jawny przycisk w ustawieniach
+(„Ustawienia → Ostatnio oglądane”, zwykły POST). Migracja
+`2026_10_03_190000_create_recent_recipe_views` robi dwie rzeczy: zakłada tabelę
+i dodaje `users.ostatnio_ogladane_wlaczone_at` (zgoda — patrz
+[`konta-ustawienia-zgody`](konta-ustawienia-zgody.md)). Wiersz zapamiętuje
+wyłącznie przepis i czas ostatniej wizyty: bez kopii tytułu, zdjęcia, adresu
+z parametrami, wyszukiwanej frazy i wyboru alergenów.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | właściciel; model ma pusty `$fillable`, wiersz zmienia tylko `OstatnioOgladane` |
+| `recipe_id` | `uuid NOT NULL` → `recipes` (`ON DELETE CASCADE`) | przepis |
+| `viewed_at` | `timestamptz NOT NULL` | chwila OSTATNIEJ wizyty; powrót przesuwa tę wartość |
+
+Ograniczenia i indeksy: `UNIQUE (user_id, recipe_id)` (powrót do przepisu
+przesuwa jedną pozycję, nie dokłada drugiej); indeksy `(user_id, viewed_at)`
+(odczyt listy i przycinanie), `recipe_id` (kaskada przy twardym usunięciu
+przepisu) i `viewed_at` (nocne sprzątanie).
+
+Limit i czas życia (`kuking.ostatnio_ogladane.limit` = 10 różnych przepisów
+i `.dni` = 7; wartości z propozycji w issue, **do potwierdzenia przez
+właściciela** — wiersz w D-333) działają trzy razy: przy zapisie (przycięcie),
+przy ODCZYCIE (starsze i nadliczbowe pozycje są niewidoczne, zanim posprząta
+je zadanie) i w nocnym `kuking:sprzataj-ostatnio-ogladane` (02:30; kasuje też
+wizyty osób z wyłączoną funkcją). Zmiana wartości nie wymaga migracji.
+
+Zapis. `RecipeController::show()` po autoryzacji woła
+`OstatnioOgladane::zaplanujZapis()`: gość, autor własnego przepisu i osoba z
+wyłączoną funkcją nie robią nic, a pozostali odkładają zapis przez `defer()` na
+czas PO odpowiedzi, bez żadnego zapytania w ścieżce żądania (stan zgody jest w
+zalogowanym modelu). Odroczony zapis ponownie pyta Policy `view` jak o konto
+BEZ roli obsługi — wgląd moderacyjny nie jest wizytą — i robi `INSERT … ON
+CONFLICT DO UPDATE` z warunkiem zgody oraz `FOR SHARE` na wierszu konta, więc
+wyłączenie funkcji w trakcie żądania nie odtworzy historii. Strona przepisu
+gościa nie zmienia się ani o bajt (cache publiczny bez zmian); zalogowany ma
+`private, no-store`, a lista nie trafia do localStorage ani do cache
+service workera (`public/sw.js` nie trzyma stron).
+
+Odczyt. `OstatnioOgladane::lista()` zwraca tylko niewygasłe pozycje w limicie,
+ponownie filtruje je zakresem `Recipe::widoczneDla()` i Policy `view` (jak
+zwykły widz): przepis prywatny, usunięty, ukryty, zdjęty, od zablokowanej osoby
+albo z konta zbanowanego znika z listy, a jego tytuł, autor i zdjęcie nie
+opuszczają bazy. Ekran: `/ustawienia/ostatnio-ogladane`, odnośnik także w
+„Moje”. Wyłączenie („Wyłącz i usuń zapamiętane”) kasuje wiersze i zgodę w jednej
+transakcji; „Wyczyść listę” kasuje wiersze jednym kliknięciem.
+
+Czego lista NIE robi: nie zasila feedu, rekomendacji, statystyk ani
+powiadomień, nie zapisuje nic do zeszytu, planera, postępu gotowania ani
+`cooked_events` i nie sugeruje „Ugotowałem”. Pilnuje tego
+`OstatnioOgladaneNieWyciekajaPozaListeTest` (zamknięta lista plików, które mogą
+jej dotykać).
+
+Konto: paczka danych ma sekcję `ostatnio_ogladane` (tylko przepis i czas;
+tytuł tylko przy przepisie widocznym dla osoby) oraz `konto.ostatnio_ogladane_wlaczone_od`;
+`EraseAccountData` kasuje wiersze jawnie i zeruje zgodę (konta się anonimizuje).
+Wpis w rejestrze czynności: `docs/legal/REJESTR_CZYNNOSCI_PRZETWARZANIA.md`
+§3.30, w polityce prywatności wiersz „Lista ostatnio oglądanych przepisów”.
+
+Rollback (D-088): `down()` usuwa tabelę i kolumnę zgody, ale ODMAWIA, gdy w
+tabeli jest choć jedna wizyta (to dane o zachowaniu, których `up()` nie
+odtworzy). Na pustej tabeli i w CI przechodzi bez pytania; zdjęcie samej
+kolumny zgody jest bezpieczne w stronę prywatności (po cofnięciu nic się nie
+zapisuje). Wymuszenie po kopii tabeli:
+`KUKING_ROLLBACK_KASUJE_OSTATNIO_OGLADANE=1` (albo wcześniej
+`php artisan kuking:sprzataj-ostatnio-ogladane --wszystkie`). Test:
+`CofniecieMigracjiNieKasujeOstatnioOgladanychTest`.
+
 ## weekly_recipe_picks — „Ugotujmy razem” (F3, 30.09.2026)
 
 Przepis tygodnia wybrany przez gospodarza. Migracja

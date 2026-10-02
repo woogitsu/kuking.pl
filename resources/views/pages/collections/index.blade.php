@@ -25,6 +25,9 @@
         <a class="btn btn-secondary" href="{{ route('collections.own-posts') }}">Moje wpisy</a>
         <a class="btn btn-secondary" href="{{ route('planer.show') }}">Planer tygodnia</a>
         <a class="btn btn-secondary" href="{{ route('shopping.index') }}">Lista zakupów</a>
+        {{-- Opcjonalna, prywatna lista do powrotu (#2553): domyślnie wyłączona,
+             więc ten odnośnik prowadzi na ekran, który to wyjaśnia, a nie na pustą listę. --}}
+        <a class="btn btn-secondary" href="{{ route('settings.ogladane') }}">Ostatnio oglądane</a>
     </p>
 
     {{-- Błąd przy polu ORAZ w podsumowaniu (docs/UX_50_PLUS.md). Bez tego

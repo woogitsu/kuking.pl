@@ -35,6 +35,9 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Lista ostatnio oglądanych sięga do analityki (#2553)': r'OSTATNIO_OGLADANE_2553_PRYWATNA_LISTA_POZA_ZAMKNIETA_LISTA',
+    'Lista ostatnio oglądanych pokazuje przepis konta zbanowanego (#2553)': r'OSTATNIO_OGLADANE_2553_TYTUL_NIEDOSTEPNEGO_PRZEPISU',
+    'Lista ostatnio oglądanych miesza konta (#2553)': r'OSTATNIO_OGLADANE_2553_KONTO_[AB]_WIDZI_LISTE_[AB]',
     'Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)': r'JIT_2291_SWIEZA_SESJA_WYMAGA_OFF',
     "Pusta linia Unicode tworzy składnik (#2621)": r'PUSTE_LINIE_2621_UNICODE',
     "Pusta linia Unicode skleja kroki po POST (#2621)": r'PUSTE_LINIE_2621_POST_KROKI',

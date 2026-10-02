@@ -52,7 +52,7 @@ class RozdrozeUstawienTest extends TestCase
     use WycinaObudoweEkranu;
 
     /**
-     * Wszystkie ekrany ustawień — dwanaście (urodziny doszły przy #1755, ukryte przy #1810, urządzenia z dostępem przy D-270). Ta sama lista co
+     * Wszystkie ekrany ustawień — trzynaście (ostatnio oglądane przy #2553, urodziny doszły przy #1755, ukryte przy #1810, urządzenia z dostępem przy D-270). Ta sama lista co
      * w `UstawieniaNawigacjaTest`: rozdroże nie ma prawa pokazywać ich mniej,
      * bo nazywa się „Ustawienia" i człowiek wierzy, że widzi tam wszystko.
      *
@@ -73,6 +73,8 @@ class RozdrozeUstawienTest extends TestCase
             // Issue #1810 (D-278): lista prywatnych ukryć.
             ['Ukryte', 'settings.hidden'],
             ['Urodziny', 'settings.birthday'],
+            // #2553: opcjonalna, domyślnie wyłączona lista do powrotu do przepisu.
+            ['Ostatnio oglądane', 'settings.ogladane'],
             ['Twoje dane', 'settings.data'],
         ];
     }
@@ -119,13 +121,13 @@ class RozdrozeUstawienTest extends TestCase
             );
         }
 
-        // KONTROLA DODATNIA LICZBY: spis ma dwanaście pozycji i ani jednej
+        // KONTROLA DODATNIA LICZBY: spis ma trzynaście pozycji i ani jednej
         // więcej. Bez tego test przechodziłby też nad listą, do której ktoś
         // dopisał ekran nieistniejący albo powtórzony.
         $this->assertCount(
-            12,
+            13,
             $xpath->query(".//nav[@aria-label='Wszystkie ustawienia']//li", $main),
-            'Rozdroże wymienia inną liczbę ekranów niż dwanaście — albo doszedł nowy '.
+            'Rozdroże wymienia inną liczbę ekranów niż trzynaście — albo doszedł nowy '.
             'ekran ustawień i trzeba go dopisać także tutaj, albo lista się rozjechała.',
         );
     }

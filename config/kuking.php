@@ -3369,6 +3369,21 @@ return [
         'limit_na_osobe' => 500,
     ],
 
+    'ostatnio_ogladane' => [
+        // Opcjonalna, prywatna lista ostatnio oglądanych przepisów (#2553).
+        // Wartości z propozycji w issue — DO POTWIERDZENIA przez właściciela
+        // (wiersz w D-333). Zmiana wartości nie wymaga migracji: limit i czas
+        // życia pilnuje kod przy zapisie, przy odczycie i nocne sprzątanie.
+        //
+        // Najwięcej RÓŻNYCH przepisów na osobę. Kolejne wejście w ten sam
+        // przepis przesuwa jedną pozycję, nie dokłada drugiej.
+        'limit' => 10,
+        // Ile dni od ostatniego wejścia pozycja jest ważna. Starsza jest dla
+        // serwisu nieistniejąca już przy odczycie (nie czeka na zadanie
+        // sprzątające), a `kuking:sprzataj-ostatnio-ogladane` kasuje ją co noc.
+        'dni' => 7,
+    ],
+
     'sessions' => [
         // RETENCJA TABELI `sessions` (RZ-01, 21.09.2026).
         //
