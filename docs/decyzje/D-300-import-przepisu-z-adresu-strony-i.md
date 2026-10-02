@@ -145,6 +145,17 @@ zakresy, inne jednostki, wartości poza granicą i większa precyzja
 pozostają puste. Te naprawy #2536/#2538/#2539 nie zmieniają schematu ani
 budżetu modelu. Wycofanie kodu przywraca błędy odczytu, ale nie wymaga migracji.
 
+### Granice tekstu zakodowanego HTML (#2564)
+
+JSON-LD dekoduje najwyżej dwie warstwy encji przed rozpoznaniem podziałów
+wierszy. Dopiero potem usuwa znaczniki i porządkuje odstępy wewnątrz wiersza;
+nie dekoduje ponownie już rozdzielonych instrukcji. Zwykły, jednokrotnie i
+dwukrotnie zakodowany `br`, blok `p`/`li` oraz zakodowany znak nowej linii
+zachowują granice tekstu. Limit dwóch warstw i dotychczasowe limity DTO zostają.
+Test pełnego węzła Recipe obejmuje instrukcje tekstowe, listę tekstów oraz
+tekstową listę składników. Mikrodane, pobieranie źródeł i budżet AI bez zmian.
+Wycofanie samego kodu przywraca błąd odczytu; bez migracji i cofania danych.
+
 ### Wycofanie
 `KUKING_IMPORT_URL=false` i/lub `KUKING_IMPORT_PDF=false` zdejmują przyciski
 i trasy (404). Istniejące szkice zostają prywatne i zachowują bramkę
