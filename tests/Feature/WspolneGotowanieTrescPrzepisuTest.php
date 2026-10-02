@@ -11,6 +11,7 @@ use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
 use DOMDocument;
+use DOMElement;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -64,9 +65,14 @@ final class WspolneGotowanieTrescPrzepisuTest extends TestCase
 
             $pierwszy = $xpath->query('//li[@id="krok-'.$kroki[0]->getKey().'"]//img[@alt="Zwinięty rulon"]');
             $this->assertCount(1, $pierwszy, 'WSPOLNE_2486_ZDJECIE_PRZY_KROKU');
-            $this->assertSame($gotowe->url('feed'), $pierwszy->item(0)->getAttribute('src'));
-            $this->assertCount(1, $xpath->query('//li[@id="krok-'.$kroki[1]->getKey().'"]//img[@alt="Zdjęcie do kroku 2" and @loading="lazy"]'));
-            $this->assertSame($podglad->url('feed'), $xpath->query('//li[@id="krok-'.$kroki[1]->getKey().'"]//img')->item(0)->getAttribute('src'));
+            $pierwszeZdjecie = $pierwszy->item(0);
+            $this->assertInstanceOf(DOMElement::class, $pierwszeZdjecie);
+            $this->assertSame($gotowe->url('feed'), $pierwszeZdjecie->getAttribute('src'));
+            $drugie = $xpath->query('//li[@id="krok-'.$kroki[1]->getKey().'"]//img[@alt="Zdjęcie do kroku 2" and @loading="lazy"]');
+            $this->assertCount(1, $drugie);
+            $drugieZdjecie = $drugie->item(0);
+            $this->assertInstanceOf(DOMElement::class, $drugieZdjecie);
+            $this->assertSame($podglad->url('feed'), $drugieZdjecie->getAttribute('src'));
             $this->assertCount(0, $xpath->query('//li[@id="krok-'.$kroki[2]->getKey().'"]//img'));
             $this->assertCount(1, $xpath->query('//li[@id="krok-'.$kroki[2]->getKey().'"]//*[@role="status"]'));
             $this->assertCount(0, $xpath->query('//li[@id="krok-'.$kroki[3]->getKey().'"]//img'));
