@@ -66,6 +66,7 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         'wspolne_gotowanie' => '| Wspólne gotowanie |',
         'dopiski_z_gotowania' => '| Prywatny dopisek z gotowania |',
         'usuniete_zeszyty' => '| Odzyskanie usuniętego zeszytu |',
+        'kopie_tekstu_szkicow' => '| Odzyskanie wcześniejszego tekstu szkicu |',
         'ostatnio_ogladane' => '| Lista ostatnio oglądanych przepisów',
         'zapamietane_porcje' => '| Zapamiętana liczba porcji przy przepisie |',
         'ukryte' => '| Ukrywanie wpisów i osób',
@@ -215,6 +216,13 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
             '/^\| Lista ostatnio oglądanych przepisów .*Najwyżej \*\*'.$limitOgladanych.'\*\* różnych przepisów z ostatnich \*\*'.$dniOgladanych.' dni\*\*/mu',
             $polityka,
             "Lista ostatnio oglądanych trzyma {$limitOgladanych} przepisów z {$dniOgladanych} dni, a polityka podaje inne liczby.",
+        );
+
+        $dniSzkicow = (int) config('kuking.przepisy.szkic_punkt_odzyskania_dni');
+        $this->assertMatchesRegularExpression(
+            '/^\| Odzyskanie wcześniejszego tekstu szkicu .*\*\*'.$dniSzkicow.' dni\*\*/mu',
+            $polityka,
+            "Kopia tekstu szkicu żyje {$dniSzkicow} dni, a polityka podaje inny termin.",
         );
 
         $godzinPaczki = (int) config('kuking.import_paczki.przechowanie_godzin');

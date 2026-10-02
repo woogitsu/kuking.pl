@@ -66,6 +66,14 @@
             </div>
         @endif
     @endif
+    {{-- Odzyskanie wcześniejszego tekstu (#2512): link tylko, gdy kopia różni się od bieżącego tekstu. --}}
+    @if(($odzyskanieTekstu ?? false) && $draft !== null && ! $draft->isPublished())
+        <p class="notice" data-odzyskanie-tekstu>
+            Przypadkiem zastąpiony albo skasowany tekst? Masz kopię tego szkicu sprzed pisania.
+            <a href="{{ route('recipes.drafts.restore.show', $draft->getKey()) }}">Zobacz wcześniejszy tekst</a>
+            — nic nie zmieni się, dopóki sam tego nie potwierdzisz.
+        </p>
+    @endif
     <p class="mb-5">
         @if($opublikowany)
             Przepis jest już opublikowany — tu dopisujesz to, co chcesz dodać:

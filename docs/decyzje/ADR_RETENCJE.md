@@ -749,6 +749,19 @@ historii: jedna kopia na zeszyt, najwyżej 20 na osobę i 1000 pozycji na
 zeszyt. Paczka danych ma sekcję `usuniete_zeszyty`. Zakres potwierdza właściciel
 w D-333.
 
+### 5.11 Punkt odzyskania tekstu szkicu (`draft_restore_points`) — dopisane 2.10.2026 (#2512, D-333)
+
+Jedna kopia TEKSTU własnego, nieopublikowanego szkicu, robiona przy otwarciu
+szkicu do pisania, jeśli szkic nie ma jeszcze ważnej kopii. Autozapis nie tworzy
+kopii ani wersji (reguła z 24.09.2026 bez zmian), a ponowne otwarcie nie
+podmienia kopii — użyteczny stan nie jest zastępowany już uszkodzonym.
+Retencja: `kuking.przepisy.szkic_punkt_odzyskania_dni` = 14 dni od zrobienia
+kopii; kasuje ją `kuking:sprzataj-usuniete-tresci`, a wcześniej opublikowanie
+albo usunięcie szkicu i wymazanie konta. Przywrócenie podmienia kopię na tekst,
+który zastąpiono (jedno miejsce, bez historii). Zdjęć kopia nie niesie i nie
+odpina. Paczka danych ma sekcję `kopie_tekstu_szkicow`. Zakres i 14 dni
+potwierdza właściciel w D-333 (wiersz dopisuje koordynator).
+
 ## 6. Decyzje właściciela — zbiorczo
 
 **Zaktualizowane w drugiej turze (§10) — poniższe są DECYZJAMI, nie

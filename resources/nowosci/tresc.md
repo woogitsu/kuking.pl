@@ -109,6 +109,10 @@ Autor zmienił przepis, a Wy chcecie powtórzyć dokładnie to, co Wam wcześnie
 
 Zmieniliście kilka proporcji, a po kolejnym gotowaniu chcecie wrócić do poprzedniej receptury? W historii zmian własnego przepisu, przy starszej wersji, jest przycisk „Zastosuj jako nową poprawkę”. Najpierw widzicie podgląd: co wróci z tej wersji, co jest dziś i czego nie przywracamy (zdjęcia, pochodzenie przepisu, widoczność). Samo oglądanie niczego nie zmienia. Zaznaczacie, co zastosować — dane, składniki, kroki — i dopiero wtedy powstaje nowa wersja. To nie cofnięcie czasu: dawne wersje zostają, a przepis dostaje kolejną poprawkę.
 
+### Odzyskanie tekstu szkicu po pomyłce
+
+Przypadkiem zastąpiliście długi krok krótkim fragmentem i szkic zdążył się zapisać sam? Gdy otwieracie niedokończony przepis do pisania, zachowujemy jedną kopię jego tekstu sprzed pisania. Jeśli coś się zmieniło, w kreatorze pojawia się odnośnik „Zobacz wcześniejszy tekst”. Ekran pokazuje, czym różni się kopia od tego, co jest teraz, a dopiero przycisk „Przywróć tekst z kopii” coś zmienia. Nic się nie publikuje i nikt nie dostaje powiadomienia; zdjęć kopia nie dotyka, a tekst, który zostanie zastąpiony, zostaje jako kopia, więc można wrócić. Kopia jest tylko Wasza i znika po 14 dniach, po opublikowaniu albo usunięciu szkicu.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

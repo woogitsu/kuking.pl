@@ -1333,6 +1333,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('recipes.drafts.copy.store', $szkicDoOdlozenia->getKey()), ['klucz_kopii' => '0192f1a0-0000-7000-8000-0000000000aa'], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.drafts.resume', 'powrót do pracy nad odłożonym szkicem', 'delete',
             route('recipes.drafts.resume', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
+        // Odzyskanie wcześniejszego tekstu własnego szkicu (#2512): tylko autor
+        // (`RecipePolicy::restoreDraftText`); moderator też dostaje odmowę.
+        $dodaj('recipes.drafts.restore.show', 'podgląd wcześniejszego tekstu własnego szkicu', 'get',
+            route('recipes.drafts.restore.show', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.drafts.restore', 'przywrócenie wcześniejszego tekstu własnego szkicu', 'post',
+            route('recipes.drafts.restore', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
         // Odzyskanie własnego, usuniętego przepisu (#2620): TYLKO autor z aktywnym
         // kontem. Moderator nie ma tu furtki — cudzy „kosz” jest prywatny.
         $dodaj('collections.deleted-recipes.recover', 'odzyskanie usuniętego przepisu', 'post',

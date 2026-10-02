@@ -66,6 +66,8 @@ final class InwentarzDanychKonta
         'comments.author_id' => [self::EKSPORT, 'moje_komentarze'],
         'collections.owner_id' => [self::EKSPORT, 'kolekcje'],
         'deleted_collections.owner_id' => [self::EKSPORT, 'usuniete_zeszyty'],
+        // Kopia tekstu szkicu do odzyskania po pomyłce (#2512, D-333).
+        'draft_restore_points.user_id' => [self::EKSPORT, 'kopie_tekstu_szkicow'],
         // Wspólny zeszyt (#1743, D-302). Pozycje dodane we WŁASNYM zeszycie
         // są w `kolekcje` (z podpisem „dodane_przez"), w cudzym — tutaj.
         'collection_members.user_id' => [self::EKSPORT, 'zeszyty_udostepnione_mi'],

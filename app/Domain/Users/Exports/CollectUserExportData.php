@@ -19,6 +19,7 @@ use App\Models\CookingNote;
 use App\Models\CookingProgress;
 use App\Models\CookingSession;
 use App\Models\DeletedCollection;
+use App\Models\DraftRestorePoint;
 use App\Models\Hide;
 use App\Models\MealPlanEntry;
 use App\Models\Notification;
@@ -200,6 +201,7 @@ final class CollectUserExportData
             'moje_komentarze' => $this->ownComments($user),
             'kolekcje' => $this->collections($user),
             'usuniete_zeszyty' => $this->usunieteZeszyty($user),
+            'kopie_tekstu_szkicow' => $this->kopieTekstuSzkicow($user),
             // Wspólne zeszyty (#1743, D-302) — w granicach RODO art. 15 ust. 4,
             // patrz `sharedCollections()` i `collectionInvitations()` niżej.
             'zeszyty_udostepnione_mi' => $this->sharedCollections($user),
@@ -1417,6 +1419,35 @@ final class CollectUserExportData
                 'mrozone' => (bool) $d->frozen,
             ],
         ])->all();
+    }
+
+    /**
+     * Kopie tekstu własnych szkiców do odzyskania po pomyłce (#2512) — tylko
+     * niewygasłe. To tekst osoby, więc idzie w całości; zdjęć kopia nie niesie.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function kopieTekstuSzkicow(User $user): array
+    {
+        $dni = max(1, (int) config('kuking.przepisy.szkic_punkt_odzyskania_dni'));
+
+        return DraftRestorePoint::query()
+            ->where('user_id', $user->getKey())
+            ->where('taken_at', '>', now()->subDays($dni))
+            ->with('recipe')
+            ->orderBy('taken_at')
+            ->get()
+            ->map(fn (DraftRestorePoint $punkt): array => [
+                'szkic' => $punkt->recipe?->title,
+                'kopia_z' => $this->date($punkt->taken_at),
+                'mozna_odzyskac_do' => $this->date($punkt->taken_at->addDays($dni)),
+                'tekst' => collect($punkt->snapshot)->except(['steps'])->all() + [
+                    'steps' => array_map(
+                        static fn (array $krok): array => array_diff_key($krok, ['media_id' => true]),
+                        $punkt->snapshot['steps'] ?? [],
+                    ),
+                ],
+            ])->all();
     }
 
     /**
