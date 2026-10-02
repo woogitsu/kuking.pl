@@ -190,9 +190,32 @@ final class ParserJsonLdPrzepisu
             return [];
         }
 
-        // Pojedynczy węzeł zamiast listy.
-        if (isset($wartosc['@type']) || isset($wartosc['itemListElement']) || isset($wartosc['text'])) {
+        // Obiekt jest jednym węzłem także wtedy, gdy niesie tylko @id.
+        // Iterowanie po jego wartościach zamieniałoby identyfikator w krok.
+        if (! array_is_list($wartosc)) {
             $wartosc = [$wartosc];
+        }
+
+        // Pozycje porządkują listę tylko wtedy, gdy są poprawne i jednoznaczne
+        // dla każdego elementu. Przy brakach i duplikatach zostaje kolejność
+        // źródła — nie zgadujemy, w którym miejscu brakował krok.
+        $pozycje = [];
+        $widocznePozycje = [];
+
+        foreach ($wartosc as $element) {
+            $pozycja = is_array($element) ? self::pozycja($element['position'] ?? null) : null;
+
+            if ($pozycja === null || isset($widocznePozycje[$pozycja])) {
+                $pozycje = [];
+                break;
+            }
+
+            $pozycje[] = $pozycja;
+            $widocznePozycje[$pozycja] = true;
+        }
+
+        if (count($pozycje) === count($wartosc) && $pozycje !== []) {
+            array_multisort($pozycje, SORT_ASC, SORT_NUMERIC, $wartosc);
         }
 
         $wynik = [];
@@ -205,6 +228,17 @@ final class ParserJsonLdPrzepisu
             }
 
             if (! is_array($element)) {
+                continue;
+            }
+
+            if ($this->jestTypem($element, 'ListItem')) {
+                $item = $element['item'] ?? null;
+
+                if (is_array($item) && ($this->jestTypem($item, 'HowToStep') || $this->jestTypem($item, 'HowToSection'))) {
+                    array_push($wynik, ...$this->kroki($item, $glebokosc + 1));
+                }
+
+                // Nazwa opakowania nie jest instrukcją; @id/URL nie pobieramy.
                 continue;
             }
 
@@ -222,6 +256,29 @@ final class ParserJsonLdPrzepisu
         }
 
         return $wynik;
+    }
+
+    private static function pozycja(mixed $wartosc): ?int
+    {
+        if (! is_int($wartosc) && ! (is_string($wartosc) && ctype_digit($wartosc))) {
+            return null;
+        }
+
+        $pozycja = filter_var($wartosc, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+
+        return is_int($pozycja) ? $pozycja : null;
+    }
+
+    /** @param array<mixed> $wezel */
+    private function jestTypem(array $wezel, string $szukany): bool
+    {
+        foreach ((array) ($wezel['@type'] ?? null) as $typ) {
+            if (is_string($typ) && preg_match('#(^|[/:])'.preg_quote($szukany, '#').'$#i', trim($typ)) === 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

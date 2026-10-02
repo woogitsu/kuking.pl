@@ -36,6 +36,8 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 
 OCZEKUJ = {
     'PDF: ilość dziesiętna staje się numerem listy (#2614)': r'PDF_2614_ILOSC_DZIESIETNA_NIE_JEST_NUMEREM_LISTY',
+    'Identyfikator JSON-LD udaje krok (#2582)': r'JSONLD_ID_KROKU_NIE_JEST_TEKSTEM',
+    'ListItem.item nie trafia do szkicu importu (#2570)': r'JSONLD_LISTITEM_ITEM_ZAPISUJE_KROKI',
     "Spiżarnia usuwa bez pytania (#2467)": r'SPIZARNIA_2467_USUNIECIE_WYMAGA_PYTANIA',
     'Planer usuwa bez pytania (#2468)': r'PLANER_2468_PIERWSZY_KLIK_BEZ_DELETE',
     "Zmiana porcji zachowuje stare odmierzenie (#2502)": r'PORCJE_2502_NOWA_ILOSC_NIE_PRZYGOTOWANA',

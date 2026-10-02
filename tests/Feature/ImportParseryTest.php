@@ -107,6 +107,160 @@ final class ImportParseryTest extends TestCase
         $this->assertSame(['Utrzyj twaróg z cukrem.', 'Dodaj jajka.', 'Piecz godzinę w 170°C.'], $przepis->kroki);
     }
 
+    public function test_json_ld_odpakowuje_listitem_item_i_sortuje_jednoznaczne_pozycje(): void
+    {
+        $html = $this->stronaZJsonLd([
+            '@type' => 'Recipe',
+            'name' => 'Placek',
+            'recipeIngredient' => ['200 g mąki'],
+            'recipeInstructions' => ['@type' => 'ItemList', 'itemListElement' => [
+                ['@type' => 'ListItem', 'position' => 2, 'name' => 'Etykieta, nie krok', 'item' => [
+                    '@type' => 'HowToSection', 'itemListElement' => [
+                        ['@type' => 'HowToStep', 'position' => 2, 'text' => 'Piecz ciasto.'],
+                        ['@type' => 'HowToStep', 'position' => 1, 'text' => 'Wstaw formę.'],
+                    ],
+                ]],
+                ['@type' => 'ListItem', 'position' => '1', 'name' => 'Inna etykieta', 'item' => [
+                    '@type' => 'HowToStep', 'text' => 'Wymieszaj składniki.',
+                ]],
+            ]],
+        ]);
+
+        $przepis = (new ParserJsonLdPrzepisu)->odczytaj($html);
+
+        $this->assertNotNull($przepis);
+        $this->assertSame('Placek', $przepis->tytul);
+        $this->assertSame(['200 g mąki'], $przepis->skladniki);
+        $this->assertSame(['Wymieszaj składniki.', 'Wstaw formę.', 'Piecz ciasto.'], $przepis->kroki);
+    }
+
+    public function test_json_ld_mieszana_lista_i_niejednoznaczne_pozycje_zachowuja_kolejnosc_zrodla(): void
+    {
+        $parser = new ParserJsonLdPrzepisu;
+
+        foreach ([null, 0, 'x', 1, '999999999999999999999999999'] as $drugaPozycja) {
+            $drugi = ['@type' => 'ListItem', 'name' => 'To tylko nazwa wrappera', 'item' => [
+                '@type' => 'HowToStep', 'text' => 'Drugi krok.',
+            ]];
+            if ($drugaPozycja !== null) {
+                $drugi['position'] = $drugaPozycja;
+            }
+
+            $html = $this->stronaZJsonLd([
+                '@type' => 'Recipe', 'name' => 'Próba', 'recipeIngredient' => ['mąka'],
+                'recipeInstructions' => [
+                    ['@type' => 'ListItem', 'position' => 1, 'item' => ['@type' => 'HowToStep', 'text' => 'Pierwszy krok.']],
+                    $drugi,
+                    ['@type' => 'HowToStep', 'position' => 3, 'text' => 'Trzeci krok.'],
+                ],
+            ]);
+
+            $this->assertSame(['Pierwszy krok.', 'Drugi krok.', 'Trzeci krok.'], $parser->odczytaj($html)?->kroki);
+        }
+
+        $pomieszane = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'recipeIngredient' => ['mąka'],
+            'recipeInstructions' => [
+                ['@type' => 'ListItem', 'position' => 2, 'item' => ['@type' => 'HowToStep', 'text' => 'Drugi.']],
+                ['@type' => 'HowToStep', 'position' => 1, 'text' => 'Pierwszy.'],
+            ],
+        ]);
+        $this->assertSame(['Pierwszy.', 'Drugi.'], $parser->odczytaj($pomieszane)?->kroki);
+
+        $duplikat = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'recipeIngredient' => ['mąka'],
+            'recipeInstructions' => [
+                ['@type' => 'ListItem', 'position' => 2, 'item' => ['@type' => 'HowToStep', 'text' => 'Zapisany pierwszy.']],
+                ['@type' => 'ListItem', 'position' => 1, 'item' => ['@type' => 'HowToStep', 'text' => 'Zapisany drugi.']],
+                ['@type' => 'ListItem', 'position' => 1, 'item' => ['@type' => 'HowToStep', 'text' => 'Zapisany trzeci.']],
+            ],
+        ]);
+        $this->assertSame(['Zapisany pierwszy.', 'Zapisany drugi.', 'Zapisany trzeci.'], $parser->odczytaj($duplikat)?->kroki);
+
+        $duzaLista = [];
+        for ($pozycja = 60; $pozycja >= 1; $pozycja--) {
+            $duzaLista[] = ['@type' => 'ListItem', 'position' => $pozycja, 'item' => [
+                '@type' => 'HowToStep', 'text' => "Krok {$pozycja}.",
+            ]];
+        }
+        $duzaLista = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'recipeIngredient' => ['mąka'], 'recipeInstructions' => $duzaLista,
+        ]);
+        $kroki = $parser->odczytaj($duzaLista)?->kroki;
+        $this->assertNotNull($kroki);
+        $this->assertSame('Krok 1.', $kroki[0]);
+        $this->assertCount(60, $kroki);
+        $this->assertSame('Krok 60.', $kroki[59]);
+    }
+
+    public function test_json_ld_listitem_nie_pobiera_adresu_i_nie_odczytuje_obcego_obiektu_jako_kroku(): void
+    {
+        $html = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'name' => 'Próba', 'recipeIngredient' => ['mąka'],
+            'recipeInstructions' => ['@type' => 'ItemList', 'itemListElement' => [
+                ['@type' => 'ListItem', 'name' => 'Nie instrukcja', 'item' => 'https://obcy.example.pl/krok'],
+                ['@type' => 'ListItem', 'name' => 'Nie instrukcja', 'item' => ['@id' => 'https://obcy.example.pl/inny']],
+                ['@type' => 'ListItem', 'name' => 'Nie instrukcja', 'item' => ['@type' => 'Person', 'name' => 'Cudza osoba']],
+                ['@type' => 'ListItem', 'item' => ['@type' => 'HowToStep', 'text' => 'Zagnieć ciasto.']],
+            ]],
+        ]);
+
+        $przepis = (new ParserJsonLdPrzepisu)->odczytaj($html);
+
+        $this->assertNotNull($przepis);
+        $this->assertSame(['Zagnieć ciasto.'], $przepis->kroki);
+        $this->assertStringNotContainsString('obcy.example.pl', serialize($przepis));
+        $this->assertStringNotContainsString('Cudza osoba', serialize($przepis));
+    }
+
+    public function test_json_ld_listitem_nie_omija_limitu_zagniezdzenia(): void
+    {
+        $wezel = ['@type' => 'HowToStep', 'text' => 'Za głęboko.'];
+        for ($i = 0; $i < 10; $i++) {
+            $wezel = ['@type' => 'HowToSection', 'itemListElement' => [$wezel]];
+        }
+
+        $html = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'recipeIngredient' => ['mąka'],
+            'recipeInstructions' => ['@type' => 'ListItem', 'item' => $wezel],
+        ]);
+
+        $this->assertSame([], (new ParserJsonLdPrzepisu)->odczytaj($html)?->kroki);
+    }
+
+    public function test_json_ld_id_kroku_nie_staje_sie_instrukcja_ani_nie_pobiera_celu(): void
+    {
+        $parser = new ParserJsonLdPrzepisu;
+
+        foreach ([['@id' => '#step1'], [['@id' => '#step1']]] as $referencja) {
+            $html = $this->stronaZJsonLd(['@graph' => [
+                ['@type' => 'Recipe', 'name' => 'Placek', 'recipeIngredient' => ['mąka'], 'recipeInstructions' => $referencja],
+                ['@id' => '#step1', '@type' => 'HowToStep', 'text' => 'Wymieszaj mąkę.'],
+            ]]);
+            $przepis = $parser->odczytaj($html);
+
+            $this->assertNotNull($przepis);
+            $this->assertSame([], $przepis->kroki, 'JSONLD_ID_KROKU_NIE_JEST_TEKSTEM');
+            $this->assertSame(['mąka'], $przepis->skladniki);
+        }
+
+        $bezCelu = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'recipeIngredient' => ['mąka'], 'recipeInstructions' => ['@id' => '#brak'],
+        ]);
+        $this->assertSame([], $parser->odczytaj($bezCelu)?->kroki);
+
+        $poprawny = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'recipeIngredient' => ['mąka'],
+            'recipeInstructions' => [
+                ['@type' => 'HowToStep', 'text' => 'Wymieszaj.'],
+                ['@type' => 'HowToStep', 'name' => 'Piecz.'],
+                'Ostudź.',
+                ['@type' => 'HowToSection', 'itemListElement' => ['Podaj.']],
+            ],
+        ]);
+        $this->assertSame(['Wymieszaj.', 'Piecz.', 'Ostudź.', 'Podaj.'], $parser->odczytaj($poprawny)?->kroki);
+    }
+
     public function test_json_ld_nie_przenosi_adresu_zdjecia_ani_autora_nigdzie(): void
     {
         $html = $this->stronaZJsonLd([

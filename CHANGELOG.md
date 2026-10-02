@@ -3,6 +3,8 @@
 ## Nieopublikowane
 
 - Naprawione (#2614): import przepisu z tekstowego PDF zachowuje ilości `1.5 kg` i `0.5 l` w prywatnym szkicu; prawdziwe numery listy nadal usuwa bez zmiany cyfr składnika.
+- Naprawione (#2570, #2582): import z adresu odczytuje kroki i sekcje zapisane w JSON-LD jako `ListItem.item`, zachowując kolejność prawidłowych pozycji. Przy niejasnych pozycjach zostawia kolejność źródła. Sam identyfikator `@id` nie staje się tekstem kroku; szkic pozostaje prywatny i nie używa modelu dla tych danych.
+
 - Wewnętrzne (#2598): test dwóch połączeń przy zapisie do zeszytu czeka na właściwą barierę transakcji. Wcześniejsza, obca blokada nie daje fałszywej czerwieni; osobny przeplot i kontrola ujemna sprawdzają ten warunek w CI.
 - Wewnętrzne (#2596): lokalny serwer testu checklisty składników przyjmuje tylko dodatnią liczbę porcji. Nie odbija tekstu z adresu w HTML; test HTTP i kontrola ujemna pilnują tego w CI.
 - Naprawione (#2467): usunięcie produktu z „Co mam w domu” najpierw pokazuje pytanie z jego nazwą. „Anuluj” zamyka je bez kasowania ilości lub terminu, także bez JavaScriptu.
@@ -20,6 +22,7 @@
 - Naprawione (#2505): samo otwarcie lub odświeżenie niezmienionej kolejki gotowania nie odnawia jej 24-godzinnej ważności. Dodanie, usunięcie, zmiana kolejności lub kroku nadal odnawiają termin.
 - Naprawione (#2536, #2538, #2539): import z adresu wybiera pierwszy przepis JSON-LD z rzeczywistą treścią, odczytuje `content` składników i kroków z mikrodanych oraz zachowuje jednoznaczną ułamkową liczbę porcji. Szkic pozostaje prywatny, bez dodatkowego użycia AI.
 - Naprawione (#2477, #2508): koszt zachowuje obie granice słownego zakresu ilości. Dopisek celu, np. „300 g mąki do 2 porcji”, zachowuje rozpoznaną masę; nie zmieniamy tekstu autora.
+
 - Naprawione (#2476, #2478, #2479): osobista paczka danych zachowuje sam rok rodzinny w HTML, odróżnia przepis ukryty od szkicu i zapisuje jawny wybór „Bez ilości” w bieżących składnikach JSON.
 - Wewnętrzne (pomiar dostępności): lokalne dane wspomnienia obejmują także następny dzień, żeby audyt przechodzący przez północ w Polsce nadal oglądał właściwy, niepusty ekran. Zasada pokazywania wspomnień w serwisie pozostaje taka sama.
 
