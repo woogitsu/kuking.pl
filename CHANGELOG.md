@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Poprawione (#2513): w Planerze można wybrać datę i przyciskiem „Pokaż tydzień” przejść do tygodnia z tym dniem — bez przewijania tydzień po tygodniu. Pole pokazuje poniedziałek oglądanego tygodnia; zła data pokazuje bieżący tydzień.
 - Naprawione (#2621): wklejona pusta linia z nierozdzielającą spacją nie dodaje niewidocznego składnika ani nie skleja dwóch kroków przepisu. Spacja wewnątrz wpisanej ilości zostaje bez zmian.
 - Naprawione (#2599): „Pokaż więcej” w „Co ugotuję” kończy się na ostatniej dostępnej stronie zamiast pokazywać ją w pętli. Ekran wyjaśnia ograniczenie przeglądania i prowadzi do zmiany listy produktów.
 - Naprawione (#2611): nadmiernie rozbudowana paczka własnych danych jest odrzucana z instrukcją przed wyczerpaniem pamięci przy podglądzie. Poprawne duże paczki nadal można wczytać; nic nie zapisujemy przed pokazaniem podglądu.
