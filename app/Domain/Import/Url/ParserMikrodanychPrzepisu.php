@@ -118,7 +118,7 @@ final class ParserMikrodanychPrzepisu
 
         $skladniki = [];
 
-        foreach (array_merge($wlasciwosci['recipeingredient'] ?? [], $wlasciwosci['ingredients'] ?? []) as $el) {
+        foreach ($this->elementyAliasow($wlasciwosci, 'recipeingredient', 'ingredients') as $el) {
             $tekst = $this->jednaLinia($this->wartosc($el));
 
             if ($tekst !== '') {
@@ -190,6 +190,37 @@ final class ParserMikrodanychPrzepisu
     }
 
     /**
+     * Jeden element może mieć kilka nazw `itemprop`. Łączymy aliasy według
+     * tożsamości węzła, nie według tekstu, i zachowujemy kolejność dokumentu.
+     *
+     * @param  array<string, list<DOMElement>>  $wlasciwosci
+     * @return list<DOMElement>
+     */
+    private function elementyAliasow(array $wlasciwosci, string $pierwszy, string $drugi): array
+    {
+        $unikalne = [];
+
+        foreach ([$pierwszy, $drugi] as $nazwa) {
+            foreach ($wlasciwosci[$nazwa] ?? [] as $element) {
+                $unikalne[spl_object_id($element)] = $element;
+            }
+        }
+
+        $elementy = array_values($unikalne);
+        usort($elementy, static function (DOMElement $a, DOMElement $b): int {
+            $relacja = $a->compareDocumentPosition($b);
+
+            return match (true) {
+                ($relacja & DOMNode::DOCUMENT_POSITION_FOLLOWING) !== 0 => -1,
+                ($relacja & DOMNode::DOCUMENT_POSITION_PRECEDING) !== 0 => 1,
+                default => 0,
+            };
+        });
+
+        return $elementy;
+    }
+
+    /**
      * @param  array<string, list<DOMElement>>  $wynik
      */
     private function zbierz(DOMNode $rodzic, array &$wynik, int $glebokosc): void
@@ -236,7 +267,7 @@ final class ParserMikrodanychPrzepisu
             $wlasciwosci = $this->wlasciwosci($el);
             $wynik = [];
 
-            foreach (array_merge($wlasciwosci['itemlistelement'] ?? [], $wlasciwosci['step'] ?? []) as $dziecko) {
+            foreach ($this->elementyAliasow($wlasciwosci, 'itemlistelement', 'step') as $dziecko) {
                 array_push($wynik, ...$this->kroki($dziecko, $glebokosc + 1));
             }
 
