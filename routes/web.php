@@ -48,6 +48,7 @@ use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\DopisekGotowaniaController;
 use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
+use App\Http\Controllers\GotowanieZWersjiController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HistoriaPrzepisuController;
 use App\Http\Controllers\ImportPrzepisuController;
@@ -1212,6 +1213,16 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ugotowane/{cookedEvent}/wyszlo', [CookedEventController::class, 'celebrate'])->name('cooked.celebrate');
     // Wersja przepisu z tego gotowania (#2378) — prywatna, tylko kucharz.
     Route::get('/ugotowane/{cookedEvent}/wersja', [CookedEventController::class, 'wersja'])->name('cooked.version');
+    // „Gotuj z tej wersji” (#2491): prywatny, krokowy tryb z migawki wersji własnej próby
+    // i osobny formularz zakończenia z jawnie wskazaną wersją historyczną.
+    Route::get('/ugotowane/{cookedEvent}/gotuj-z-wersji', [GotowanieZWersjiController::class, 'show'])->name('cooked.version.cook');
+    Route::post('/ugotowane/{cookedEvent}/gotuj-z-wersji/krok', [GotowanieZWersjiController::class, 'mark'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('cooked.version.cook.mark');
+    Route::post('/ugotowane/{cookedEvent}/gotuj-z-wersji/od-poczatku', [GotowanieZWersjiController::class, 'restart'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('cooked.version.cook.restart');
+    Route::get('/ugotowane/{cookedEvent}/gotuj-z-wersji/ugotowalem', [CookedEventController::class, 'zakonczZWersji'])->name('cooked.version.finish');
     Route::post('/ugotowane/{cookedEvent}/podziekuj', [CookedEventController::class, 'thank'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.thank');

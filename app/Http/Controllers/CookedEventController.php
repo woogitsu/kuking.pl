@@ -32,6 +32,8 @@ use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\RecipeHint;
+use App\Models\RecipeVersion;
+use App\Models\User;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\Komunikat;
 use App\Support\LimityZdjec;
@@ -185,6 +187,22 @@ class CookedEventController extends Controller
             return $this->odpowiedzNaPonowienie($zapisane);
         }
 
+        // „GOTUJ Z TEJ WERSJI” (#2491): wersję historyczną wskazuje własna próba
+        // (`z_proby`), nie ukryte pole z dzisiejszą wersją. Sprawdzamy ją tu, PRZED
+        // zapisem zdjęć, i jeszcze raz pod blokadą w `RecordCookedEvent` (strict).
+        $proba = null;
+        $wersjaHistoryczna = null;
+        if ($request->has('z_proby')) {
+            [$proba, $wersjaHistoryczna] = $this->probaZWersja($request->input('z_proby'), $model, $user);
+
+            if ($wersjaHistoryczna === null) {
+                return ($proba !== null
+                    ? redirect()->route('cooked.version', $proba)
+                    : redirect()->route('recipes.show', $model->slug))
+                    ->with(Komunikat::blad('Tej wersji przepisu nie możemy już pokazać, więc nie zapisaliśmy wykonania według niej. Nic się nie zmieniło. Możesz ugotować z dzisiejszego przepisu.'));
+            }
+        }
+
         // ZDJĘCIA NAJPIERW, RESZTA PÓŹNIEJ — TA SAMA ZASADA CO C1
         // W `PostController::store` (issue #872).
         //
@@ -217,7 +235,9 @@ class CookedEventController extends Controller
             $usun = $request->input('usun_zdjecie');
             $mediaIds = array_values(array_filter($mediaIds, fn (string $id): bool => $id !== $usun));
 
-            return redirect()->route('cooked.create', $model->slug)
+            return ($proba !== null
+                ? redirect()->route('cooked.version.finish', $proba)
+                : redirect()->route('cooked.create', $model->slug))
                 ->withInput($request->wejscieBezPlikow($mediaIds));
         }
 
@@ -238,7 +258,8 @@ class CookedEventController extends Controller
                 mediaIds: $mediaIds,
                 ip: $request->ip(),
                 kluczWyslania: $request->kluczWyslania(),
-                wersjaPrzepisuId: $request->wersjaPrzepisu(),
+                wersjaPrzepisuId: $wersjaHistoryczna?->getKey() ?? $request->wersjaPrzepisu(),
+                wersjaScisla: $wersjaHistoryczna !== null,
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput($request->wejscieBezPlikow($mediaIds))->withErrors(['note' => $e->getMessage()]);
@@ -354,6 +375,54 @@ class CookedEventController extends Controller
             'recipe' => $wersja === null ? null : $cookedEvent->recipe,
             'wersja' => $wersja,
             'migawka' => $wersja === null ? null : new MigawkaWersji($wersja->snapshot ?? []),
+        ]);
+    }
+
+    /**
+     * Własna próba i jej przypięta wersja — tylko gdy należy do TEGO przepisu i tej osoby
+     * oraz wersja jest wciąż dostępna (`WersjaWykonania`). Cudze ID, ID innego przepisu,
+     * stare rekordy bez wskaźnika, retencja i utrata dostępu dają `[próba|null, null]`.
+     *
+     * @return array{0: ?CookedEvent, 1: ?RecipeVersion}
+     */
+    private function probaZWersja(mixed $id, Recipe $przepis, User $user): array
+    {
+        $proba = is_string($id) && Str::isUuid($id) ? CookedEvent::query()->find($id) : null;
+
+        if ($proba === null || $proba->user_id !== $user->getKey() || $proba->recipe_id !== $przepis->getKey()) {
+            return [null, null];
+        }
+
+        return [$proba, WersjaWykonania::dla($proba, $user)];
+    }
+
+    /**
+     * Formularz zakończenia „Gotuj z tej wersji” (#2491): to samo „Ugotowałem”, ale z
+     * jawnie wskazaną starszą wersją własnej próby. Zwykła ścieżka (`cooked.create`)
+     * nadal przypina wersję widoczną przy otwarciu SWOJEGO formularza.
+     */
+    public function zakonczZWersji(Request $request, CookedEvent $cookedEvent): View|RedirectResponse
+    {
+        abort_unless(Gate::forUser($request->user())->allows('viewVersion', $cookedEvent), 404);
+
+        $wersja = WersjaWykonania::dla($cookedEvent, $request->user());
+
+        if ($wersja === null) {
+            return redirect()->route('cooked.version', $cookedEvent)
+                ->with(Komunikat::blad('Tej wersji przepisu nie możemy już pokazać, więc nie da się zapisać wykonania według niej. Twoje wykonanie zostaje bez zmian.'));
+        }
+
+        $model = $cookedEvent->recipe;
+        $this->authorize('cook', $model);
+
+        return view('pages.cooked.create', [
+            'dopisek' => ['stan' => 'brak', 'tresc' => null],
+            'recipe' => $model->load(['author.profile', 'heroMedia']),
+            'kluczWyslania' => $this->kluczDlaFormularza(),
+            'wersjaPrzepisu' => (string) $wersja->getKey(),
+            'zachowane' => $this->zdjecia->zachowane(old('media_ids', []), $request->user()),
+            'zProby' => $cookedEvent,
+            'wersjaHistoryczna' => $wersja,
         ]);
     }
 
