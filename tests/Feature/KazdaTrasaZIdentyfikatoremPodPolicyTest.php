@@ -1373,6 +1373,9 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // Wydruk zeszytu (#2351) — ta sama `CollectionPolicy::view()` co strona zeszytu.
         $dodaj('collections.print', 'wydruk prywatnego zeszytu', 'get',
             route('collections.print', $zeszyt), [], [$W, $O, $O, $O, $O]);
+        // Wybór przepisów do wydruku (#2463) — ta sama polityka co sam wydruk.
+        $dodaj('collections.print.select', 'wybór przepisów do wydruku prywatnego zeszytu', 'get',
+            route('collections.print.select', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.destroy', 'usunięcie zeszytu', 'delete',
             route('collections.destroy', $zeszytDoKasacji), [], [$W, $O, $O, $O, $O]);
         // Odzyskanie własnego, usuniętego zeszytu (#2567): TYLKO właściciel z aktywnym
@@ -1415,6 +1418,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.print', $zeszytZbanowanegoPrywatny), [], [$O, $O, $O, $O, $O]);
         $dodaj('collections.print', 'wydruk publicznego zeszytu osoby zbanowanej', 'get',
             route('collections.print', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $W, $O]);
+        $dodaj('collections.print.select', 'wybór do wydruku prywatnego zeszytu osoby zbanowanej', 'get',
+            route('collections.print.select', $zeszytZbanowanegoPrywatny), [], [$O, $O, $O, $O, $O]);
+        $dodaj('collections.print.select', 'wybór do wydruku publicznego zeszytu osoby zbanowanej', 'get',
+            route('collections.print.select', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $W, $O]);
         // Kanał Atom zeszytu (#2227) — zawsze oczami gościa, więc prywatny
         // zeszyt jest zamknięty także dla WŁAŚCICIELA, a zbanowanego —
         // także dla moderatora (ten ma stronę zeszytu, nie kanał).

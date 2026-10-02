@@ -60,6 +60,12 @@ final class ParametryAdresuBezTablic
         // Kształt sprawdza `SearchController` (tylko teksty ze słownika;
         // reszta jest pomijana i ekran mówi o tym wprost).
         'search' => ['bez'],
+        // „Wybierz przepisy do wydruku” (#2463): pola `przepisy[]` z listy
+        // tytułów wracają przez GET do podglądu wydruku. Kształt sprawdza
+        // `CollectionPrintController::wybraneId()` (tylko poprawne UUID-y,
+        // bez duplikatów, najwyżej `MAKS_WYBRANYCH_W_ADRESIE`).
+        'collections.print' => ['przepisy'],
+        'collections.print.select' => ['przepisy'],
     ];
 
     /** Atrybut żądania z nazwami usuniętych parametrów. */

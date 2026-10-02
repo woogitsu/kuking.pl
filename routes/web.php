@@ -37,6 +37,7 @@ use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CollectionItemNoteController;
 use App\Http\Controllers\CollectionPrintController;
+use App\Http\Controllers\CollectionPrintSelectionController;
 use App\Http\Controllers\CollectionRecipeOrderController;
 use App\Http\Controllers\CollectionSharingController;
 use App\Http\Controllers\CommentController;
@@ -370,6 +371,13 @@ Route::get('/zeszyt/{collection}/do-druku', CollectionPrintController::class)
     ->whereUuid('collection')
     ->middleware("throttle:{$limits['zeszyt_druk']},zeszyt_druk")
     ->name('collections.print');
+
+// „Wybierz przepisy do wydruku” (#2463): lista tytułów z polami wyboru, ten sam
+// dostęp i ten sam limit zapytań co sam wydruk.
+Route::get('/zeszyt/{collection}/do-druku/wybor', CollectionPrintSelectionController::class)
+    ->whereUuid('collection')
+    ->middleware("throttle:{$limits['zeszyt_druk']},zeszyt_druk")
+    ->name('collections.print.select');
 
 // Tryb gotowania (issue #24). Widoczność jak strona przepisu — patrz
 // komentarz nad CookingModeController — więc te trasy stoją tutaj, w bloku
