@@ -9,6 +9,7 @@ use App\Models\CookingProgress;
 use App\Models\Recipe;
 use App\Models\RecipeStep;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 
@@ -42,8 +43,8 @@ class ZapamietaneGotowania
 {
     public const NA_STRONE = 10;
 
-    /** Sufit liczby rekordów czytanych naraz. Retencja jest krótka (domyślnie 24 h), więc to zapas. */
-    private const MAKS_REKORDOW = 500;
+    /** Ogranicza pamięć i liczbę ID przepisów sprawdzanych w jednym zapytaniu. */
+    private const PORCJA_REKORDOW = 100;
 
     /**
      * @return array{pozycje: Collection<int, array{recipe: Recipe, postep: CookingProgress, zrobione: int, wszystkich: int, stan: string}>, jest_wiecej: bool}
@@ -52,43 +53,75 @@ class ZapamietaneGotowania
     {
         $offset = max(0, $offset);
 
-        $rekordy = CookingProgress::query()
-            ->where('user_id', $osoba->getKey())
-            ->where('expires_at', '>', now())
-            ->orderByDesc('updated_at')
-            ->orderByDesc('id')
-            ->limit(self::MAKS_REKORDOW)
-            ->get();
-
-        if ($rekordy->isEmpty()) {
-            return ['pozycje' => collect(), 'jest_wiecej' => false];
-        }
-
+        $teraz = now();
         $jakZwykleKonto = WgladZUrzedu::jakZwykleKonto($osoba);
-
-        $przepisy = Recipe::query()
-            ->widoczneDla($jakZwykleKonto)
-            ->whereKey($rekordy->pluck('recipe_id')->all())
-            ->with(['author.profile.avatar', 'heroMedia'])
-            ->get()
-            ->keyBy(fn (Recipe $przepis): string => (string) $przepis->getKey());
-
         $gate = Gate::forUser($jakZwykleKonto);
+        /** @var Collection<int, array{recipe: Recipe, postep: CookingProgress}> $strona */
+        $strona = collect();
+        $doPominiecia = $offset;
+        $jestWiecej = false;
+        /** @var CookingProgress|null $ostatni */
+        $ostatni = null;
 
-        $widoczne = $rekordy
-            ->map(function (CookingProgress $postep) use ($przepisy, $gate): ?array {
+        // Filtr dostępności musi poprzedzać offset. Czytamy stałe porcje po
+        // (updated_at, id), aż znajdziemy stronę i jeden następny dostępny
+        // wiersz. Limit całej listy ukryłby dostępny przepis za ukrytymi.
+        do {
+            $zapytanie = CookingProgress::query()
+                ->where('user_id', $osoba->getKey())
+                ->where('expires_at', '>', $teraz)
+                ->orderByDesc('updated_at')
+                ->orderByDesc('id');
+
+            if ($ostatni !== null) {
+                $zapytanie->where(function (Builder $q) use ($ostatni): void {
+                    // Surowa wartość zachowuje mikrosekundy z PostgreSQL;
+                    // konwersja Carbon na format połączenia mogłaby je zgubić.
+                    $czas = $ostatni->getRawOriginal('updated_at');
+                    $q->where('updated_at', '<', $czas)
+                        ->orWhere(function (Builder $tenSamCzas) use ($ostatni): void {
+                            $tenSamCzas->where('updated_at', $ostatni->getRawOriginal('updated_at'))
+                                ->where('id', '<', $ostatni->getKey());
+                        });
+                });
+            }
+
+            $rekordy = $zapytanie->limit(self::PORCJA_REKORDOW)->get();
+            if ($rekordy->isEmpty()) {
+                break;
+            }
+
+            $przepisy = Recipe::query()
+                ->widoczneDla($jakZwykleKonto)
+                ->whereKey($rekordy->pluck('recipe_id')->all())
+                ->with(['author.profile.avatar', 'heroMedia'])
+                ->get()
+                ->keyBy(fn (Recipe $przepis): string => (string) $przepis->getKey());
+
+            foreach ($rekordy as $postep) {
                 $przepis = $przepisy->get($postep->recipe_id);
 
                 if ($przepis === null || ! $gate->allows('view', $przepis)) {
-                    return null;
+                    continue;
                 }
 
-                return ['recipe' => $przepis, 'postep' => $postep];
-            })
-            ->filter()
-            ->values();
+                if ($doPominiecia > 0) {
+                    $doPominiecia--;
 
-        $strona = $widoczne->slice($offset, $limit)->values();
+                    continue;
+                }
+
+                if ($strona->count() === $limit) {
+                    $jestWiecej = true;
+
+                    break 2;
+                }
+
+                $strona->push(['recipe' => $przepis, 'postep' => $postep]);
+            }
+
+            $ostatni = $rekordy->last();
+        } while ($rekordy->count() === self::PORCJA_REKORDOW);
 
         if ($strona->isEmpty()) {
             return ['pozycje' => collect(), 'jest_wiecej' => false];
@@ -118,7 +151,7 @@ class ZapamietaneGotowania
             ];
         });
 
-        return ['pozycje' => $pozycje, 'jest_wiecej' => $widoczne->count() > $offset + $limit];
+        return ['pozycje' => $pozycje, 'jest_wiecej' => $jestWiecej];
     }
 
     /** Słowny opis odhaczeń: bez odhaczeń / X z Y / wszystkie kroki odhaczone. */

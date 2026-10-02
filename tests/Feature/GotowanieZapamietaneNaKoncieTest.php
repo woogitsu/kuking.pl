@@ -13,6 +13,7 @@ use App\Models\RecipeStep;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -163,6 +164,52 @@ class GotowanieZapamietaneNaKoncieTest extends TestCase
         DB::table('cooking_progress')->where('id', $postep->getKey())->update(['updated_at' => now()->subHours(3)]);
 
         $this->lista($ja)->assertOk()->assertSee('Zupa ZP-jedyny');
+    }
+
+    public function test_wiecej_niz_500_niedostepnych_rekordow_nie_chowa_dostepnych_ani_kolejnej_strony(): void
+    {
+        $ja = $this->user();
+        $autor = $this->user();
+        $teraz = now();
+
+        // Wszystkie 501 prywatnych przepisów są nowsze od dostępnych.
+        // Zapis zbiorczy mierzy granicę listy, bez 501 wywołań akcji domenowej.
+        $ukryte = Recipe::factory()->count(501)->create([
+            'author_id' => $autor->getKey(),
+            'visibility' => 'private',
+        ]);
+        foreach ($ukryte->chunk(100) as $porcja) {
+            $wiersze = [];
+            foreach ($porcja as $przepis) {
+                $wiersze[] = [
+                    'id' => (string) Str::uuid(),
+                    'user_id' => $ja->getKey(),
+                    'recipe_id' => $przepis->getKey(),
+                    'done_step_ids' => '[]',
+                    'expires_at' => $teraz->copy()->addHours(2),
+                    'created_at' => $teraz,
+                    'updated_at' => $teraz,
+                ];
+            }
+            DB::table('cooking_progress')->insert($wiersze);
+        }
+
+        for ($i = 1; $i <= ZapamietaneGotowania::NA_STRONE + 1; $i++) {
+            [$przepis, $kroki] = $this->przepis('Zupa ZP-po-500-'.$i, $autor);
+            $postep = $this->zapamietaj($ja, $przepis, $kroki);
+            DB::table('cooking_progress')->where('id', $postep->getKey())->update([
+                'updated_at' => $teraz->copy()->subMinutes($i),
+            ]);
+        }
+
+        $pierwsza = $this->lista($ja)->assertOk();
+        $htmlPierwszej = (string) $pierwsza->getContent();
+        $this->assertStringContainsString('Zupa ZP-po-500-1', $htmlPierwszej, 'ZAPAMIETANE_2439_PIERWSZA_PO_500');
+        $this->assertStringContainsString('Pokaż więcej', $htmlPierwszej, 'ZAPAMIETANE_2439_PAGINACJA_PO_500');
+        $this->assertStringNotContainsString('Zupa ZP-po-500-11', $htmlPierwszej, 'ZAPAMIETANE_2439_GRANICA_STRONY');
+
+        $druga = $this->actingAs($ja)->get(route('collections.cooking-progress', ['od' => ZapamietaneGotowania::NA_STRONE]))->assertOk();
+        $this->assertStringContainsString('Zupa ZP-po-500-11', (string) $druga->getContent(), 'ZAPAMIETANE_2439_DRUGA_PO_500');
     }
 
     public function test_pokaz_wiecej_i_kolejnosc_po_ostatniej_zmianie(): void

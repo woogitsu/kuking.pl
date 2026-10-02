@@ -266,6 +266,13 @@ Ograniczenia i indeksy:
 - `cooking_progress_servings_revision_check`: `servings_revision >= 1`;
 - indeks po `expires_at` — nocne sprzątanie.
 
+Lista „Gotowanie zapamiętane na koncie” (#2439) czyta tylko niewygasłe wiersze
+własnej osoby, w kolejności `updated_at DESC, id DESC`. Odczyt odbywa się
+porcjami po 100 wierszy; po każdej porcji obowiązuje aktualna widoczność
+przepisu i `RecipePolicy::view`. Dopiero dostępne wiersze liczą się do offsetu
+i przycisku „Pokaż więcej”. Nie ma limitu pierwszych 500 surowych wierszy,
+który mógłby ukryć dostępny przepis za usuniętymi lub prywatnymi.
+
 Konflikt dwóch urządzeń: zapis to idempotentne USTAWIENIE jednego kroku pod
 blokadą wiersza (`SELECT … FOR UPDATE`), więc różne kroki nie gubią się
 nawzajem, a na ten sam wygrywa ostatni zapis; formularz niesie rewizję, którą
