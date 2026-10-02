@@ -153,6 +153,17 @@ tytułu. Każde gotowanie jest osobną kartą. Przyciski „Wyłącz ten wybór�
 „Wyczyść wszystkie filtry” wracają do pełnej listy. Widzicie to tylko Wy — na
 cudzym profilu nic się nie zmienia.
 
+### Co z zeszytu już ugotowaliście
+
+Macie w zeszycie kilkadziesiąt przepisów i chcecie znaleźć te, które naprawdę
+gotowaliście? W polu „Szukaj w moich zeszytach” jest teraz wybór „Ugotowane
+przeze mnie” oraz kolejność „Ostatnio ugotowane”. Pierwszy zostawia tylko
+zapisane przepisy z Waszym własnym „Ugotowałem”, druga stawia na górze te, do
+których wracaliście najpóźniej — przepisy jeszcze nieugotowane lądują na końcu,
+nic nie znika. Przy takim wyniku zobaczycie datę ostatniego gotowania; widzicie
+ją tylko Wy, a wykonania innych osób się nie liczą. Można to łączyć z szukaniem
+po tytule albo składniku, a „Wyczyść wyszukiwanie” wraca do zwykłego widoku.
+
 ### Dzień gotowania przy „Ugotowałem”
 
 Gotowaliście w niedzielę, a zdjęcie i kilka słów dodajecie dopiero we wtorek?
