@@ -188,7 +188,10 @@ final class SpizarniaZmienNazweTest extends TestCase
         $this->assertSame(CoMamWDomu::MAKS_PRODUKTOW, $ja->pantryItems()->count());
 
         $this->zmien($ja, $pierwszy, 'mleko kokosowe')->assertSessionHas('status_rodzaj', 'sukces');
-        $this->assertSame(CoMamWDomu::MAKS_PRODUKTOW, $ja->pantryItems()->count());
+        // Osobna zmienna: Larastan uznaje powtórzoną asercję na tym samym
+        // wywołaniu za „zawsze prawdziwą” (STAN.md §3).
+        $poZmianie = $ja->pantryItems()->count();
+        $this->assertSame(CoMamWDomu::MAKS_PRODUKTOW, $poZmianie);
         $this->assertSame('mleko kokosowe', $pierwszy->refresh()->name);
     }
 
