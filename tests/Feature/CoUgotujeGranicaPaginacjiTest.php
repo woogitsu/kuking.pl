@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Pantry\PriorytetZuzycia;
+use App\Domain\Pantry\ZmienTerminProduktu;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,7 +21,14 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
     {
         $widz = User::factory()->create();
         $autor = User::factory()->create();
-        $widz->pantryItems()->create(['name' => 'jajka', 'expires_on' => today()->toDateString()]);
+        $produkt = $widz->pantryItems()->create(['name' => 'jajka']);
+        $dzis = PriorytetZuzycia::dzis();
+        $this->assertTrue(app(ZmienTerminProduktu::class)->handle($produkt, [
+            'rodzaj' => PriorytetZuzycia::RODZAJ_ZUZYC_DO,
+            'termin_dzien' => substr($dzis, 8, 2),
+            'termin_miesiac' => substr($dzis, 5, 2),
+            'termin_rok' => substr($dzis, 0, 4),
+        ], $dzis));
 
         // Jedna operacja SQL zamiast 10 020 obiegów fabryki i obserwatorów.
         // Oba zbiory są stabilne podczas każdego przejścia po odnośniku.
