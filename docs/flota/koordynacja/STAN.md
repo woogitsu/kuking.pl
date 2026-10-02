@@ -148,9 +148,20 @@ Nowa sesja zaczyna od przeczytania tego pliku, potem AGENTS.md. Stan GitHuba
 - **Agenci w toku:**
   - Opus: #2650, udostępnianie przepisu jednej osobie (draft #2701), z
     wymaganiami 1–7 z pytania 18 analizy;
-  - Sonnet: następne issue z listy V2 (patrz niżej).
+  - Sonnet A: paczka C, część Planer i zakupy: #2447, #2494, #2454, #2443,
+    #2448, #2462 (każde issue to osobny draft PR do C).
+  - Sonnet B: paczka C, część „Ugotowałem”, Zeszyt i wydruki: #2459, #2460,
+    #2411, #2430, #2438, #2463, #2495, #2498.
 - **Gotowe, do następnej paczki:** #2710 (#2553, ostatnio oglądane) i #2712 (#2568, dwa opakowania w spiżarni; agent sam przyjął limity, które są zapisane w wierszu D-333 do potwierdzenia przez właściciela).
   Właściciel ma potwierdzić limity 10 przepisów i 7 dni.
+- **Paczka C zatwierdzona 2.10.** Zasada: zgoda na partię jest decyzją
+  właściciela, a test z osobą 50+ robimy po wdrożeniu (D-333). Następne partie
+  wymagają kolejnej zgody właściciela, w formie pytania do kliknięcia.
+- **#2455** jest naprawione w paczce V (commit 07f139e4d). Zamknąć po bramce wydania V.
+- **#2521** (import po cichu ucina dane) wymaga decyzji: nowa kolumna jsonb
+  `pominiete` na `przepisy_z_importu` i szkic z trwałym ostrzeżeniem plus
+  potwierdzeniem przy publikacji (propozycja agenta).
+- **Czekają na decyzję i badanie:** #2558, #2654, #2627.
 - **Kolejne kandydatury V2:** #2627, #2654, #2591, #2535, #2531, #2530, #2529.
   **#2558** (lista „Gdzie jesteś zalogowany”) czeka na decyzję właściciela i
   badanie z osobami 50+.
