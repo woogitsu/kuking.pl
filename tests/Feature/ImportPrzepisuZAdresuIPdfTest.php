@@ -273,6 +273,51 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         $this->assertSame(0, $autor->posts()->count(), 'Import nie może zapowiadać przepisu w strumieniu.');
     }
 
+    public function test_pusty_json_ld_przed_pelnym_w_grafie_importuje_pelny_bez_modelu(): void
+    {
+        $autor = $this->user();
+        $html = '<html><script type="application/ld+json">'.json_encode(['@graph' => [
+            ['@type' => 'Recipe', 'name' => 'Pusty'],
+            ['@type' => 'Recipe', 'name' => 'Pełny', 'recipeYield' => '0,5 porcji',
+                'recipeIngredient' => ['mąka'], 'recipeInstructions' => 'Wymieszaj.'],
+        ]], JSON_UNESCAPED_UNICODE).'</script></html>';
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
+            'https://przepisy.example.pl/blog' => Http::response($html, 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $this->actingAs($autor)->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/blog'])->assertRedirect();
+
+        $przepis = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
+        $this->assertSame('Pełny', $przepis->title);
+        $this->assertSame(0.5, $przepis->servings);
+        $this->assertSame(['mąka'], $przepis->ingredients()->pluck('ingredient_text')->all());
+        $this->assertSame('json_ld', PrzepisZImportu::query()->findOrFail($przepis->getKey())->droga);
+        Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
+    }
+
+    public function test_meta_content_mikrodanych_importuje_skladniki_kroki_i_ulamkowe_porcje_bez_modelu(): void
+    {
+        $autor = $this->user();
+        $html = '<html><article itemscope itemtype="https://schema.org/Recipe">'
+            .'<meta itemprop="name" content="Kompot"><meta itemprop="recipeYield" content="1,25 porcji">'
+            .'<meta itemprop="recipeIngredient" content="2 jabłka">'
+            .'<meta itemprop="recipeInstructions" content="Ugotuj."></article></html>';
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
+            'https://przepisy.example.pl/blog' => Http::response($html, 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $this->actingAs($autor)->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/blog'])->assertRedirect();
+
+        $przepis = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
+        $this->assertSame('Kompot', $przepis->title);
+        $this->assertSame(1.25, $przepis->servings);
+        $this->assertSame(['2 jabłka'], $przepis->ingredients()->pluck('ingredient_text')->all());
+        $this->assertSame(['Ugotuj.'], $przepis->steps()->orderBy('position')->pluck('instruction')->all());
+        Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
+    }
+
     public function test_strona_z_mikrodanymi_bez_json_ld_daje_prywatny_szkic_bez_modelu_i_bez_zdjec(): void
     {
         $autor = $this->user('ela');
