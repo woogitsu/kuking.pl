@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\DokumentacjaBazy;
 use Tests\TestCase;
 
 /**
@@ -88,7 +89,7 @@ class DokumentacjaBazyOpisujeSchematTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const DOKUMENT = 'docs/DATABASE.md';
+    private const DOKUMENT = 'docs/DATABASE.md (indeks) i docs/baza/*.md';
 
     /**
      * Typy, które ten test uważa za „kolumna tekstowa".
@@ -283,17 +284,19 @@ class DokumentacjaBazyOpisujeSchematTest extends TestCase
         return preg_match($wzorzec, $dokument) === 1;
     }
 
+    /**
+     * Indeks `docs/DATABASE.md` + pliki obszarów z `docs/baza/` (jeden pomocnik
+     * dla wszystkich testów czytających opis schematu).
+     */
     private function dokument(): string
     {
-        $sciezka = base_path(self::DOKUMENT);
-
         $this->assertFileExists(
-            $sciezka,
-            'Nie ma '.self::DOKUMENT.' — a to jedyny dokument, wobec którego ten '
+            base_path(DokumentacjaBazy::INDEKS),
+            'Nie ma '.DokumentacjaBazy::INDEKS.' — a to indeks dokumentu, wobec którego ten '
             .'test sprawdza schemat bazy.',
         );
 
-        return (string) file_get_contents($sciezka);
+        return DokumentacjaBazy::tresc();
     }
 
     // ---------------------------------------------------------------

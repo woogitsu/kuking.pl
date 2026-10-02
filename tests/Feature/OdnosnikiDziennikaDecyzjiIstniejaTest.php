@@ -500,7 +500,7 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
         // Klucz configu w zapisie kropkowym, np. „kuking.moderation.model"
         // albo „limits.kontakt" (domyślny plik configu to `kuking`, bo
         // w dzienniku te klucze stoją zawsze obok `config/kuking.php`) —
-        // ALBO odsyłacz „tabela.kolumna" do `docs/DATABASE.md`
+        // ALBO odsyłacz „tabela.kolumna" do `docs/DATABASE.md` (opis w `docs/baza/`)
         // (np. „users.weekly_digest_sent_at"). Kształt jest ten sam,
         // więc próbujemy obu, zanim uznamy token za martwy.
         if (preg_match('/^[a-z][a-z0-9_]*(\.[a-z0-9_*]+)+$/', $token) === 1) {
@@ -508,7 +508,7 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
                 return true;
             }
 
-            return $this->wystepujeWRepo($token, ['docs/DATABASE.md', 'database/migrations']);
+            return $this->wystepujeWRepo($token, ['docs/DATABASE.md', 'docs/baza', 'database/migrations']);
         }
 
         if (str_starts_with($token, '.')) {
@@ -540,7 +540,7 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
         // usługi w railway.ts, komentarz w nawiasie przy pliku) — sprawdź,
         // czy występuje GDZIEKOLWIEK poza samym dziennikiem.
         return $this->wystepujeWRepo($token, [
-            'docs/DATABASE.md', 'database/migrations', '.railway/railway.ts',
+            'docs/DATABASE.md', 'docs/baza', 'database/migrations', '.railway/railway.ts',
             'config', 'app', 'resources', 'docker',
         ]);
     }
