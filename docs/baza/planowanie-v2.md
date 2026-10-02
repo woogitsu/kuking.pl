@@ -127,6 +127,7 @@ jest u nas wolnym tekstem.
 | `position` | `integer` | kolejność dopisywania (kolejność linii przepisu jest częścią przepisu) |
 | `checked_at` | `timestamptz` NULL | `NULL` = do kupienia; data = odhaczona |
 | `scaled_servings` | `numeric(5,2)` NULL | #2489, migracja `2026_10_06_200200`: NULL = dosłowna linia autora albo ręczny wpis; liczba = ilość w `text` policzył Kuking z linii autora na tyle porcji (`WyborPorcji`/`PrzeliczSkladnik`). Trwałe rozróżnienie przeliczonej kopii od linii autora — także po edycji albo utracie dostępu do przepisu |
+| `edited_at` | `timestamptz(6)` NULL | chwila ostatniej RĘCZNEJ korekty tekstu przez właściciela listy (#2443, migracja `2026_10_05_143127`); `NULL` = tekst taki, jak dopisano albo skopiowano. Trwały znacznik „skopiowane, a potem poprawione na liście użytkownika” — bez porównywania z aktualnym przepisem |
 | `created_at` / `updated_at` | `timestamptz` | |
 
 **Lista jest prywatna i nie jest furtką do treści.** Nie ma kolumny
@@ -140,6 +141,21 @@ miękko albo odcięty blokadą zostawia pozycję jako sam tekst z dopiskiem
 usunięty.” (`source` zostaje `recipe`, więc ekran wie, że pozycja pochodziła
 z przepisu). W `$fillable` modelu stoi wyłącznie `text`: właściciela, źródło,
 przepis, kolejność i odhaczenie ustawia akcja domenowa (`ListaZakupow`).
+
+**Poprawianie tekstu (#2443, V2).** „Popraw” przy pozycji zmienia WYŁĄCZNIE
+`text` i `edited_at` (plus `updated_at`) tej samej pozycji: akcja
+`ListaZakupow::popraw()` pod blokadą wiersza `users`, z pozycją czytaną po
+blokadzie i zapisem zapytaniem o te kolumny (równoległe odhaczenie nie ginie,
+usunięta pozycja nie powstaje ponownie). Formularz niesie skrót widzianego
+tekstu; zmiana w innym oknie daje konflikt bez zapisu. `edited_at` jest poza
+`$fillable`, wchodzi do migawki „Cofnij usunięcie” i do paczki RODO
+(`tekst_poprawiony_przez_wlasciciela`, `poprawiono`). Ekran mówi o pozycji
+skopiowanej z przepisu i poprawionej, że nie jest już dosłowną linią z przepisu.
+**Rollback (D-088):** `down()` ODMAWIA, gdy choć jedna pozycja ma `edited_at`
+(komunikat podaje kopię `pg_dump -t shopping_list_items` i
+`UPDATE shopping_list_items SET edited_at = NULL`); bez korekt przechodzi.
+Dodanie kolumny NULL bez wartości domyślnej nie przepisuje tabeli i nie
+potrzebuje CHECK-a ani indeksu. Test: `tests/Feature/ListaZakupowPoprawkaTest.php`.
 
 Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
 

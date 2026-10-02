@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Kolaż hero bez podpisu autora przy zdjęciu (#2708)': r'Kafel nie ma podpisu z nazwą dokładnie jednego autora',
     'Rollback udostępnień przepisów kasuje bez pytania (#2650)': r'Rollback skasował udostępnienia bez pytania',
     'Lista ostatnio oglądanych sięga do analityki (#2553)': r'OSTATNIO_OGLADANE_2553_PRYWATNA_LISTA_POZA_ZAMKNIETA_LISTA',
     'Lista ostatnio oglądanych pokazuje przepis konta zbanowanego (#2553)': r'OSTATNIO_OGLADANE_2553_TYTUL_NIEDOSTEPNEGO_PRZEPISU',
@@ -409,6 +410,9 @@ OCZEKUJ = {
     'Odłożenie szkicu: bieżąca lista pokazuje też odłożone (#2550)': r'Failed asserting that .* does not contain "Pierogi odłożone"|Failed asserting that .* does not contain "Odłożony numer|Failed asserting that .* does not contain "Bieżący"|Failed asserting that .* does not contain "Szarlotka bieżąca"|Failed asserting that .* contains "Wszystkie Twoje szkice są odłożone|Failed asserting that .* contains "Nie masz teraz odłożonych szkiców"',
     'Odłożenie szkicu: publikacja nie zdejmuje oznaczenia (#2550)': Wyjatek(r'Check violation.*recipes_odlozony_tylko_niepublikowany_check'),
     'Odłożenie szkicu: rollback nie odmawia przy odłożonych (#2550)': r'Rollback skasował oznaczenia ludzi bez pytania\.',
+    'Poprawka zakupów: rollback nie odmawia przy poprawionych pozycjach (#2443)': r'Rollback skasował informację o poprawkach bez pytania\.',
+    'Poprawka zakupów: stara karta nadpisuje nowszą korektę (#2443)': r'Stara karta nie może nadpisać nowszej korekty\.',
+    'Wydruk zeszytu znowu domyślnie z notatkami (#2438)': r'Domyślny wydruk zeszytu pokazał prywatną notatkę\.',
     'Rollback listy zakupów nie odmawia przy danych': r'Rollback skasował listy zakupów ludzi bez pytania\.',
     'Limit push nie liczy rezerwacji w transporcie': r'Drugi worker przekroczył limit 1\.',
     'Recover alarmu pomija potwierdzona odmowe': r'Failed asserting that true is false\.',
@@ -509,6 +513,7 @@ OCZEKUJ = {
     'Klucz localStorage bez opisu w polityce': r'zapisuje w localStorage „kuking-wyglad-nowy”',
     'Planer bez wiersza w polityce': r'Dane z sekcji paczki „planer” nie mają opisu',
     'Nowa sekcja paczki bez opisu w polityce': r'Paczka ma nową sekcję „planer_nowy”',
+    'Polityka bez górnego terminu usunięcia wspólnego gotowania (#2708)': r'Polityka nie podaje górnego terminu usunięcia \(48 godzin\) w wierszu „Wspólne gotowanie”',
     'Postęp gotowania z terminem niezgodnym z konfiguracją': r'Postęp gotowania żyje 24 godzin',
     'Cloudflare jako pośrednik bez wiersza w polityce': r'Kod używa usługi „Cloudflare \(sieć, CDN i ochrona',
     # #2267: theme-color i manifest.

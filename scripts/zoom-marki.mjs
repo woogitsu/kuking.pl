@@ -103,146 +103,172 @@ export async function sprawdzTab(page, path, { bezJs = false } = {}) {
   if (!expected) throw new Error('ZOOM_TAB brak elementów ' + path);
   const seen = new Set();
   for (let i = 0; i < expected + 80 && seen.size < expected; i++) {
-    await page.keyboard.press('Tab');
-    // Mierzymy dopiero USTALONY fokus (poczekajNaFokus niżej), nie klatkę po Tab.
-    const oczekiwanie = await poczekajNaFokus(page, { selektor: '[data-pomiar-tab]' });
-    const r = await page.evaluate(() => {
-      const el = document.activeElement;
-      if (!el?.hasAttribute('data-pomiar-tab')) return null;
-      const fragments = [...el.getClientRects()].filter(r => r.width > 0 && r.height > 0);
-      const css = getComputedStyle(el);
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = 1;
-      const painter = canvas.getContext('2d', { willReadFrequently: true });
-      const rgba = value => {
-        if (!CSS.supports('color', value)) throw new Error('ZOOM_FOCUS_COLOR_FORMAT ' + value);
-        painter.clearRect(0, 0, 1, 1);
-        painter.fillStyle = value;
-        painter.fillRect(0, 0, 1, 1);
-        const c = painter.getImageData(0, 0, 1, 1).data;
-        return [c[0], c[1], c[2], c[3] / 255];
-      };
-      const blend = (a, z) => a.slice(0, 3).map((v, i) => v * a[3] + z[i] * (1 - a[3]));
-      const chain = [];
-      let opacity = 1;
-      let hidden = false;
-      for (let p = el; p; p = p.parentElement) {
-        const s = getComputedStyle(p);
-        opacity *= Number(s.opacity);
-        hidden ||= s.visibility !== 'visible' || s.display === 'none';
-        chain.push(p);
-      }
-      let background = [255, 255, 255];
-      for (const p of chain.slice(1).reverse()) background = blend(rgba(getComputedStyle(p).backgroundColor), background);
-      const luminance = c => c.map(v => v / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4)
-        .reduce((a, v, i) => a + v * [.2126, .7152, .0722][i], 0);
-      const ratio = (a, b) => {
-        const x = luminance(a), y = luminance(b);
-        return (Math.max(x, y) + .05) / (Math.min(x, y) + .05);
-      };
-      const painted = color => { const c = rgba(color); c[3] *= opacity; return blend(c, background); };
-      const rings = [];
-      const outlineWidth = parseFloat(css.outlineWidth);
-      if (outlineWidth > 0 && !['none', 'hidden'].includes(css.outlineStyle)) {
-        rings.push({ kind: 'outline', paint: painted(css.outlineColor), contrast: ratio(painted(css.outlineColor), background),
-          distance: parseFloat(css.outlineOffset) + outlineWidth / 2 });
-      }
-      // Dwie bezrozmyciowe warstwy tworzą halo i pierścień. Zwykły cień
-      // karty (offset/blur) nie jest dowodem fokusu. Sprawdzamy obie strony.
-      let depth = 0, start = 0;
-      const layers = [];
-      for (let i = 0; i <= css.boxShadow.length; i++) {
-        if (css.boxShadow[i] === '(') depth++;
-        if (css.boxShadow[i] === ')') depth--;
-        if (i === css.boxShadow.length || (css.boxShadow[i] === ',' && depth === 0)) {
-          layers.push(css.boxShadow.slice(start, i).trim()); start = i + 1;
-        }
-      }
-      const shadows = layers.map(value => {
-        const sizes = value.match(/-?[\d.]+px\b/g)?.map(parseFloat);
-        const color = value.replace(/-?[\d.]+px\b/g, '').replace(/\binset\b/g, '').trim();
-        if (!color || value.includes('inset') || sizes?.length !== 4 || sizes.slice(0, 3).some(v => v !== 0) || sizes[3] <= 0) return null;
-        return { color, spread: sizes[3] };
-      }).filter(Boolean).sort((a, b) => a.spread - b.spread);
-      for (let j = 0; j < shadows.length; j++) {
-        const ring = shadows[j], inner = shadows[j - 1];
-        const innerColor = inner ? painted(inner.color) : painted(css.backgroundColor);
-        const outerColor = shadows[j + 1] ? painted(shadows[j + 1].color) : background;
-        if (ring.spread - (inner?.spread ?? 0) < 1) continue;
-        rings.push({ kind: 'shadow', paint: painted(ring.color), contrast: Math.min(ratio(painted(ring.color), innerColor), ratio(painted(ring.color), outerColor)),
-          distance: ((inner?.spread ?? 0) + ring.spread) / 2 });
-      }
-      const ring = rings.sort((a, b) => b.contrast - a.contrast)[0];
-      const contrast = ring?.contrast ?? 0;
-      const distance = ring?.distance ?? 0;
-      // Link inline może mieć osobny prostokąt w każdym wierszu. Środek
-      // ich sumy trafia w pusty akapit, choć żaden fragment nie jest zakryty.
-      // Sprawdzamy wszystkie fragmenty, nie tylko pierwszy ani największy.
-      const points = fragments.flatMap(b => [[b.x + b.width / 2, b.y - distance], [b.x + b.width / 2, b.bottom + distance],
-        [b.x - distance, b.y + b.height / 2], [b.right + distance, b.y + b.height / 2]]);
-      const centersVisible = fragments.every(b => {
-        const center = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
-        return center === el || el.contains(center);
-      });
-      const ambiguousPoints = [];
-      const occluded = points.some(([x, y]) => {
-        if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) return true;
-        const hit = document.elementFromPoint(x, y);
-        if (!hit) return true;
-        // Hit testing includes transparent sibling boxes; only raster proves
-        // that their paint actually covers the focus indicator.
-        if (!(hit === el || el.contains(hit) || hit.contains(el))) ambiguousPoints.push([x, y]);
-        return chain.slice(1).some(p => {
-          const s = getComputedStyle(p), r = p.getBoundingClientRect();
-          return (/(hidden|clip|auto|scroll)/.test(s.overflowX) && (x < r.left || x > r.right))
-            || (/(hidden|clip|auto|scroll)/.test(s.overflowY) && (y < r.top || y > r.bottom));
-        });
-      });
-      return { id: el.dataset.pomiarTab, name: el.textContent.trim().slice(0,80), hidden, opacity,
-        fragments: fragments.map(b => ({ x: b.x, y: b.y, width: b.width, height: b.height })),
-        visible: fragments.length > 0 && fragments.every(b => b.y >= 0 && b.bottom <= innerHeight && b.x >= 0 && b.right <= innerWidth),
-        centerVisible: centersVisible, occluded, contrast, color: css.outlineColor,
-        ring: ring?.kind ?? null, paint: ring?.paint, ambiguousPoints };
-    });
-    if (!r) continue;
-    // Stan z oczekiwania trafia do każdego komunikatu ZOOM_FOCUS_* — porażka
-    // ma mówić, czy pierścień był ustalony, czy limit minął w trakcie.
-    r.oczekiwanie = oczekiwanie;
-    if (r.hidden || r.opacity <= .01) throw new Error('ZOOM_FOCUS_HIDDEN ' + path + ' ' + JSON.stringify(r));
-    if (!r.ring || r.contrast < 3) throw new Error('ZOOM_FOCUS_CONTRAST ' + path + ' ' + JSON.stringify(r));
-    if (!r.visible || !r.centerVisible || r.occluded) throw new Error('ZOOM_FOCUS_OCCLUDED ' + path + ' ' + JSON.stringify(r));
-    if (r.ambiguousPoints.length) {
-      const cdp = await page.context().newCDPSession(page);
-      let shot;
-      try { shot = await cdp.send('Page.captureScreenshot', { format: 'png', fromSurface: true, captureBeyondViewport: false }); }
-      finally { await cdp.detach(); }
-      if (bezJs) {
-        await page.evaluate(data => { window.__kukingRasterFokusu = new Image(); window.__kukingRasterFokusu.src = 'data:image/png;base64,' + data; }, shot.data);
-        let decoded = false;
-        for (let attempt = 0; attempt < 100 && !decoded; attempt++) {
-          decoded = await page.evaluate(() => window.__kukingRasterFokusu.complete && window.__kukingRasterFokusu.naturalWidth > 0);
-          if (!decoded) await page.waitForTimeout(20);
-        }
-        if (!decoded) throw new Error('ZOOM_RASTER_DECODE');
-      }
-      const paintedEdges = await page.evaluate(async ({ data, points, paint, bezJs }) => {
-        const img = bezJs ? window.__kukingRasterFokusu : new Image();
-        if (!bezJs) { img.src = 'data:image/png;base64,' + data; await img.decode(); }
-        if (bezJs) delete window.__kukingRasterFokusu;
+    // Pomiar ustalonego fokusu: wspólny dla wejścia klawiszem Tab i dla
+    // strzałek w grupie radio (niżej).
+    const zmierz = async () => {
+      // Mierzymy dopiero USTALONY fokus (poczekajNaFokus niżej), nie klatkę po Tab.
+      const oczekiwanie = await poczekajNaFokus(page, { selektor: '[data-pomiar-tab]' });
+      const r = await page.evaluate(() => {
+        const el = document.activeElement;
+        if (!el?.hasAttribute('data-pomiar-tab')) return null;
+        const fragments = [...el.getClientRects()].filter(r => r.width > 0 && r.height > 0);
+        const css = getComputedStyle(el);
         const canvas = document.createElement('canvas');
-        canvas.width = img.width; canvas.height = img.height;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(img, 0, 0);
-        return points.map(([x, y]) => {
-          const px = Math.floor(x * img.width / innerWidth), py = Math.floor(y * img.height / innerHeight);
-          const actual = [...ctx.getImageData(px, py, 1, 1).data].slice(0, 3);
-          // Sample the middle of the ring, allowing only minor raster rounding.
-          return { x, y, actual, visible: actual.every((v, i) => Math.abs(v - paint[i]) <= 24) };
+        canvas.width = canvas.height = 1;
+        const painter = canvas.getContext('2d', { willReadFrequently: true });
+        const rgba = value => {
+          if (!CSS.supports('color', value)) throw new Error('ZOOM_FOCUS_COLOR_FORMAT ' + value);
+          painter.clearRect(0, 0, 1, 1);
+          painter.fillStyle = value;
+          painter.fillRect(0, 0, 1, 1);
+          const c = painter.getImageData(0, 0, 1, 1).data;
+          return [c[0], c[1], c[2], c[3] / 255];
+        };
+        const blend = (a, z) => a.slice(0, 3).map((v, i) => v * a[3] + z[i] * (1 - a[3]));
+        const chain = [];
+        let opacity = 1;
+        let hidden = false;
+        for (let p = el; p; p = p.parentElement) {
+          const s = getComputedStyle(p);
+          opacity *= Number(s.opacity);
+          hidden ||= s.visibility !== 'visible' || s.display === 'none';
+          chain.push(p);
+        }
+        let background = [255, 255, 255];
+        for (const p of chain.slice(1).reverse()) background = blend(rgba(getComputedStyle(p).backgroundColor), background);
+        const luminance = c => c.map(v => v / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4)
+          .reduce((a, v, i) => a + v * [.2126, .7152, .0722][i], 0);
+        const ratio = (a, b) => {
+          const x = luminance(a), y = luminance(b);
+          return (Math.max(x, y) + .05) / (Math.min(x, y) + .05);
+        };
+        const painted = color => { const c = rgba(color); c[3] *= opacity; return blend(c, background); };
+        const rings = [];
+        const outlineWidth = parseFloat(css.outlineWidth);
+        if (outlineWidth > 0 && !['none', 'hidden'].includes(css.outlineStyle)) {
+          rings.push({ kind: 'outline', paint: painted(css.outlineColor), contrast: ratio(painted(css.outlineColor), background),
+            distance: parseFloat(css.outlineOffset) + outlineWidth / 2 });
+        }
+        // Dwie bezrozmyciowe warstwy tworzą halo i pierścień. Zwykły cień
+        // karty (offset/blur) nie jest dowodem fokusu. Sprawdzamy obie strony.
+        let depth = 0, start = 0;
+        const layers = [];
+        for (let i = 0; i <= css.boxShadow.length; i++) {
+          if (css.boxShadow[i] === '(') depth++;
+          if (css.boxShadow[i] === ')') depth--;
+          if (i === css.boxShadow.length || (css.boxShadow[i] === ',' && depth === 0)) {
+            layers.push(css.boxShadow.slice(start, i).trim()); start = i + 1;
+          }
+        }
+        const shadows = layers.map(value => {
+          const sizes = value.match(/-?[\d.]+px\b/g)?.map(parseFloat);
+          const color = value.replace(/-?[\d.]+px\b/g, '').replace(/\binset\b/g, '').trim();
+          if (!color || value.includes('inset') || sizes?.length !== 4 || sizes.slice(0, 3).some(v => v !== 0) || sizes[3] <= 0) return null;
+          return { color, spread: sizes[3] };
+        }).filter(Boolean).sort((a, b) => a.spread - b.spread);
+        for (let j = 0; j < shadows.length; j++) {
+          const ring = shadows[j], inner = shadows[j - 1];
+          const innerColor = inner ? painted(inner.color) : painted(css.backgroundColor);
+          const outerColor = shadows[j + 1] ? painted(shadows[j + 1].color) : background;
+          if (ring.spread - (inner?.spread ?? 0) < 1) continue;
+          rings.push({ kind: 'shadow', paint: painted(ring.color), contrast: Math.min(ratio(painted(ring.color), innerColor), ratio(painted(ring.color), outerColor)),
+            distance: ((inner?.spread ?? 0) + ring.spread) / 2 });
+        }
+        const ring = rings.sort((a, b) => b.contrast - a.contrast)[0];
+        const contrast = ring?.contrast ?? 0;
+        const distance = ring?.distance ?? 0;
+        // Link inline może mieć osobny prostokąt w każdym wierszu. Środek
+        // ich sumy trafia w pusty akapit, choć żaden fragment nie jest zakryty.
+        // Sprawdzamy wszystkie fragmenty, nie tylko pierwszy ani największy.
+        const points = fragments.flatMap(b => [[b.x + b.width / 2, b.y - distance], [b.x + b.width / 2, b.bottom + distance],
+          [b.x - distance, b.y + b.height / 2], [b.right + distance, b.y + b.height / 2]]);
+        const centersVisible = fragments.every(b => {
+          const center = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+          return center === el || el.contains(center);
         });
-      }, { data: shot.data, points: r.ambiguousPoints, paint: r.paint, bezJs });
-      if (paintedEdges.some(edge => !edge.visible)) throw new Error('ZOOM_FOCUS_OCCLUDED ' + path + ' ' + JSON.stringify({ ...r, paintedEdges }));
-    }
+        const ambiguousPoints = [];
+        const occluded = points.some(([x, y]) => {
+          if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) return true;
+          const hit = document.elementFromPoint(x, y);
+          if (!hit) return true;
+          // Hit testing includes transparent sibling boxes; only raster proves
+          // that their paint actually covers the focus indicator.
+          if (!(hit === el || el.contains(hit) || hit.contains(el))) ambiguousPoints.push([x, y]);
+          return chain.slice(1).some(p => {
+            const s = getComputedStyle(p), r = p.getBoundingClientRect();
+            return (/(hidden|clip|auto|scroll)/.test(s.overflowX) && (x < r.left || x > r.right))
+              || (/(hidden|clip|auto|scroll)/.test(s.overflowY) && (y < r.top || y > r.bottom));
+          });
+        });
+        return { id: el.dataset.pomiarTab, name: el.textContent.trim().slice(0,80), hidden, opacity,
+          fragments: fragments.map(b => ({ x: b.x, y: b.y, width: b.width, height: b.height })),
+          visible: fragments.length > 0 && fragments.every(b => b.y >= 0 && b.bottom <= innerHeight && b.x >= 0 && b.right <= innerWidth),
+          centerVisible: centersVisible, occluded, contrast, color: css.outlineColor,
+          ring: ring?.kind ?? null, paint: ring?.paint, ambiguousPoints };
+      });
+      if (!r) return null;
+      // Stan z oczekiwania trafia do każdego komunikatu ZOOM_FOCUS_* — porażka
+      // ma mówić, czy pierścień był ustalony, czy limit minął w trakcie.
+      r.oczekiwanie = oczekiwanie;
+      if (r.hidden || r.opacity <= .01) throw new Error('ZOOM_FOCUS_HIDDEN ' + path + ' ' + JSON.stringify(r));
+      if (!r.ring || r.contrast < 3) throw new Error('ZOOM_FOCUS_CONTRAST ' + path + ' ' + JSON.stringify(r));
+      if (!r.visible || !r.centerVisible || r.occluded) throw new Error('ZOOM_FOCUS_OCCLUDED ' + path + ' ' + JSON.stringify(r));
+      if (r.ambiguousPoints.length) {
+        const cdp = await page.context().newCDPSession(page);
+        let shot;
+        try { shot = await cdp.send('Page.captureScreenshot', { format: 'png', fromSurface: true, captureBeyondViewport: false }); }
+        finally { await cdp.detach(); }
+        if (bezJs) {
+          await page.evaluate(data => { window.__kukingRasterFokusu = new Image(); window.__kukingRasterFokusu.src = 'data:image/png;base64,' + data; }, shot.data);
+          let decoded = false;
+          for (let attempt = 0; attempt < 100 && !decoded; attempt++) {
+            decoded = await page.evaluate(() => window.__kukingRasterFokusu.complete && window.__kukingRasterFokusu.naturalWidth > 0);
+            if (!decoded) await page.waitForTimeout(20);
+          }
+          if (!decoded) throw new Error('ZOOM_RASTER_DECODE');
+        }
+        const paintedEdges = await page.evaluate(async ({ data, points, paint, bezJs }) => {
+          const img = bezJs ? window.__kukingRasterFokusu : new Image();
+          if (!bezJs) { img.src = 'data:image/png;base64,' + data; await img.decode(); }
+          if (bezJs) delete window.__kukingRasterFokusu;
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width; canvas.height = img.height;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          ctx.drawImage(img, 0, 0);
+          return points.map(([x, y]) => {
+            const px = Math.floor(x * img.width / innerWidth), py = Math.floor(y * img.height / innerHeight);
+            const actual = [...ctx.getImageData(px, py, 1, 1).data].slice(0, 3);
+            // Sample the middle of the ring, allowing only minor raster rounding.
+            return { x, y, actual, visible: actual.every((v, i) => Math.abs(v - paint[i]) <= 24) };
+          });
+        }, { data: shot.data, points: r.ambiguousPoints, paint: r.paint, bezJs });
+        if (paintedEdges.some(edge => !edge.visible)) throw new Error('ZOOM_FOCUS_OCCLUDED ' + path + ' ' + JSON.stringify({ ...r, paintedEdges }));
+      }
+      return r;
+    };
+    await page.keyboard.press('Tab');
+    const r = await zmierz();
+    if (!r) continue;
     seen.add(r.id);
+    // GRUPA RADIO to jedno wejście Tab (natywnie: zaznaczone pole albo
+    // pierwsze), a resztę grupy osiąga się strzałkami — tak jak w
+    // panel-marki.mjs. Bez tego pomiar żądał od Tab czegoś, czego żadna
+    // przeglądarka nie robi (#2411: „Kolejność wyników” na /zeszyt). Każde
+    // pole grupy przechodzi te same kontrole fokusu i widoczności.
+    const grupa = await page.evaluate(() => {
+      const e = document.activeElement;
+      if (!e?.matches('input[type=radio]') || !e.name) return null;
+      return [...document.querySelectorAll('input[type=radio][data-pomiar-tab]')]
+        .filter(n => n.name === e.name && n.form === e.form).map(n => n.dataset.pomiarTab);
+    });
+    if (grupa?.length > 1) {
+      for (let j = 0; j < grupa.length; j++) {
+        await page.keyboard.press('ArrowRight');
+        const a = await zmierz();
+        if (!a || !grupa.includes(a.id)) throw new Error('ZOOM_TAB_RADIO ' + path + ' ' + JSON.stringify({ grupa, a }));
+        seen.add(a.id);
+      }
+    }
   }
   if (seen.size !== expected) {
     const missing = await page.evaluate(ids => [...document.querySelectorAll('[data-pomiar-tab]')]

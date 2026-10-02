@@ -72,4 +72,18 @@ final class ProfilRequest extends FormRequest
     {
         return $this->query('szukaj');
     }
+
+    /**
+     * Wybór „Zrobię ponownie” na własnej zakładce „Ugotowane” (#2460).
+     *
+     * Włącza go WYŁĄCZNIE dokładnie `?ponownie=1`. Tablica (`ponownie[]=1`),
+     * `0`, `true`, pusty napis i każda inna wartość to „wyłączony” — bez
+     * błędu 500 i bez przypadkowego włączenia, zgodnie z regułą tego
+     * parsera (nic nie odsyła z błędem). Czy filtr w ogóle działa, rozstrzyga
+     * kontroler: tylko właściciel, tylko zakładka „Ugotowane”.
+     */
+    public function ponownie(): bool
+    {
+        return $this->query('ponownie') === '1';
+    }
 }

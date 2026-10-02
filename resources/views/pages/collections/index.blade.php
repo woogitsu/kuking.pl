@@ -90,15 +90,51 @@
                     <span class="field-error" id="f-szukaj-error">{{ $bladSzukania }}</span>
                 @endif
             </div>
+            {{-- Dwa opcjonalne, prywatne wybory (#2411): zwykły formularz GET,
+                 domyślnie wyłączone. Liczą się tylko Twoje wykonania „Ugotowałem”. --}}
+            <div class="field mt-4">
+                <label class="choice" for="f-zeszyt-ugotowane">
+                    <input id="f-zeszyt-ugotowane" type="checkbox" name="ugotowane" value="1" aria-describedby="f-zeszyt-ugotowane-help" @checked($tylkoUgotowane)>
+                    <span class="choice-label">Ugotowane przeze mnie</span>
+                </label>
+                <span class="field-help" id="f-zeszyt-ugotowane-help">Pokażemy tylko zapisane przepisy, przy których masz własne wykonanie „Ugotowałem”. Wykonania innych osób się nie liczą.</span>
+            </div>
+            <fieldset class="border-0 p-0 mt-4 min-w-0" id="f-zeszyt-kolejnosc">
+                <legend class="font-bold mb-3">Kolejność wyników</legend>
+                <div class="choice-grid">
+                    <label class="choice">
+                        <input type="radio" name="kolejnosc" value="{{ \App\Http\Controllers\CollectionController::KOLEJNOSC_ALFABETYCZNIE }}" @checked($kolejnoscZapisow === \App\Http\Controllers\CollectionController::KOLEJNOSC_ALFABETYCZNIE)>
+                        <span class="choice-label">Alfabetycznie</span>
+                    </label>
+                    <label class="choice">
+                        <input type="radio" name="kolejnosc" value="{{ \App\Http\Controllers\CollectionController::KOLEJNOSC_OSTATNIO_UGOTOWANE }}" @checked($kolejnoscZapisow === \App\Http\Controllers\CollectionController::KOLEJNOSC_OSTATNIO_UGOTOWANE)>
+                        <span class="choice-label">Ostatnio ugotowane</span>
+                    </label>
+                </div>
+                <span class="field-help">„Ostatnio ugotowane” stawia na górze przepisy, które gotowano najpóźniej; przepisy bez Twojego wykonania są na końcu.</span>
+            </fieldset>
             <button class="btn btn-primary mt-4" type="submit">Szukaj</button>
         </form>
 
         @if($wynikiSzukania !== null)
             <section class="stack mb-8" aria-labelledby="wyniki-w-zeszytach" data-wyniki-w-zeszytach>
-                <h2 id="wyniki-w-zeszytach" class="m-0">Wyniki dla „{{ $szukaj }}”</h2>
+                <h2 id="wyniki-w-zeszytach" class="m-0">
+                    @if($szukaj !== '')
+                        Wyniki dla „{{ $szukaj }}”
+                    @else
+                        Twoje zapisane przepisy
+                    @endif
+                    @if($tylkoUgotowane) — ugotowane przeze mnie @endif
+                </h2>
                 @if($wynikiSzukania->isEmpty())
                     {{-- Brak dopasowań to nie pusty zeszyt — mówimy, czego nie znaleźliśmy. --}}
-                    <p class="m-0">Nie znaleźliśmy w Twoich zeszytach przepisu, który ma w tytule albo w składnikach „{{ $szukaj }}”. Spróbuj krótszego słowa, np. bez końcówki, albo <a href="{{ route('search', ['q' => $szukaj, 'sekcja' => 'przepisy']) }}">poszukaj w całym Kuking</a>.</p>
+                    @if($tylkoUgotowane && $szukaj === '')
+                        <p class="m-0">Żaden z zapisanych przepisów nie ma jeszcze Twojego wykonania „Ugotowałem”. Odznacz „Ugotowane przeze mnie”, żeby zobaczyć wszystkie zapisy.</p>
+                    @elseif($tylkoUgotowane)
+                        <p class="m-0">Nie znaleźliśmy wśród zapisanych przepisów z Twoim wykonaniem takiego, który ma w tytule albo w składnikach „{{ $szukaj }}”. Odznacz „Ugotowane przeze mnie” albo spróbuj krótszego słowa.</p>
+                    @else
+                        <p class="m-0">Nie znaleźliśmy w Twoich zeszytach przepisu, który ma w tytule albo w składnikach „{{ $szukaj }}”. Spróbuj krótszego słowa, np. bez końcówki, albo <a href="{{ route('search', ['q' => $szukaj, 'sekcja' => 'przepisy']) }}">poszukaj w całym Kuking</a>.</p>
+                    @endif
                 @else
                     <ul class="stack list-none p-0 m-0">
                         @foreach($wynikiSzukania as $przepis)
@@ -110,9 +146,12 @@
                                         <a href="{{ route('collections.show', $zeszytWyniku) }}">{{ $zeszytWyniku->name }}</a>@if(! $loop->last), @endif
                                     @endforeach
                                 </p>
-                                @unless($przepis->w_tytule)
+                                @if($szukaj !== '' && ! $przepis->w_tytule)
                                     <p class="meta m-0">Pasuje przez składnik.</p>
-                                @endunless
+                                @endif
+                                @if($przepis->ostatnio_ugotowane_at !== null && ($tylkoUgotowane || $kolejnoscZapisow === \App\Http\Controllers\CollectionController::KOLEJNOSC_OSTATNIO_UGOTOWANE))
+                                    <p class="meta m-0">Ostatnio ugotowane przez Ciebie: <time datetime="{{ \Illuminate\Support\Carbon::parse($przepis->ostatnio_ugotowane_at)->toIso8601String() }}">{{ \App\Support\Czas::data(\Illuminate\Support\Carbon::parse($przepis->ostatnio_ugotowane_at), 'j F Y') }}</time>. Widzisz to tylko Ty.</p>
+                                @endif
                             </li>
                         @endforeach
                     </ul>

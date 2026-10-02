@@ -34,6 +34,13 @@
     @if(($mojeProbyLink ?? false))
         <p><a class="btn btn-secondary" href="{{ route('cooked.proby', $event->recipe->slug) }}">Moje próby tego przepisu</a></p>
     @endif
+    {{-- Korekta własnej uwagi, opisu zmian i czasu (#2459). Zawieszone konto
+         czyta, ale nie poprawia (`CookedEventPolicy::update`). --}}
+    @can('update', $event)
+        <p class="mt-3">
+            <a class="btn btn-secondary" href="{{ route('cooked.edit', $event) }}">Popraw uwagę lub czas</a>
+        </p>
+    @endcan
 
     {{-- Prywatna liczba faktycznych porcji (#2540) — wyłącznie kucharz.
          Poprawa i usunięcie bez tworzenia nowego wykonania. --}}

@@ -35,8 +35,10 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\RegistrationInviteController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
+use App\Http\Controllers\CollectionItemMoveController;
 use App\Http\Controllers\CollectionItemNoteController;
 use App\Http\Controllers\CollectionPrintController;
+use App\Http\Controllers\CollectionPrintSelectionController;
 use App\Http\Controllers\CollectionRecipeOrderController;
 use App\Http\Controllers\CollectionSharingController;
 use App\Http\Controllers\CommentController;
@@ -376,6 +378,13 @@ Route::get('/zeszyt/{collection}/do-druku', CollectionPrintController::class)
     ->whereUuid('collection')
     ->middleware("throttle:{$limits['zeszyt_druk']},zeszyt_druk")
     ->name('collections.print');
+
+// „Wybierz przepisy do wydruku” (#2463): lista tytułów z polami wyboru, ten sam
+// dostęp i ten sam limit zapytań co sam wydruk.
+Route::get('/zeszyt/{collection}/do-druku/wybor', CollectionPrintSelectionController::class)
+    ->whereUuid('collection')
+    ->middleware("throttle:{$limits['zeszyt_druk']},zeszyt_druk")
+    ->name('collections.print.select');
 
 // Tryb gotowania (issue #24). Widoczność jak strona przepisu — patrz
 // komentarz nad CookingModeController — więc te trasy stoją tutaj, w bloku
@@ -1172,6 +1181,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/ugotowane/{cookedEvent}/porcje', [CookedEventController::class, 'zapiszPorcje'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('cooked.porcje.update');
+    // Korekta własnej uwagi, opisu zmian i czasu (#2459) — to samo wykonanie,
+    // bez nowego powiadomienia. Ten sam limit co zapis, bo to także tekst.
+    Route::get('/ugotowane/{cookedEvent}/popraw', [CookedEventController::class, 'edit'])->name('cooked.edit');
+    Route::put('/ugotowane/{cookedEvent}', [CookedEventController::class, 'update'])
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('cooked.update');
     Route::delete('/ugotowane/{cookedEvent}', [CookedEventController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('cooked.destroy');
@@ -1220,12 +1235,23 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/planer', [PlanerController::class, 'show'])
         ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
         ->name('planer.show');
+    // „Wydrukuj ten tydzień” (#2498): czysty odczyt wybranego tygodnia własnego
+    // planu, bez wyszukiwarki i bez żadnego zapisu — własny koszyk jak odczyt planera.
+    Route::get('/planer/do-druku', [PlanerController::class, 'druk'])
+        ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
+        ->name('planer.print');
     Route::post('/planer', [PlanerController::class, 'store'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.store');
     Route::post('/planer/kopiuj-tydzien', [PlanerController::class, 'copy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.copy');
+    Route::get('/planer/kopiuj-dzien', [PlanerController::class, 'copyDayForm'])
+        ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
+        ->name('planer.copyday');
+    Route::post('/planer/kopiuj-dzien', [PlanerController::class, 'copyDay'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.copyday.store');
     Route::patch('/planer/{wpis}/zrobione', [PlanerController::class, 'markDone'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.done');
@@ -1236,6 +1262,18 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::patch('/planer/{wpis}/porcje', [PlanerController::class, 'savePortions'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.servings');
+    Route::get('/planer/{wpis}/przenies', [PlanerController::class, 'moveForm'])
+        ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
+        ->name('planer.move.form');
+    Route::patch('/planer/{wpis}/dzien', [PlanerController::class, 'move'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.move');
+    Route::get('/planer/{wpis}/tekst', [PlanerController::class, 'editText'])
+        ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
+        ->name('planer.text.edit');
+    Route::patch('/planer/{wpis}/tekst', [PlanerController::class, 'updateText'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.text.update');
     Route::delete('/planer/{wpis}', [PlanerController::class, 'destroy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.destroy');
@@ -1246,6 +1284,8 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // `RecipePolicy::view`. `DELETE /lista-zakupow/odhaczone` stoi PRZED
     // trasą z identyfikatorem, a ta ma `whereUuid`, więc się nie zderzają.
     Route::get('/lista-zakupow', [ListaZakupowController::class, 'index'])->name('shopping.index');
+    // „Wydrukuj do kupienia” (#2495): odczyt własnej listy, bez żadnej mutacji.
+    Route::get('/lista-zakupow/do-druku', [ListaZakupowController::class, 'druk'])->name('shopping.print');
     Route::post('/lista-zakupow', [ListaZakupowController::class, 'store'])
         ->middleware("throttle:{$limits['zakupy']},zakupy")
         ->name('shopping.store');
@@ -1261,6 +1301,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereUuid('pozycja')
         ->middleware("throttle:{$limits['zakupy']},zakupy")
         ->name('shopping.toggle');
+    // „Popraw” (#2443): ekran z obecnym tekstem i zapis tej samej pozycji.
+    Route::get('/lista-zakupow/{pozycja}/popraw', [ListaZakupowController::class, 'edit'])
+        ->whereUuid('pozycja')
+        ->name('shopping.edit');
+    Route::patch('/lista-zakupow/{pozycja}/tekst', [ListaZakupowController::class, 'update'])
+        ->whereUuid('pozycja')
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.update');
     Route::delete('/lista-zakupow/{pozycja}', [ListaZakupowController::class, 'destroy'])
         ->whereUuid('pozycja')
         ->middleware("throttle:{$limits['zakupy']},zakupy")
@@ -1281,6 +1329,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/przepisy/{recipe}/lista-zakupow', [ListaZakupowController::class, 'storeRecipe'])
         ->middleware("throttle:{$limits['zakupy']},zakupy")
         ->name('shopping.recipe.store');
+    // Wybór składników do zakupów (#2462): ekran (GET, niczego nie dopisuje)
+    // i zapis wybranych linii. Identyfikator składnika nie jest treścią ani
+    // autoryzacją — decyduje `RecipePolicy::view`, tekst czyta serwer.
+    Route::get('/przepisy/{recipe}/lista-zakupow/wybierz', [ListaZakupowController::class, 'pickRecipe'])
+        ->name('shopping.recipe.pick');
+    Route::post('/przepisy/{recipe}/lista-zakupow/wybrane', [ListaZakupowController::class, 'storePicked'])
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.recipe.pick.store');
     // „Co mam w domu” i „Co ugotuję z tego, co mam” (V2, D-285).
     //
     // Lista jest prywatna i należy do zalogowanej osoby — żadna trasa nie
@@ -1309,6 +1365,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereUuid('pantryItem')
         ->middleware("throttle:{$limits['spizarnia']},spizarnia")
         ->name('pantry.update');
+    // Zmiana nazwy produktu (#2448): osobny, wąski formularz; też tylko
+    // właściciel (`PantryItemPolicy::update`).
+    Route::get('/co-mam-w-domu/{pantryItem}/nazwa', [PantryController::class, 'editName'])
+        ->whereUuid('pantryItem')
+        ->name('pantry.name.edit');
+    Route::put('/co-mam-w-domu/{pantryItem}/nazwa', [PantryController::class, 'updateName'])
+        ->whereUuid('pantryItem')
+        ->middleware("throttle:{$limits['spizarnia']},spizarnia")
+        ->name('pantry.name.update');
     Route::delete('/co-mam-w-domu/{pantryItem}', [PantryController::class, 'destroy'])
         ->whereUuid('pantryItem')
         ->middleware("throttle:{$limits['spizarnia']},spizarnia")
@@ -1396,6 +1461,18 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/zeszyt/{collection}/kolejnosc/zapis', [CollectionRecipeOrderController::class, 'przywroc'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.recipes.order-reset');
+    // Przeniesienie pozycji do innego własnego, prywatnego zeszytu (#2430):
+    // dwa zwykłe ekrany (wybór celu i zapis), Policy `przenies`. Odwracalne,
+    // nikogo nie powiadamia — budżet `zeszyt`, jak notatka.
+    Route::get('/zeszyt/{collection}/przenies/{typ}/{pozycja}', [CollectionItemMoveController::class, 'form'])
+        ->whereIn('typ', ['przepis', 'wpis'])
+        ->whereUuid('pozycja')
+        ->name('collections.move.form');
+    Route::post('/zeszyt/{collection}/przenies/{typ}/{pozycja}', [CollectionItemMoveController::class, 'store'])
+        ->whereIn('typ', ['przepis', 'wpis'])
+        ->whereUuid('pozycja')
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
+        ->name('collections.move.store');
     // Skrót do własnego zeszytu w „Moje” (#2542): odwracalne ustawienie konta,
     // własny budżet `zeszyt`. Policy `setShortcut` — tylko właściciel.
     Route::post('/zeszyt/{collection}/skrot', [CollectionController::class, 'setShortcut'])

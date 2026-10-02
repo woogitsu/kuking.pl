@@ -24,6 +24,13 @@
                 @default
                     Dopisane ręcznie
             @endswitch
+            @if($pozycja->jestPoprawiona())
+                {{-- Poprawiony tekst nie jest już dosłowną linią autora (#2443). --}}
+                <br>Tekst poprawiony przez Ciebie na tej liście
+                @if($pozycja->source === \App\Models\ShoppingListItem::SOURCE_RECIPE)
+                    — to nie jest już dosłowna linia z przepisu
+                @endif
+            @endif
         </span>
         @if($pozycja->scaled_servings !== null)
             {{-- Przeliczona kopia nie udaje dosłownej linii autora (#2489). --}}
@@ -36,6 +43,7 @@
             <input type="hidden" name="odhaczona" value="{{ $odhaczona ? 0 : 1 }}">
             <button class="btn btn-secondary" type="submit">{{ $odhaczona ? 'Cofnij odhaczenie' : 'Odhacz' }}<span class="visually-hidden">: {{ $pozycja->text }}</span></button>
         </form>
+        <a class="btn btn-secondary" href="{{ route('shopping.edit', $pozycja) }}">Popraw<span class="visually-hidden">: {{ $pozycja->text }}</span></a>
         <details class="confirm planer-usuwanie">
             <summary class="btn btn-secondary confirm-summary">
                 <span class="planer-usuwanie-otworz">Usuń</span>

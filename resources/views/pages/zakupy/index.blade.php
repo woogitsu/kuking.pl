@@ -66,6 +66,8 @@
                         @include('pages.zakupy._pozycja', ['wiersz' => $wiersz, 'odhaczona' => false])
                     @endforeach
                 </ul>
+                {{-- Kartka papierowa tylko z tym, co jeszcze do kupienia (#2495). --}}
+                <p class="mt-4"><a class="btn btn-secondary" href="{{ route('shopping.print') }}" data-rola="wydrukuj-do-kupienia">Wydrukuj do kupienia</a></p>
             @endif
         </section>
 

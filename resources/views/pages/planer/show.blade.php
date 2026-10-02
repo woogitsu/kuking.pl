@@ -62,6 +62,8 @@
         @endunless
         <a class="btn btn-secondary" href="{{ route('planer.show', ['tydzien' => $poniedzialek->addDays(7)->toDateString()]) }}">Następny tydzień</a>
         <a class="btn btn-secondary" href="{{ route('shopping.index') }}">Lista zakupów</a>
+        {{-- Kartka papierowa wybranego tygodnia (#2498): zachowuje `tydzien`. --}}
+        <a class="btn btn-secondary" href="{{ route('planer.print', ['tydzien' => $poniedzialek->toDateString()]) }}" data-rola="wydrukuj-tydzien">Wydrukuj ten tydzień</a>
     </nav>
 
     {{-- Wybór tygodnia po dacie (#2513): zwykły GET bez skryptu. Zły albo pusty
@@ -200,6 +202,12 @@
                                         <input type="hidden" name="stan" value="{{ \App\Domain\Planer\Actions\OznaczPozycjePlanu::znacznik($wpis) }}">
                                         <button class="btn btn-secondary" type="submit">{{ $zrobione ? 'Cofnij oznaczenie' : 'Oznacz jako zrobione' }}<span class="visually-hidden">: {{ $nazwa }}</span></button>
                                     </form>
+                                    {{-- Przeniesienie tej samej pozycji na inny dzień (#2447): osobny ekran z jednym polem daty. --}}
+                                    <a class="btn btn-secondary" href="{{ route('planer.move.form', $wpis) }}">Przenieś na inny dzień<span class="visually-hidden">: {{ $nazwa }}, {{ PlanerTygodnia::nazwaDnia($dzien['dzien']) }}</span></a>
+                                    @if($pozycja['stan'] === PlanerTygodnia::STAN_WLASNY)
+                                        {{-- Poprawienie własnego tekstu bez usuwania pozycji (#2454): osobny ekran z jednym polem. --}}
+                                        <a class="btn btn-secondary" href="{{ route('planer.text.edit', $wpis) }}">Zmień tekst<span class="visually-hidden">: {{ $nazwa }}, {{ PlanerTygodnia::nazwaDnia($dzien['dzien']) }}</span></a>
+                                    @endif
                                     @if($pozycja['stan'] === PlanerTygodnia::STAN_PRZEPIS)
                                         {{-- Lista zakupów (#27, etap 2, D-333): linie składników tego przepisu. --}}
                                         <form method="POST" action="{{ route('shopping.recipe.store', $pozycja['przepis']->slug) }}">
@@ -207,6 +215,8 @@
                                             <input type="hidden" name="z_planera" value="1">
                                             <button class="btn btn-secondary" type="submit">Dodaj składniki<span class="visually-hidden"> do listy zakupów: {{ $nazwa }}</span></button>
                                         </form>
+                                        {{-- Tylko wybrane linie (#2462). --}}
+                                        <a class="btn btn-secondary" href="{{ route('shopping.recipe.pick', ['recipe' => $pozycja['przepis'], 'z_planera' => 1]) }}">Wybierz składniki<span class="visually-hidden"> do zakupów: {{ $nazwa }}</span></a>
                                     @endif
                                 </span>
                                 @if($maDopisek)
@@ -294,6 +304,8 @@
                             </ul>
                         </div>
                     @endif
+                    {{-- Powtórzenie zestawu dnia na inną datę (#2494): osobny ekran z podglądem. --}}
+                    <p class="mt-3"><a class="btn btn-secondary" href="{{ route('planer.copyday', ['dzien' => $dataDnia]) }}">Skopiuj ten dzień<span class="visually-hidden">: {{ PlanerTygodnia::nazwaDnia($dzien['dzien']) }}</span></a></p>
                 @endif
 
                 @if(count($dzien['pozycje']) < $wpisowNaDzien)

@@ -1331,6 +1331,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooked.porcje.edit', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.porcje.update', 'poprawa prywatnej liczby porcji', 'put',
             route('cooked.porcje.update', $wykonanie), ['faktyczne_porcje' => '8'], [$W, $O, $O, $O, $O]);
+        // #2459: korekta uwagi, opisu zmian i czasu — wyłącznie aktywny kucharz
+        // (`CookedEventPolicy::update`); autor przepisu i moderator dostają odmowę.
+        $dodaj('cooked.edit', 'formularz korekty wykonania', 'get',
+            route('cooked.edit', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooked.update', 'zapis korekty wykonania', 'put',
+            route('cooked.update', $wykonanie), ['note' => 'Poprawiona uwaga.'], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.destroy', 'usunięcie wykonania', 'delete',
             route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $O, $O]);
         // Wskazówki od gotujących (#2352): prosi wyłącznie autor przepisu
@@ -1379,6 +1385,9 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // Wydruk zeszytu (#2351) — ta sama `CollectionPolicy::view()` co strona zeszytu.
         $dodaj('collections.print', 'wydruk prywatnego zeszytu', 'get',
             route('collections.print', $zeszyt), [], [$W, $O, $O, $O, $O]);
+        // Wybór przepisów do wydruku (#2463) — ta sama polityka co sam wydruk.
+        $dodaj('collections.print.select', 'wybór przepisów do wydruku prywatnego zeszytu', 'get',
+            route('collections.print.select', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.destroy', 'usunięcie zeszytu', 'delete',
             route('collections.destroy', $zeszytDoKasacji), [], [$W, $O, $O, $O, $O]);
         // Odzyskanie własnego, usuniętego zeszytu (#2567): TYLKO właściciel z aktywnym
@@ -1399,6 +1408,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('pantry.edit', $produktDoTerminu), [], [$W, $O, $O, $O, $O]);
         $dodaj('pantry.update', 'zapis terminu przy produkcie z listy', 'put',
             route('pantry.update', $produktDoTerminu), ['rodzaj' => 'nieznany'], [$W, $O, $O, $O, $O]);
+        // Zmiana nazwy produktu (#2448): ekran i zapis — tylko właściciel.
+        $dodaj('pantry.name.edit', 'ekran „Zmień nazwę” produktu z listy', 'get',
+            route('pantry.name.edit', $produktDoTerminu), [], [$W, $O, $O, $O, $O]);
+        $dodaj('pantry.name.update', 'zmiana nazwy produktu z listy', 'put',
+            route('pantry.name.update', $produktDoTerminu), ['nazwa' => 'jajka kurze', 'stara_nazwa' => 'jajka'], [$W, $O, $O, $O, $O]);
         // Usunięcie JEDNEGO z dwóch opakowań (#2568): ta sama polityka co usunięcie produktu.
         $produktZDwomaOpakowaniami = $wlasciciel->pantryItems()->create(['name' => 'ser']);
         $dodaj('pantry.destroyOpakowanie', 'usunięcie jednego z dwóch opakowań produktu z listy', 'delete',
@@ -1425,6 +1439,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.print', $zeszytZbanowanegoPrywatny), [], [$O, $O, $O, $O, $O]);
         $dodaj('collections.print', 'wydruk publicznego zeszytu osoby zbanowanej', 'get',
             route('collections.print', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $W, $O]);
+        $dodaj('collections.print.select', 'wybór do wydruku prywatnego zeszytu osoby zbanowanej', 'get',
+            route('collections.print.select', $zeszytZbanowanegoPrywatny), [], [$O, $O, $O, $O, $O]);
+        $dodaj('collections.print.select', 'wybór do wydruku publicznego zeszytu osoby zbanowanej', 'get',
+            route('collections.print.select', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $W, $O]);
         // Kanał Atom zeszytu (#2227) — zawsze oczami gościa, więc prywatny
         // zeszyt jest zamknięty także dla WŁAŚCICIELA, a zbanowanego —
         // także dla moderatora (ten ma stronę zeszytu, nie kanał).
@@ -1455,6 +1473,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('collections.recipes.move', 'przesunięcie przepisu w zeszycie', 'post',
             route('collections.recipes.move', ['collection' => $zeszyt, 'pozycja' => $przepis->getKey()]),
             ['kierunek' => 'wyzej'], [$W, $O, $O, $O, $O]);
+        // Przeniesienie pozycji między własnymi zeszytami prywatnymi (#2430) —
+        // wyłącznie właściciel (`CollectionPolicy::przenies`). Brak celu =
+        // błąd walidacji, więc nic nie jest przenoszone przy pomiarze.
+        $dodaj('collections.move.form', 'wybór zeszytu docelowego przy przenoszeniu', 'get',
+            route('collections.move.form', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
+            [], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.move.store', 'zapis przeniesienia pozycji', 'post',
+            route('collections.move.store', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
+            [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.recipes.order-reset', 'powrót do kolejności zapisu', 'post',
             route('collections.recipes.order-reset', $zeszyt), [], [$W, $O, $O, $O, $O]);
         // Skrót do własnego zeszytu w „Moje” (#2542) — wyłącznie właściciel.
@@ -1564,6 +1591,16 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('planer.note', $pozycjaPlanu), ['note' => 'Kolacja', 'stan' => ''], [$W, $O, $O, $O, $O]);
         $dodaj('planer.servings', 'planowane porcje przy przepisie w planerze', 'patch',
             route('planer.servings', $pozycjaPlanu), ['porcje' => '6', 'stan' => ''], [$W, $O, $O, $O, $O]);
+        // Przeniesienie na inny dzień (#2447): ekran i zapis — tylko właściciel.
+        $dodaj('planer.move.form', 'ekran przenoszenia pozycji planera', 'get',
+            route('planer.move.form', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
+        $dodaj('planer.move', 'przeniesienie pozycji planera na inny dzień', 'patch',
+            route('planer.move', $pozycjaPlanu), ['day' => '2026-11-19', 'stan' => '2026-11-18'], [$W, $O, $O, $O, $O]);
+        // Poprawienie własnego tekstu (#2454): ekran i zapis — tylko właściciel.
+        $dodaj('planer.text.edit', 'ekran poprawiania tekstu pozycji planera', 'get',
+            route('planer.text.edit', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
+        $dodaj('planer.text.update', 'poprawienie tekstu pozycji planera', 'patch',
+            route('planer.text.update', $pozycjaPlanu), ['label' => 'Obiad u Kasi', 'stan' => hash('sha256', 'Obiad u mamy')], [$W, $O, $O, $O, $O]);
         $dodaj('planer.destroy', 'pozycja planera tygodnia', 'delete',
             route('planer.destroy', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
 
@@ -1584,10 +1621,20 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $pozycjaZakupowDoKasacji->save();
         $dodaj('shopping.toggle', 'odhaczenie pozycji listy zakupów', 'patch',
             route('shopping.toggle', $pozycjaZakupow), ['odhaczona' => '1'], [$W, $O, $O, $O, $O]);
+        // Poprawianie tekstu pozycji (#2443): ekran i zapis — tylko właściciel.
+        $dodaj('shopping.edit', 'ekran poprawiania pozycji listy zakupów', 'get',
+            route('shopping.edit', $pozycjaZakupow), [], [$W, $O, $O, $O, $O]);
+        $dodaj('shopping.update', 'poprawienie tekstu pozycji listy zakupów', 'patch',
+            route('shopping.update', $pozycjaZakupow), ['text' => '2 mleka', 'stan' => hash('sha256', 'mleko')], [$W, $O, $O, $O, $O]);
         $dodaj('shopping.destroy', 'usunięcie pozycji listy zakupów', 'delete',
             route('shopping.destroy', $pozycjaZakupowDoKasacji), [], [$W, $O, $O, $O, $O]);
         $dodaj('shopping.recipe.store', 'dodanie składników prywatnego przepisu do listy zakupów', 'post',
             route('shopping.recipe.store', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        // Wybór składników (#2462): ekran i zapis prywatnego przepisu — tylko autor.
+        $dodaj('shopping.recipe.pick', 'ekran wyboru składników prywatnego przepisu do zakupów', 'get',
+            route('shopping.recipe.pick', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
+        $dodaj('shopping.recipe.pick.store', 'dodanie wybranych składników prywatnego przepisu do zakupów', 'post',
+            route('shopping.recipe.pick.store', $przepisPrywatny), ['skladniki' => ['01a0fd15-5599-7067-9435-6566b0d15f33'], 'odcisk' => str_repeat('a', 64)], [$W, $O, $O, $O, $O]);
         // Ekran pytania bez wcześniejszego dodania odsyła do przepisu, więc
         // właściciel ma „dozwolone” (przekierowanie), a reszta — odmowę.
         $dodaj('shopping.recipe.confirm', 'ekran „dodać składniki jeszcze raz?” prywatnego przepisu', 'get',

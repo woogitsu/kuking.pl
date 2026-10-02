@@ -784,11 +784,11 @@ CISZA_BEZ_WARUNKU = (
 # priorytetem. Mutacja przywraca bezwarunkowe `loading="lazy"` na każdym kaflu.
 LANDING = "resources/views/pages/landing.blade.php"
 KOLAZ_LCP_TEST = "KolazPowitalnyPriorytetLcpTest"
-KOLAZ_PRIORYTET = """                                 @if($loop->first)
-                                 fetchpriority="high"
-                                 @else
-                                 loading="lazy"
-                                 @endif
+KOLAZ_PRIORYTET = """                                         @if($loop->first)
+                                         fetchpriority="high"
+                                         @else
+                                         loading="lazy"
+                                         @endif
 """
 # Arkusz wydruku przepisu (#765): żadne pismo na kartce poniżej 12 pt.
 # Strażnik czyta `wydruk-przepisu.css` i zbiera rozmiary z bloku `@media print`;
@@ -2067,7 +2067,9 @@ checks = [
     ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
      lambda s: replace_once(s, "! hash_equals($akcja, $akcjaZOdpowiedzi) => 'inna_akcja',\n", "")),
     ("Kolaż hero z lazy na pierwszym kaflu", LANDING, KOLAZ_LCP_TEST,
-     lambda s: replace_once(s, KOLAZ_PRIORYTET, '                                 loading="lazy"\n')),
+     lambda s: replace_once(s, KOLAZ_PRIORYTET, '                                         loading="lazy"\n')),
+    ("Kolaż hero bez podpisu autora przy zdjęciu (#2708)", LANDING, "KolazPowitalnyPodpisAutoraPrzyKazdymZdjeciuTest",
+     lambda s: replace_once(s, '<span class="hero-kolaz-autor">Zdjęcie: {{ $kafel[\'autor\']->displayName() }}</span>\n', '')),
     ("Polityka z innym terminem usunięcia treści niż konfiguracja", POLITYKA, TWARDE_USUNIECIE_TEST,
      lambda s: replace_once(s, "najpóźniej **30 dni** po usunięciu", "najpóźniej **60 dni** po usunięciu")),
     ("Users znowu importuje Social", ZALOZ_KONTO, GRAF_MODULOW_TEST,
@@ -2368,6 +2370,18 @@ checks = [
      lambda s: replace_once(s, "                        $recipe->forceFill(['odlozony_at' => null]);\n", "")),
     ("Odłożenie szkicu: rollback nie odmawia przy odłożonych (#2550)", "database/migrations/2026_10_03_150000_add_odlozony_at_to_recipes.php", "OdlozenieSzkicuPrzepisuTest",
      lambda s: replace_once(s, "        if ($odlozone > 0) {", "        if (false) {")),
+    # #2443: poprawianie pozycji listy zakupów — rollback nie może po cichu
+    # zatrzeć informacji, że tekst nie jest już dosłowną linią z przepisu, a
+    # stara karta nie może nadpisać nowszej korekty.
+    ("Poprawka zakupów: rollback nie odmawia przy poprawionych pozycjach (#2443)", "database/migrations/2026_10_05_143127_add_edited_at_to_shopping_list_items.php", "ListaZakupowPoprawkaTest",
+     lambda s: replace_once(s, "        if ($poprawione > 0) {", "        if (false) {")),
+    ("Poprawka zakupów: stara karta nadpisuje nowszą korektę (#2443)", ZAKUPY_LISTA, "ListaZakupowPoprawkaTest",
+     lambda s: replace_once(s, "if (! hash_equals(self::znacznikTekstu($pozycja), $widzianyZnacznik)) {", "if (false) {")),
+    # #2438 (decyzja właściciela z 2.10.2026, D-333): wydruk zeszytu jest
+    # DOMYŚLNIE bez notatek; powrót do „notatki, chyba że bez-notatek” musi
+    # wywrócić test domyślnego wydruku.
+    ("Wydruk zeszytu znowu domyślnie z notatkami (#2438)", "app/Http/Controllers/CollectionPrintController.php", "WydrukZeszytuBezNotatekTest::test_domyslnie_wydruk_jest_bez_notatek_a_uwagi_autora_zostaja",
+     lambda s: replace_once(s, "$zNotatkami = $dostepDoNotatek && $request->boolean('z-notatkami');", "$zNotatkami = $dostepDoNotatek && ! $request->boolean('bez-notatek');")),
     # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
     # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
     ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,
@@ -2594,6 +2608,8 @@ checks = [
      lambda s: replace_once(s, "| Plan na tydzień |", "| Planowanie posiłków |")),
     ("Nowa sekcja paczki bez opisu w polityce", "app/Domain/Users/Exports/InwentarzDanychKonta.php", "PolitykaOpisujeKazdaSekcjePaczkiTest",
      lambda s: replace_once(s, "'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],", "'meal_plan_entries.user_id' => [self::EKSPORT, 'planer_nowy'],")),
+    ("Polityka bez górnego terminu usunięcia wspólnego gotowania (#2708)", POLITYKA_TEKST, "test_polityka_podaje_gorny_termin_usuniecia_zgodny_z_terminem_i_dobowym_sprzataniem",
+     lambda s: replace_once(s, "najpóźniej po około 48 godzinach od założenia.", "najpóźniej po około 72 godzinach od założenia.")),
     ("Postęp gotowania z terminem niezgodnym z konfiguracją", POLITYKA_TEKST, "test_terminy_nowych_wierszy_zgadzaja_sie_z_konfiguracja",
      lambda s: replace_once(s, "**24 godziny** od ostatniej zmiany — potem postęp", "**48 godzin** od ostatniej zmiany — potem postęp")),
     # Z6 (#2282): Cloudflare jako pośrednik całego ruchu ma własny wiersz.

@@ -824,6 +824,8 @@
                             </p>
                             <p class="meta mt-2">Przycisk wyżej dodaje ilości autora ({{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta((float) $wyborPorcji->zPrzepisu) }}).</p>
                         @endif
+                        {{-- Opcjonalnie tylko wybrane linie (#2462); pełne dodanie wyżej zostaje bez zmian. --}}
+                        <p class="mt-3"><a class="btn btn-secondary" href="{{ route('shopping.recipe.pick', $recipe) }}">Wybierz składniki do zakupów</a></p>
                     @endauth
                 @endif
                 {{-- Alergeny według autora (#1902, D-333): stały blok pod składnikami,

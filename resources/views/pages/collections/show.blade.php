@@ -5,6 +5,8 @@
     nie oddajemy go nawet w nagłówku strony.
 --}}
 @php
+    // „Przenieś do innego zeszytu” (#2430): jedno pytanie o Policy na stronę.
+    $mozePrzenosic = auth()->check() && \Illuminate\Support\Facades\Gate::allows('przenies', $collection);
     $opisStrony = $collection->isPublic()
         ? \Illuminate\Support\Str::limit(
             trim((string) $collection->description) !== ''
@@ -220,6 +222,9 @@
                             </form>
                         @endif
                         <x-notatka-zapisu :zeszyt="$collection" typ="przepis" :pozycja="$recipe" :dostep="$dostepDoNotatek" :wspolny="$wspolny" />
+                        @if($mozePrzenosic)
+                            <p class="mt-2"><a class="btn btn-secondary" href="{{ route('collections.move.form', ['collection' => $collection, 'typ' => 'przepis', 'pozycja' => $recipe->getKey()]) }}" data-rola="przenies-do-zeszytu">Przenieś do innego zeszytu</a></p>
+                        @endif
                     </div>
                 @endforeach
             </div>
@@ -242,6 +247,9 @@
                             <p class="meta mt-2" data-kto-dodal>Dodane przez: {{ $podpisyDodania[(string) $post->pivot->added_by_id] ?? 'osoba, która usunęła konto' }}</p>
                         @endif
                         <x-notatka-zapisu :zeszyt="$collection" typ="wpis" :pozycja="$post" :dostep="$dostepDoNotatek" :wspolny="$wspolny" />
+                        @if($mozePrzenosic)
+                            <p class="mt-2"><a class="btn btn-secondary" href="{{ route('collections.move.form', ['collection' => $collection, 'typ' => 'wpis', 'pozycja' => $post->getKey()]) }}" data-rola="przenies-do-zeszytu">Przenieś do innego zeszytu</a></p>
+                        @endif
                     </div>
                 @endforeach
             </div>
