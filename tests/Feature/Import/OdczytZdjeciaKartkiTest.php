@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Import;
 
 use App\Domain\Import\KlientLuna;
+use App\Domain\Import\KomunikatImportu;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Users\Actions\EraseAccountData;
@@ -17,6 +18,8 @@ use App\Models\User;
 use App\Models\WpisZgody;
 use App\Support\Czas;
 use App\Support\KreatorPrzepisu\DanePublikacji;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
@@ -347,7 +350,7 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
     public function test_zapisane_zlecenie_pokazuje_obecny_miesieczny_limit_zamiast_obietnicy_jutra(): void
     {
-        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-10-15 12:00:00', 'Europe/Warsaw'));
+        $this->travelTo(CarbonImmutable::parse('2026-10-15 12:00:00', 'Europe/Warsaw'));
         $this->zgoda();
         Http::fake();
         config(['kuking.import.limity.na_osobe_dzien' => 1, 'kuking.import.limity.na_osobe_miesiac' => 1]);
@@ -375,16 +378,16 @@ final class OdczytZdjeciaKartkiTest extends TestCase
             ->assertSee('Wpiszę przepis ręcznie')
             ->assertDontSee('Jutro rano będzie można dalej');
 
-        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-10-16 12:00:00', 'Europe/Warsaw'));
+        $this->travelTo(CarbonImmutable::parse('2026-10-16 12:00:00', 'Europe/Warsaw'));
         $html = $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))->assertOk()->getContent();
         $this->assertStringContainsString('Po rozpoczęciu następnego miesiąca możesz spróbować ponownie', $html, 'OCR_2648_MIESIAC_NIE_OBIECUJE_JUTRA');
         $this->assertStringNotContainsString('Jutro rano będzie można dalej', $html);
 
-        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-10-31 23:59:59', 'Europe/Warsaw'));
+        $this->travelTo(CarbonImmutable::parse('2026-10-31 23:59:59', 'Europe/Warsaw'));
         $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
             ->assertOk()->assertSee('W tym miesiącu wykorzystano limit odczytów');
 
-        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-11-01 00:00:01', 'Europe/Warsaw'));
+        $this->travelTo(CarbonImmutable::parse('2026-11-01 00:00:01', 'Europe/Warsaw'));
         $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
             ->assertOk()
             ->assertSee('<strong>Możesz spróbować ponownie</strong>', false)
@@ -396,7 +399,7 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
     public function test_dzienny_limit_zapisanego_zlecenia_i_stary_kod_maja_uczciwy_komunikat(): void
     {
-        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-10-15 12:00:00', 'Europe/Warsaw'));
+        $this->travelTo(CarbonImmutable::parse('2026-10-15 12:00:00', 'Europe/Warsaw'));
         $this->zgoda();
         Http::fake();
         config(['kuking.import.limity.na_osobe_dzien' => 1, 'kuking.import.limity.na_osobe_miesiac' => 30]);
@@ -409,11 +412,11 @@ final class OdczytZdjeciaKartkiTest extends TestCase
             ->assertSee('Po rozpoczęciu następnego dnia możesz spróbować ponownie')
             ->assertDontSee('W tym miesiącu wykorzystano limit odczytów');
 
-        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-10-15 23:59:59', 'Europe/Warsaw'));
+        $this->travelTo(CarbonImmutable::parse('2026-10-15 23:59:59', 'Europe/Warsaw'));
         $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
             ->assertOk()->assertSee('Dziś wykorzystano limit odczytów');
 
-        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-10-16 00:00:01', 'Europe/Warsaw'));
+        $this->travelTo(CarbonImmutable::parse('2026-10-16 00:00:01', 'Europe/Warsaw'));
         $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
             ->assertOk()->assertSee('<strong>Możesz spróbować ponownie</strong>', false)
             ->assertSee('Możesz spróbować ponownie, jeśli odczytywanie jest dostępne')
@@ -437,20 +440,20 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         $miesieczny = $this->zlecenieBezWysylki(ImportPrzepisu::STATUS_WSTRZYMANY_LIMITEM, ImportPrzepisu::KOD_LIMIT_OSOBY);
         $inny = $this->zlecenieBezWysylki(ImportPrzepisu::STATUS_WSTRZYMANY_LIMITEM, ImportPrzepisu::KOD_BUDZET_DZIENNY);
         $sql = [];
-        DB::listen(static function (\Illuminate\Database\Events\QueryExecuted $zapytanie) use (&$sql): void {
+        DB::listen(static function (QueryExecuted $zapytanie) use (&$sql): void {
             if (str_contains(strtolower($zapytanie->sql), 'count(*)') && (str_contains($zapytanie->sql, 'proby_importu') || str_contains($zapytanie->sql, 'importy_przepisow'))) {
                 $sql[] = $zapytanie->sql;
             }
         });
 
-        \App\Domain\Import\KomunikatImportu::dla($inny);
+        KomunikatImportu::dla($inny);
         $this->assertCount(0, $sql, 'OCR_2648_INNE_ZLECENIE_BEZ_DODATKOWYCH_COUNT');
-        \App\Domain\Import\KomunikatImportu::dla($miesieczny);
+        KomunikatImportu::dla($miesieczny);
         $this->assertCount(2, $sql, 'OCR_2648_MIESIAC_TYLKO_DWA_COUNT');
 
         config(['kuking.import.limity.na_osobe_miesiac' => 30]);
         $sql = [];
-        \App\Domain\Import\KomunikatImportu::dla($miesieczny);
+        KomunikatImportu::dla($miesieczny);
         $this->assertCount(4, $sql, 'OCR_2648_DZIEN_CZTERY_COUNT_BEZ_POWTORZENIA_OKRESU');
     }
 
