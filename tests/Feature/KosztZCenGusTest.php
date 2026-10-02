@@ -47,6 +47,11 @@ class KosztZCenGusTest extends TestCase
             'sztuki bez słowa miary' => ['3 jajka', ['ilosc' => 3.0, 'miara' => 'sztuka']],
             'ułamek znakiem' => ['½ łyżeczki soli', ['ilosc' => 0.5, 'miara' => 'lyzeczka']],
             'ułamek mieszany' => ['1 1/2 szklanki mleka', ['ilosc' => 1.5, 'miara' => 'szklanka']],
+            'tysiąc gramów' => ['1 000 g jajek', ['ilosc' => 1000.0, 'miara' => 'g']],
+            'tysiące po nazwie' => ['jajka 1 500 g', ['ilosc' => 1500.0, 'miara' => 'g']],
+            'kilka grup tysięcy' => ['1 234 567 g mąki', ['ilosc' => 1234567.0, 'miara' => 'g']],
+            'nierozpoznane grupowanie' => ['1 00 g jajek', null],
+            'nierówne grupy tysięcy' => ['12 345 67 g mąki', null],
             'przedział' => ['2-3 łyżki oleju', ['ilosc' => 2.5, 'miara' => 'lyzka']],
             'przedział do w gramach' => ['200 do 300 g mąki', ['ilosc' => 250.0, 'miara' => 'g']],
             'przedział lub w sztukach' => ['2 lub 3 jajka', ['ilosc' => 2.5, 'miara' => 'sztuka']],
@@ -73,6 +78,55 @@ class KosztZCenGusTest extends TestCase
     public function ilosc_z_tekstu(string $tekst, ?array $oczekiwane): void
     {
         $this->assertEquals($oczekiwane, IloscZTekstu::rozbierz($tekst));
+    }
+
+    #[Test]
+    public function grupowane_tysiace_zachowuja_cala_mase_i_nie_staja_sie_sztukami(): void
+    {
+        foreach ([' ', "\u{00A0}", "\u{202F}"] as $odstep) {
+            $this->assertSame(
+                ['ilosc' => 1000.0, 'miara' => 'g'],
+                IloscZTekstu::rozbierz("1{$odstep}000 g jajek"),
+                'KOSZT_2561_GRUPOWANE_TYSIACE_NIE_SA_SZTUKAMI',
+            );
+            $this->assertSame(['ilosc' => 1500.0, 'miara' => 'g'], IloscZTekstu::rozbierz("jajka 1{$odstep}500 g"));
+        }
+
+        $this->assertSame(['ilosc' => 1500.0, 'miara' => 'g'], IloscZTekstu::rozbierz('1 000 do 2 000 g mąki'));
+        $this->assertSame(['ilosc' => 1500.0, 'miara' => 'g'], IloscZTekstu::rozbierz('1,5 kg mąki'));
+        $this->assertSame(['ilosc' => 1500.0, 'miara' => 'g'], IloscZTekstu::rozbierz('1 1/2 kg mąki'));
+        $this->assertSame(['ilosc' => 3.0, 'miara' => 'sztuka'], IloscZTekstu::rozbierz('3 jajka'));
+
+        foreach (['1 00 g jajek', '1 0000 g jajek', '12 345 67 g jajek', 'jajka 1 00 g'] as $tekst) {
+            $this->assertNull(IloscZTekstu::rozbierz($tekst), 'Uszkodzona liczba nie może dać częściowej wyceny.');
+        }
+    }
+
+    #[Test]
+    public function grupowane_tysiace_zachowuja_mase_pokrycie_i_kwote_pelnego_szacunku(): void
+    {
+        $this->cennik();
+
+        $zapisCaly = $this->przepis(['1000 g jajek']);
+        $zapisGrupowany = $this->przepis(['1 000 g jajek']);
+        $bezpiecznaOdmowa = $this->przepis(['1 00 g jajek', '2 jajka']);
+        $zwykleSztuki = $this->przepis(['3 jajka']);
+
+        $caly = app(SzacunekKosztuZCen::class)->dla($zapisCaly);
+        $grupowany = app(SzacunekKosztuZCen::class)->dla($zapisGrupowany);
+        $odmowa = app(SzacunekKosztuZCen::class)->dla($bezpiecznaOdmowa);
+        $sztuki = app(SzacunekKosztuZCen::class)->dla($zwykleSztuki);
+
+        $this->assertNotNull($caly);
+        $this->assertTrue($caly->jestPrzedzial());
+        $this->assertSame(16, $caly->od, '1000 g jajek z ceną za sztukę 60 g ma koszt 18,83 zł przed rozrzutem.');
+        $this->assertSame(22, $caly->do);
+        $this->assertEquals($caly, $grupowany, 'KOSZT_2561_PELNA_WYCENA_MASY_NIE_SZTUKE');
+        $this->assertNotNull($odmowa);
+        $this->assertFalse($odmowa->jestPrzedzial(), 'Błędne grupowanie nie może tworzyć wiarygodnego przedziału.');
+        $this->assertNotNull($sztuki);
+        $this->assertTrue($sztuki->jestPrzedzial(), 'Zapis trzech jajek pozostaje poprawną liczbą sztuk.');
+        $this->assertSame('1 000 g jajek', $zapisGrupowany->ingredients->first()->ingredient_text);
     }
 
     #[Test]
@@ -140,6 +194,49 @@ class KosztZCenGusTest extends TestCase
             $zDopiskiem = app(SzacunekKosztuZCen::class)->dla($this->przepis([$tekst]));
             $this->assertNotNull($zDopiskiem, 'KOSZT_2508_PELNA_WYCENA_OPISU_CELU');
             $this->assertEquals($bezDopisku, $zDopiskiem, 'KOSZT_2508_PELNA_WYCENA_OPISU_CELU');
+        }
+    }
+
+    #[Test]
+    public function druga_bezposrednia_ilosc_nie_zaniza_masy_do_pierwszej_liczby(): void
+    {
+        foreach ([
+            '1 kg i 200 g mąki', '1 kg 200 g mąki', '500 g + 200 g mąki',
+            '1 kg oraz 200 g mąki', '1 kg i 200 mąki', '500 g + 2 jajka',
+        ] as $tekst) {
+            $this->assertNull(
+                IloscZTekstu::rozbierz($tekst),
+                'KOSZT_2578_DRUGA_ILOSC_NIE_ZANIZA_MASY',
+            );
+        }
+
+        $this->assertSame(['ilosc' => 1200.0, 'miara' => 'g'], IloscZTekstu::rozbierz('1200 g mąki'));
+        $this->assertSame(['ilosc' => 700.0, 'miara' => 'g'], IloscZTekstu::rozbierz('700 g mąki'));
+        $this->assertSame(['ilosc' => 300.0, 'miara' => 'g'], IloscZTekstu::rozbierz('300 g mąki do 2 porcji'));
+        $this->assertSame(['ilosc' => 1000.0, 'miara' => 'g'], IloscZTekstu::rozbierz('1 kg mąki 20%'));
+        $this->assertSame(['ilosc' => 250.0, 'miara' => 'g'], IloscZTekstu::rozbierz('200 do 300 g mąki'));
+        $this->assertNull(IloscZTekstu::rozbierz('mąka typ 650'));
+        $this->assertNull(IloscZTekstu::rozbierz('śmietana 18%'));
+    }
+
+    #[Test]
+    public function druga_bezposrednia_ilosc_daje_jawny_brak_wyceny_zamiast_zanizonej_kwoty(): void
+    {
+        $this->cennik();
+        $pelny = app(SzacunekKosztuZCen::class)->dla($this->przepis(['1200 g mąki', '2 jajka']));
+        $this->assertNotNull($pelny);
+        $this->assertTrue($pelny->jestPrzedzial());
+
+        foreach (['1 kg i 200 g mąki', '1 kg 200 g mąki', '500 g + 200 g mąki'] as $tekst) {
+            $przepis = $this->przepis([$tekst, '2 jajka']);
+            $wynik = app(SzacunekKosztuZCen::class)->dla($przepis);
+
+            $this->assertNotNull($wynik);
+            $this->assertFalse($wynik->jestPrzedzial(), 'KOSZT_2578_PELNA_WYCENA_NIE_UDAJE_PIERWSZEJ_MASY');
+            $this->assertNull($wynik->od);
+            $this->assertNull($wynik->do);
+            $this->assertStringContainsString($tekst, $wynik->zdanie());
+            $this->assertSame($tekst, $przepis->ingredients->first()->ingredient_text);
         }
     }
 
@@ -451,6 +548,43 @@ class KosztZCenGusTest extends TestCase
         }
     }
 
+    #[Test]
+    public function prawdziwy_cennik_nie_myli_maki_gryczanej_z_kasza(): void
+    {
+        $this->assertSame(0, Artisan::call('kuking:ceny-skladnikow'));
+        $cennik = new CennikSkladnikow;
+
+        foreach (['500 g mąki gryczanej', '500 g mąka gryczana', '500 g mąki ryżowej'] as $tekst) {
+            $this->assertNull($cennik->dopasuj($tekst), 'KOSZT_2605_MAKA_NIE_JEST_KASZA: '.$tekst);
+        }
+
+        foreach (['500 g kaszy gryczanej', '500 g kasza gryczana', '500 g kaszę gryczaną'] as $tekst) {
+            $this->assertSame('kasza_gryczana', $cennik->dopasuj($tekst)?->klucz, $tekst);
+        }
+
+        $this->assertSame('maka_pszenna', $cennik->dopasuj('500 g mąki pszennej')?->klucz);
+    }
+
+    #[Test]
+    public function prawdziwy_cennik_nie_myli_maki_gryczanej_w_pelnej_wycenie(): void
+    {
+        $this->assertSame(0, Artisan::call('kuking:ceny-skladnikow'));
+
+        $samaKasza = app(SzacunekKosztuZCen::class)->dla($this->przepis(['500 g kaszy gryczanej']));
+        $this->assertNotNull($samaKasza);
+        $this->assertTrue($samaKasza->jestPrzedzial());
+
+        $zMaka = app(SzacunekKosztuZCen::class)->dla($this->przepis([
+            '500 g kaszy gryczanej',
+            '500 g mąki gryczanej',
+        ]));
+
+        $this->assertNotNull($zMaka);
+        $this->assertFalse($zMaka->jestPrzedzial(), 'KOSZT_2605_MAKA_NIE_DAJE_POKRYCIA');
+        $this->assertStringContainsString('nie mamy średnich cen części składników', $zMaka->zdanie());
+        $this->assertStringContainsString('„500 g mąki gryczanej”', $zMaka->zdanie());
+    }
+
     /**
      * Zbieżność z miarami domowymi wartości odżywczych (D-286, „Zbieżność”):
      * dopóki koszt trzyma własną masę kotleta, nie może się ona rozjechać
@@ -594,7 +728,7 @@ class KosztZCenGusTest extends TestCase
             'kielbasa,kiełbasa,kielbasa|kielbasy,,32.96,1,kg,1000,,,,,2025,GUS,1753078',
             'kurczak,kurczak,kurczak|kurczaka,filet|piers,13.24,1,kg,1000,,,,1600,2025,GUS,4961',
             'mleko,mleko,mleko|mleka,kokos,4.40,1,l,1000,250,15,5,,2025,GUS,4975',
-            'jajka,jajko,jajko|jajka|jaj,,1.13,1,szt,60,,,,60,2025,GUS,4993',
+            'jajka,jajko,jajko|jajka|jajek|jaj,,1.13,1,szt,60,,,,60,2025,GUS,4993',
             'olej,olej rzepakowy,olej|oleju,kokos,9.55,1,l,920,230,14,5,,2025,GUS,4984',
             'maka_pszenna,mąka pszenna,maka|maki|make,ziemniaczan|kukurydz,3.76,1,kg,1000,160,10,3,,2025,GUS,1749185',
             'schab,schab bez kości,schab|schabu|schabowy|schabowe|schabowych,,25.04,1,kg,1000,,,,,2025,GUS,633049',

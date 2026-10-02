@@ -39,14 +39,14 @@
             <input class="visually-hidden pole-zdjecia-input" id="f-zdjecie" type="file" name="zdjecie" required
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}" capture="environment"
                    aria-labelledby="f-zdjecie-etykieta f-zdjecie-tytul"
-                   aria-describedby="f-zdjecie-help"
+                   aria-describedby="f-zdjecie-help @error('zdjecie') f-zdjecie-error @enderror"
                    @error('zdjecie') aria-invalid="true" @enderror>
             <label class="pole-zdjecia" for="f-zdjecie">
                 <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
                 <span class="pole-zdjecia-tytul" id="f-zdjecie-tytul">Zrób zdjęcie albo wybierz je z telefonu</span>
                 <span class="field-help" id="f-zdjecie-help">Połóż kartkę na stole, przy oknie. Zdjęcie z góry, cała kartka w kadrze.</span>
             </label>
-            @error('zdjecie')<span class="field-error">{{ $message }}</span>@enderror
+            @error('zdjecie')<span class="field-error" id="f-zdjecie-error">{{ $message }}</span>@enderror
         </div>
 
         <p class="field-help">Przypomnienie: zdjęcie odczyta komputer firmy OpenAI. Jeśli na kartce są czyjeś dane, zasłoń je przed zrobieniem zdjęcia.</p>

@@ -3,6 +3,26 @@
 ## Nieopublikowane
 
 - Naprawione (#2629): zmiana porcji nie mnoży zawartości tłuszczu „30 %” ani „30 proc.”; przelicza rzeczywistą ilość podaną dalej, na przykład 200 g.
+- Naprawione (#2614): import przepisu z tekstowego PDF zachowuje ilości `1.5 kg` i `0.5 l` w prywatnym szkicu; prawdziwe numery listy nadal usuwa bez zmiany cyfr składnika.
+- Naprawione (#2570, #2582): import z adresu odczytuje kroki i sekcje zapisane w JSON-LD jako `ListItem.item`, zachowując kolejność prawidłowych pozycji. Przy niejasnych pozycjach zostawia kolejność źródła. Sam identyfikator `@id` nie staje się tekstem kroku; szkic pozostaje prywatny i nie używa modelu dla tych danych.
+- Naprawione (#2580): import z adresu zachowuje dosłowne porównanie, np. „<80”, wraz z resztą instrukcji. Podziały kroków i usuwanie prawdziwych znaczników HTML nadal działają.
+- Naprawione (#2564): import z adresu zachowuje podział instrukcji i składników także przy jedno- i dwukrotnie zakodowanych znacznikach HTML. Nie skleja zdań i nie zostawia odtworzonych znaczników w zwykłym tekście.
+- Naprawione (#2578): zapis kilku bezpośrednich ilości przy jednym składniku, np. „1 kg i 200 g mąki”, nie daje zaniżonego kosztu policzonego tylko z pierwszej ilości. Gdy nie da się bezpiecznie ustalić masy, szacunek pokazuje przyczynę zamiast kwoty; zapis autora pozostaje bez zmian.
+
+- Naprawione (#2561): orientacyjny koszt rozpoznaje masę zapisaną z grupowaniem tysięcy (np. „1 000 g jajek”) jako całą masę, a przy uszkodzonym grupowaniu odmawia wyceny zamiast zamieniać fragment na sztuki.
+- Edycja wspólnego zeszytu wyjaśnia, że ustawienie prywatności zachowuje dostęp zaproszonych osób i nie odwołuje zaproszeń (#2601).
+
+- Naprawione (#2600): kartka z przepisem nie drukuje odnośników, których nie da się na niej nacisnąć. Ciemny motyw drukuje białe tło także wokół treści, żeby nie zużywać tuszu na czarną ramę.
+- Naprawione (#2586): po odrzuceniu zdjęcia kartki pole wyboru pliku ma dla czytnika ekranu także opis konkretnego błędu, obok stałej wskazówki o zrobieniu zdjęcia. Podsumowanie błędów nadal prowadzi do pola.
+
+- Naprawione (#2589): jeśli autor przestawi, zmieni albo usunie krok podczas gotowania, działający minutnik zachowuje pierwotny termin i czas. Nie pokazuje nowej czynności jako tej, dla której został uruchomiony; można go anulować, a alarm nadal zabrzmi. Dotyczy pojedynczego gotowania i kolejki w tej samej karcie.
+- Naprawione (#2605): orientacyjny koszt nie używa ceny kaszy gryczanej dla mąki gryczanej. Gdy brakuje ceny mąki, szacunek uwzględnia ten brak zamiast przedstawiać kwotę za inny produkt.
+- Naprawione (#2607): mąka z ciecierzycy bez własnej pozycji w tabeli wartości odżywczych pozostaje nieznanym składnikiem zamiast udawać mąkę pszenną. Znana masa nadal liczy się do całego przepisu, a pełne aliasy działają jak dotąd.
+- Naprawione (#2563): szacunek wartości odżywczych nie traktuje ugotowanego ryżu lub makaronu jak surowego tylko dlatego, że słownik zna krótszą nazwę. Gdy brakuje zgodnej pozycji, składnik pozostaje nieznany; pełne aliasy produktów gotowanych i neutralne opisy nadal działają.
+- Naprawione (#2613): „Co ugotuję” nie uznaje soli z dopisku „bez soli” za posiadane masło. Tak samo liczy braki i produkty z krótkim terminem; masło nadal pasuje do masła bez soli.
+- Naprawione (#2624): przy przepisie autora na ponad 101 porcji „Mniej” przechodzi od razu do 100 porcji zamiast prowadzić do odrzucanego adresu i zapętlać wybór. Powrót do ilości autora nadal jest dostępny.
+- Naprawione (#2617): gdy nie da się ocenić reguły robots.txt, import nie pobiera strony. Prosi o ponowną próbę później albo ręczne wpisanie przepisu, bez przypisywania wydawcy odmowy.
+- Naprawione (#2569): zakodowanie litery w adresie nie omija zakazu wydawcy w robots.txt. Import nadal respektuje reguły także po przekierowaniu.
 - Wewnętrzne (#2598): test dwóch połączeń przy zapisie do zeszytu czeka na właściwą barierę transakcji. Wcześniejsza, obca blokada nie daje fałszywej czerwieni; osobny przeplot i kontrola ujemna sprawdzają ten warunek w CI.
 - Wewnętrzne (#2596): lokalny serwer testu checklisty składników przyjmuje tylko dodatnią liczbę porcji. Nie odbija tekstu z adresu w HTML; test HTTP i kontrola ujemna pilnują tego w CI.
 - Naprawione (#2467): usunięcie produktu z „Co mam w domu” najpierw pokazuje pytanie z jego nazwą. „Anuluj” zamyka je bez kasowania ilości lub terminu, także bez JavaScriptu.
@@ -20,6 +40,7 @@
 - Naprawione (#2505): samo otwarcie lub odświeżenie niezmienionej kolejki gotowania nie odnawia jej 24-godzinnej ważności. Dodanie, usunięcie, zmiana kolejności lub kroku nadal odnawiają termin.
 - Naprawione (#2536, #2538, #2539): import z adresu wybiera pierwszy przepis JSON-LD z rzeczywistą treścią, odczytuje `content` składników i kroków z mikrodanych oraz zachowuje jednoznaczną ułamkową liczbę porcji. Szkic pozostaje prywatny, bez dodatkowego użycia AI.
 - Naprawione (#2477, #2508): koszt zachowuje obie granice słownego zakresu ilości. Dopisek celu, np. „300 g mąki do 2 porcji”, zachowuje rozpoznaną masę; nie zmieniamy tekstu autora.
+
 - Naprawione (#2476, #2478, #2479): osobista paczka danych zachowuje sam rok rodzinny w HTML, odróżnia przepis ukryty od szkicu i zapisuje jawny wybór „Bez ilości” w bieżących składnikach JSON.
 - Wewnętrzne (pomiar dostępności): lokalne dane wspomnienia obejmują także następny dzień, żeby audyt przechodzący przez północ w Polsce nadal oglądał właściwy, niepusty ekran. Zasada pokazywania wspomnień w serwisie pozostaje taka sama.
 
