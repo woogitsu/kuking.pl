@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Wyszukiwanie bez wybranego składnika
+
+Szukacie obiadu, ale dziś bez brokułu? W wyszukiwarce przepisów jest nowa, zwijana sekcja „Bez wskazanego składnika (nieobowiązkowe)”. Wpisujecie jeden produkt, klikacie „Szukaj”, a wyniki pomijają przepisy, w których autor zapisał go w składnikach — także w innej odmianie. Nad wynikami widać, co pomijamy, i jest przycisk „Usuń filtr”. Uwaga: to nie jest sprawdzenie alergenów ani składu gotowych produktów — działamy na tekście, który napisał autor przepisu, więc przy gotowych produktach zawsze czytajcie etykietę. Nic o Was nie zapamiętujemy.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.

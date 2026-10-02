@@ -30,7 +30,7 @@
         pole, ZANIM w nie klikną. Ikona więc DOCHODZI do istniejącego pola,
         etykieta i tekst pomocy zostają bez zmian.
     --}}
-    <form class="panel-formularza" method="GET" action="{{ route('search') }}">
+    <form class="panel-formularza" method="GET" action="{{ route('search') }}" novalidate>
         @include('components.error-summary', ['errors' => $searchErrors])
         <div class="field @if($searchErrors->has('q')) has-error @endif">
             <label for="f-q">Czego szukasz?</label>
@@ -81,6 +81,34 @@
                 </div>
             </details>
         @endif
+        {{--
+            „BEZ SKŁADNIKA” (V2, #2526) — jedno opcjonalne kryterium, w tym samym
+            formularzu i pod tym samym przyciskiem „Szukaj”. Zwykły produkt
+            (nie alergen) pomijany tylko w tym wyszukiwaniu; nic się nie zapisuje.
+            Zakres „Ludzie” go nie ma. Rozwinięte, gdy filtr jest aktywny albo
+            wpisano coś błędnego, żeby błąd stał przy polu.
+        --}}
+        @if($section !== 'ludzie')
+            <details class="mt-4" id="filtr-skladnika" @if($bezSkladnika !== null || $bladSkladnika !== null) open @endif>
+                <summary class="btn btn-secondary">Bez wskazanego składnika (nieobowiązkowe)</summary>
+                <div class="field mt-3 @if($bladSkladnika !== null) has-error @endif">
+                    <label for="f-bez-skladnika">Pomiń przepisy ze składnikiem</label>
+                    <span class="field-help" id="f-bez-skladnika-help">
+                        Wpisz jeden produkt, na przykład „brokuł”, i kliknij „Szukaj”. Pominiemy przepisy,
+                        w których autor zapisał ten produkt w składnikach (także w innej odmianie, jak „brokuły”).
+                        To nie jest filtr alergenów. Jeśli produktu nie ma w zapisie składników, przepis zostaje,
+                        więc przy gotowych produktach przeczytaj skład samodzielnie.
+                    </span>
+                    <input class="field-input" id="f-bez-skladnika" name="bez_skladnika" type="text"
+                           value="{{ $skladnikWpisany }}" placeholder="brokuł"
+                           aria-describedby="f-bez-skladnika-help{{ $bladSkladnika !== null ? ' f-bez-skladnika-error' : '' }}"
+                           @if($bladSkladnika !== null) aria-invalid="true" @endif>
+                    @if($bladSkladnika !== null)
+                        <span class="field-error" id="f-bez-skladnika-error">{{ $bladSkladnika }} Wyniki poniżej są bez tego filtra.</span>
+                    @endif
+                </div>
+            </details>
+        @endif
         <button class="btn btn-primary mt-4" type="submit">Szukaj</button>
     </form>
 
@@ -110,6 +138,9 @@
         // Wybór alergenów zostaje przy zakresach przepisów, tak jak czas.
         $alergenyWAdresie = $bezAlergenow === [] ? [] : ['bez' => $bezAlergenow];
         $nazwyWybranych = \App\Domain\Recipes\Alergeny\Alergen::nazwyZKodow($bezAlergenow);
+        // Wybrany składnik do pominięcia (#2526) też zostaje przy zakresach przepisów.
+        $skladnikWAdresie = $bezSkladnika === null ? [] : ['bez_skladnika' => $bezSkladnika];
+        $alergenyWAdresie += $skladnikWAdresie;
     @endphp
     <nav class="chipsy mt-6" aria-label="Co przeszukujemy">
         @foreach([
@@ -134,6 +165,16 @@
         w adresie (`?czas=15|30|60`), więc przeżywa odświeżenie i wysłanie
         komuś. Etykieta jest widoczna, nie tylko w `aria-label`.
     --}}
+    @if($bezSkladnika !== null)
+        <div class="notice mt-4" role="status">
+            <p class="mt-0 mb-3">
+                Pomijamy przepisy, w których autor zapisał w składnikach: „{{ $bezSkladnika }}”.
+                Sprawdzamy tylko zapisany tekst składników, nie skład gotowych produktów.
+            </p>
+            <a class="btn btn-secondary" href="{{ route('search', array_filter(['q' => $phrase, 'sekcja' => $section, 'czas' => $maksMinut, 'bez' => $bezAlergenow === [] ? null : $bezAlergenow, 'nawigacja' => 1], fn ($v) => $v !== null)) }}">Usuń filtr „bez: {{ $bezSkladnika }}”</a>
+        </div>
+    @endif
+
     @if($bezNieznane > 0)
         <p class="notice mt-4" role="status">
             Adres ma alergen, którego nie rozpoznajemy, więc go pomijamy. Wybierz alergeny z listy nad wynikami.
@@ -214,7 +255,12 @@
                 gotowe brzmienie, nie tylko przykład.
             --}}
             <x-empty-state title="Nic nie znaleźliśmy">
-                @if($bezAlergenow !== [])
+                @if($bezSkladnika !== null)
+                    {{-- Filtr „bez składnika” (#2526): „nic” nie znaczy, że wszystkie
+                         przepisy go zawierają — wskazujemy drogę powrotną. --}}
+                    Nie ma przepisów do „{{ $phrase }}”, w których nie zapisano „{{ $bezSkladnika }}”.
+                    Usuń ten filtr albo wpisz inną nazwę produktu.
+                @elseif($bezAlergenow !== [])
                     {{-- Filtr alergenów (#1902): przepisy niesprawdzone są pominięte,
                          więc „nic" nie znaczy „wszystkie zawierają" — trzeba to powiedzieć. --}}
                     Nie ma przepisów do „{{ $phrase }}”, w których autor zaznaczył brak: {{ $nazwyWybranych }}.
