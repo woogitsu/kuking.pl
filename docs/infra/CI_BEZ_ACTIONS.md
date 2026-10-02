@@ -131,7 +131,8 @@ konfiguracji. Regresja na tymczasowym repozytorium:
 `bash tests/skrypty/install-hooks-worktree.sh` (#2632).
 
 Rollback **tylko w tym linked worktree**: sprawdź, że `.git` jest plikiem,
-`core.hooksPath` wskazuje `$(git rev-parse --absolute-git-dir)/hooks`, a
+`core.hooksPath` wskazuje podkatalog `hooks` katalogu zwróconego przez
+`git rev-parse --absolute-git-dir`, a
 `pre-push` zawiera podpis instalatora Kuking. Następnie usuń wyłącznie
 lokalne ustawienie `git config --worktree --unset core.hooksPath` oraz ten
 podpisany plik `pre-push` z katalogu administracyjnego tego drzewa. Jeśli
