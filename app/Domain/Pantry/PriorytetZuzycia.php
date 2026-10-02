@@ -33,7 +33,7 @@ use Illuminate\Support\Collection;
  *  5. Mrożone: osobna sekcja, bez pilności. Zamrożenie nie zmienia wpisanego
  *     terminu, tylko wyłącza produkt z pilnych.
  *  6. Po terminie „Należy zużyć do”: osobno, bez zachęty do gotowania;
- *     pozostaje możliwość poprawienia daty lub usunięcia produktu.
+ *     jeśli data została wpisana błędnie, można ją poprawić; produkt można usunąć.
  *
  * KOLEJNOŚĆ USTAWIA WYŁĄCZNIE DATA, KTÓRĄ WPISUJE OSOBA. Nie zależy od
  * niczyich reakcji (AGENTS.md §8) — pilnuje tego `FeedNieSortujePoMierzeReakcjiTest`,
@@ -265,7 +265,7 @@ final class PriorytetZuzycia
         $data = self::dataSlownie($produkt->expires_on, $produkt->expires_on->year !== (int) substr($dzis, 0, 4));
 
         return match (true) {
-            $roznica < 0 && $produkt->expiry_kind === self::RODZAJ_ZUZYC_DO => 'Termin „Należy zużyć do” minął. Nie używaj tego produktu do gotowania. Możesz poprawić termin albo usunąć produkt z listy.',
+            $roznica < 0 && $produkt->expiry_kind === self::RODZAJ_ZUZYC_DO => 'Termin „Należy zużyć do” minął. Nie używaj tego produktu do gotowania. Jeśli termin został wpisany błędnie, popraw go. W przeciwnym razie usuń produkt z listy.',
             $roznica < -1 => 'Termin minął '.abs($roznica).' dni temu. Sprawdź produkt przed użyciem albo usuń go z listy.',
             $roznica === -1 => 'Termin minął wczoraj. Sprawdź produkt przed użyciem albo usuń go z listy.',
             $roznica === 0 => 'Termin dziś.',

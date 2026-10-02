@@ -122,7 +122,7 @@ class PriorytetZuzyciaTest extends TestCase
         $this->assertSame('Termin za 2 dni (12 października).', PriorytetZuzycia::opisStanu($this->produkt('a', '2026-10-12'), self::DZIS));
         $this->assertSame('Bez terminu.', PriorytetZuzycia::opisStanu($this->produkt('a', null), self::DZIS));
         $this->assertSame('W zamrażarce.', PriorytetZuzycia::opisStanu($this->produkt('a', '2026-10-12', mrozone: true), self::DZIS));
-        $this->assertSame('Termin „Należy zużyć do” minął. Nie używaj tego produktu do gotowania. Możesz poprawić termin albo usunąć produkt z listy.', PriorytetZuzycia::opisStanu($this->produkt('a', '2026-10-09', 'use_by'), self::DZIS));
+        $this->assertSame('Termin „Należy zużyć do” minął. Nie używaj tego produktu do gotowania. Jeśli termin został wpisany błędnie, popraw go. W przeciwnym razie usuń produkt z listy.', PriorytetZuzycia::opisStanu($this->produkt('a', '2026-10-09', 'use_by'), self::DZIS));
 
         // Żadne zdanie ze stanu ani z reguły nie obiecuje świeżości ani bezpieczeństwa.
         $wszystkie = [PriorytetZuzycia::regula()];

@@ -81,7 +81,7 @@
             @if($grupy['po_terminie']->isNotEmpty())
                 <section class="mt-8" aria-labelledby="sekcja-po-terminie" data-sekcja="po_terminie">
                     <h3 id="sekcja-po-terminie">Po terminie „Należy zużyć do”</h3>
-                    <p>Nie podpowiadamy tych produktów do gotowania. Możesz poprawić wpisany termin albo usunąć produkt z listy.</p>
+                    <p>Nie podpowiadamy tych produktów do gotowania. Jeśli termin został wpisany błędnie, popraw go. W przeciwnym razie usuń produkt z listy.</p>
                     @include('pages.pantry._produkty', ['lista' => $grupy['po_terminie'], 'dzis' => $dzis])
                 </section>
             @endif
