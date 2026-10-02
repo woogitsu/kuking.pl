@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\KreatorPrzepisu;
 
 use App\Domain\Recipes\KosztPrzepisu;
+use App\Domain\Recipes\Porcje\GotoweSztuki;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Validator as WalidatorLaravela;
 
@@ -37,6 +38,8 @@ final class KrokOPrzepisie
         'title',
         'summary',
         'servings',
+        'yield_count',
+        'yield_unit',
         'estimated_cost_pln',
         'prep_minutes',
         'cook_minutes',
@@ -60,6 +63,7 @@ final class KrokOPrzepisie
         'servings.max' => 'Ta liczba porcji jest nierealna. Wpisz najwyżej 999.',
         'servings.decimal' => 'Liczba porcji może mieć najwyżej dwa miejsca po przecinku (setne). Zamiast 1,255 wpisz 1,25 albo 1,26.',
         // Koszt wg autora (D-286) — te same zdania co w formularzu szczegółów.
+        ...GotoweSztuki::KOMUNIKATY,
         ...KosztPrzepisu::KOMUNIKATY,
         'prep_minutes.integer' => 'Czas przygotowania podaj w pełnych minutach, na przykład 20.',
         'prep_minutes.min' => 'Czas przygotowania nie może być ujemny. Wpisz na przykład 20.',
@@ -106,6 +110,8 @@ final class KrokOPrzepisie
             'title' => trim((string) ($pola['title'] ?? '')),
             'summary' => self::textOrNull($pola['summary'] ?? null),
             'servings' => self::textOrNull($pola['servings'] ?? null),
+            'yield_count' => GotoweSztuki::normalizujIle($pola['yield_count'] ?? null),
+            'yield_unit' => GotoweSztuki::normalizujCo($pola['yield_unit'] ?? null),
             'estimated_cost_pln' => KosztPrzepisu::normalizuj($pola['estimated_cost_pln'] ?? null),
             'prep_minutes' => self::textOrNull($pola['prep_minutes'] ?? null),
             'cook_minutes' => self::textOrNull($pola['cook_minutes'] ?? null),
@@ -135,6 +141,8 @@ final class KrokOPrzepisie
             // `bail`: „cztery” ma dostać JEDNO zdanie (liczba), a nie drugie
             // o setnych — `decimal` też odrzuca tekst.
             'servings' => ['bail', 'nullable', 'numeric', 'min:0.5', 'max:999', 'decimal:0,2'],
+            'yield_count' => GotoweSztuki::REGULY_ILE,
+            'yield_unit' => GotoweSztuki::REGULY_CO,
             'estimated_cost_pln' => KosztPrzepisu::REGULY,
             'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],

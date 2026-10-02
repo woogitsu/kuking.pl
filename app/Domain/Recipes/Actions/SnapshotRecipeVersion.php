@@ -122,6 +122,9 @@ final class SnapshotRecipeVersion
             'title' => $recipe->title,
             'summary' => $recipe->summary,
             'servings' => $recipe->servings,
+            // Gotowe sztuki (#2645) — osobno od porcji; oba klucze zawsze razem.
+            'yield_count' => $recipe->yield_count,
+            'yield_unit' => $recipe->yield_unit,
             'estimated_cost_pln' => $recipe->estimated_cost_pln,
             'prep_minutes' => $recipe->prep_minutes,
             'cook_minutes' => $recipe->cook_minutes,

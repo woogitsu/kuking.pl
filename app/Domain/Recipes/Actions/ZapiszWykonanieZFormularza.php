@@ -66,6 +66,7 @@ final class ZapiszWykonanieZFormularza
             ip: $ip,
             kluczWyslania: $kluczWyslania,
             wersjaPrzepisuId: $wersjaPrzepisuId,
+            dzienGotowania: isset($dane['dzien_gotowania']) && is_string($dane['dzien_gotowania']) ? $dane['dzien_gotowania'] : null,
         );
     }
 }

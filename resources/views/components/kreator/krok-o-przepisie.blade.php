@@ -109,6 +109,17 @@
         </div>
     @endif
 
+    {{-- Gotowe sztuki (#2645) — opcjonalnie, osobno od porcji: „24 pierogi”
+         nie mówią, ile osób nakarmi przepis. --}}
+    <div class="siatka-pol">
+        <x-field name="form.yield_count" label="Ile gotowych sztuk wychodzi z tej ilości" type="number" inputmode="numeric" wire="form.yield_count"
+                 :value="$form->yield_count" :min="1" :max="9999" :step="1"
+                 help="Na przykład 24. Pomaga przeliczyć przepis na inną liczbę sztuk. Zostaw puste, jeśli nie dotyczy." />
+        <x-field name="form.yield_unit" label="Czego to sztuki" wire="form.yield_unit"
+                 :value="$form->yield_unit"
+                 help="Na przykład pierogi albo bułki. Pole nieobowiązkowe." />
+    </div>
+
     {{-- Koszt wg autora (D-286) — pole tekstowe, bo „24,50" z przecinkiem
          ma przejść (uzasadnienie przy tym samym polu w `szczegoly.blade.php`). --}}
     <x-field name="form.estimated_cost_pln" label="Przybliżony koszt całego przepisu (zł)" inputmode="decimal" wire="form.estimated_cost_pln"

@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Casts\TablicaKodowPg;
 use App\Domain\Kanaly\UniewaznijKanaly;
 use App\Domain\Recipes\KosztPrzepisu;
+use App\Domain\Recipes\Porcje\GotoweSztuki;
 use App\Support\Odmiana;
 use Carbon\CarbonInterface;
 use Database\Factories\RecipeFactory;
@@ -25,6 +26,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * wczytano przez `Collection::recipes()`:
  *
  * @property-read (Pivot&object{note: string|null, created_at: string|null, added_by_id: string|null})|null $pivot
+ * @property int|null $yield_count ile gotowych sztuk wychodzi z przepisu (#2645); osobne od `servings`
+ * @property string|null $yield_unit co to za sztuki, np. „pierogi”
  * @property string $allergen_status stan oznaczenia alergenów: unchecked | declared | needs_review (#1902)
  * @property list<string> $allergens kody alergenów według autora; zmienia je tylko `OznaczAlergenyPrzepisu`
  * @property CarbonInterface|null $allergens_declared_at
@@ -115,6 +118,10 @@ class Recipe extends Model
         'slug',
         'summary',
         'servings',
+        // Ile gotowych sztuk wychodzi z przepisu (#2645). Treść przepisu, nie
+        // stan; OSOBNA od `servings` — liczba pierogów nie jest liczbą porcji.
+        'yield_count',
+        'yield_unit',
         // Szacunkowy koszt całego przepisu w złotych, wpisany przez autora
         // (D-286). Treść przepisu, nie stan — jak `servings`.
         'estimated_cost_pln',
@@ -161,6 +168,7 @@ class Recipe extends Model
             'allergens' => TablicaKodowPg::class,
             'allergens_declared_at' => 'datetime',
             'servings' => 'float',
+            'yield_count' => 'integer',
             'estimated_cost_pln' => 'float',
             'prep_minutes' => 'integer',
             'cook_minutes' => 'integer',
@@ -570,6 +578,16 @@ class Recipe extends Model
         $tekst = rtrim(rtrim(number_format($liczba, 2, ',', ''), '0'), ',');
 
         return $tekst.' porcji';
+    }
+
+    /** „24 szt. (pierogi)” albo `null`, gdy autor sztuk nie podał (#2645). */
+    public function yieldLabel(): ?string
+    {
+        if ($this->yield_count === null || (int) $this->yield_count < 1) {
+            return null;
+        }
+
+        return GotoweSztuki::etykieta((int) $this->yield_count, $this->yield_unit);
     }
 
     /**

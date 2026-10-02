@@ -138,11 +138,39 @@
              Nowe zdanie mówi rzecz sprawdzalną przy kodzie: notatka trafia na
              kartę wykonania (`components/cooked-card.blade.php`), podpisana
              dokładnie tak. --}}
+        {{-- PRYWATNY DOPISEK Z GOTOWANIA (#2587): tylko propozycja. Nic nie
+             trafia do pola samo — ani do wykonania, ani do autora przepisu.
+             Pole poniżej jest widoczne przy wykonaniu jako „Po swojemu”,
+             a dopisek do tej chwili widziała tylko osoba, która go zapisała,
+             więc mówimy to wprost, zanim zapadnie decyzja. --}}
+        @if($dopisek['stan'] === 'propozycja')
+            <div class="stack" role="group" aria-label="Prywatny dopisek z gotowania">
+                <p class="m-0"><strong>Masz prywatny dopisek z gotowania:</strong> {{ $dopisek['tresc'] }}</p>
+                <p class="m-0">Dotąd ten dopisek jest prywatny: widzisz go tylko Ty. Jeśli go wstawisz do pola „Coś po swojemu?”, po wysłaniu będzie widać go przy wykonaniu, podpisany „Po swojemu”. Możesz go wcześniej poprawić albo usunąć z pola.</p>
+                <a class="btn btn-secondary" href="{{ route('cooked.create', ['recipe' => $recipe->slug, 'dopisek' => 'wstaw']) }}">Wstaw dopisek do pola poniżej</a>
+            </div>
+        @elseif($dopisek['stan'] === 'wstawiony')
+            <p class="m-0" role="status">Wstawiliśmy dopisek z gotowania do pola poniżej. Sprawdź go: po wysłaniu będzie widać go przy wykonaniu jako „Po swojemu”. Możesz go poprawić albo wyczyścić pole.</p>
+        @elseif($dopisek['stan'] === 'zajete')
+            <p class="m-0">Masz prywatny dopisek z gotowania, ale nie wstawiamy go do formularza, w którym już coś wpisano. Dopisek zostaje prywatny.</p>
+        @endif
+
         <x-field name="changes_note" label="Coś po swojemu?" type="textarea" :rows="3"
+                 :value="$dopisek['stan'] === 'wstawiony' ? $dopisek['tresc'] : null"
                  help="Zamiana składnika, inny czas, inna forma. Pokażemy to przy Twoim wykonaniu, podpisane „Po swojemu”." />
 
         <x-field name="actual_minutes" label="Ile Ci to zajęło (w minutach)" type="number"
                  inputmode="numeric" :min="0" :max="10080" />
+
+        {{-- PRYWATNY DZIEŃ GOTOWANIA (#2583). Zwykłe pole daty, bez
+             JavaScriptu, domyślnie PUSTE: nie wypełniamy go ze zdjęcia ani
+             z planera. Serwer zapisuje wykonanie z dzisiejszą datą dodania
+             (to na niej stoi feed i „Ugotujmy razem"); ten dzień zobaczy
+             tylko osoba, która go podała. Formularz ma `novalidate`, więc
+             błąd pokazuje serwer — przy polu i w podsumowaniu. --}}
+        <x-field name="dzien_gotowania" label="Dzień gotowania (tylko dla Ciebie)" type="date"
+                 :min="\App\Domain\Recipes\Gotowanie\DzienGotowania::NAJWCZESNIEJSZY" :max="\App\Support\Czas::dzisiajData()"
+                 help="Wypełnij, jeśli gotowanie było innego dnia niż dziś. Ten dzień zobaczysz tylko Ty — wykonanie zapiszemy z dzisiejszą datą dodania." />
 
         {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
              wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
