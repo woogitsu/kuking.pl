@@ -23,6 +23,7 @@
                         <p style="margin:0 0 16px;">
                             Na Twojej liście „Co mam w domu” te produkty mają termin, który minął albo upływa w ciągu {{ $dni }} {{ $dni === 1 ? 'dnia' : 'dni' }}.
                             Produkty po terminie „Należy zużyć do” nie trafiają do tego listu ani do propozycji gotowania.
+                            Termin to Twoja notatka z opakowania. Sprawdź produkt przed użyciem.
                         </p>
                         <ul style="margin:0 0 20px;padding-left:22px;">
                             @foreach($pozycje as $pozycja)

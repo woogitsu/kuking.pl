@@ -10,6 +10,7 @@
 Produkty do zużycia w najbliższych dniach
 
 Na Twojej liście „Co mam w domu” te produkty mają termin, który minął albo upływa w ciągu {{ $dni }} {{ $dni === 1 ? 'dnia' : 'dni' }}. Produkty po terminie „Należy zużyć do” nie trafiają do tego listu ani do propozycji gotowania.
+Termin to Twoja notatka z opakowania. Sprawdź produkt przed użyciem.
 
 @foreach($pozycje as $pozycja)
 - {!! preg_replace('/\s+/u', ' ', (string) $pozycja['nazwa']) !!}@if($pozycja['ilosc']) ({!! preg_replace('/\s+/u', ' ', (string) $pozycja['ilosc']) !!})@endif

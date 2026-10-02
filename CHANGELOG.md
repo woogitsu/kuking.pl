@@ -2,7 +2,7 @@
 
 ## Nieopublikowane
 
-- Naprawione (#2453): produkt po terminie „Należy zużyć do” pozostaje na prywatnej liście do poprawienia lub usunięcia, ale nie trafia do propozycji gotowania, sekcji pilnych, bloku Start ani sobotniego przypomnienia. Terminy „Najlepiej spożyć przed”, dzisiejsze i produkty mrożone zachowują dotychczasowe działanie.
+- Naprawione (#2453): produkt po terminie „Należy zużyć do” pozostaje na prywatnej liście do poprawienia błędnie wpisanej daty lub usunięcia, ale nie trafia do propozycji gotowania, sekcji pilnych, bloku Start ani sobotniego przypomnienia. Także wybór odbiorców listu pomija konto, którego jedyny pilny produkt jest po takim terminie. Terminy „Najlepiej spożyć przed”, dzisiejsze i produkty mrożone zachowują dotychczasowe działanie.
 
 - Naprawione (#2614): import przepisu z tekstowego PDF zachowuje ilości `1.5 kg` i `0.5 l` w prywatnym szkicu; prawdziwe numery listy nadal usuwa bez zmiany cyfr składnika.
 - Naprawione (#2570, #2582): import z adresu odczytuje kroki i sekcje zapisane w JSON-LD jako `ListItem.item`, zachowując kolejność prawidłowych pozycji. Przy niejasnych pozycjach zostawia kolejność źródła. Sam identyfikator `@id` nie staje się tekstem kroku; szkic pozostaje prywatny i nie używa modelu dla tych danych.

@@ -139,8 +139,25 @@ class SobotniePrzypomnienieOProduktachTest extends TestCase
 
         $this->wyslij();
 
-        Mail::assertNothingQueued();
+        $this->assertSame(0, Mail::queued(PrzypomnienieOProduktach::class)->count(), 'ODBIORCA_2453_BEZ_PRZETERMINOWANEGO_USE_BY');
         $this->assertSame(1, $osoba->pantryItems()->count(), 'Produkt pozostaje do poprawienia lub usunięcia.');
+    }
+
+    public function test_komenda_wybiera_odbiorcow_wedlug_tej_samej_reguly_co_tresc_listu(): void
+    {
+        $poTerminie = $this->osoba('basia', termin: '2026-10-09');
+        $dzis = $this->osoba('marek', termin: '2026-10-10');
+        $najlepiejPrzed = $this->osoba('zofia', termin: '2026-10-09');
+        $najlepiejPrzed->pantryItems()->where('name', 'mleko')->update(['expiry_kind' => 'best_before']);
+
+        $this->wyslij();
+
+        $adresy = Mail::queued(PrzypomnienieOProduktach::class)
+            ->map(fn (PrzypomnienieOProduktach $list): string => (string) $list->odbiorca->email)
+            ->all();
+
+        $this->assertNotContains($poTerminie->email, $adresy, 'ODBIORCA_2453_BEZ_PRZETERMINOWANEGO_USE_BY');
+        $this->assertEqualsCanonicalizing([$dzis->email, $najlepiejPrzed->email], $adresy);
     }
 
     public function test_po_terminie_najlepiej_spozyc_przed_nadal_jest_w_liscie(): void
