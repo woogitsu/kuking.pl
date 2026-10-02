@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Nowe (#2581): w Planerze jest pole „Szukaj w moich planach”. Wpisujesz kawałek tekstu, np. „obiad u mamy”, a pokazujemy dni z Twojego planu z pełną datą i przyciskiem do właściwego tygodnia. Szukamy tylko w Twoich pozycjach i w nazwach przepisów, które nadal możesz zobaczyć. [nowa funkcja]
 - Naprawione (#2621): wklejona pusta linia z nierozdzielającą spacją nie dodaje niewidocznego składnika ani nie skleja dwóch kroków przepisu. Spacja wewnątrz wpisanej ilości zostaje bez zmian.
 - Naprawione (#2599): „Pokaż więcej” w „Co ugotuję” kończy się na ostatniej dostępnej stronie zamiast pokazywać ją w pętli. Ekran wyjaśnia ograniczenie przeglądania i prowadzi do zmiany listy produktów.
 - Naprawione (#2611): nadmiernie rozbudowana paczka własnych danych jest odrzucana z instrukcją przed wyczerpaniem pamięci przy podglądzie. Poprawne duże paczki nadal można wczytać; nic nie zapisujemy przed pokazaniem podglądu.

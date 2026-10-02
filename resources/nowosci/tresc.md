@@ -31,6 +31,15 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Szukaj w moich planach
+
+W Planerze jest teraz pole „Szukaj w moich planach”. Pamiętasz, że zapisałeś
+„obiad u mamy”, ale nie wiesz kiedy? Wpisz te słowa, a pokażemy dni, w których
+to zaplanowałeś, razem z rokiem. Przycisk przy wyniku otwiera właściwy tydzień.
+Szukamy tylko w Waszych własnych planach, w tym, co sami dopisaliście, i w
+nazwach przepisów, które nadal możecie zobaczyć. Wielkość liter i polskie
+znaki nie mają znaczenia. Pokazujemy do 50 najnowszych wyników.
+
 ### Co zużyć w pierwszej kolejności
 
 Przy produktach na liście „Co mam w domu” możecie teraz wpisać termin
