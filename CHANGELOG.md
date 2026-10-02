@@ -8,6 +8,7 @@
 - Naprawione (#2629): zmiana porcji nie mnoży zawartości tłuszczu „30 %” ani „30 proc.”; przelicza rzeczywistą ilość podaną dalej, na przykład 200 g.
 - Naprawione (#2626): przy imporcie przepisu z mikrodanych jeden składnik lub krok nie powtarza się tylko dlatego, że strona nadała mu dwie nazwy `itemprop`. Osobne pozycje o jednakowym tekście pozostają osobne i zachowują kolejność ze strony.
 - Naprawione (#2638): import mikrodanych odczytuje właściwą instrukcję z pozycji listy zamiast etykiety „Krok 1”. Sam adres lub etykieta bez lokalnego tekstu nie staje się instrukcją.
+- Naprawione (#2420): osoba zaproszona linkiem do wspólnego zeszytu po założeniu konta i pierwszych krokach wraca do podglądu zaproszenia. Samo dołączenie wymaga kliknięcia „Dołączam”; wygasły lub odwołany link nie otwiera podglądu.
 
 - Naprawione (#2614): import przepisu z tekstowego PDF zachowuje ilości `1.5 kg` i `0.5 l` w prywatnym szkicu; prawdziwe numery listy nadal usuwa bez zmiany cyfr składnika.
 - Naprawione (#2570, #2582): import z adresu odczytuje kroki i sekcje zapisane w JSON-LD jako `ListItem.item`, zachowując kolejność prawidłowych pozycji. Przy niejasnych pozycjach zostawia kolejność źródła. Sam identyfikator `@id` nie staje się tekstem kroku; szkic pozostaje prywatny i nie używa modelu dla tych danych.
