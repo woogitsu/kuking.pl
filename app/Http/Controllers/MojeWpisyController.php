@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Posts\MojeWpisy;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -15,10 +16,21 @@ use Illuminate\View\View;
  */
 class MojeWpisyController extends Controller
 {
-    public function __invoke(Request $request, MojeWpisy $mojeWpisy): View
+    public function __invoke(Request $request, MojeWpisy $mojeWpisy): View|RedirectResponse
     {
+        $wpisy = $mojeWpisy->strona($request->user());
+
+        // Stary adres po usunięciu wpisu lub wyłączeniu pytań nie oznacza
+        // pustego dorobku. Tak jak w zeszycie (#908) wracamy do zakresu listy.
+        if ($wpisy->currentPage() > $wpisy->lastPage()) {
+            $request->session()->reflash();
+
+            return redirect()->route('collections.own-posts',
+                $wpisy->lastPage() > 1 ? ['page' => $wpisy->lastPage()] : []);
+        }
+
         return view('pages.collections.moje-wpisy', [
-            'wpisy' => $mojeWpisy->strona($request->user()),
+            'wpisy' => $wpisy,
         ]);
     }
 }

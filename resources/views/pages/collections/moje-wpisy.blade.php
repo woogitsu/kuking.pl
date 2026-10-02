@@ -19,11 +19,13 @@
     <h1>Moje wpisy</h1>
     <p class="mb-5">Wszystkie Twoje wpisy, od najnowszego — także te tylko dla Ciebie i tylko dla obserwujących. Tę listę widzisz tylko Ty.</p>
 
-    @if($wpisy->isEmpty())
+    @if($wpisy->total() === 0)
         <x-empty-state title="Nie masz jeszcze żadnego wpisu" action="Dodaj wpis" :href="route('add')">
             Zrób zdjęcie tego, co dziś gotujesz, napisz kilka słów i opublikuj. Twoje wpisy znajdziesz potem tutaj.
         </x-empty-state>
-    @else
+    @endif
+        {{-- Kontener zostaje także po opróżnieniu całej listy: „Pokaż więcej”
+             rozpoznaje koniec bez usuwania wcześniej wczytanych kart. --}}
         <div class="stack" id="lista-moich-wpisow">
             @foreach($wpisy as $wpis)
                 @php
@@ -61,6 +63,5 @@
         </div>
 
         <x-show-more :paginator="$wpisy" czego="wpisów" lista="lista-moich-wpisow" />
-    @endif
     </div>
 </x-layout>

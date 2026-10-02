@@ -4,6 +4,16 @@
 
 - Naprawione (#2570, #2582): import z adresu odczytuje kroki i sekcje zapisane w JSON-LD jako `ListItem.item`, zachowując kolejność prawidłowych pozycji. Przy niejasnych pozycjach zostawia kolejność źródła. Sam identyfikator `@id` nie staje się tekstem kroku; szkic pozostaje prywatny i nie używa modelu dla tych danych.
 
+- Wewnętrzne (#2598): test dwóch połączeń przy zapisie do zeszytu czeka na właściwą barierę transakcji. Wcześniejsza, obca blokada nie daje fałszywej czerwieni; osobny przeplot i kontrola ujemna sprawdzają ten warunek w CI.
+- Wewnętrzne (#2596): lokalny serwer testu checklisty składników przyjmuje tylko dodatnią liczbę porcji. Nie odbija tekstu z adresu w HTML; test HTTP i kontrola ujemna pilnują tego w CI.
+- Naprawione (#2467): usunięcie produktu z „Co mam w domu” najpierw pokazuje pytanie z jego nazwą. „Anuluj” zamyka je bez kasowania ilości lub terminu, także bez JavaScriptu.
+- Naprawione (#2468): usunięcie pozycji z Planera najpierw pokazuje pytanie z dniem i nazwą; dopiero osobne potwierdzenie usuwa wpis. Zamknięcie pytania zostawia plan bez zmian, a niedostępny przepis nie ujawnia tytułu.
+- Naprawione (#2502): po zmianie liczby porcji składnik nie pozostaje automatycznie oznaczony jako „Przygotowane” przy nowej ilości, także gdy wrócisz do poprzedniej liczby. Ekran prosi o sprawdzenie i ponowne zaznaczenie składników; odhaczenia kroków i minutniki zostają. Stary formularz z drugiego urządzenia nie przywróci dawnych składników po takim powrocie.
+- Naprawione (#2473): stary adres dalszej strony „Moich wpisów” po usunięciu wpisu albo wyłączeniu pytań wraca do ostatniej istniejącej strony. „Pokaż więcej” zachowuje wcześniej wczytane karty i rozpoznaje koniec listy także po jej opróżnieniu.
+- Naprawione (#2520): oczekujący odczyt zdjęcia kartki nie nadpisuje ręcznie poprawionej nazwy, opisu ani porcji szkicu. Wynik kończy się istniejącą informacją o zmienionym szkicu, bez ponownego płatnego odczytu.
+- Naprawione (#2551): skopiowanie poprzedniego tygodnia nie przywraca prywatnych notatek planu po równoległym wymazaniu konta. Zapis planu sprawdza świeży stan konta; zawieszone konto nadal może plan czytać, ale nie dopisywać.
+- Naprawione (#2560): szacunek wartości odżywczych czyta `1 500 g` jako całą masę. Przy uszkodzonym zapisie cyfr odmawia wyliczenia zamiast brać końcowy fragment liczby.
+- Naprawione (#2487): przy szacowaniu wartości odżywczych `2 puszki (800 g razem)` i `2 puszki (łącznie 800 g)` oznaczają 800 g łącznie. Nieoznaczona masa i `po 400 g` zachowują dotychczasowe znaczenie; sprzeczne `po … razem` nie daje niepewnych liczb.
 - Naprawione (#2480): kartka przypięta do przepisu jest widoczna na jego zwykłej stronie także wtedy, gdy autor nie dodał osoby ani notatki o źródle. Prywatność zdjęcia i wariant dla pomocnika pozostają bez zmian.
 - Naprawione (#2451): porównanie wersji przepisu pokazuje przestawienie składników i grup. Dodanie lub usunięcie składnika nie tworzy pozornej zmiany kolejności pozostałych.
 - Naprawione (#2524): po wybraniu innej liczby porcji szacunkowy koszt całego przepisu podany przez autora zmienia się razem z ilościami składników. Podpis mówi, że kwota jest przeliczona z szacunku autora; powrót do jego porcji przywraca oryginalne zdanie. Dotyczy też wydruku tej strony, bez zmiany zapisanego kosztu i przedziału z cennika.
