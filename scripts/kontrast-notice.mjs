@@ -125,6 +125,33 @@ export async function sprawdzFokusNotice(page, kind) {
     return result;
 }
 
+// Układ serwuje wygląd zapisany na koncie. Pomiar wariantu świadomie ustawia
+// atrybuty dopiero po GET, żeby późniejsza inicjalizacja strony ich nie cofnęła.
+export async function ustawWygladPomiaru(page, { dark, scale }) {
+    await page.evaluate(({ dark, scale }) => {
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        document.documentElement.dataset.textScale = String(scale);
+    }, { dark, scale });
+    try {
+        await page.waitForFunction(({ dark, scale }) => {
+            const root = document.documentElement.dataset;
+            const body = getComputedStyle(document.body);
+            return root.theme === (dark ? "dark" : "light") &&
+                root.textScale === String(scale) &&
+                body.color === (dark ? "rgb(244, 245, 241)" : "rgb(21, 23, 20)") &&
+                Math.abs(parseFloat(body.fontSize) - (18 * scale) / 100) < 0.15;
+        }, { dark, scale }, { timeout: 10_000 });
+    } catch (error) {
+        const stan = await page.evaluate(() => ({
+            theme: document.documentElement.dataset.theme ?? null,
+            scale: document.documentElement.dataset.textScale ?? null,
+            color: getComputedStyle(document.body).color,
+            fontSize: getComputedStyle(document.body).fontSize,
+        }));
+        throw new Error("NOTICE_WYGLAD_NIEZGODNY " + JSON.stringify({ dark, scale, ...stan }), { cause: error });
+    }
+}
+
 export async function sprawdzPodpowiedzi({
     browser,
     adres,
@@ -144,6 +171,7 @@ export async function sprawdzPodpowiedzi({
     const data = JSON.parse(fixture().toString());
     mkdirSync("storage/port-projektu/notice", { recursive: true });
     async function measure(width, dark, scale, kind, screenshot = false) {
+        console.log(`NOTICE_CASE_START width=${width} dark=${dark} scale=${scale} kind=${kind}`);
         const context = await browser.newContext({
             storageState: kind === "plain" ? undefined : sesja,
             viewport: { width, height: 900 },
@@ -151,33 +179,15 @@ export async function sprawdzPodpowiedzi({
         });
         try {
             const page = await context.newPage();
-            await page.addInitScript(
-                ({ dark, scale }) =>
-                    document.addEventListener("DOMContentLoaded", () => {
-                        document.documentElement.dataset.theme = dark
-                            ? "dark"
-                            : "light";
-                        document.documentElement.dataset.textScale =
-                            String(scale);
-                    }),
-                { dark, scale },
-            );
             const response = await page.goto(
                 adres + (kind === "secondary" ? data.szkice : data.wpis),
                 { waitUntil: "networkidle" },
             );
             if (response.status() !== 200)
                 throw Error("NOTICE_HTTP " + response.status());
-            await page.waitForFunction(
-                ({ dark, scale }) =>
-                    getComputedStyle(document.body).color ===
-                        (dark ? "rgb(244, 245, 241)" : "rgb(21, 23, 20)") &&
-                    Math.abs(
-                        parseFloat(getComputedStyle(document.body).fontSize) -
-                            (18 * scale) / 100,
-                    ) < 0.15,
-                { dark, scale },
-            );
+            console.log(`NOTICE_CASE_RESPONSE width=${width} dark=${dark} scale=${scale} kind=${kind}`);
+            await ustawWygladPomiaru(page, { dark, scale });
+            console.log(`NOTICE_CASE_WYGLAD width=${width} dark=${dark} scale=${scale} kind=${kind}`);
             wyniki.push({
                 stan: "normalny",
                 width,
