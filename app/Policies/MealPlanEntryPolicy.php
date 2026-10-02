@@ -25,6 +25,12 @@ class MealPlanEntryPolicy
         return $user->getKey() === $entry->user_id;
     }
 
+    /** Przeniesienie pozycji na inny dzień (#2447): tylko właściciel. */
+    public function move(User $user, MealPlanEntry $entry): bool
+    {
+        return $user->getKey() === $entry->user_id;
+    }
+
     public function delete(User $user, MealPlanEntry $entry): bool
     {
         return $user->getKey() === $entry->user_id;

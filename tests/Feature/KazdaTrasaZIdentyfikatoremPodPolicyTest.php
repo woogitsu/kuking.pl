@@ -1516,6 +1516,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('planer.done', $pozycjaPlanu), ['zrobione' => '1', 'stan' => ''], [$W, $O, $O, $O, $O]);
         $dodaj('planer.note', 'dopisek przy przepisie w planerze', 'patch',
             route('planer.note', $pozycjaPlanu), ['note' => 'Kolacja', 'stan' => ''], [$W, $O, $O, $O, $O]);
+        // Przeniesienie na inny dzień (#2447): ekran i zapis — tylko właściciel.
+        $dodaj('planer.move.form', 'ekran przenoszenia pozycji planera', 'get',
+            route('planer.move.form', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
+        $dodaj('planer.move', 'przeniesienie pozycji planera na inny dzień', 'patch',
+            route('planer.move', $pozycjaPlanu), ['day' => '2026-11-19', 'stan' => '2026-11-18'], [$W, $O, $O, $O, $O]);
         $dodaj('planer.destroy', 'pozycja planera tygodnia', 'delete',
             route('planer.destroy', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
 
