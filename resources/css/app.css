@@ -5169,6 +5169,13 @@
     gap: var(--spacing-3);
 }
 
+/* Opis pod „Nastaw własny minutnik” stoi na tle `.cook-timer`: zwykłe `.meta`
+   ma tu za mały kontrast w ciemnym motywie (axe, color-contrast). Ta sama para
+   tło/tekst co cały blok minutnika — sprawdzona w obu motywach. */
+.cook-timer-wybor > .meta {
+    color: var(--color-accent-tint-ink);
+}
+
 .cook-timer-szybkie {
     display: flex;
     flex-wrap: wrap;
