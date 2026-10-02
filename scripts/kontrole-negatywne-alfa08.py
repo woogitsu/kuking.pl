@@ -1428,6 +1428,10 @@ checks = [
     ("Koszt: uszkodzona pojedyncza liczba daje wycenę (#2477)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "uszkodzony_ogon_jednej_liczby_nie_udaje_poprawnej_ilosci",
      lambda s: replace_once(s, "                $poDopasowaniu = substr($t, $trafienie[0][1] + strlen($trafienie[0][0]));",
          "                if (($trafienie[2][0] ?? '') === '') { return self::zMiara(self::liczba($trafienie[1][0]), $slowo); }\n                $poDopasowaniu = substr($t, $trafienie[0][1] + strlen($trafienie[0][0]));")),
+    ("Koszt: mąka gryczana udaje kaszę (#2605)", "database/data/ceny_skladnikow.csv",
+     "prawdziwy_cennik_nie_myli_maki_gryczanej",
+     lambda s: replace_once(s, "kasza gryczana|kaszy gryczanej|kasze gryczana,,",
+                            "kasza gryczana|kaszy gryczanej|kasze gryczana|gryczana|gryczanej,,")),
     # #2476: dwa bieżące składniki z identycznym tekstem/ile=null są różne.
     ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/CollectUserExportData.php",
      "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",
