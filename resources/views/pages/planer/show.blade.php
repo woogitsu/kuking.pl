@@ -174,6 +174,10 @@
                                         <input type="hidden" name="stan" value="{{ \App\Domain\Planer\Actions\OznaczPozycjePlanu::znacznik($wpis) }}">
                                         <button class="btn btn-secondary" type="submit">{{ $zrobione ? 'Cofnij oznaczenie' : 'Oznacz jako zrobione' }}<span class="visually-hidden">: {{ $nazwa }}</span></button>
                                     </form>
+                                    @if($pozycja['stan'] === PlanerTygodnia::STAN_WLASNY)
+                                        {{-- Poprawienie własnego tekstu bez usuwania pozycji (#2454): osobny ekran z jednym polem. --}}
+                                        <a class="btn btn-secondary" href="{{ route('planer.text.edit', $wpis) }}">Zmień tekst<span class="visually-hidden">: {{ $nazwa }}, {{ PlanerTygodnia::nazwaDnia($dzien['dzien']) }}</span></a>
+                                    @endif
                                     @if($pozycja['stan'] === PlanerTygodnia::STAN_PRZEPIS)
                                         {{-- Lista zakupów (#27, etap 2, D-333): linie składników tego przepisu. --}}
                                         <form method="POST" action="{{ route('shopping.recipe.store', $pozycja['przepis']->slug) }}">

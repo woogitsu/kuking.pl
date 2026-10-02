@@ -1475,6 +1475,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // Prywatne „Zrobione” (#2593): tylko właściciel pozycji.
         $dodaj('planer.done', 'oznaczenie „Zrobione” pozycji planera', 'patch',
             route('planer.done', $pozycjaPlanu), ['zrobione' => '1', 'stan' => ''], [$W, $O, $O, $O, $O]);
+        // Poprawienie własnego tekstu (#2454): ekran i zapis — tylko właściciel.
+        $dodaj('planer.text.edit', 'ekran poprawiania tekstu pozycji planera', 'get',
+            route('planer.text.edit', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
+        $dodaj('planer.text.update', 'poprawienie tekstu pozycji planera', 'patch',
+            route('planer.text.update', $pozycjaPlanu), ['label' => 'Obiad u Kasi', 'stan' => hash('sha256', 'Obiad u mamy')], [$W, $O, $O, $O, $O]);
         $dodaj('planer.destroy', 'pozycja planera tygodnia', 'delete',
             route('planer.destroy', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
 
