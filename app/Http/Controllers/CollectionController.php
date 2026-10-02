@@ -147,6 +147,15 @@ class CollectionController extends Controller
      * tytułu. Zeszyty w wyniku i sam zakres szukania to wyłącznie zeszyty
      * zalogowanej osoby (`owner_id`).
      *
+     * POCHODZENIE (#2504): ta sama fraza pasuje też do `recipes.source_person`
+     * („Od kogo albo skąd masz ten przepis”) — wyłącznie w przepisach, które
+     * bramka wyżej już przepuściła i które leżą w zeszytach tej osoby. To
+     * dalej jeden warunek w `WHERE`, więc przepis nie mnoży się z liczbą
+     * zeszytów, a liczba zapytań nie zależy od liczby wyników. NIE bierze
+     * `source_note`, dopisków ani szkiców spoza zeszytów. Karta nie cytuje
+     * treści pochodzenia (to dowolny tekst człowieka), tylko mówi, że
+     * trafienie jest w tym polu (`w_zrodle`).
+     *
      * @return array{szukaj: string, wynikiSzukania: ?\Illuminate\Support\Collection<int, Recipe>, bladSzukania: ?string, wiecejWynikow: bool}
      */
     private function szukajWZapisach(Request $request): array
@@ -165,7 +174,7 @@ class CollectionController extends Controller
         // Długość PO normalizacji (#1050): fraza z samych emoji znika
         // w `Str::ascii()` i dawałaby `LIKE '%%'`, czyli wszystko.
         if (mb_strlen(FrazaWyszukiwania::normalizuj($fraza)) < 2) {
-            return ['bladSzukania' => 'Wpisz co najmniej dwie litery z tytułu przepisu albo ze składnika.'] + $pusto;
+            return ['bladSzukania' => 'Wpisz co najmniej dwie litery z tytułu przepisu, ze składnika albo z tego, od kogo masz przepis.'] + $pusto;
         }
 
         $user = $request->user();
@@ -178,8 +187,13 @@ class CollectionController extends Controller
             ->whereHas('collections', fn ($zeszyt) => $zeszyt->where('collections.owner_id', $user->getKey()))
             ->select('recipes.*')
             ->selectRaw('(recipes.title_search LIKE ?) as w_tytule', [$wzorzec])
+            // Pochodzenie (#2504): `source_person` nie ma kolumny `*_search`,
+            // więc to samo wyrażenie co w tej kolumnie liczy baza; NULL i pusty
+            // tekst nigdy nie pasują do frazy z min. dwoma znakami.
+            ->selectRaw('(public.kuking_normalize(recipes.source_person) LIKE ?) as w_zrodle', [$wzorzec])
             ->where(fn ($q) => $q
                 ->where('recipes.title_search', 'like', $wzorzec)
+                ->orWhereRaw('public.kuking_normalize(recipes.source_person) LIKE ?', [$wzorzec])
                 ->orWhereExists(fn ($skladnik) => $skladnik->select(DB::raw('1'))
                     ->from('recipe_ingredients')
                     ->whereColumn('recipe_ingredients.recipe_id', 'recipes.id')

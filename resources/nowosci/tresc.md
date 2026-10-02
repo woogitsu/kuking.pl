@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Szukanie zapisanych przepisów po tym, od kogo je macie
+
+Pamiętacie, że przepis jest „od cioci Zosi”, ale nie pamiętacie ani tytułu, ani zeszytu? „Szukaj w moich zeszytach” znajduje teraz zapisany przepis także po polu „Od kogo albo skąd masz ten przepis”. Wpiszcie kawałek, na przykład „zosia”, a zobaczycie przepis jeden raz, z listą zeszytów, w których leży, i dopiskiem, że pasuje przez to pole. Szukamy tylko wśród przepisów zapisanych w Waszych zeszytach i tylko tych, które możecie dziś otworzyć. Nic nie trzeba wypełniać na nowo, a wpisana fraza nigdzie się nie zapisuje.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.
