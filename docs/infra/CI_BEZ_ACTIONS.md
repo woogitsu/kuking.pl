@@ -123,6 +123,21 @@ i build assetów.
 ./scripts/install-hooks.sh
 ```
 
+W `git worktree` instalator zapisuje hook w katalogu administracyjnym
+**tego drzewa** i ustawia lokalne dla niego `core.hooksPath`. Nie nadpisuje
+wspólnego `.git/hooks` ani obcego hooka. Repozytorium musi mieć włączone
+`extensions.worktreeConfig`; bez tego instalator odmawia i nie zmienia
+konfiguracji. Regresja na tymczasowym repozytorium:
+`bash tests/skrypty/install-hooks-worktree.sh` (#2632).
+
+Rollback **tylko w tym linked worktree**: sprawdź, że `.git` jest plikiem,
+`core.hooksPath` wskazuje `$(git rev-parse --absolute-git-dir)/hooks`, a
+`pre-push` zawiera podpis instalatora Kuking. Następnie usuń wyłącznie
+lokalne ustawienie `git config --worktree --unset core.hooksPath` oraz ten
+podpisany plik `pre-push` z katalogu administracyjnego tego drzewa. Jeśli
+którykolwiek warunek się nie zgadza, przerwij; nie usuwaj wspólnego `.git/hooks`
+ani hooków innych narzędzi.
+
 Od tej chwili `git push` uruchamia kontrolę i przerywa wysyłkę, jeśli coś jest
 czerwone. Pominięcie w wyjątkowej sytuacji: `git push --no-verify`.
 
