@@ -1312,6 +1312,9 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    ("Prywatny zeszyt obiecuje odebranie dostepu (#2601)", "app/Http/Controllers/CollectionController.php",
+     "test_prywatnosc_opisuje_zakres_i_nie_konczy_wspoldzielenia",
+     lambda s: replace_once(s, "Zeszyt jest teraz prywatny. Publiczny dostęp został wyłączony.", "Zeszyt jest teraz widoczny tylko dla Ciebie.")),
     ("Spiżarnia usuwa bez pytania (#2467)", "resources/views/pages/pantry/_produkty.blade.php",
      "test_pierwszy_klik_w_spizarni_rozwija_pytanie_zamiast_kasowac_produkt", spizarnia_bez_potwierdzenia),
     ("Planer usuwa bez pytania (#2468)", "resources/views/pages/planer/show.blade.php",
