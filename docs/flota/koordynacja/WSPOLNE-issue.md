@@ -9,7 +9,7 @@ WSPÓLNE ZASADY DLA PROSTEGO ISSUE (Kuking: Laravel 13, PHP 8.4, Blade, PostgreS
 - CHANGELOG.md: jeden wpis na górze sekcji „## Nieopublikowane” (pierwsza sekcja pliku; NIE w „## Alfa 0.78”). Jeśli to [nowa funkcja] — także krótki akapit w resources/nowosci/tresc.md pod „## Najnowsze zmiany” (przed „## Alfa 0.78”). Drobne usprawnienie UI może być wpisem „Poprawione (…)”, bez [nowa funkcja].
 - Przed push: Pint na zmienionych PHP (czytaj pole result), php -l, testy zmienionych obszarów + strażnicy (ChangelogBezZdublowanychWpisowTest, StraznikNowosciKazdaNowaFunkcjaMaAkapitTest, StraznikTekstuMaKontroleDodatniaTest, KazdaTrasaZIdentyfikatoremPodPolicyTest jeśli ruszasz trasy), `python3 -m unittest discover -s scripts -p 'test_*.py'`.
 - Commit (trailery:
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Co-Authored-By: Claude <TWÓJ MODEL, np. Sonnet 5.5 albo Opus 5.5> <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01PkJKnfZqih8F4mpm5YPvP4
 ), `git push -u origin <gałąź>`, DRAFT PR (mcp__github__create_pull_request; jeśli brak — ToolSearch "select:mcp__github__create_pull_request") do base `codex/integracja-poprawki-20261002-c`, opis wg .github/pull_request_template.md, „Refs #<nr>” (nie Closes), na końcu linia:
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
@@ -20,3 +20,6 @@ Claude-Session: https://claude.ai/code/session_01PkJKnfZqih8F4mpm5YPvP4
   * Nowe atrybuty style="…" w widokach zmieniają liczbę w docs/legal/SECURITY_BASELINE.md — DokumentyPrawneNieKlamiaTest.
   * Larastan: bez `$this->fail()` po kodzie, który zawsze rzuca; bez assertTrue na zawsze-prawdziwych zmiennych. Jeśli masz vendor/bin/phpstan — uruchom `vendor/bin/phpstan analyse --no-progress --memory-limit=1G <zmienione pliki>`.
   * Uruchom zawsze: TekstyNiePrzypisujaPlciTest, FormularzeZWalidacjaMajaNovalidateTest, DokumentyPrawneNieKlamiaTest, StraznikTekstuMaKontroleDodatniaTest.
+- UWAGA vendor: wspólny /workspace/kuking.pl/vendor ma starszy PHPStan (2.2.13) i Larastan (3.11.0) niż composer.lock (2.2.16 / 3.12.2) — CI może zgłosić błędy, których lokalnie nie widać. Najczęstszy: „assertSame(...) will always evaluate to true” (method.alreadyNarrowedType) przy POWTÓRZONEJ asercji na tym samym wyrażeniu (np. $this->metoda(), $model->fresh()->pole). Każde ponowne odczytanie przypisz do NOWEJ zmiennej przed asercją.
+- Migracja tworząca tabelę z kluczem obcym do istniejącej tabeli: sprawdź testy, które wołają down() starszej migracji (grep "require base_path('database/migrations/" w tests) — muszą najpierw cofnąć zależne.
+- ZAKAZ OBCHODZENIA ODMÓW: jeśli narzędzie lub klasyfikator odmówi polecenia, NIE próbuj go przeformułować, rozbić ciągów (np. sklejanie nazw w cudzysłowach), zakodować ani wykonać inną drogą. Zatrzymaj tę czynność i opisz odmowę w raporcie. Dotyczy to także poleceń tylko do odczytu.
