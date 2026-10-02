@@ -1174,6 +1174,7 @@ final class CollectUserExportData
                 'przepis_niedostepny' => $wpis->recipe_id !== null && $przepis === null,
                 'dodano' => $this->date($wpis->created_at),
                 'dopisek' => $wpis->note,
+                'planowane_porcje' => $wpis->planned_servings,
                 'zrobione' => $wpis->done_at !== null,
                 'oznaczono_jako_zrobione' => $this->date($wpis->done_at),
             ];

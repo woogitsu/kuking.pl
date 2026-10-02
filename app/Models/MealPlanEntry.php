@@ -21,8 +21,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * `note` (#2549) to krótki prywatny dopisek przy pozycji z przepisem —
  * także poza `$fillable`; ustawia go wyłącznie akcja `ZapiszDopisekPlanu`.
  *
+ * `planned_servings` (#2509) to prywatna, świadomie wybrana liczba porcji na
+ * ten dzień (`numeric(5,2)`, NULL = ilości autora) — także poza `$fillable`;
+ * ustawia ją wyłącznie akcja `UstawPorcjePlanu`.
+ *
  * Pozycja bez przepisu i bez tekstu jest możliwa — zostaje po TWARDYM
  * usunięciu przepisu (`ON DELETE SET NULL`), patrz migracja.
+ *
+ * Kolumnę `planned_servings` dodaje migracja surowym SQL-em, którego Larastan
+ * nie odczyta — stąd jawna deklaracja.
+ *
+ * @property float|null $planned_servings
  */
 class MealPlanEntry extends Model
 {
@@ -39,6 +48,7 @@ class MealPlanEntry extends Model
         return [
             'day' => 'date',
             'done_at' => 'datetime',
+            'planned_servings' => 'float',
         ];
     }
 

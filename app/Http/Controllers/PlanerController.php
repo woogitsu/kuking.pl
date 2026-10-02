@@ -7,9 +7,11 @@ namespace App\Http\Controllers;
 use App\Domain\Planer\Actions\DodajDoPlanu;
 use App\Domain\Planer\Actions\OznaczPozycjePlanu;
 use App\Domain\Planer\Actions\SkopiujPoprzedniTydzien;
+use App\Domain\Planer\Actions\UstawPorcjePlanu;
 use App\Domain\Planer\Actions\ZapiszDopisekPlanu;
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Planer\ZakresDatPlanu;
+use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Domain\Search\SearchQuery;
 use App\Models\MealPlanEntry;
 use App\Models\Recipe;
@@ -307,6 +309,46 @@ class PlanerController extends Controller
             ZapiszDopisekPlanu::KONFLIKT => $przyPolu('Dopisek tej pozycji zmienił się w innym oknie. Odśwież stronę, sprawdź aktualny dopisek i w razie potrzeby wpisz swój jeszcze raz.'),
             ZapiszDopisekPlanu::ZA_DLUGI => $przyPolu('Dopisek może mieć najwyżej '.ZapiszDopisekPlanu::MAX_ZNAKOW.' znaków. Skróć go i zapisz jeszcze raz.'),
             ZapiszDopisekPlanu::NIE_DOTYCZY => $wroc->with(Komunikat::blad('Dopisek dodasz tylko do pozycji z przepisem. Własny wpis możesz usunąć i wpisać od nowa.')),
+            default => $wroc->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),
+        };
+    }
+
+    /**
+     * Prywatna liczba planowanych porcji przy pozycji (#2509). Pusta wartość
+     * czyści wybór (wracają ilości autora). Błędny wpis wraca do pola z tym,
+     * co człowiek wpisał, i z komunikatem przy polu.
+     */
+    public function savePortions(Request $request, MealPlanEntry $wpis, UstawPorcjePlanu $ustaw): RedirectResponse
+    {
+        $this->authorize('editServings', $wpis);
+
+        $dane = $request->validate([
+            'porcje' => ['nullable', 'string', 'max:12'],
+            'stan' => ['nullable', 'string', 'max:40'],
+        ], [
+            'porcje.string' => 'Wpisz liczbę porcji, na przykład 6 albo 2,5.',
+            'porcje.max' => 'Wpisz liczbę porcji, na przykład 6 albo 2,5.',
+        ]);
+
+        $wynik = $ustaw->handle($request->user(), (string) $wpis->getKey(), $dane['porcje'] ?? null, $dane['stan'] ?? null);
+        $wyczyszczono = trim((string) ($dane['porcje'] ?? '')) === '';
+        $wroc = redirect()->route('planer.show', ['tydzien' => $wpis->day->toDateString()]);
+
+        $przyPolu = fn (string $tresc): RedirectResponse => $wroc
+            ->withInput($request->only('porcje', '_wiersz'))
+            ->withErrors(['porcje' => $tresc]);
+
+        return match ($wynik) {
+            UstawPorcjePlanu::ZASTOSOWANO => $wroc->with(Komunikat::sukces($wyczyszczono
+                ? 'Wybór porcji usunięty. Przepis otworzy się z ilościami autora.'
+                : 'Porcje na ten dzień zapisane. Widzisz je tylko Ty.')),
+            UstawPorcjePlanu::JUZ_TAK_BYLO => $wroc->with(Komunikat::informacja($wyczyszczono
+                ? 'Ta pozycja nie ma wybranej liczby porcji.'
+                : 'Ta liczba porcji już jest zapisana.')),
+            UstawPorcjePlanu::KONFLIKT => $przyPolu('Liczba porcji tej pozycji zmieniła się w innym oknie. Odśwież stronę, sprawdź aktualną liczbę i w razie potrzeby wpisz swoją jeszcze raz.'),
+            UstawPorcjePlanu::NIEPRAWIDLOWE => $przyPolu('Wpisz liczbę porcji od '.WyborPorcji::NAJMNIEJ.' do '.WyborPorcji::NAJWIECEJ.', na przykład 6 albo 2,5.'),
+            UstawPorcjePlanu::BEZ_PODSTAWY => $przyPolu('Ten przepis nie podaje liczby porcji, więc nie przeliczymy ilości. Ilości zostają takie, jak napisał autor.'),
+            UstawPorcjePlanu::NIE_DOTYCZY => $wroc->with(Komunikat::blad('Porcje ustawisz tylko przy pozycji z dostępnym przepisem.')),
             default => $wroc->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),
         };
     }
