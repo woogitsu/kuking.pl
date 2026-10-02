@@ -243,17 +243,33 @@ class ZabezpieczenieDowoduCsamTest extends TestCase
         $odpowiedz = $this->wykonaj($moderator, 'post', $wpis);
         $odpowiedz->assertRedirect();
 
-        $this->actingAs($moderator)
+        $strona = $this->actingAs($moderator)
             ->get($odpowiedz->headers->get('Location'))
             ->assertOk()
             ->assertSee('Dyżurnet.pl')
             ->assertSee('https://www.dyzurnet.pl/', false)
-            ->assertSee('997 albo 112')
+            ->assertSee('bezpośrednim zagrożeniu życia dzwoń 112')
             ->assertSee('116 123')
-            ->assertSee('Nie kopiuj, nie pobieraj, nie przesyłaj dalej')
+            ->assertSee('Plików nie przesyłaj')
+            ->assertSee('Nie pobieraj ich i nie rób zrzutów ekranu')
             ->assertSee('Bez kopii materiału.')
             ->assertSee('Serwis niczego za Ciebie nie wysłał.')
-            ->assertSee('art. 18 DSA');
+            ->assertSee('art. 18 DSA')
+            ->assertDontSee('Dopóki prawnik nie potwierdzi')
+            ->assertDontSee('oraz/lub')
+            ->assertDontSee('997 albo 112');
+
+        // Kolejność wg art. 18 DSA: ograniczenie dostępu → Policja/prokuratura → Dyżurnet dodatkowo.
+        $tekst = html_entity_decode(strip_tags($strona->getContent()), ENT_QUOTES);
+        $tekst = (string) preg_replace('/\s+/u', ' ', $tekst);
+        $ograniczenie = mb_strpos($tekst, 'Najpierw ogranicz dostęp');
+        $organy = mb_strpos($tekst, 'Zawiadom bezpośrednio Policję albo prokuraturę');
+        $dyzurnet = mb_strpos($tekst, 'Dodatkowo zgłoś lokalizację w Dyżurnet.pl');
+        $this->assertNotFalse($ograniczenie);
+        $this->assertNotFalse($organy);
+        $this->assertNotFalse($dyzurnet);
+        $this->assertLessThan($organy, $ograniczenie);
+        $this->assertLessThan($dyzurnet, $organy);
 
         Mail::assertNothingSent();
         Mail::assertNothingQueued();
