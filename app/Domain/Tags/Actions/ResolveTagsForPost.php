@@ -10,6 +10,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Tag;
 use App\Models\TagAlias;
 use App\Support\LimityTagow;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -45,6 +46,12 @@ use Illuminate\Support\Facades\DB;
  */
 final class ResolveTagsForPost
 {
+    /** Ile razy najwyżej próbujemy zapisać nowy tag, zanim oddamy błąd kolizji slugu. */
+    public const MAKSYMALNA_LICZBA_PROB = 5;
+
+    /** Nazwa indeksu `UNIQUE` na `tags.slug` (migracja `create_tags_tables`). */
+    public const INDEKS_SLUGU = 'tags_slug_unique';
+
     /**
      * @param  list<string>  $rawNames  to, co przyszło z hidden inputs `tag_names[]`
      * @return list<Tag> unikalne (po id), w kolejności pierwszego wystąpienia
@@ -143,30 +150,82 @@ final class ResolveTagsForPost
             return null;
         }
 
-        // `firstOrCreate` po `normalized_name`: bezpieczne przy dwóch prawie
-        // jednoczesnych żądaniach tworzących ten sam nowy tag (drugie już
-        // go zastanie). Ten sam wzorzec co `Ingredient::findOrCreateByName()`.
-        $created = Tag::query()->firstOrCreate(
-            ['normalized_name' => $znormalizowana],
-            ['name' => $nazwa, 'slug' => $this->wolnySlug(Tag::slugDlaNazwy($nazwa))],
-        );
+        $created = $this->zapiszNowyTag($nazwa, $znormalizowana);
 
         // Status ma DEFAULT w bazie, więc nowo utworzony model bez tego
         // atrybutu nie może udawać ukrytego taga przy kontroli isActive().
         return $created->refresh()->tagKanoniczny();
     }
 
-    /** Wzorem `GenerateRecipeSlug` — sufiks numeryczny przy kolizji. */
-    private function wolnySlug(string $baza): string
+    /**
+     * Tworzy tag w SAVEPOINT-cie i rozstrzyga dwa rodzaje kolizji z równoległego
+     * wpisu (audyt DB-004, ten sam wyścig co w `GenerateRecipeSlug::zapisz()`):
+     *
+     * - TA SAMA nazwa (`normalized_name UNIQUE`) — ktoś właśnie założył ten sam
+     *   tag, więc bierzemy jego wiersz: ta sama nazwa to ZAWSZE ten sam tag,
+     *   nigdy drugi z sufiksem;
+     * - RÓŻNA nazwa o tym samym slugu (`tags_slug_unique`, np. „żurek" i „zurek")
+     *   — to dwa tagi, drugi dostaje następny slug z numerem; limit prób jest
+     *   twardy.
+     *
+     * Savepoint (zagnieżdżony `DB::transaction`) cofa tylko nieudany insert,
+     * więc nadrzędny zapis wpisu żyje dalej; bez niego błąd 23505 psuje całą
+     * transakcję PostgreSQL.
+     */
+    private function zapiszNowyTag(string $nazwa, string $znormalizowana): Tag
     {
-        $slug = $baza;
+        $zajete = [];
+
+        for ($proba = 1; ; $proba++) {
+            $slug = $this->wolnySlug(Tag::slugDlaNazwy($nazwa), $zajete);
+
+            try {
+                return DB::transaction(static fn (): Tag => Tag::query()->create([
+                    'normalized_name' => $znormalizowana,
+                    'name' => $nazwa,
+                    'slug' => $slug,
+                ]));
+            } catch (UniqueConstraintViolationException $e) {
+                $istniejacy = Tag::query()->useWritePdo()->where('normalized_name', $znormalizowana)->first();
+
+                if ($istniejacy !== null) {
+                    return $istniejacy;
+                }
+
+                if ($proba >= self::MAKSYMALNA_LICZBA_PROB || ! str_contains($e->getMessage(), self::INDEKS_SLUGU)) {
+                    throw $e;
+                }
+
+                $zajete[] = $slug;
+            }
+        }
+    }
+
+    /**
+     * Wzorem `GenerateRecipeSlug` — sufiks numeryczny przy kolizji.
+     *
+     * @param  list<string>  $pomijane  slugi, które już odbiły się o `UNIQUE` w tej próbie
+     */
+    private function wolnySlug(string $baza, array $pomijane = []): string
+    {
+        // CHECK `^[a-z0-9-]{1,40}$`: baza z sufiksem „-N" musi się zmieścić
+        // w 40 znakach, więc przycinamy ją pod długość sufiksu (bez końcowego „-").
+        $slug = $this->przytnij($baza, 40);
         $sufiks = 2;
 
-        while (Tag::query()->where('slug', $slug)->exists()) {
-            $slug = $baza.'-'.$sufiks;
+        while (in_array($slug, $pomijane, true) || Tag::query()->where('slug', $slug)->exists()) {
+            $dopisek = '-'.$sufiks;
+            $slug = $this->przytnij($baza, 40 - strlen($dopisek)).$dopisek;
             $sufiks++;
         }
 
         return $slug;
+    }
+
+    private function przytnij(string $baza, int $dlugosc): string
+    {
+        $przyciety = rtrim(substr($baza, 0, $dlugosc), '-');
+
+        return $przyciety === '' ? 'tag' : $przyciety;
     }
 }

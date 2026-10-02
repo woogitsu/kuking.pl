@@ -71,6 +71,22 @@
         </section>
     @endif
 
+    @if(($wspolneGotowania ?? collect())->isNotEmpty())
+        {{--
+            „GOTUJESZ RAZEM” (#2385). Droga powrotna do trwającej wspólnej sesji:
+            kto zamknął kartę, wraca stąd, a nie szuka linku. Lista zawiera
+            tylko sesje, których przepis ta osoba nadal widzi.
+        --}}
+        <section class="ramka-pomocnicza" aria-labelledby="gotujesz-razem">
+            <h2 id="gotujesz-razem" class="mt-0">Gotujesz razem</h2>
+            <ul class="stack list-none p-0 m-0">
+                @foreach($wspolneGotowania as $sesjaRazem)
+                    <li><a class="btn btn-secondary" href="{{ route('wspolne-gotowanie.show', $sesjaRazem) }}">Gotujesz razem: {{ $sesjaRazem->recipe->title }} — wróć</a></li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
+
     <x-pwa-install :eligible="$pwaEligible ?? false" :context="$pwaContext ?? null" />
 
     @if($zyczenia ?? null)

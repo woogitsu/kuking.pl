@@ -389,7 +389,7 @@ class ProcessUploadedImage implements ShouldQueue
         return DB::transaction(function (): ?Media {
             $media = Media::query()->whereKey($this->mediaId)->lockForUpdate()->first();
 
-            if ($media === null || $media->status === Media::STATUS_DELETED) {
+            if ($media === null || in_array($media->status, [Media::STATUS_DELETED, Media::STATUS_SECURED], true)) {
                 return null;
             }
 
@@ -463,10 +463,16 @@ class ProcessUploadedImage implements ShouldQueue
      *
      * Wymazanie konta i sprzątanie osieroconych przejmują wiersz przez
      * `KasujZdjecie`, więc oba zostawiają tu ten sam ślad (issue #1003).
+     * Zabezpieczenie dowodu zostawia `secured`.
      */
     private function odchodzi(?Media $media): bool
     {
-        return $media === null || $media->status === Media::STATUS_DELETED;
+        // `secured` (dowód zabezpieczony przez moderację, D-333) odchodzi
+        // z tego zadania tak samo jak `deleted`: ani nie wraca do `ready`,
+        // ani nie dostaje `rejected` (status nie wolno ruszyć), a warianty
+        // położone przez to zadanie w publicznym buckecie są sprzątane —
+        // dowodem jest oryginał, nie świeżo przekodowana kopia.
+        return $media === null || in_array($media->status, [Media::STATUS_DELETED, Media::STATUS_SECURED], true);
     }
 
     /**
@@ -548,6 +554,7 @@ class ProcessUploadedImage implements ShouldQueue
         // (D-083), a nie stan przejściowy, który wolno nadpisać porażką.
         if ($media === null
             || $media->status === Media::STATUS_READY
+            || $media->status === Media::STATUS_SECURED
             || $media->status === Media::STATUS_DELETED) {
             return;
         }

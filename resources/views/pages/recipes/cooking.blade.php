@@ -226,6 +226,7 @@
                 <p class="cook-step-etap">Etap: {{ $etapKroku }}</p>
             @endif
             <p class="cook-step-tekst">{{ $aktualnyKrok->instruction }}</p>
+            <x-terminy-kroku :tekst="$aktualnyKrok->instruction" />
 
             {{-- Przeliczenie °F ↔ °C na żądanie (#2585). Tekst kroku powyżej
                  zostaje dosłowny; blok pojawia się tylko przy jawnej
@@ -480,6 +481,17 @@
                     @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
                     <input type="hidden" name="krok" value="{{ $krok }}">
                     <button type="submit" class="btn btn-secondary">Zapamiętuj postęp na moim koncie</button>
+                </form>
+            </section>
+        @endif
+        {{-- Wspólne gotowanie (#2385): tylko dla zalogowanych, aktywnych kont.
+             Zwykły formularz — działa bez JavaScriptu. --}}
+        @if(auth()->user()?->isActive())
+            <section class="cook-sync stack" aria-label="Wspólne gotowanie">
+                <p class="m-0">Gotujesz z kimś? Załóż wspólną sesję: zaprosisz linkiem do trzech osób (każdą osobnym linkiem) i wszyscy zobaczycie ten sam przepis oraz te same odhaczone kroki. Sesja wygasa po {{ (int) config('kuking.wspolne_gotowanie.retencja_godziny') }} godzinach i znika razem z odhaczeniami.</p>
+                <form method="POST" action="{{ route('wspolne-gotowanie.zaloz', $recipe->slug) }}">
+                    @csrf
+                    <button type="submit" class="btn btn-secondary">Gotuj z kimś</button>
                 </form>
             </section>
         @endif

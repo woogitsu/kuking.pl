@@ -129,6 +129,15 @@ class RaportPrzejrzystosci extends Command
             $rodzaje,
         ));
 
+        // Ścieżka CSAM (D-333, 1.10.2026): zabezpieczone dowody to osobna
+        // kategoria, bo decyzja „Usuń treść” w sekcjach 2–3 nie odróżnia jej
+        // od zwykłego usunięcia. Same liczby, per rodzaj obiektu.
+        $this->sekcja('7. Materiały zabezpieczone jako dowód (zgłoszenia krzywdzenia dzieci)', ['Rodzaj obiektu', 'Liczba'], $this->wiersze(
+            DB::table('zabezpieczenia_dowodow')->whereBetween('secured_at', [$od, $do]),
+            'target_type',
+            ['post' => 'wpis', 'recipe' => 'przepis', 'comment' => 'komentarz', 'media' => 'zdjęcie'],
+        ));
+
         $otwarte = DB::table('appeals')->where('status', Appeal::STATUS_OPEN)->count();
         $this->newLine();
         $this->line('Odwołania czekające na rozpatrzenie dziś (niezależnie od okna): '.$otwarte);

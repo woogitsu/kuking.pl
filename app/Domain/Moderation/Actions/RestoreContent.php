@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Moderation\Actions;
 
 use App\Domain\Moderation\ModeratedContent;
+use App\Domain\Moderation\TrescZabezpieczonaJakoDowod;
 use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
@@ -12,6 +13,7 @@ use App\Models\AuditLogEntry;
 use App\Models\Comment;
 use App\Models\ModerationAction;
 use App\Models\User;
+use App\Support\ZabezpieczoneDowody;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -158,6 +160,14 @@ final class RestoreContent
             // czytamy z zablokowanego wiersza, przed jakimkolwiek zapisem.
             if (ModeratedContent::osoba($cel)?->getKey() === $moderator->getKey()) {
                 throw new WlasnejTresciNiePrzywracasz;
+            }
+
+            // TREŚĆ ZABEZPIECZONA JAKO DOWÓD NIE WRACA (ścieżka CSAM, D-333).
+            // Dotyczy też „cofam” po wygranym odwołaniu (`ResolveAppeal`):
+            // odwołanie nie może upublicznić materiału, który czeka na organy.
+            // Los takiej treści rozstrzyga człowiek poza panelem.
+            if (ZabezpieczoneDowody::dotyczy($typ, (string) $cel->getKey())) {
+                throw new TrescZabezpieczonaJakoDowod;
             }
 
             return $this->przywrocPodBlokada($moderator, $cel, $typ, $reasonCode, $note, $userMessage, $ip, $zPowiadomieniem);

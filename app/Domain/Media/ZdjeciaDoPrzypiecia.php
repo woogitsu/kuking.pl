@@ -73,7 +73,10 @@ final class ZdjeciaDoPrzypiecia
         $zablokowane = array_values(Media::query()
             ->where('owner_id', $wlascicielId)
             ->whereIn('id', $mediaIds)
-            ->where('status', '!=', Media::STATUS_DELETED)
+            // `deleted` (kasowanie trwa) i `secured` (dowód zabezpieczony przez
+            // moderację, D-333) nie wracają do żadnej treści — ani przypięcie,
+            // ani ponowne użycie nie ma prawa ich „odzyskać”.
+            ->whereNotIn('status', [Media::STATUS_DELETED, Media::STATUS_SECURED])
             ->orderBy('id')
             ->lockForUpdate()
             ->pluck('id')

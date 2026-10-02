@@ -109,6 +109,62 @@
                     @endif
                 </p>
             @endif
+            {{-- Zgłoszona WSKAZÓWKA od gotujących (#2352): kolejka pokazuje samo UUID,
+                 więc moderator czyta tu uwagę, o którą chodzi, i dostaje odnośnik do
+                 sekcji przy przepisie. „Ukryj treść” zdejmuje samą wskazówkę z tej
+                 sekcji, a wykonanie z uwagą zostaje — i mówi to napis. --}}
+            @if($report->target_type === 'recipe_hint')
+                @php($wskazowkaZgloszenia = (($wskazowki ?? [])[$report->target_id] ?? null))
+                @if($wskazowkaZgloszenia)
+                    <p class="meta">
+                        Zgłoszona jest <strong>wskazówka od gotujących</strong> przy przepisie
+                        „{{ $wskazowkaZgloszenia['tytul'] }}” (<a href="{{ $wskazowkaZgloszenia['adres'] }}">zobacz sekcję przy przepisie</a>),
+                        napisana przez {{ $wskazowkaZgloszenia['kucharz'] }}:
+                    </p>
+                    <blockquote class="wskazowka-cytat tekst-jak-napisano">{{ $wskazowkaZgloszenia['tekst'] }}</blockquote>
+                    <p class="meta">
+                        @if($wskazowkaZgloszenia['pokazywana'])
+                            „Ukryj treść” zdejmie tę jedną wskazówkę ze strony przepisu. Wykonanie, z którego pochodzi uwaga, zostaje nietknięte.
+                        @else
+                            Ta wskazówka nie stoi już przy przepisie (ukryta albo kucharz wycofał zgodę).
+                        @endif
+                    </p>
+                    {{-- „Przywróć wskazówkę” (#2352): ręczne cofnięcie ukrycia bez odwołania
+                         kucharza, jak „Przywróć” wersję z historii zmian. Przycisk tylko
+                         tam, gdzie akcja się uda (`PrzywrocWskazowke::stan`): przy własnej
+                         sprawie moderatora i przy ukryciu administratora stoi informacja. --}}
+                    @if($wskazowkaZgloszenia['przywroc'] === 'strona')
+                        <p class="meta mt-4">
+                            To wskazówka z Twojego wykonania albo z Twojego przepisu — przywrócić ją może inny moderator
+                            albo rozstrzygnie to odwołanie kucharza.
+                        </p>
+                    @elseif($wskazowkaZgloszenia['przywroc'] === 'tylko_admin')
+                        <p class="meta mt-4">
+                            <strong>Ukrył administrator.</strong> Przywrócić tę wskazówkę może tylko administrator — przekaż mu sprawę.
+                        </p>
+                    @elseif($wskazowkaZgloszenia['przywroc'] === 'przywroc')
+                        <form class="mt-4" method="POST" action="{{ $wskazowkaZgloszenia['przywroc_adres'] }}" novalidate>
+                            @csrf
+                            <input type="hidden" name="{{ \App\Support\WierszFormularza::POLE }}" value="{{ $report->id }}">
+                            <h3 class="text-title-sm">Przywróć wskazówkę</h3>
+                            <p class="meta">
+                                Wskazówka wróci na stronę przepisu, jeśli kucharz nadal się na nią zgadza.
+                                Kucharz dostanie powiadomienie. Przepis może mieć wtedy więcej wskazówek niż limit —
+                                nowe prośby autora poczekają, aż ich liczba spadnie poniżej limitu.
+                            </p>
+                            <x-field name="reason_code" label="Powód przywrócenia (kod wewnętrzny)" required
+                                     placeholder="pomylka_moderacji" :wiersz="$report->id"
+                                     help="Krótki, powtarzalny kod. Cofnięcie decyzji też zostaje w rejestrze." />
+                            <x-field name="user_message" label="Wiadomość do kucharza" type="textarea" :rows="2"
+                                     :wiersz="$report->id"
+                                     help="Nieobowiązkowa. Kucharz i tak dostanie zdanie, że wskazówka jest znowu widoczna." />
+                            <button class="btn btn-secondary" type="submit">Przywróć wskazówkę</button>
+                        </form>
+                    @endif
+                @else
+                    <p class="meta">Zgłoszona jest wskazówka od gotujących, której już nie ma.</p>
+                @endif
+            @endif
             <p class="meta">
                 {{ $report->target_type }}@if($report->target_id) · {{ $report->target_id }}@endif ·
                 zgłoszone {{ \App\Support\Czas::data($report->created_at, 'j F Y, H:i') }}
@@ -355,6 +411,25 @@
 
                     <button class="btn btn-primary mt-4" type="submit">Zapisz decyzję</button>
                 </form>
+
+                {{--
+                    CSAM (D-333). Osobna droga, odsunięta kreską od zwykłej decyzji:
+                    zwykła decyzja jest „jedno zgłoszenie = jedna decyzja”, a tu
+                    potrzeba naraz ukrycia, zabezpieczenia dowodu i blokady konta.
+                    Zwykły odnośnik (GET) na ekran potwierdzenia — bez JavaScriptu,
+                    bez hover; ekran niczego nie robi, dopóki nie dostanie „tak”.
+                    Nie rysuje się, gdy cel nie jest wpisem, przepisem, komentarzem
+                    ani zdjęciem (ekran by odmówił — AGENTS.md §5, bez martwych przycisków).
+                --}}
+                @if($report->target_id && array_key_exists($report->target_type, \App\Domain\Moderation\Actions\ZabezpieczDowodCsam::TYPY)
+                    && auth()->user()->can('secureCsam', \App\Models\User::class))
+                    <div class="danger-zone mt-4">
+                        <p class="panel-liczby">
+                            Materiał przedstawiający wykorzystywanie seksualne dzieci? Nie rozstrzygaj tego zwykłą decyzją.
+                        </p>
+                        <a class="btn btn-danger" href="{{ route('admin.csam.create', ['typ' => $report->target_type, 'id' => $report->target_id, 'zgloszenie' => $report->id]) }}">CSAM — natychmiast ukryj i zabezpiecz</a>
+                    </div>
+                @endif
             @else
                 <p class="badge">{{ $report->status }} · {{ $report->resolver?->displayName() }}</p>
                 @if($report->resolution_note)

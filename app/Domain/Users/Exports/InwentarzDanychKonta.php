@@ -58,6 +58,11 @@ final class InwentarzDanychKonta
         'recipe_versions.editor_id' => [self::EKSPORT, 'wersje_przepisow'],
         'posts.author_id' => [self::EKSPORT, 'wpisy'],
         'cooked_events.user_id' => [self::EKSPORT, 'ugotowalem'],
+        // Wskazówki od gotujących (#2352, D-333): dwie strony tej samej tabeli,
+        // dwie sekcje. Kucharz dostaje swoją uwagę i stan zgody; autor przepisu
+        // — stan próśb o jego przepisach BEZ danych kucharza i bez jego tekstu.
+        'recipe_hints.cook_id' => [self::EKSPORT, 'wskazowki_z_moich_wykonan'],
+        'recipe_hints.author_id' => [self::EKSPORT, 'wskazowki_do_moich_przepisow'],
         'comments.author_id' => [self::EKSPORT, 'moje_komentarze'],
         'collections.owner_id' => [self::EKSPORT, 'kolekcje'],
         'deleted_collections.owner_id' => [self::EKSPORT, 'usuniete_zeszyty'],
@@ -73,6 +78,12 @@ final class InwentarzDanychKonta
         'tag_follows.user_id' => [self::EKSPORT, 'obserwowane_tagi'],
         'pantry_items.user_id' => [self::EKSPORT, 'co_mam_w_domu'],
         'cooking_progress.user_id' => [self::EKSPORT, 'postep_gotowania'],
+        // Wspólne gotowanie (#2385): sesja, w której osoba jest gospodarzem albo
+        // pomocnikiem, jej odhaczone kroki i przyjęte przez nią zaproszenie.
+        'cooking_sessions.host_id' => [self::EKSPORT, 'wspolne_gotowanie'],
+        'cooking_session_participants.user_id' => [self::EKSPORT, 'wspolne_gotowanie'],
+        'cooking_session_steps.done_by_id' => [self::EKSPORT, 'wspolne_gotowanie'],
+        'cooking_session_invitations.accepted_by_id' => [self::EKSPORT, 'wspolne_gotowanie'],
         'cooking_notes.user_id' => [self::EKSPORT, 'dopiski_z_gotowania'],
         'recipe_serving_preferences.user_id' => [self::EKSPORT, 'zapamietane_porcje'],
         'hides.user_id' => [self::EKSPORT, 'ukryte'],
@@ -116,6 +127,8 @@ final class InwentarzDanychKonta
         // „Ugotujmy razem” (F3): kto z gospodarzy wybrał przepis tygodnia.
         'weekly_recipe_picks.chosen_by' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
         'moderation_actions.moderator_id' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
+        'zabezpieczenia_dowodow.secured_by' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
+        'zabezpieczenia_dowodow.subject_user_id' => [self::NA_ZADANIE, 'Rejestr treści zabezpieczonych w związku z podejrzeniem przestępstwa. Nie wydajemy go w paczce, bo ujawnienie mogłoby zaszkodzić postępowaniu organów; na żądanie odpowiemy zgodnie z prawem.'],
         'reports.resolved_by' => [self::NA_ZADANIE, self::PRACA_W_SERWISIE],
 
         'wczytane_z_paczki.user_id' => [self::NIE_DOTYCZY, 'Znacznik techniczny „ta treść przyszła z Twojej paczki” (skrót i wskaźnik, bez treści). Sama treść — przepisy, wpisy i zeszyty — jest w paczce.'],

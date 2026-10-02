@@ -21,6 +21,8 @@ declare(strict_types=1);
  */
 
 use App\Domain\Pantry\OdnosnikWypisaniaZPrzypomnienia;
+use App\Domain\Recipes\Gotowanie\Wspolne\SesjaWspolnegoGotowania;
+use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
 use App\Models\Collection;
 use App\Models\CookedEvent;
 use App\Models\Profile;
@@ -155,7 +157,32 @@ DB::transaction(function () use ($ania, $rosol): void {
 $zeszyt = Collection::where('owner_id', $ania->getKey())->where('name', 'Pomiar paczki S — zeszyt do druku')->firstOrFail();
 $produkt = $ania->pantryItems()->where('name', 'marchewki')->firstOrFail();
 
+// Wspólne gotowanie (#2385). Dwie sesje, żeby zmierzyć OBA ekrany:
+//  - ania jest GOSPODARZEM sesji rosołu z jednym pomocnikiem (basia) i żywym
+//    linkiem — widać panel zapraszania, „Odwołaj link” i listę pomocników;
+//  - basia jest gospodarzem sesji innego przepisu z żywym linkiem, a ania nie
+//    jest jej członkiem — ekran linku (`Dołączam`) widzi właśnie ona.
+// Jawny token istnieje tylko tutaj, więc adres linku trafia do JSON-a.
+$basia = Profile::where('username', 'basia')->first()?->user
+    ?? throw new RuntimeException('Brak konta pomiarowego „basia” — najpierw: php artisan db:seed --class=DemoSeeder');
+$sesje = app(SesjaWspolnegoGotowania::class);
+$zaproszenia = app(ZaproszenieDoGotowania::class);
+
+$sesjaAni = $sesje->zaloz($ania, $rosol);
+DB::table('cooking_session_participants')->insertOrIgnore([
+    'session_id' => $sesjaAni->getKey(), 'user_id' => $basia->getKey(), 'role' => 'helper', 'joined_at' => now(),
+]);
+$zaproszenia->utworz($ania, $sesjaAni);
+
+$innyPrzepis = Recipe::where('status', 'published')->where('visibility', 'public')
+    ->where('id', '!=', $rosol->getKey())->whereHas('steps')->orderBy('id')->first()
+    ?? throw new RuntimeException('Brak drugiego przepisu z krokami w danych DemoSeedera.');
+$sesjaBasi = $sesje->zaloz($basia, $innyPrzepis);
+[, $tokenBasi] = $zaproszenia->utworz($basia, $sesjaBasi);
+
 echo json_encode([
+    'wspolneGotowanie' => route('wspolne-gotowanie.show', $sesjaAni, false),
+    'wspolneGotowanieLink' => route('wspolne-gotowanie.link.show', $tokenBasi, false),
     'zeszytDoDruku' => route('collections.print', $zeszyt, false),
     'terminProduktu' => route('pantry.edit', $produkt, false),
     'kartaPrzepisu' => route('recipes.qr-card', $rosol->slug, false),

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Media\PodgladOdRazu;
+use App\Domain\Moderation\Actions\ZabezpieczDowodCsam;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Domain\Zgody\ArchiwumDokumentu;
 use App\Http\Controllers\AccountDeletionController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Admin\TagPromotionController;
 use App\Http\Controllers\Admin\UgotujmyRazemController as AdminUgotujmyRazemController;
 use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
+use App\Http\Controllers\Admin\ZabezpieczenieDowoduController;
 use App\Http\Controllers\Admin\ZUrzeduController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\ArchiwumDokumentuController;
@@ -53,6 +55,7 @@ use App\Http\Controllers\KolejkaGotowaniaController;
 use App\Http\Controllers\ListaZakupowController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeWpisyController;
+use App\Http\Controllers\MojRokController;
 use App\Http\Controllers\MojStolController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
@@ -103,6 +106,8 @@ use App\Http\Controllers\UkryciaController;
 use App\Http\Controllers\UrodzinyWypiszController;
 use App\Http\Controllers\UsunietePrzepisyController;
 use App\Http\Controllers\WartosciOdzywczeController;
+use App\Http\Controllers\WskazowkaController;
+use App\Http\Controllers\WspolneGotowanieController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZeszytyUsunieteController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
@@ -409,6 +414,60 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/przepisy/{recipe}/gotuj/dopisek/usun', [DopisekGotowaniaController::class, 'usun'])
         ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
         ->name('cooking.dopisek.usun');
+});
+
+// Wspólne gotowanie (#2385): sesja jednego przepisu dla gospodarza i pomocnika.
+// Wszystko za logowaniem; dostęp rozstrzyga `CookingSessionPolicy` (UUID sesji
+// nie jest autoryzacją — nie-członek dostaje 404) i `RecipePolicy::view`.
+// Limity istniejące: `zaproszenia` (link, zarządzanie) i `cooking_krok`
+// (odhaczanie, odczyt rewizji). Bez WebSocketów — patrz projekt, sekcja 6.
+Route::middleware('auth')->group(function () use ($limits): void {
+    Route::post('/przepisy/{recipe}/gotuj-razem', [WspolneGotowanieController::class, 'zaloz'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.zaloz');
+    // Link-zaproszenie: token w adresie, jednorazowy. GET niczego nie zużywa.
+    Route::get('/gotowanie-razem/dolacz/{token}', [WspolneGotowanieController::class, 'pokazLink'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.link.show');
+    Route::post('/gotowanie-razem/dolacz/{token}', [WspolneGotowanieController::class, 'przyjmijLink'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.link.accept');
+    Route::get('/gotowanie-razem/{cookingSession}', [WspolneGotowanieController::class, 'show'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('wspolne-gotowanie.show');
+    Route::get('/gotowanie-razem/{cookingSession}/stan', [WspolneGotowanieController::class, 'stan'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('wspolne-gotowanie.stan');
+    Route::post('/gotowanie-razem/{cookingSession}/krok', [WspolneGotowanieController::class, 'krok'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+        ->name('wspolne-gotowanie.krok');
+    Route::post('/gotowanie-razem/{cookingSession}/od-poczatku', [WspolneGotowanieController::class, 'odPoczatku'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.od-poczatku');
+    Route::post('/gotowanie-razem/{cookingSession}/link', [WspolneGotowanieController::class, 'utworzLink'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.link.store');
+    Route::delete('/gotowanie-razem/{cookingSession}/link', [WspolneGotowanieController::class, 'odwolajLink'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.link.destroy');
+    Route::delete('/gotowanie-razem/{cookingSession}/pomocnik/{user}', [WspolneGotowanieController::class, 'usunPomocnika'])
+        ->whereUuid(['cookingSession', 'user'])
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.pomocnik.destroy');
+    Route::delete('/gotowanie-razem/{cookingSession}/moj-udzial', [WspolneGotowanieController::class, 'wyjdz'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.leave');
+    Route::delete('/gotowanie-razem/{cookingSession}', [WspolneGotowanieController::class, 'zakoncz'])
+        ->whereUuid('cookingSession')
+        ->middleware("throttle:{$limits['zaproszenia']},zaproszenia")
+        ->name('wspolne-gotowanie.destroy');
 });
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
@@ -1097,6 +1156,33 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.thank');
 
+    // Wskazówki od gotujących (#2352, D-333). Prośbę wysyła TYLKO autor
+    // przepisu z wykonania cudzego (`RecipeHintPolicy::propose`), odpowiada
+    // TYLKO kucharz (`answer`; stan rozstrzyga akcja pod blokadą). Wszystko
+    // pod jednym koszykiem `wskazowki`; identyfikator w adresie to nie
+    // autoryzacja.
+    Route::post('/ugotowane/{cookedEvent}/wskazowka', [WskazowkaController::class, 'propose'])
+        ->whereUuid('cookedEvent')
+        ->middleware("throttle:{$limits['wskazowki']},wskazowki")
+        ->name('hints.propose');
+    Route::post('/wskazowki/{wskazowka}/zgadzam-sie', [WskazowkaController::class, 'accept'])
+        ->whereUuid('wskazowka')
+        ->middleware("throttle:{$limits['wskazowki']},wskazowki")
+        ->name('hints.accept');
+    Route::post('/wskazowki/{wskazowka}/nie', [WskazowkaController::class, 'decline'])
+        ->whereUuid('wskazowka')
+        ->middleware("throttle:{$limits['wskazowki']},wskazowki")
+        ->name('hints.decline');
+    Route::post('/wskazowki/{wskazowka}/wycofaj', [WskazowkaController::class, 'withdraw'])
+        ->whereUuid('wskazowka')
+        ->middleware("throttle:{$limits['wskazowki']},wskazowki")
+        ->name('hints.withdraw');
+    // Autor anuluje własną CZEKAJĄCĄ prośbę (`RecipeHintPolicy::own` + `cancel`).
+    Route::post('/wskazowki/{wskazowka}/anuluj', [WskazowkaController::class, 'cancel'])
+        ->whereUuid('wskazowka')
+        ->middleware("throttle:{$limits['wskazowki']},wskazowki")
+        ->name('hints.cancel');
+
     // Planer tygodnia (#27, D-310) — prywatny, tylko właściciel. Wszystkie
     // zapisy pod własnym koszykiem `planer`.
     // Odczyt ma własny koszyk `planer_szukaj`: ta sama trasa uruchamia
@@ -1210,6 +1296,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/zeszyt/usuniete-przepisy/{usuniety}', [UsunietePrzepisyController::class, 'odzyskaj'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('collections.deleted-recipes.recover');
+    // „Mój rok w kuchni” (#2353, D-333): prywatne podsumowanie roku, tylko
+    // dla właściciela. Bez identyfikatora konta w adresie; rok to cztery cyfry
+    // (dłuższa liczba nie mieści się w int), zakres sprawdza kontroler.
+    // Poza `/zeszyt/{collection}`.
+    Route::get('/moj-rok', MojRokController::class)->name('moj-rok.show');
+    Route::get('/moj-rok/{rok}', MojRokController::class)
+        ->where('rok', '[0-9]{4}')
+        ->name('moj-rok.rok');
     // Cofnięcie publicznego udostępnienia bez kasowania zeszytu (issue #777).
     // Własny klucz `zeszyt`, nie `usuwanie` — to nie jest akcja destrukcyjna.
     Route::get('/zeszyt/{collection}/edytuj', [CollectionController::class, 'edit'])->name('collections.edit');
@@ -1737,6 +1831,14 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.reports.restore');
 
+    // „Przywróć wskazówkę” (#2352, decyzja właściciela z 1.10.2026): cofnięcie
+    // ukrycia wskazówki od gotujących bez odwołania kucharza. Identyfikator
+    // wskazówki w adresie niczego nie otwiera — `RecipeHintPolicy::restore`.
+    Route::post('/wskazowki/{wskazowka}/przywroc', [ModerationController::class, 'restoreHint'])
+        ->whereUuid('wskazowka')
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.hints.restore');
+
     // „Zdejmij z urzędu” — treść bez zgłoszenia (G31, D-251). Wejście przyciskiem
     // przy treści; Policy `removeExOfficio` pyta drugi raz, niezależnie od grupy.
     Route::get('/z-urzedu/{typ}/{id}', [ZUrzeduController::class, 'create'])
@@ -1748,6 +1850,22 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
         ->whereUuid('id')
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.z-urzedu.store');
+
+    // „CSAM — natychmiast ukryj i zabezpiecz” (D-333, 1.10.2026). Policy
+    // `secureCsam` pyta drugi raz, niezależnie od grupy. Trzy ekrany:
+    // potwierdzenie (GET), wykonanie (POST), wynik z instrukcją zgłoszenia.
+    Route::get('/csam/wynik/{zabezpieczenie}', [ZabezpieczenieDowoduController::class, 'wynik'])
+        ->whereUuid('zabezpieczenie')
+        ->name('admin.csam.wynik');
+    Route::get('/csam/{typ}/{id}', [ZabezpieczenieDowoduController::class, 'create'])
+        ->whereIn('typ', array_keys(ZabezpieczDowodCsam::TYPY))
+        ->whereUuid('id')
+        ->name('admin.csam.create');
+    Route::post('/csam/{typ}/{id}', [ZabezpieczenieDowoduController::class, 'store'])
+        ->whereIn('typ', array_keys(ZabezpieczDowodCsam::TYPY))
+        ->whereUuid('id')
+        ->middleware("throttle:{$limits['moderacja']},moderacja")
+        ->name('admin.csam.store');
 
     /*
      * Kolejka AUTOMATU (D-052) — treści oznaczone do przeglądu przez

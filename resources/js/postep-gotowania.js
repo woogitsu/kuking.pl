@@ -27,19 +27,38 @@ export const INTERWAL_MS = 30_000;
  *
  * @param {unknown} odpowiedz surowy JSON z serwera
  * @param {number} widzianaRewizja rewizja zapisana w stronie
+ * @param {{zmiana?: string, koniec?: string}} [teksty] własne zdania (wspólne gotowanie, #2385)
  * @returns {string|null}
  */
-export function komunikatOZmianie(odpowiedz, widzianaRewizja) {
+export function komunikatOZmianie(odpowiedz, widzianaRewizja, teksty = {}) {
     if (odpowiedz === null || typeof odpowiedz !== 'object') return null;
 
     const {aktywna, rewizja} = /** @type {{aktywna?: unknown, rewizja?: unknown}} */ (odpowiedz);
 
     if (aktywna === false) {
-        return 'Zapamiętywanie postępu na koncie wygasło albo zostało wyłączone na innym urządzeniu.';
+        return teksty.koniec ?? 'Zapamiętywanie postępu na koncie wygasło albo zostało wyłączone na innym urządzeniu.';
     }
 
     if (aktywna === true && Number.isInteger(rewizja) && rewizja !== widzianaRewizja) {
-        return 'Postęp tego przepisu zmienił się na innym urządzeniu.';
+        return teksty.zmiana ?? 'Postęp tego przepisu zmienił się na innym urządzeniu.';
+    }
+
+    return null;
+}
+
+/**
+ * Odpowiedź serwera inna niż 2xx. 403 i 404 znaczą dla wspólnego gotowania
+ * (#2385), że sesja się skończyła albo osoba straciła do niej dostęp — wtedy
+ * (i tylko gdy strona dała własne zdanie `koniec`) mówimy to wprost, zamiast
+ * milczeć. Inne kody (500, 429, brak sieci) są po cichu pomijane.
+ *
+ * @param {number} status kod HTTP
+ * @param {{koniec?: string}} [teksty]
+ * @returns {string|null}
+ */
+export function komunikatOStatusie(status, teksty = {}) {
+    if ((status === 403 || status === 404) && typeof teksty.koniec === 'string' && teksty.koniec !== '') {
+        return teksty.koniec;
     }
 
     return null;
@@ -57,7 +76,12 @@ export function podlaczSprawdzanie(pas, srodowisko) {
 
     if (!Number.isInteger(rewizja) || adres === '') return;
 
-    const tekst = pas.querySelector('[data-postep-tekst]');
+    // Region live może stać POZA pasem (stały, pusty element w DOM — czytniki
+    // ekranu ogłaszają tekst wstawiony do istniejącego regionu); bez
+    // `data-postep-region` tekst jest w środku pasa jak dawniej.
+    const idRegionu = pas.dataset.postepRegion;
+    const tekst = (idRegionu ? srodowisko.document.getElementById?.(idRegionu) : null)
+        ?? pas.querySelector('[data-postep-tekst]');
     let trwaZapytanie = false;
     let pokazano = false;
 
@@ -71,9 +95,14 @@ export function podlaczSprawdzanie(pas, srodowisko) {
                 headers: {Accept: 'application/json'},
             });
 
-            if (!odp.ok) return;
+            const teksty = {
+                zmiana: pas.dataset.postepKomunikatZmiana,
+                koniec: pas.dataset.postepKomunikatKoniec,
+            };
 
-            const komunikat = komunikatOZmianie(await odp.json(), rewizja);
+            const komunikat = odp.ok
+                ? komunikatOZmianie(await odp.json(), rewizja, teksty)
+                : komunikatOStatusie(odp.status, teksty);
 
             if (komunikat !== null) {
                 if (tekst) tekst.textContent = komunikat;
