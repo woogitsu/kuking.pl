@@ -19,6 +19,7 @@
 - Naprawione (#2607): mąka z ciecierzycy bez własnej pozycji w tabeli wartości odżywczych pozostaje nieznanym składnikiem zamiast udawać mąkę pszenną. Znana masa nadal liczy się do całego przepisu, a pełne aliasy działają jak dotąd.
 - Naprawione (#2563): szacunek wartości odżywczych nie traktuje ugotowanego ryżu lub makaronu jak surowego tylko dlatego, że słownik zna krótszą nazwę. Gdy brakuje zgodnej pozycji, składnik pozostaje nieznany; pełne aliasy produktów gotowanych i neutralne opisy nadal działają.
 - Naprawione (#2613): „Co ugotuję” nie uznaje soli z dopisku „bez soli” za posiadane masło. Tak samo liczy braki i produkty z krótkim terminem; masło nadal pasuje do masła bez soli.
+- Naprawione (#2624): przy przepisie autora na ponad 101 porcji „Mniej” przechodzi od razu do 100 porcji zamiast prowadzić do odrzucanego adresu i zapętlać wybór. Powrót do ilości autora nadal jest dostępny.
 - Wewnętrzne (#2598): test dwóch połączeń przy zapisie do zeszytu czeka na właściwą barierę transakcji. Wcześniejsza, obca blokada nie daje fałszywej czerwieni; osobny przeplot i kontrola ujemna sprawdzają ten warunek w CI.
 - Wewnętrzne (#2596): lokalny serwer testu checklisty składników przyjmuje tylko dodatnią liczbę porcji. Nie odbija tekstu z adresu w HTML; test HTTP i kontrola ujemna pilnują tego w CI.
 - Naprawione (#2467): usunięcie produktu z „Co mam w domu” najpierw pokazuje pytanie z jego nazwą. „Anuluj” zamyka je bez kasowania ilości lub terminu, także bez JavaScriptu.
