@@ -63,6 +63,7 @@ use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\RequestAccountDeletion;
 use App\Domain\Wydania\Actions\ZarejestrujWdrozenie;
+use App\Domain\Zakupy\ListaZakupow;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
@@ -707,6 +708,13 @@ try {
             Tag::query()->whereKey($argumenty['zrodlo'])->firstOrFail(),
             Tag::query()->whereKey($argumenty['cel'])->firstOrFail(),
         )->getKey(),
+        // Lista zakupów (#2630): cofnięcie usunięcia i ręczne dopisanie — te
+        // same akcje domenowe, które woła kontroler (limit pod blokadą wiersza).
+        'zakupy-cofnij' => (string) app(ListaZakupow::class)
+            ->cofnijUsuniecie(User::query()->whereKey($argumenty['kto'])->firstOrFail())['przywrocono'],
+        'zakupy-dopisz' => (string) app(ListaZakupow::class)
+            ->dodajReczna(User::query()->whereKey($argumenty['kto'])->firstOrFail(), $argumenty['tekst'])->getKey(),
+
         // Limit listy „Co mam w domu” (#1958): prawdziwa akcja domenowa,
         // żeby test pękł, jeśli blokada wiersza właściciela zniknie
         // z `CoMamWDomu::dodaj()`.

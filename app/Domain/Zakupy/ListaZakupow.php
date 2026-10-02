@@ -9,12 +9,16 @@ use App\Domain\Recipes\GrupySkladnikow;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use App\Models\ShoppingListItem;
+use App\Models\ShoppingListUndo;
 use App\Models\User;
 use App\Policies\RecipePolicy;
+use App\Support\Czas;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -31,6 +35,14 @@ use Illuminate\Validation\ValidationException;
  *  - pozycja niesie pochodzenie: skopiowana z przepisu albo ręczna;
  *  - ponowne dodanie składników TEGO SAMEGO przepisu najpierw ostrzega
  *    i dopisuje dopiero po jawnym potwierdzeniu.
+ *
+ * KRÓTKIE COFNIĘCIE USUNIĘCIA (#2630, rozszerzenie D-333): „Usuń” przy
+ * pozycji i „Wyczyść odhaczone” zapamiętują migawkę usuniętych pozycji
+ * (`shopping_list_undos`, JEDNA ostatnia operacja na osobę) na
+ * `kuking.zakupy.cofniecie_minut` minut. „Cofnij usunięcie” dopisuje te
+ * pozycje z powrotem (z tekstem, pochodzeniem, przepisem, odhaczeniem i datą
+ * dopisania), NIE ruszając pozycji dodanych w międzyczasie. Potwierdzenia
+ * obecnych akcji zostają. To nie jest kosz ani historia zakupów.
  *
  * POZA ZAKRESEM: lista wspólna, offline, grupowanie po działach sklepu.
  *
@@ -56,6 +68,11 @@ final class ListaZakupow
     public const WYNIK_JUZ_JEST = 'juz_jest';
 
     public const WYNIK_BRAK_SKLADNIKOW = 'brak_skladnikow';
+
+    public const COFNIECIE_PRZYWROCONO = 'przywrocono';
+
+    /** Nic do cofnięcia: nie było usunięcia, wygasło albo już cofnięte (drugie kliknięcie). */
+    public const COFNIECIE_BRAK = 'brak';
 
     public function __construct(
         private readonly RecipePolicy $przepisy = new RecipePolicy,
@@ -83,6 +100,7 @@ final class ListaZakupow
         $pozycje = ShoppingListItem::query()
             ->where('user_id', $user->getKey())
             ->orderBy('position')
+            ->orderBy('created_at')
             ->orderBy('id')
             ->get();
 
@@ -197,13 +215,204 @@ final class ListaZakupow
         $pozycja->save();
     }
 
-    /** „Wyczyść odhaczone” — tylko pozycje tej osoby, tylko odhaczone. */
+    /**
+     * „Wyczyść odhaczone” — tylko pozycje tej osoby, tylko odhaczone. Przed
+     * skasowaniem zapamiętuje je do krótkiego cofnięcia (zastępuje poprzednią
+     * migawkę). Gdy nie ma odhaczonych, niczego nie zmienia — także migawki.
+     */
     public function wyczyscOdhaczone(User $user): int
     {
-        return ShoppingListItem::query()
+        return DB::transaction(function () use ($user): int {
+            $this->zablokujListe($user);
+
+            $odhaczone = ShoppingListItem::query()
+                ->where('user_id', $user->getKey())
+                ->whereNotNull('checked_at')
+                ->orderBy('position')
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->get();
+
+            if ($odhaczone->isEmpty()) {
+                return 0;
+            }
+
+            $this->zapamietajUsuniecie($user, ShoppingListUndo::SCOPE_CHECKED, $odhaczone);
+
+            return ShoppingListItem::query()
+                ->where('user_id', $user->getKey())
+                ->whereIn('id', $odhaczone->modelKeys())
+                ->delete();
+        });
+    }
+
+    /**
+     * „Usuń” przy jednej pozycji: zapamiętuje ją do krótkiego cofnięcia
+     * (zastępuje poprzednią migawkę) i kasuje. Gdy pozycji już nie ma
+     * (powtórzone żądanie), nic nie zmienia — także migawki.
+     */
+    public function usunPozycje(User $user, ShoppingListItem $pozycja): void
+    {
+        DB::transaction(function () use ($user, $pozycja): void {
+            $this->zablokujListe($user);
+
+            $swieza = ShoppingListItem::query()
+                ->where('user_id', $user->getKey())
+                ->whereKey($pozycja->getKey())
+                ->first();
+
+            if ($swieza === null) {
+                return;
+            }
+
+            $this->zapamietajUsuniecie($user, ShoppingListUndo::SCOPE_SINGLE, collect([$swieza]));
+            $swieza->delete();
+        });
+    }
+
+    /**
+     * Czekająca na cofnięcie ostatnia operacja tej osoby albo null. Wygasłą
+     * migawkę kasuje przy okazji (retencja nie czeka na zadanie cykliczne).
+     */
+    public function oczekujaceCofniecie(User $user): ?ShoppingListUndo
+    {
+        ShoppingListUndo::query()
             ->where('user_id', $user->getKey())
-            ->whereNotNull('checked_at')
+            ->where('expires_at', '<=', now())
             ->delete();
+
+        return ShoppingListUndo::query()->where('user_id', $user->getKey())->first();
+    }
+
+    /**
+     * „Cofnij usunięcie”: dopisuje pozycje ostatniej operacji z powrotem.
+     *
+     *  - tylko migawka tej osoby (wiersz wybierany po `user_id`, bez
+     *    identyfikatora z żądania);
+     *  - NIE zastępuje listy: pozycje dodane w międzyczasie zostają, a
+     *    późniejsze korekty (np. odhaczenie innych pozycji) nie są ruszane;
+     *  - limit konta liczony pod blokadą wiersza osoby, jak przy dopisywaniu;
+     *    gdy brakuje miejsca, wyjątek cofa transakcję i migawka ZOSTAJE;
+     *  - pozycje wracają z własnymi identyfikatorami i `insertOrIgnore`, a
+     *    migawka jest kasowana w tej samej transakcji, więc ponowne kliknięcie
+     *    nie powiela niczego (drugie dostaje `brak`);
+     *  - przepis, który zniknął, nie zostawia klucza (sam tekst, `source`
+     *    zostaje `recipe`); tytuł, link ani zdjęcie przepisu nie są
+     *    odtwarzane — ekran pyta o widoczność przepisu jak zawsze.
+     *
+     * @return array{wynik: string, przywrocono: int, zakres: ?string}
+     */
+    public function cofnijUsuniecie(User $user): array
+    {
+        return DB::transaction(function () use ($user): array {
+            $this->zablokujListe($user);
+
+            $migawka = ShoppingListUndo::query()
+                ->where('user_id', $user->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            if ($migawka === null) {
+                return ['wynik' => self::COFNIECIE_BRAK, 'przywrocono' => 0, 'zakres' => null];
+            }
+
+            if ($migawka->wygasla()) {
+                $migawka->delete();
+
+                return ['wynik' => self::COFNIECIE_BRAK, 'przywrocono' => 0, 'zakres' => null];
+            }
+
+            $this->upewnijSieZeSaMiejscaNaPrzywrocenie($user, $migawka);
+
+            /** @var list<array<string, mixed>> $pozycje */
+            $pozycje = $migawka->items;
+            $idPrzepisow = array_values(array_filter(array_column($pozycje, 'recipe_id')));
+            $istniejace = $idPrzepisow === []
+                ? []
+                : DB::table('recipes')->whereIn('id', $idPrzepisow)->pluck('id')->all();
+
+            usort($pozycje, fn (array $a, array $b): int => [(int) $a['position'], (string) $a['created_at']]
+                <=> [(int) $b['position'], (string) $b['created_at']]);
+
+            $przywrocono = 0;
+            foreach ($pozycje as $p) {
+                $przywrocono += DB::table('shopping_list_items')->insertOrIgnore([
+                    'id' => $p['id'],
+                    'user_id' => $user->getKey(),
+                    'text' => $p['text'],
+                    'source' => $p['source'],
+                    'recipe_id' => in_array($p['recipe_id'], $istniejace, true) ? $p['recipe_id'] : null,
+                    'position' => (int) $p['position'],
+                    'checked_at' => $p['checked_at'],
+                    'created_at' => $p['created_at'],
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $zakres = $migawka->scope;
+            $migawka->delete();
+
+            return ['wynik' => self::COFNIECIE_PRZYWROCONO, 'przywrocono' => $przywrocono, 'zakres' => $zakres];
+        });
+    }
+
+    /** Retencja: kasuje wszystkie wygasłe migawki (zadanie `kuking:sprzataj-cofniecia-zakupow`). */
+    public function sprzatnijWygasleCofniecia(): int
+    {
+        return ShoppingListUndo::query()->where('expires_at', '<=', now())->delete();
+    }
+
+    public static function minutCofniecia(): int
+    {
+        return max(1, (int) config('kuking.zakupy.cofniecie_minut'));
+    }
+
+    /**
+     * Jedna ostatnia operacja na osobę: poprzednia migawka znika (żadnej
+     * historii). Wołane pod blokadą wiersza osoby.
+     *
+     * @param  Collection<int, ShoppingListItem>  $pozycje
+     */
+    private function zapamietajUsuniecie(User $user, string $zakres, Collection $pozycje): void
+    {
+        $migawka = $pozycje->map(fn (ShoppingListItem $p): array => [
+            'id' => $p->getKey(),
+            'text' => $p->text,
+            'source' => $p->source,
+            'recipe_id' => $p->recipe_id,
+            'position' => $p->position,
+            'checked_at' => $p->checked_at?->toIso8601String(),
+            'created_at' => $p->created_at?->toIso8601String(),
+        ])->values()->all();
+
+        DB::table('shopping_list_undos')->where('user_id', $user->getKey())->delete();
+        DB::table('shopping_list_undos')->insert([
+            'id' => (string) Str::uuid(),
+            'user_id' => $user->getKey(),
+            'scope' => $zakres,
+            'items' => json_encode($migawka, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+            'items_count' => count($migawka),
+            'expires_at' => now()->addMinutes(self::minutCofniecia()),
+            'created_at' => now(),
+        ]);
+    }
+
+    private function upewnijSieZeSaMiejscaNaPrzywrocenie(User $user, ShoppingListUndo $migawka): void
+    {
+        $jest = ShoppingListItem::query()->where('user_id', $user->getKey())->count();
+
+        if ($jest + $migawka->items_count <= self::maksPozycji()) {
+            return;
+        }
+
+        $zmiesci = max(0, self::maksPozycji() - $migawka->items_count);
+
+        throw ValidationException::withMessages([
+            'cofniecie' => 'Nie ma miejsca, żeby cofnąć usunięcie: na liście jest '.$jest.' z '.self::maksPozycji()
+                .' pozycji, a do przywrócenia czeka '.$migawka->items_count.'. Usunięte pozycje nie zginęły i można je cofnąć do '
+                .Czas::lokalnie($migawka->expires_at)->format('H:i')
+                .', ale na liście musiałoby być najwyżej '.$zmiesci.'. Uwaga: każde kolejne usunięcie zastąpi tę możliwość cofnięcia.',
+        ]);
     }
 
     /**

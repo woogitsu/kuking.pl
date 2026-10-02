@@ -69,6 +69,16 @@ Krok, przy którym autor nie podał czasu, ma teraz „Nastaw własny minutnik�
 ### Zrobione w Planerze
 
 Przy każdej pozycji planu możesz oznaczyć, że jest już zrobiona, i cofnąć to jednym przyciskiem. Dzięki temu po przygotowaniu części potraw widzisz, co jeszcze zostało, a cały plan zostaje na swoim miejscu. Oznaczenie jest prywatne: nie publikuje „Ugotowałem”, nie powiadamia autora przepisu i nie zmienia nic poza Twoim planem.
+### Cofnij usunięcie na liście zakupów
+
+Jeśli na liście zakupów usuniecie pozycję albo klikniecie „Wyczyść odhaczone”
+i zorientujecie się, że to pomyłka, u góry listy zobaczycie informację, co
+zostało usunięte, i przycisk „Cofnij usunięcie”. Działa przez 15 minut, także
+po odświeżeniu strony. Wracają tylko usunięte pozycje: z tym samym tekstem,
+skąd pochodziły i z odhaczeniem, które miały — odhaczone wracają odhaczone,
+a to, co dopisaliście w międzyczasie, zostaje. Pamiętamy tylko ostatnie
+usunięcie, a po 15 minutach kopia znika. Pytanie przed usunięciem zostaje
+jak było.
 
 ## Alfa 0.78
 

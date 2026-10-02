@@ -141,6 +141,43 @@ prywatna lista jednej osoby, nikomu innemu niepotrzebna. **Paczka RODO**
 wydaje ją w sekcji `lista_zakupow` (`InwentarzDanychKonta`), z tytułem
 przepisu tylko przy przepisie widocznym dla osoby.
 
+### shopping_list_undos
+
+„Cofnij usunięcie” z listy zakupów (#2630, rozszerzenie **D-333**, decyzja
+właściciela z 2.10.2026). Migracja `2026_10_02_100000_create_shopping_list_undos_table`.
+Jeden wiersz to **jedna ostatnia operacja usunięcia** jednej osoby („Usuń”
+przy pozycji albo „Wyczyść odhaczone”). Kolejne usunięcie zastępuje wiersz —
+nie ma archiwum, kosza ani historii zakupów.
+
+| kolumna | typ | uwagi |
+|---|---|---|
+| `id` | `uuid` | `DEFAULT gen_random_uuid()` |
+| `user_id` | `uuid` UNIQUE | → `users(id)` `ON DELETE CASCADE` (pas bezpieczeństwa; konta się anonimizuje, wiersz kasuje `EraseAccountData`). UNIQUE = najwyżej jedna migawka na osobę, także przy dwóch równoległych usunięciach |
+| `scope` | `varchar(10)` | `single` (jedna pozycja) albo `checked` („Wyczyść odhaczone”); od tego zależy komunikat „wróciły jako odhaczone” |
+| `items` | `jsonb` | tablica usuniętych pozycji: `id`, `text`, `source`, `recipe_id`, `position`, `checked_at`, `created_at`. **Bez kluczy obcych** i bez tytułu, linku czy zdjęcia przepisu — przy cofnięciu `recipe_id` zostaje tylko dla przepisu, który wciąż istnieje (inaczej sam tekst, jak przy `ON DELETE SET NULL`) |
+| `items_count` | `smallint` | liczba pozycji w migawce; limit konta (`kuking.zakupy.pozycji_max`) sprawdza się przy cofnięciu |
+| `expires_at` | `timestamptz` | koniec okna cofnięcia: `created_at` + `kuking.zakupy.cofniecie_minut` (15) |
+| `created_at` | `timestamptz` | |
+
+Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
+`shopping_list_undos_scope_check` (`single`/`checked`),
+`shopping_list_undos_items_check` (`items` jest tablicą o długości
+`items_count` ≥ 1), `shopping_list_undos_expires_idx` (sprzątanie).
+
+**Retencja** (ADR_RETENCJE §5.9): po `expires_at` cofnięcie odrzuca migawkę;
+kopia jest kasowana przy odczycie listy przez osobę, przy próbie cofnięcia i
+zadaniem `kuking:sprzataj-cofniecia-zakupow` (co kwadrans). **Wymazanie konta**
+kasuje wiersz od razu (`EraseAccountData`). W paczce RODO tabela jest
+oznaczona jako `NIE_DOTYCZY` (te same pozycje są w `lista_zakupow`; kopia żyje
+najwyżej 15 minut).
+
+**Rollback.** `down()` ODMAWIA, gdy w tabeli są świeże (niewygasłe) wiersze
+(D-088): kasowanie zabrałoby ludziom możliwość odzyskania omyłkowo usuniętych
+pozycji. Wygasłe wiersze nie blokują. Na świeżej bazie (CI, `migrate:refresh`)
+przechodzi bez pytania; wymuszenie: `KUKING_ROLLBACK_KASUJE_COFNIECIA_ZAKUPOW=1`.
+Wycofanie samego kodu jest bezpieczne: tabela po prostu przestaje być czytana,
+a wiersze wygasają.
+
 ## pantry_items — „Co mam w domu” (V2, D-285)
 
 Prywatna lista produktów jednej osoby; na niej stoi „Co ugotuję z tego,
