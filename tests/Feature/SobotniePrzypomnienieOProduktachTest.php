@@ -250,6 +250,9 @@ class SobotniePrzypomnienieOProduktachTest extends TestCase
         $this->travelTo(Carbon::parse('2026-10-09 22:30:00', 'UTC'));
         $basia = $this->osoba('basia', termin: null);
         $this->produkt($basia, 'mleko', '2026-10-12');
+        // Test dotyczy deduplikacji między sobotami; best_before pozostaje
+        // uprawniony do listu po terminie, inaczej zmieniłby się przedmiot testu.
+        $basia->pantryItems()->where('name', 'mleko')->update(['expiry_kind' => 'best_before']);
 
         $this->wyslij();
         $this->travelTo(Carbon::parse('2026-10-16 22:30:00', 'UTC')); // sobota 17.10, 00:30
@@ -281,7 +284,9 @@ class SobotniePrzypomnienieOProduktachTest extends TestCase
 
     public function test_za_tydzien_list_wychodzi_znowu(): void
     {
-        $this->osoba('basia');
+        $basia = $this->osoba('basia');
+        // Sprawdzamy nową dobę deduplikacji, nie ponowną zachętę dla wygasłego use_by.
+        $basia->pantryItems()->where('name', 'mleko')->update(['expiry_kind' => 'best_before']);
         $this->wyslij();
 
         $this->travelTo(Carbon::parse('2026-10-17 09:00:00', 'UTC'));
@@ -306,6 +311,11 @@ class SobotniePrzypomnienieOProduktachTest extends TestCase
     {
         config(['kuking.pantry.przypomnienie.dzienny_sufit' => 2]);
         $osoby = [$this->osoba('basia'), $this->osoba('marek'), $this->osoba('zofia')];
+        // Rotacja odbiorców ma obejmować te same kwalifikujące się produkty
+        // w obie soboty, także po upływie terminu best_before.
+        foreach ($osoby as $osoba) {
+            $osoba->pantryItems()->where('name', 'mleko')->update(['expiry_kind' => 'best_before']);
+        }
 
         $this->wyslij();
         $this->travelTo(Carbon::parse('2026-10-17 09:00:00', 'UTC'));
