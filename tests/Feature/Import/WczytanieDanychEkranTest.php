@@ -16,8 +16,7 @@ use App\Models\WczytanaZPaczki;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\MessageBag;
-use Illuminate\Support\ViewErrorBag;
+use PHPUnit\Framework\AssertionFailedError;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -167,23 +166,16 @@ class WczytanieDanychEkranTest extends TestCase
                 'plik' => new UploadedFile($sciezka, 'paczka.zip', 'application/zip', null, true),
             ]);
 
-        $bledy = self::sesjaPrzekierowania($odpowiedz)->get('errors');
-        $worek = is_array($bledy) ? ($bledy['default'] ?? $bledy) : null;
-        $blad = is_array($worek) ? ($worek['plik'] ?? null) : null;
-        $komunikat = match (true) {
-            $bledy instanceof ViewErrorBag, $bledy instanceof MessageBag => $bledy->first('plik'),
-            $worek instanceof ViewErrorBag, $worek instanceof MessageBag => $worek->first('plik'),
-            is_array($blad) => $blad[0] ?? null,
-            is_string($blad) => $blad,
-            default => null,
-        };
-
-        $this->assertSame(
-            'Ta paczka ma zbyt wiele drobnych części, żeby bezpiecznie ją wczytać. Pobierz paczkę z Kuking jeszcze raz. Jeśli problem się powtórzy, napisz do nas przez formularz kontaktowy.',
-            $komunikat,
-            'BUDZET_2611_HTTP_ODMOWA: nadmierna struktura musi odmówić przed zapisem podglądu.',
-        );
-        $odpowiedz->assertRedirect(route('settings.data.import'));
+        // Kanoniczna asercja TestResponse czyta sesję żądania. Surowa sesja
+        // RedirectResponse ma w testach inny kształt `errors` niż ErrorBag.
+        try {
+            $odpowiedz->assertRedirect(route('settings.data.import'))
+                ->assertSessionHasErrors([
+                    'plik' => 'Ta paczka ma zbyt wiele drobnych części, żeby bezpiecznie ją wczytać. Pobierz paczkę z Kuking jeszcze raz. Jeśli problem się powtórzy, napisz do nas przez formularz kontaktowy.',
+                ]);
+        } catch (AssertionFailedError $e) {
+            self::fail('BUDZET_2611_HTTP_ODMOWA: '.$e->getMessage());
+        }
 
         $this->assertSame([], Storage::disk('local')->allFiles('import-paczek'));
         $this->assertSame(0, WczytanaZPaczki::query()->count());
