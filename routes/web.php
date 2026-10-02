@@ -56,6 +56,7 @@ use App\Http\Controllers\MojStolController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NowosciController;
+use App\Http\Controllers\OdlozenieSzkicuController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PantryController;
 use App\Http\Controllers\PlanerController;
@@ -974,6 +975,16 @@ Route::middleware('auth')->group(function () use ($limits): void {
 
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
     Route::get('/dodaj/szkice', [RecipeController::class, 'drafts'])->name('recipes.drafts');
+    // „Odłóż na później” / „Wróć do pracy” przy własnym szkicu (#2550, V2):
+    // prywatne oznaczenie listy, nie status. Zwykłe formularze bez JS, Policy `postpone`.
+    Route::post('/dodaj/szkice/{szkic}/odlozenie', [OdlozenieSzkicuController::class, 'odloz'])
+        ->whereUuid('szkic')
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('recipes.drafts.postpone');
+    Route::delete('/dodaj/szkice/{szkic}/odlozenie', [OdlozenieSzkicuController::class, 'przywroc'])
+        ->whereUuid('szkic')
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('recipes.drafts.resume');
     Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');
     // Import przepisu z adresu strony i z pliku PDF (V2, D-300). Wynik to
     // zawsze prywatny szkic w kreatorze; limit na osobę w `LimitImportu`,

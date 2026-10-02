@@ -451,6 +451,8 @@ final class CollectUserExportData
             'trudnosc' => $recipe->difficulty,
             'widocznosc' => $recipe->visibility,
             'status' => $recipe->status,
+            // Prywatne „Odłożone na później” (#2550): kiedy autor odłożył szkic; `null` = szkic bieżący.
+            'odlozony_na_pozniej' => $this->date($recipe->odlozony_at),
             'skad_przepis' => $recipe->source_type,
             'skad_przepis_opis' => Recipe::SOURCE_LABELS[$recipe->source_type] ?? null,
             'zrodlo_adres' => $recipe->source_url,

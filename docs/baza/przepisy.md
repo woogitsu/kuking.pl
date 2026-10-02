@@ -14,6 +14,7 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
   od `prep_minutes` i `cook_minutes` (patrz niżej);
 - `estimated_cost_pln` — szacunkowy koszt wg autora, patrz niżej (D-286);
 - `yield_count`, `yield_unit` — ile gotowych sztuk wychodzi z przepisu, patrz niżej (#2645);
+- `odlozony_at` — prywatne „Odłożone na później” własnego szkicu, patrz niżej (#2550);
 - `visibility` (`public` \| `followers` \| `private`),
   `status` (`draft` \| `published` \| `hidden` \| `removed`), `hero_media_id`;
 - pochodzenie: `source_type`, `source_url`, `source_person`, `source_note`,
@@ -68,6 +69,34 @@ Eksport danych: `czas_laczny_zrodla_minuty`.
 informacji ze źródła `up()` nie odtworzy; komunikat podaje ręczne wyzerowanie
 (`UPDATE recipes SET czas_laczny_zrodla_minut = NULL`). Bez wartości usuwa CHECK
 i kolumnę. Pilnuje `tests/Feature/CzasLacznyZrodlaImportuTest.php`.
+
+**`odlozony_at` — prywatne „Odłożone na później” własnego szkicu** (#2550, V2,
+migracja `2026_10_03_150000_add_odlozony_at_to_recipes`).
+
+```sql
+ALTER TABLE recipes ADD COLUMN odlozony_at timestamptz(6) NULL;
+ALTER TABLE recipes ADD CONSTRAINT recipes_odlozony_tylko_niepublikowany_check
+    CHECK (odlozony_at IS NULL OR published_at IS NULL);
+```
+
+`NULL` = szkic bieżący (stan domyślny, także dla wszystkich istniejących
+wierszy); wartość to chwila odłożenia i zarazem znacznik wersji stanu dla
+formularzy z innych kart. To NIE jest status ani widoczność: `status` zostaje
+`draft`, `updated_at` i treść (składniki, kroki, zdjęcia, wersje) nie są ruszane,
+a migawka `recipe_versions` oznaczenia nie niesie. Kolumna jest poza `$fillable`
+(`@property` w `Recipe`); ustawia ją wyłącznie `OdlozSzkicPrzepisu` (żądany stan,
+pod blokadą konta i wiersza przepisu, po świeżej kontroli autorstwa przez
+`RecipePolicy::postpone`), a zdejmuje ją „Wróć do pracy” albo `PublishRecipe` w tym
+samym UPDATE co publikacja. Autozapis szkicu oznaczenia nie rusza. Lista
+`/dodaj/szkice` ma widok `?odlozone=1`; skróty na „Dodaj” i w kreatorze pokazują
+tylko bieżące. Paczka danych: `odlozony_na_pozniej`. Wymazanie konta kasuje szkic
+razem z oznaczeniem. Brak retencji i przypomnień dla szkiców (nie ma dziś ani
+jednych, ani drugich), więc odłożenie niczego nie przyspiesza.
+
+**Rollback (D-088):** `down()` ODMAWIA, gdy choć jeden szkic jest odłożony
+(komunikat podaje `pg_dump -t recipes` i `UPDATE recipes SET odlozony_at = NULL`);
+bez oznaczeń usuwa CHECK i kolumnę. Pilnuje
+`tests/Feature/OdlozenieSzkicuPrzepisuTest.php`.
 
 **`tresc_zmieniona_at` — data zmiany treści, nie zapisu wiersza** (#2014,
 migracja `2026_09_28_210000_add_tresc_zmieniona_at_to_recipes`).

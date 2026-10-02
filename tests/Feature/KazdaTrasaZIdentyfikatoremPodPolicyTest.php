@@ -640,6 +640,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $przepis = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $przepisPrywatny = Recipe::factory()->create(['author_id' => $wlasciciel->getKey(), 'visibility' => 'private']);
         $przepisDoKasacji = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
+        $szkicDoOdlozenia = Recipe::factory()->draft()->create(['author_id' => $wlasciciel->getKey()]);
         // Historia wersji (#2024) idzie tą samą bramką co przepis: dwie wersje,
         // żeby ekran porównania miał z czym porównywać.
         foreach ([1, 2] as $numerWersji) {
@@ -1136,6 +1137,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.unsave', $przepisPrywatny), [], [$W, $W, $W, $W, $O]);
         $dodaj('recipes.destroy', 'usunięcie przepisu', 'delete',
             route('recipes.destroy', $przepisDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // „Odłóż na później” własnego szkicu (#2550): tylko autor; szkic jest
+        // wyłącznie jego, więc moderator też dostaje odmowę (`RecipePolicy::postpone`).
+        $dodaj('recipes.drafts.postpone', 'odłożenie własnego szkicu na później', 'post',
+            route('recipes.drafts.postpone', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.drafts.resume', 'powrót do pracy nad odłożonym szkicem', 'delete',
+            route('recipes.drafts.resume', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
 
         // ─── WYKONANIA („Ugotowałem") ────────────────────────────────────
         $dodaj('cooked.show', 'wykonanie publicznego przepisu', 'get',

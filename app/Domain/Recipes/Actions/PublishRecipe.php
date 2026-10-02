@@ -529,6 +529,13 @@ final class PublishRecipe
                     $payload['published_at'] = $docelowy === Recipe::STATUS_PUBLISHED
                         ? ($recipe->published_at ?? now())
                         : null;
+
+                    // Opublikowany przepis nie jest „odłożony” (#2550). Zdejmujemy
+                    // oznaczenie TYLKO tutaj, w tym samym UPDATE co publikację;
+                    // zwykły zapis szkicu (autozapis) go nie rusza.
+                    if ($docelowy === Recipe::STATUS_PUBLISHED) {
+                        $recipe->forceFill(['odlozony_at' => null]);
+                    }
                 }
 
                 $byloUdostepnione = $recipe->isPublished() && $recipe->visibility !== 'private';

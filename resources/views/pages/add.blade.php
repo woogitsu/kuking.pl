@@ -4,9 +4,18 @@
     $niedokonczoneSzkice = auth()->user()
         ?->recipes()
         ->where('status', \App\Models\Recipe::STATUS_DRAFT)
+        ->whereNull('odlozony_at')
         ->orderByDesc('updated_at')
         ->limit(3)
         ->get() ?? collect();
+
+    // Odłożone na później (#2550) nie zajmują skrótów, ale muszą być widoczne
+    // jako droga powrotu — także gdy WSZYSTKIE szkice są odłożone.
+    $odlozoneSzkice = auth()->user()
+        ?->recipes()
+        ->where('status', \App\Models\Recipe::STATUS_DRAFT)
+        ->whereNotNull('odlozony_at')
+        ->count() ?? 0;
 @endphp
 
 <x-layout title="Dodaj" :noindex="true">
@@ -56,6 +65,16 @@
                 @endforeach
             </ul>
             <p class="mb-0"><a class="btn btn-secondary" href="{{ route('recipes.drafts') }}">Wszystkie szkice</a></p>
+        </div>
+    @endif
+
+    @if($odlozoneSzkice > 0)
+        <div class="notice">
+            <p class="mt-0">
+                <strong>Masz szkice odłożone na później (razem: {{ $odlozoneSzkice }}).</strong>
+                Nic z nich nie zginęło — czekają na liście.
+            </p>
+            <p class="mb-0"><a class="btn btn-secondary" href="{{ route('recipes.drafts', ['odlozone' => 1]) }}">Odłożone na później</a></p>
         </div>
     @endif
 

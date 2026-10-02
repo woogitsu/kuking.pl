@@ -84,6 +84,18 @@ class RecipePolicy
     }
 
     /**
+     * „Odłóż na później” / „Wróć do pracy” (#2550): wyłącznie autor własnego
+     * szkicu. Przepis opublikowany albo zamrożony przez moderację (`hidden`,
+     * `removed`) nie ma czego odkładać — oznaczenie nie zmienia widoczności.
+     */
+    public function postpone(User $user, Recipe $recipe): bool
+    {
+        return $user->getKey() === $recipe->author_id
+            && $recipe->status === Recipe::STATUS_DRAFT
+            && $recipe->published_at === null;
+    }
+
+    /**
      * Zwykłe usunięcie (`DELETE` ze strony treści) — wyłącznie autor.
      *
      * Issue #932: moderator NIE usuwa tędy cudzej treści, nawet z 2FA.

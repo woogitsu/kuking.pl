@@ -190,9 +190,11 @@ class RecipeController extends Controller
     /** Prywatna lista autora; skróty na „Dodaj” nie zastępują dostępu do starszych szkiców. */
     public function drafts(Request $request): View
     {
+        // Odłożone na później (#2550) to ta sama lista, osobny widok: `?odlozone=1`.
+        $odlozone = $request->query('odlozone') === '1';
+        $zapytanie = $request->user()->recipes()->where('status', Recipe::STATUS_DRAFT);
         $drafts = KursorListy::strona(
-            $request->user()->recipes()
-                ->where('status', Recipe::STATUS_DRAFT)
+            ($odlozone ? $zapytanie->whereNotNull('odlozony_at') : $zapytanie->whereNull('odlozony_at'))
                 ->orderByDesc('updated_at')
                 ->orderByDesc('id'),
             20,
@@ -202,7 +204,16 @@ class RecipeController extends Controller
             $this->authorize('view', $draft);
         }
 
-        return view('pages.recipes.drafts', ['drafts' => $drafts]);
+        $liczbaOdlozonych = $request->user()->recipes()
+            ->where('status', Recipe::STATUS_DRAFT)
+            ->whereNotNull('odlozony_at')
+            ->count();
+
+        return view('pages.recipes.drafts', [
+            'drafts' => $drafts,
+            'odlozone' => $odlozone,
+            'liczbaOdlozonych' => $liczbaOdlozonych,
+        ]);
     }
 
     private function wizard(Request $request, Recipe $recipe): View
@@ -212,6 +223,7 @@ class RecipeController extends Controller
             'drafts' => $request->user()
                 ->recipes()
                 ->where('status', Recipe::STATUS_DRAFT)
+                ->whereNull('odlozony_at')
                 ->orderByDesc('updated_at')
                 ->limit(5)
                 ->get(),
