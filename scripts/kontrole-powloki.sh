@@ -72,6 +72,7 @@ LISTA=$(cat <<'KONIEC'
 tests/skrypty/entrypoint-nadzor.sh|Testy entrypointu oblewają
 tests/skrypty/entrypoint-sigterm-caly.sh|Zatrzymanie prawdziwego entrypointu w trakcie pracy oblewa
 tests/skrypty/healthcheck-role.sh|Kontrola zdrowia ról kontenera oblewa
+tests/skrypty/install-hooks-worktree.sh|Instalator hooków w odrębnym worktree oblewa
 tests/skrypty/preflight-bazy.sh|Preflight bazy w entrypoincie oblewa
 tests/skrypty/bramka-migracji.sh|Bramka migracji workera i schedulera oblewa
 tests/skrypty/php-ini-slady.sh|Ślady wyjątków w docker/php.ini niosą argumenty

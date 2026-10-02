@@ -81,6 +81,54 @@ class KosztZCenGusTest extends TestCase
     }
 
     #[Test]
+    public function dopelniacz_jednostki_po_ulamku_zachowuje_mase_i_objetosc(): void
+    {
+        foreach ([
+            '0,5 grama soli' => ['ilosc' => 0.5, 'miara' => 'g'],
+            '0,5 dekagrama mąki' => ['ilosc' => 5.0, 'miara' => 'g'],
+            '0,5 kilograma masła' => ['ilosc' => 500.0, 'miara' => 'g'],
+            '0,5 mililitra mleka' => ['ilosc' => 0.5, 'miara' => 'ml'],
+            'pół kilograma masła' => ['ilosc' => 500.0, 'miara' => 'g'],
+            '1/2 mililitra mleka' => ['ilosc' => 0.5, 'miara' => 'ml'],
+        ] as $tekst => $oczekiwane) {
+            $this->assertSame(
+                $oczekiwane,
+                IloscZTekstu::rozbierz($tekst),
+                'KOSZT_2643_DOPELNIACZ_MIARY_NIE_JEST_SZTUKA',
+            );
+        }
+
+        $this->assertSame(['ilosc' => 0.5, 'miara' => 'sztuka'], IloscZTekstu::rozbierz('0,5 jajka'));
+        $this->assertSame(['ilosc' => 500.0, 'miara' => 'g'], IloscZTekstu::rozbierz('0,5 kg masła'));
+        $this->assertSame(['ilosc' => 625.0, 'miara' => 'ml'], IloscZTekstu::rozbierz('0,5 do 0,75 litra mleka'));
+    }
+
+    #[Test]
+    public function dopelniacz_kilograma_daje_koszt_pol_kilograma_a_nie_pol_sztuki(): void
+    {
+        $plik = $this->plikCsv([
+            'maslo,masło,maslo|masla,,10.00,1,kg,1000,,,,200,2025,GUS,',
+        ]);
+        $this->assertSame(0, Artisan::call('kuking:ceny-skladnikow', ['--plik' => $plik]), Artisan::output());
+
+        $slownie = $this->przepis(['0,5 kilograma masła']);
+        $gramy = $this->przepis(['500 g masła']);
+        $polSztuki = $this->przepis(['0,5 sztuki masła']);
+
+        $zMiara = app(SzacunekKosztuZCen::class)->dla($slownie);
+        $zGramow = app(SzacunekKosztuZCen::class)->dla($gramy);
+        $zeSztuki = app(SzacunekKosztuZCen::class)->dla($polSztuki);
+
+        $this->assertNotNull($zMiara);
+        $this->assertNotNull($zGramow);
+        $this->assertNotNull($zeSztuki);
+        $this->assertTrue($zMiara->jestPrzedzial());
+        $this->assertEquals($zGramow, $zMiara, 'KOSZT_2643_WYCENA_POL_KILOGRAMA');
+        $this->assertNotEquals($zeSztuki, $zMiara, 'Pół sztuki ma w tym cenniku tylko 100 g.');
+        $this->assertSame('0,5 kilograma masła', $slownie->ingredients->first()->ingredient_text);
+    }
+
+    #[Test]
     public function grupowane_tysiace_zachowuja_cala_mase_i_nie_staja_sie_sztukami(): void
     {
         foreach ([' ', "\u{00A0}", "\u{202F}"] as $odstep) {

@@ -16,6 +16,7 @@ use App\Models\WczytanaZPaczki;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\AssertionFailedError;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -114,8 +115,7 @@ class WczytanieDanychEkranTest extends TestCase
 
     public function test_dane_tuz_ponad_sufitem_daja_komunikat_a_nie_blad_serwera(): void
     {
-        // Sufit 12 MB jest dobrany do `memory_limit` 256M (json_decode ~8x).
-        // Tuż ponad nim człowiek ma dostać polski komunikat z instrukcją,
+        // Tuż ponad sufitem bajtów człowiek ma dostać polski komunikat z instrukcją,
         // a nie fatal 500 bez słowa.
         $sciezka = tempnam(sys_get_temp_dir(), 'kuking-sufit-');
         $this->assertIsString($sciezka);
@@ -136,10 +136,51 @@ class WczytanieDanychEkranTest extends TestCase
 
     public function test_sufit_danych_pozostaje_bezpieczny_dla_limitu_pamieci_php(): void
     {
-        // json_decode potrzebuje ok. 8x rozmiaru tekstu; 256M to `docker/php.ini`.
-        $this->assertSame(12 * 1024 * 1024, PodgladPaczkiEksportu::MAX_DANE_BAJTOW);
-        $this->assertLessThan(256 * 1024 * 1024 / 2, PodgladPaczkiEksportu::MAX_DANE_BAJTOW * 8);
+        // Rzeczywiste wykonanie parsera w 256M mierzy BudzetStrukturyPaczkiTest.
+        $this->assertSame(12 * 1024 * 1024, PodgladPaczkiEksportu::MAX_DANE_BAJTOW, 'BUDZET_1985_DANE_MAX_12_MB');
+        $this->assertSame(150_000, PodgladPaczkiEksportu::MAX_KONTENEROW_JSON);
+        $this->assertSame(1_000_000, PodgladPaczkiEksportu::MAX_SEPARATOROW_JSON);
         $this->assertStringContainsString('memory_limit=256M', (string) file_get_contents(base_path('docker/php.ini')));
+    }
+
+    public function test_paczka_tuz_ponad_budzetem_struktury_jest_odrzucona_przez_http_bez_poczekalni(): void
+    {
+        $sciezka = tempnam(sys_get_temp_dir(), 'kuking-budzet-');
+        $this->assertIsString($sciezka);
+        $this->pliki[] = $sciezka;
+
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($sciezka, ZipArchive::OVERWRITE | ZipArchive::CREATE) === true);
+        // 6 kontenerów nagłówka i 149 995 małych obiektów = dokładnie
+        // jeden ponad budżetem. Mutacja progu o jeden nie wyczerpie PHPUnit.
+        $json = '{"o_tym_pliku":{"serwis":"Kuking.pl","wersja_formatu":1},"przepisy":[],"wpisy":[],"kolekcje":[],"extra":['
+            .str_repeat('{"a":0},', 149_994).'{"a":0}]}';
+        $this->assertLessThan(PodgladPaczkiEksportu::MAX_DANE_BAJTOW, strlen($json));
+        $zip->addFromString('dane.json', $json);
+        $this->assertTrue($zip->close());
+        unset($json);
+
+        $odpowiedz = $this->actingAs($this->user('zenek'))
+            ->from(route('settings.data.import'))
+            ->post(route('settings.data.import.check'), [
+                'plik' => new UploadedFile($sciezka, 'paczka.zip', 'application/zip', null, true),
+            ]);
+
+        // Kanoniczna asercja TestResponse czyta sesję żądania. Surowa sesja
+        // RedirectResponse ma w testach inny kształt `errors` niż ErrorBag.
+        try {
+            $odpowiedz->assertRedirect(route('settings.data.import'))
+                ->assertSessionHasErrors([
+                    'plik' => 'Ta paczka ma zbyt wiele drobnych części, żeby bezpiecznie ją wczytać. Pobierz paczkę z Kuking jeszcze raz. Jeśli problem się powtórzy, napisz do nas przez formularz kontaktowy.',
+                ]);
+        } catch (AssertionFailedError $e) {
+            self::fail('BUDZET_2611_HTTP_ODMOWA: '.$e->getMessage());
+        }
+
+        $this->assertSame([], Storage::disk('local')->allFiles('import-paczek'));
+        $this->assertSame(0, WczytanaZPaczki::query()->count());
+        $this->assertSame(0, Recipe::query()->count());
+        $this->assertSame(0, Post::query()->count());
     }
 
     public function test_pelny_obieg_podglad_bez_zapisu_potem_zapis_zaznaczonych_i_sprzatanie_pliku(): void

@@ -242,7 +242,9 @@ final class ExportPhotoPlan
             }
         }
 
-        foreach ($user->cookedEvents()->with(['media', 'recipe'])->get() as $event) {
+        // `widzi()` pyta RecipePolicy także o autora. Bez doładowania relacji
+        // eksport wykonania oblewa przy wyłączonym lazy loadingu (#2639).
+        foreach ($user->cookedEvents()->with(['media', 'recipe.author'])->get() as $event) {
             // Wykonanie jest moje, przepis — często cudzy. Tytuł do nazwy pliku
             // tylko wtedy, gdy `dane.json` też go pokaże (`cookedEvents()`
             // w `CollectUserExportData`); inaczej neutralne „ugotowane”

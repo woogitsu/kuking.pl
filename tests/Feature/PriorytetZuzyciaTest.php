@@ -40,6 +40,7 @@ class PriorytetZuzyciaTest extends TestCase
 
     public function test_granice_grup_wczoraj_dzis_plus_3_plus_4(): void
     {
+        $this->assertSame(PriorytetZuzycia::PO_TERMINIE, PriorytetZuzycia::grupa($this->produkt('a', '2026-10-09', 'use_by'), self::DZIS));
         $this->assertSame(PriorytetZuzycia::PILNE, PriorytetZuzycia::grupa($this->produkt('a', '2026-10-09'), self::DZIS), 'wczoraj');
         $this->assertSame(PriorytetZuzycia::PILNE, PriorytetZuzycia::grupa($this->produkt('a', '2026-10-10'), self::DZIS), 'dziś');
         $this->assertSame(PriorytetZuzycia::PILNE, PriorytetZuzycia::grupa($this->produkt('a', '2026-10-13'), self::DZIS), 'dziś + 3');
@@ -121,6 +122,7 @@ class PriorytetZuzyciaTest extends TestCase
         $this->assertSame('Termin za 2 dni (12 października).', PriorytetZuzycia::opisStanu($this->produkt('a', '2026-10-12'), self::DZIS));
         $this->assertSame('Bez terminu.', PriorytetZuzycia::opisStanu($this->produkt('a', null), self::DZIS));
         $this->assertSame('W zamrażarce.', PriorytetZuzycia::opisStanu($this->produkt('a', '2026-10-12', mrozone: true), self::DZIS));
+        $this->assertSame('Termin „Należy zużyć do” minął. Nie używaj tego produktu do gotowania. Jeśli termin został wpisany błędnie, popraw go. W przeciwnym razie usuń produkt z listy.', PriorytetZuzycia::opisStanu($this->produkt('a', '2026-10-09', 'use_by'), self::DZIS));
 
         // Żadne zdanie ze stanu ani z reguły nie obiecuje świeżości ani bezpieczeństwa.
         $wszystkie = [PriorytetZuzycia::regula()];

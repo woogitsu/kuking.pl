@@ -96,6 +96,125 @@ final class ImportMikrodaneTest extends TestCase
         $this->assertSame(['Obierz warzywa.', 'Gotuj godzinę.', 'Podawaj gorącą.'], $przepis->kroki);
     }
 
+    public function test_wiele_nazw_itemprop_nie_powiela_skladnika_ani_nie_zmienia_kolejnosci(): void
+    {
+        $html = $this->strona(<<<'HTML'
+            <article itemscope itemtype="https://schema.org/Recipe">
+              <h1 itemprop="name">Placek</h1>
+              <li itemprop="ingredients recipeIngredient">200 g mąki</li>
+              <li itemprop="recipeIngredient">1 jajko</li>
+              <li itemprop="ingredients">1 jajko</li>
+              <li itemprop="recipeIngredient ingredients">szczypta soli</li>
+            </article>
+            HTML);
+
+        $przepis = $this->parser()->odczytaj($html);
+
+        $this->assertNotNull($przepis, 'MICRODATA_2626_SKLADNIK');
+        $this->assertSame(
+            ['200 g mąki', '1 jajko', '1 jajko', 'szczypta soli'],
+            $przepis->skladniki,
+            'MICRODATA_2626_SKLADNIK: ten sam węzeł ma być raz, a dwa osobne jednakowe teksty dwa razy w kolejności strony.',
+        );
+    }
+
+    public function test_wiele_nazw_itemprop_nie_powiela_kroku_howtosection(): void
+    {
+        $html = $this->strona(<<<'HTML'
+            <article itemscope itemtype="https://schema.org/Recipe">
+              <h1 itemprop="name">Placek</h1>
+              <div itemprop="recipeInstructions" itemscope itemtype="https://schema.org/HowToSection">
+                <p itemprop="step itemListElement" itemscope itemtype="https://schema.org/HowToStep"><span itemprop="text">Wymieszaj.</span></p>
+                <p itemprop="itemListElement" itemscope itemtype="https://schema.org/HowToStep"><span itemprop="text">Piecz.</span></p>
+                <p itemprop="step" itemscope itemtype="https://schema.org/HowToStep"><span itemprop="text">Piecz.</span></p>
+                <p itemprop="itemListElement step" itemscope itemtype="https://schema.org/HowToStep"><span itemprop="text">Podawaj.</span></p>
+              </div>
+            </article>
+            HTML);
+
+        $przepis = $this->parser()->odczytaj($html);
+
+        $this->assertNotNull($przepis, 'MICRODATA_2626_KROK');
+        $this->assertSame(
+            ['Wymieszaj.', 'Piecz.', 'Piecz.', 'Podawaj.'],
+            $przepis->kroki,
+            'MICRODATA_2626_KROK: aliasy jednego węzła nie mnożą kroku, osobne węzły zostają.',
+        );
+    }
+
+    public function test_listitem_item_zachowuje_instrukcje_zamiast_nazwy_opakowania(): void
+    {
+        $kroki = '<div itemprop="recipeInstructions" itemscope itemtype="https://schema.org/ItemList">'
+            .'<div itemprop="itemListElement step" itemscope itemtype="https://schema.org/ListItem">'
+            .'<span itemprop="name">Krok 1</span><div itemprop="item" itemscope itemtype="https://schema.org/HowToStep">'
+            .'<span itemprop="text">Wymieszaj jajka.</span></div></div>'
+            .'<div itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">'
+            .'<div itemprop="item item" itemscope itemtype="https://schema.org/HowToSection">'
+            .'<span itemprop="name">Sekcja</span><p itemprop="step" itemscope itemtype="https://schema.org/HowToStep">'
+            .'<span itemprop="text">Upiecz ciasto.</span></p></div><span itemprop="name">Krok 2</span></div></div>';
+        $odczyt = $this->parser()->odczytaj($this->listitemStrona($kroki));
+
+        $this->assertNotNull($odczyt);
+        $this->assertSame('Ciasto z listy', $odczyt->tytul);
+        $this->assertSame(['2 jajka'], $odczyt->skladniki);
+        $this->assertSame(['Wymieszaj jajka.', 'Upiecz ciasto.'], $odczyt->kroki, 'MICRODATA_2638_ITEM_PRZED_ETYKIETA');
+    }
+
+    public function test_listitem_item_nie_gubi_osobnych_jednakowych_krokow_w_mieszanej_liscie(): void
+    {
+        $kroki = '<div itemprop="recipeInstructions" itemscope itemtype="https://schema.org/ItemList">'
+            .'<p itemprop="step" itemscope itemtype="https://schema.org/HowToStep"><span itemprop="text">Obierz.</span></p>';
+        foreach (['<span itemprop="name">Etykieta</span>', ''] as $nazwa) {
+            $kroki .= '<div itemprop="itemListElement step" itemscope itemtype="https://schema.org/ListItem">'.$nazwa
+                .'<div itemprop="item itemListElement" itemscope itemtype="https://schema.org/HowToDirection">'
+                .'<span itemprop="text">Wymieszaj.</span></div></div>';
+        }
+        $kroki .= '</div>';
+
+        $this->assertSame(['Obierz.', 'Wymieszaj.', 'Wymieszaj.'], $this->parser()->odczytaj($this->listitemStrona($kroki))?->kroki);
+    }
+
+    public function test_listitem_bez_obslugiwanego_lokalnego_item_nie_zgaduje_instrukcji(): void
+    {
+        foreach ([
+            '',
+            '<a itemprop="item" href="https://obcy.example/krok">Adres kroku</a>',
+            '<meta itemprop="item" content="https://obcy.example/krok">',
+            '<div itemprop="item" itemscope itemtype="https://schema.org/Person"><span itemprop="name">Obca osoba</span></div>',
+            '<div itemprop="item" itemscope itemtype="https://schema.org/HowToStep"></div>',
+        ] as $item) {
+            $html = '<div itemprop="recipeInstructions" itemscope itemtype="https://schema.org/ListItem">'
+                .'<span itemprop="name">Krok 1</span>'.$item.'</div>';
+            $this->assertSame([], $this->parser()->odczytaj($this->listitemStrona($html))?->kroki, 'MICRODATA_2638_PUSTY_ITEM_BEZ_ZGADYWANIA');
+        }
+    }
+
+    public function test_listitem_item_zachowuje_limit_glebokosci_i_liczby_krokow(): void
+    {
+        foreach ([2 => ['Wymieszaj.'], 10 => []] as $ile => $oczekiwane) {
+            $kroki = str_repeat('<div itemprop="item" itemscope itemtype="https://schema.org/ListItem">', $ile)
+                .'<div itemprop="item" itemscope itemtype="https://schema.org/HowToStep"><span itemprop="text">Wymieszaj.</span></div>'
+                .str_repeat('</div>', $ile);
+            $kroki = '<div itemprop="recipeInstructions" itemscope itemtype="https://schema.org/ListItem">'.$kroki.'</div>';
+            $this->assertSame($oczekiwane, $this->parser()->odczytaj($this->listitemStrona($kroki))?->kroki);
+        }
+
+        $lista = '';
+        for ($i = 1; $i <= 350; $i++) {
+            $lista .= '<div itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">'
+                .'<div itemprop="item" itemscope itemtype="https://schema.org/HowToStep"><span itemprop="text">Wymieszaj '.$i.'.</span></div></div>';
+        }
+        $html = '<div itemprop="recipeInstructions" itemscope itemtype="https://schema.org/ItemList">'.$lista.'</div>';
+        $oczekiwane = array_map(static fn (int $i): string => 'Wymieszaj '.$i.'.', range(1, min(300, Recipe::MAX_STEPS)));
+        $this->assertSame($oczekiwane, $this->parser()->odczytaj($this->listitemStrona($html))?->kroki);
+    }
+
+    private function listitemStrona(string $kroki): string
+    {
+        return $this->strona('<article itemscope itemtype="https://schema.org/Recipe"><h1 itemprop="name">Ciasto z listy</h1>'
+            .'<span itemprop="recipeIngredient">2 jajka</span>'.$kroki.'</article>');
+    }
+
     public function test_meta_content_skladnik_i_kroki_sa_odczytane_w_kolejnosci(): void
     {
         $html = $this->strona(<<<'HTML'

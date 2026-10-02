@@ -51,7 +51,7 @@ class PriorytetZuzyciaStrefaTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-07-10 22:01:00', 'UTC'));
 
         $this->assertSame('2026-07-11', PriorytetZuzycia::dzis());
-        $this->assertStringStartsWith('Termin minął wczoraj.', PriorytetZuzycia::opisStanu($this->produkt('2026-07-10')));
+        $this->assertStringStartsWith('Termin „Należy zużyć do” minął.', PriorytetZuzycia::opisStanu($this->produkt('2026-07-10')));
         $this->assertSame('Termin dziś.', PriorytetZuzycia::opisStanu($this->produkt('2026-07-11')));
     }
 

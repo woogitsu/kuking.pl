@@ -20,6 +20,7 @@ use App\Support\PowrotDoRozmowy;
 use App\Support\RejestracjaZamknieta;
 use App\Support\Turnstile;
 use App\Support\Wejscie;
+use App\Support\ZamiarDolaczeniaDoZeszytu;
 use App\Support\ZamiarObserwowania;
 use App\Support\ZamiarUgotowania;
 use App\Support\ZamiarZapisu;
@@ -44,7 +45,7 @@ use Illuminate\View\View;
  */
 class RegisterController extends Controller
 {
-    public function show(Request $request, ZaproszenieWSesji $sesja, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis): View|RedirectResponse
+    public function show(Request $request, ZaproszenieWSesji $sesja, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis, ZamiarDolaczeniaDoZeszytu $dolaczenie): View|RedirectResponse
     {
         // Zamknięta rejestracja to nie awaria — patrz `RejestracjaZamknieta`.
         if (RejestracjaZamknieta::czyZamknieta()) {
@@ -55,6 +56,7 @@ class RegisterController extends Controller
         $gotowanie->zapamietaj($request);
         $rozmowa->zapamietaj($request);
         $zapis->zapamietaj($request);
+        $dolaczenie->zapamietaj($request);
 
         // `biezace()` sprawdza ważność przy każdym odczycie i czyści martwy
         // klucz w sesji — zaproszenie mogło wygasnąć albo zostać zużyte między
@@ -62,7 +64,7 @@ class RegisterController extends Controller
         return view('auth.register', ['zaproszenie' => $sesja->biezace()]);
     }
 
-    public function store(Request $request, ZalozKonto $zalozKonto, ZaproszenieWSesji $sesja, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis): RedirectResponse
+    public function store(Request $request, ZalozKonto $zalozKonto, ZaproszenieWSesji $sesja, ZamiarObserwowania $zamiar, ZamiarUgotowania $gotowanie, PowrotDoRozmowy $rozmowa, ZamiarZapisu $zapis, ZamiarDolaczeniaDoZeszytu $dolaczenie): RedirectResponse
     {
         if (RejestracjaZamknieta::czyZamknieta()) {
             return RejestracjaZamknieta::przekierowanie();
@@ -265,6 +267,7 @@ class RegisterController extends Controller
         $gotowanie->przypiszKonto($request);
         $rozmowa->przypiszKonto($request);
         $zapis->przypiszKonto($request);
+        $dolaczenie->przypiszKonto($request);
 
         return redirect()->route('onboarding.interests')
             ->with(Komunikat::sukces($konto->listPotwierdzajacyNieWyszedl
