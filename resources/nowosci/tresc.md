@@ -73,6 +73,18 @@ nie dotkniecie „Wyślij komentarz”. To zwykły komentarz, więc autor dostaj
 powiadomienie jak zawsze. Gdy autor później zmieni krok, Wasze pytanie zostaje
 takie, jakie wysłaliście.
 
+### Przenoszenie zapisu do innego zeszytu
+
+Odkładaliście przepisy do „Zapisanych”, a teraz zakładacie zeszyty tematyczne?
+Przy każdym przepisie i wpisie w Waszym prywatnym zeszycie jest przycisk
+„Przenieś do innego zeszytu”. Wybieracie drugi własny, prywatny zeszyt i
+klikacie „Przenieś” — zapis idzie z całą notatką i datą zapisu, więc nic nie
+trzeba przepisywać. Autor przepisu nie dostaje żadnego powiadomienia. Jeśli
+w docelowym zeszycie ta pozycja już jest, nic się nie przenosi i nic nie
+nadpisujemy — zobaczycie obie notatki. Pomyłkę cofacie tym samym przyciskiem,
+wskazując zeszyt, z którego zapis wyszedł. Zeszyty publiczne i wspólne na razie
+w to nie wchodzą.
+
 ### Dzień gotowania przy „Ugotowałem”
 
 Gotowaliście w niedzielę, a zdjęcie i kilka słów dodajecie dopiero we wtorek?
