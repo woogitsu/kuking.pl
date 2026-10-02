@@ -27,7 +27,8 @@
             <li>ten jeden przepis — zdjęcie, historię, składniki i kroki,</li>
             <li>na osobnej stronie, po zalogowaniu na swoje konto.</li>
         </ul>
-        <p>Nie zobaczy skanu kartki ani wcześniejszych wersji. Nie skomentuje przepisu, nie oznaczy „Ugotowałem”, nie zapisze go w zeszycie i nie zrobi z niego swojej wersji. Nie może go też pokazać dalej.</p>
+        <p data-zakres-tylko-odczyt><strong>Ta osoba może przepis tylko czytać.</strong> Nie zmieni go i nie może go pokazać dalej. Nie skomentuje go, nie oznaczy „Ugotowałem”, nie zapisze go w zeszycie i nie zrobi z niego swojej wersji. Nie zobaczy skanu kartki ani wcześniejszych wersji.</p>
+        <p>Pokazujesz wyłącznie sam przepis. Twoje notatki w zeszycie, dopiski z gotowania, zapamiętana liczba porcji, plan na tydzień i Twoje „Ugotowałem” zostają tylko dla Ciebie.</p>
         <p>Dostęp możesz odebrać w każdej chwili — działa od razu. Tego, co ta osoba zdąży wydrukować albo przepisać, nie da się cofnąć.</p>
         <p class="m-0"><strong>Kto widzi ten przepis w serwisie: {{ $ktoWidzi }}.</strong> Udostępnienie tego nie zmienia — przepis nie trafia do Obserwowanych, wyszukiwarki ani na Twój profil dla innych.</p>
     </section>

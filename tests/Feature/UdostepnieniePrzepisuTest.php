@@ -11,6 +11,9 @@ use App\Domain\Social\Actions\UnblockUser;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
+use App\Jobs\PrzeanalizujTresc;
+use App\Models\Collection;
+use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Recipe;
 use App\Models\RecipeShare;
@@ -20,6 +23,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -97,6 +102,10 @@ class UdostepnieniePrzepisuTest extends TestCase
             ->assertSee('Sprawdź, komu pokazujesz przepis')
             ->assertSee('Jurek')
             ->assertSee('Tak, pokaż tej osobie')
+            // Punkt 1 analizy prawnej: zakres przed potwierdzeniem — tylko odczyt, bez dalszego udostępniania.
+            ->assertSee('Ta osoba może przepis tylko czytać.')
+            ->assertSee('nie może go pokazać dalej')
+            ->assertSee('Pokazujesz wyłącznie sam przepis.')
             ->assertSee('Kto widzi ten przepis w serwisie: Tylko Ty.');
 
         $this->actingAs($this->halina)
@@ -285,6 +294,69 @@ class UdostepnieniePrzepisuTest extends TestCase
 
     // ── Koniec dostępu: od razu, bez cache ──
 
+    /**
+     * Udostępnienie obejmuje SAM przepis (analiza prawna 2.10.2026, punkt 2):
+     * prywatne dane autorki przy tym przepisie — dopisek z gotowania,
+     * zapamiętane porcje, plan na tydzień, notatka w zeszycie, jej własne
+     * „Ugotowałem” z dniem gotowania — nie wychodzą do odbiorcy.
+     */
+    public function test_odbiorca_widzi_sam_przepis_bez_prywatnych_danych_autorki(): void
+    {
+        $teraz = now();
+        DB::table('cooking_notes')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->halina->getKey(), 'recipe_id' => $this->przepis->getKey(),
+            'body' => 'DOPISEK-Z-GOTOWANIA', 'revision' => 1, 'expires_at' => $teraz->copy()->addDay(), 'created_at' => $teraz, 'updated_at' => $teraz]);
+        DB::table('recipe_serving_preferences')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->halina->getKey(), 'recipe_id' => $this->przepis->getKey(),
+            'servings' => 37, 'created_at' => $teraz, 'updated_at' => $teraz]);
+        DB::table('meal_plan_entries')->insert(['id' => (string) Str::uuid(), 'user_id' => $this->halina->getKey(), 'recipe_id' => $this->przepis->getKey(),
+            'day' => '2026-11-18', 'label' => null, 'created_at' => $teraz, 'updated_at' => $teraz]);
+        $zeszyt = Collection::create(['owner_id' => $this->halina->getKey(), 'name' => 'Rodzinne', 'visibility' => 'private']);
+        $zeszyt->recipes()->attach($this->przepis->getKey(), ['created_at' => $teraz, 'note' => 'NOTATKA-W-ZESZYCIE']);
+        CookedEvent::factory()->create(['user_id' => $this->halina->getKey(), 'recipe_id' => $this->przepis->getKey(), 'note' => 'MOJE-UGOTOWANIE']);
+        $this->udostepnij();
+
+        $html = (string) $this->actingAs($this->jurek)->get($this->strona())->assertOk()->assertSee('Sernik babci Wandy')->getContent();
+
+        foreach (['DOPISEK-Z-GOTOWANIA', '37 porcji', '18 listopada', 'Planer', 'NOTATKA-W-ZESZYCIE', 'MOJE-UGOTOWANIE', 'Rodzinne'] as $prywatne) {
+            $this->assertStringNotContainsString($prywatne, $html, "Strona udostępnienia pokazała prywatne dane autorki: {$prywatne}");
+        }
+        // Kontrola dodatnia: autorka widzi swój zeszyt z notatką — dane naprawdę istnieją.
+        $this->actingAs($this->halina)->get(route('collections.show', $zeszyt))->assertOk()->assertSee('NOTATKA-W-ZESZYCIE');
+        $this->actingAs($this->jurek)->get(route('collections.show', $zeszyt))->assertForbidden();
+    }
+
+    /** Punkt 4 analizy prawnej: udostępnienie jednej osobie nie wysyła treści do moderacji modelem. */
+    public function test_udostepnienie_nie_wysyla_przepisu_do_analizy_ani_do_openai(): void
+    {
+        Queue::fake();
+        Http::fake();
+
+        $this->actingAs($this->halina)
+            ->post(route('recipes.shares.store', $this->przepis), ['nazwa' => 'jurek', 'potwierdzam' => '1'])
+            ->assertRedirect();
+        $this->actingAs($this->jurek)->get($this->strona())->assertOk();
+
+        $this->assertSame(1, RecipeShare::query()->count());
+        Queue::assertNotPushed(PrzeanalizujTresc::class);
+        Queue::assertNothingPushed();
+        Http::assertNothingSent();
+        $this->assertSame('private', $this->przepis->fresh()->visibility);
+    }
+
+    /** Punkt 3: adres to nie uprawnienie — cudzy i losowy identyfikator nic nie otwiera. */
+    public function test_po_cofnieciu_ten_sam_adres_i_losowy_identyfikator_nic_nie_daja(): void
+    {
+        $udostepnienie = $this->udostepnij();
+        $adres = $this->strona();
+        $this->actingAs($this->halina)->delete(route('recipes.shares.destroy', ['recipe' => $this->przepis, 'share' => $udostepnienie]));
+
+        $this->actingAs($this->jurek)->get($adres)->assertForbidden();
+        $this->actingAs($this->jurek)->delete(route('recipes.shared.leave', $udostepnienie))->assertNotFound();
+        $this->actingAs($this->jurek)->delete(route('recipes.shared.leave', (string) Str::uuid()))->assertNotFound();
+        $this->actingAs($this->halina)
+            ->delete(route('recipes.shares.destroy', ['recipe' => $this->przepis, 'share' => (string) Str::uuid()]))
+            ->assertNotFound();
+    }
+
     public function test_odebranie_dostepu_dziala_od_nastepnego_zadania(): void
     {
         $udostepnienie = $this->udostepnij();
@@ -424,7 +496,13 @@ class UdostepnieniePrzepisuTest extends TestCase
         $this->udostepnij();
 
         $glownaOdpowiedz = $this->actingAs($this->jurek)->get($glowne->url('feed'))->assertRedirect();
-        $this->assertStringContainsString('no-store', (string) $glownaOdpowiedz->headers->get('Cache-Control'));
+        // Punkt 5: zdjęcie prywatnego przepisu nigdy z publicznym cache —
+        // po cofnięciu nie zostaje w CDN (nagłówek idzie też do podpisanego adresu R2).
+        $naglowek = (string) $glownaOdpowiedz->headers->get('Cache-Control');
+        $this->assertStringContainsString('no-store', $naglowek);
+        $this->assertStringContainsString('private', $naglowek);
+        $this->assertStringNotContainsString('public', $naglowek);
+        $this->assertStringNotContainsString('s-maxage', $naglowek);
         $this->actingAs($this->jurek)->get($krokowe->url('feed'))->assertRedirect();
         $this->actingAs($this->jurek)->get($skan->url('feed'))->assertNotFound();
         $this->actingAs($this->basia)->get($glowne->url('feed'))->assertNotFound();
