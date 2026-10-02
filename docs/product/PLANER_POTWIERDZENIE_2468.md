@@ -32,6 +32,13 @@ przepełnienia: pomiar nadal wymaga najwyżej 320 px, a diagnostyka pokazuje
 również wewnętrzne `scrollWidth`. Brak lokalnego środowiska przeglądarkowego;
 odbiór poprawki wymaga następnego pełnego CI.
 
+Następny pomiar (`110634721321`) wskazał inną pozostałą przyczynę przy 200%:
+sam nagłówek dnia miał 222 px miejsca, ale jego zawartość potrzebowała
+326 px. Data była anonimowym elementem flex o szerokości długiej nazwy dnia.
+Ma teraz własny element z `min-width: 0` i możliwością zawijania długich słów.
+Nie zmienia to wielkości tekstu ani przycisków; pomiar rzeczywistego
+formularza 320 px / 200% w CI nadal rozstrzyga odbiór.
+
 Zmiana nie ma migracji ani nowych danych. Cofnięcie widoku, CSS i testu
 przywraca dawny sposób obsługi; zapisane pozycje planu pozostają bez zmian.
 Taki rollback przywróci też ryzyko przypadkowego usunięcia, więc nie jest

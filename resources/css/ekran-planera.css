@@ -44,6 +44,13 @@
     gap: var(--spacing-2);
   }
 
+  /* Data jest elementem flex: przy 200% nawet sama nazwa dnia może być
+     szersza niż karta. Pozwól jej zmaleć i zawinąć się wewnątrz słowa. */
+  .planer-dzien-data {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
   .planer-dzis {
     font-weight: 700;
     color: var(--color-brand);

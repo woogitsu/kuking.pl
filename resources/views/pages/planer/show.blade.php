@@ -78,7 +78,7 @@
             @endphp
             <section class="card" aria-labelledby="{{ $naglowekId }}">
                 <h2 class="mt-0 planer-dzien-naglowek" id="{{ $naglowekId }}">
-                    {{ \Illuminate\Support\Str::ucfirst(PlanerTygodnia::nazwaDnia($dzien['dzien'])) }}
+                    <span class="planer-dzien-data">{{ \Illuminate\Support\Str::ucfirst(PlanerTygodnia::nazwaDnia($dzien['dzien'])) }}</span>
                     @if($dataDnia === $dzis)
                         <span class="planer-dzis">dziś</span>
                     @endif
