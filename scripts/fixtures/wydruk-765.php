@@ -14,6 +14,7 @@ declare(strict_types=1);
  * zgubić albo przeciąć na papierze.
  */
 
+use App\Models\Collection;
 use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\User;
@@ -39,9 +40,14 @@ const SLUG_DLUGI = 'wydruk-765-pierogi-z-kapusta';
 // z UserFactory — i jest AUTOREM długiego przepisu, więc widać wszystkie
 // przyciski autora, które na papier iść nie mogą.
 const KONTO = 'wydruk765';
+const ZESZYT = 'Pomiar czasu kroku na wydruku';
 
 function usun(): void
 {
+    $konto = Profile::where('username', KONTO)->first()?->user;
+    if ($konto !== null) {
+        Collection::where('owner_id', $konto->getKey())->where('name', ZESZYT)->delete();
+    }
     Recipe::withTrashed()->where('slug', SLUG_DLUGI)->get()->each->forceDelete();
     Profile::where('username', KONTO)->first()?->user?->forceDelete();
 }
@@ -95,8 +101,13 @@ DB::transaction(function (): void {
         'Podawaj z cebulką podsmażoną na maśle.',
     ];
     foreach (array_merge($kroki, $kroki) as $pozycja => $tekst) {
-        $przepis->steps()->create(['position' => $pozycja, 'instruction' => $tekst]);
+        // Pierwszy krok ma czas; drugi 0, trzeci NULL — kontrola braku etykiety.
+        $przepis->steps()->create(['position' => $pozycja, 'instruction' => $tekst,
+            'timer_seconds' => $pozycja === 0 ? 600 : ($pozycja === 1 ? 0 : null)]);
     }
+    $zeszyt = Collection::create(['owner_id' => $autor->getKey(), 'name' => ZESZYT,
+        'visibility' => 'public']);
+    $zeszyt->recipes()->attach($przepis->getKey(), ['created_at' => now(), 'added_by_id' => $autor->getKey()]);
 });
 
 echo json_encode([
@@ -107,4 +118,6 @@ echo json_encode([
     'karta_krotki' => route('recipes.qr-card', $krotki->slug, false),
     'karta_dlugi' => route('recipes.qr-card', SLUG_DLUGI, false),
     'karta_profil' => route('profile.qr-card', KONTO, false),
+    'zeszyt_czas' => route('collections.print', Collection::where('owner_id',
+        Profile::where('username', KONTO)->firstOrFail()->user_id)->where('name', ZESZYT)->sole(), false),
 ], JSON_THROW_ON_ERROR);

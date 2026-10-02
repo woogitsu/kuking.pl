@@ -191,6 +191,43 @@ async function zmierz(strona, pomocnik = null) {
   }, { UKRYTE, MIN_PISMO_PX, MAX_ZDJECIE_PX, pomocnik, MIN_KOD_POMOCNIKA_PX });
 }
 
+// #2484: mierzymy tekst wewnątrz właściwego kroku przy rzeczywistym @media print,
+// a nie wystąpienie „Czas kroku” gdziekolwiek w HTML (np. w niewidocznej belce).
+async function zmierzCzasKroku(strona, zeszyt = false) {
+  return strona.evaluate(zeszyt => {
+    const zakres = zeszyt ? document.querySelector('.zeszyt-przepis') : document.querySelector('.przepis-uklad');
+    const kroki = [...(zakres?.querySelectorAll('.step-list > li') ?? [])];
+    const bledy = [];
+    if (kroki.length < 3) return ['brak trzech kroków kontrolnych z czasem, zerem i NULL'];
+    const etykiety = krok => [...krok.querySelectorAll('p')].filter(p => p.textContent.trim().startsWith('Czas kroku:'));
+    const pierwszy = etykiety(kroki[0]);
+    if (pierwszy.length !== 1 || pierwszy[0].textContent.trim() !== 'Czas kroku: 10 minut') {
+      bledy.push('pierwszy krok bez dokładnego czasu 10 minut na kartce');
+    } else {
+      const r = pierwszy[0].getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0 || getComputedStyle(pierwszy[0]).visibility === 'hidden') {
+        bledy.push('czas pierwszego kroku niewidoczny na papierze');
+      }
+    }
+    for (const indeks of [1, 2]) {
+      if (etykiety(kroki[indeks]).length) bledy.push(`krok ${indeks + 1} z czasem 0/NULL ma fałszywą etykietę`);
+    }
+    if (kroki.flatMap(etykiety).length !== 1) bledy.push('liczba etykiet czasu na kartce różni się od jednej');
+    return bledy;
+  }, zeszyt);
+}
+
+// Kontrola ujemna bez zmiany plików: zdjęcie etykiety z DOM musi oblać pomiar.
+async function sprawdzMutacjeCzasu(strona, zeszyt = false) {
+  await strona.evaluate(zeszyt => {
+    const zakres = zeszyt ? document.querySelector('.zeszyt-przepis') : document.querySelector('.przepis-uklad');
+    const pierwszy = zakres?.querySelector('.step-list > li');
+    [...(pierwszy?.querySelectorAll('p') ?? [])]
+      .find(p => p.textContent.trim().startsWith('Czas kroku:'))?.remove();
+  }, zeszyt);
+  return (await zmierzCzasKroku(strona, zeszyt)).includes('pierwszy krok bez dokładnego czasu 10 minut na kartce');
+}
+
 // Pomiar karty z kodem QR w emulacji druku: geometria i kontrast. Samego
 // dekodowania kodu nie ma (brak biblioteki w zależnościach) — o tym, że
 // skaner go przeczyta, świadczą rozmiar, biały podkład i czarne moduły.
@@ -303,6 +340,7 @@ try {
         await strona.evaluate(m => { if (m === 'ciemny') document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme; }, motyw);
         await strona.emulateMedia({ media: 'print' });
         const wynik = await zmierz(strona);
+        if (dlugosc === 'dlugi') wynik.bledy.push(...await zmierzCzasKroku(strona));
         const pdf = await strona.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } });
         const plik = `${KATALOG}/${dlugosc}-${motyw}-${kto}.pdf`;
         writeFileSync(plik, pdf);
@@ -312,6 +350,10 @@ try {
           console.log(`✗ ${opis}\n  - ${[...new Set(wynik.bledy)].join('\n  - ')}`);
         } else {
           console.log(`✓ ${opis}`);
+        }
+        if (dlugosc === 'dlugi' && motyw === 'jasny' && kto === 'gosc' && !await sprawdzMutacjeCzasu(strona)) {
+          bledow++;
+          console.log('✗ kontrola ujemna: usunięty czas kroku nie został wykryty');
         }
         await strona.emulateMedia({ media: 'screen' });
       }
@@ -327,6 +369,7 @@ try {
           await strona.evaluate(m => { if (m === 'ciemny') document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme; }, motyw);
           await strona.emulateMedia({ media: 'print' });
           const wynik = await zmierz(strona, { qr });
+          if (dlugosc === 'dlugi') wynik.bledy.push(...await zmierzCzasKroku(strona));
           const pdf = await strona.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } });
           const plik = `${KATALOG}/pomocnik-${dlugosc}${qr ? '-qr' : ''}-${motyw}-${kto}.pdf`;
           writeFileSync(plik, pdf);
@@ -340,6 +383,32 @@ try {
           await strona.emulateMedia({ media: 'screen' });
         }
       }
+    }
+
+    // #2484: także kartka zeszytu. HTML jest drukowany przez przeglądarkę,
+    // a PDF powstaje z tego samego @media print co pojedynczy przepis.
+    for (const motyw of ['jasny', 'ciemny']) {
+      const odp = await strona.goto(adres + przepisy.zeszyt_czas, { waitUntil: 'load' });
+      if (odp.status() !== 200) throw new Error(`${przepisy.zeszyt_czas}: HTTP ${odp.status()}`);
+      await strona.evaluate(m => { if (m === 'ciemny') document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme; }, motyw);
+      await strona.emulateMedia({ media: 'print' });
+      const bledy = await zmierzCzasKroku(strona, true);
+      const pdf = await strona.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } });
+      const plik = `${KATALOG}/zeszyt-czas-${motyw}-${kto}.pdf`;
+      writeFileSync(plik, pdf);
+      const stron = stronyPdf(pdf);
+      if (stron < 1) bledy.push('zeszyt nie dał strony A4');
+      if (bledy.length) {
+        bledow += bledy.length;
+        console.log(`✗ zeszyt/${motyw}/${kto}: ${stron} str. A4 → ${plik}\n  - ${bledy.join('\n  - ')}`);
+      } else {
+        console.log(`✓ zeszyt/${motyw}/${kto}: czas kroku i ${stron} str. A4 → ${plik}`);
+      }
+      if (motyw === 'jasny' && kto === 'gosc' && !await sprawdzMutacjeCzasu(strona, true)) {
+        bledow++;
+        console.log('✗ kontrola ujemna: usunięty czas kroku w zeszycie nie został wykryty');
+      }
+      await strona.emulateMedia({ media: 'screen' });
     }
 
     // Karta z kodem QR (#2349): krótki i długi tytuł przepisu oraz profil.

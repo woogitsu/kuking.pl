@@ -793,6 +793,11 @@ KOLAZ_PRIORYTET = """                                 @if($loop->first)
 # dowód, że parser widzi reguły druku, a nie pusty zbiór.
 WYDRUK_CSS = "resources/css/wydruk-przepisu.css"
 WYDRUK_TEST = "test_arkusz_druku_ma_prog_12_pt_i_nie_schodzi_ponizej"
+DRUK_PORCJE_WIDOK = "resources/views/pages/recipes/show.blade.php"
+DRUK_PORCJE_TEST = "test_glowny_link_drukowania_przenosi_wybrane_porcje_i_otwiera_przeliczona_kartke"
+CZAS_KROKU_WIDOK_ZESZYTU = "resources/views/pages/collections/do-druku.blade.php"
+CZAS_KROKU_STRONA_TEST = "test_strona_przepisu_i_jej_wydruk_pokazuja_czasy_przy_wlasciwych_krokach"
+CZAS_KROKU_ZESZYT_TEST = "test_wydruk_zeszytu_pokazuje_czasy_przy_wlasciwych_krokach"
 # Karta z kodem QR (#2349): ten sam arkusz, kod na papierze co najmniej 9 cm.
 KARTA_QR_TEST = "test_arkusz_druku_dzieli_rame_z_przepisem_i_mierzy_kod_w_centymetrach"
 # Ściągawka do wydruku (F4): ten sam arkusz, treść kartki co najmniej 16 pt
@@ -1268,6 +1273,40 @@ checks = [
      lambda s: replace_once(s, "if ($wpisy->currentPage() > $wpisy->lastPage())", "if (false)")),
     ("Moje wpisy: pusta porcja traci kontener (#2473)", "resources/views/pages/collections/moje-wpisy.blade.php", "test_pusta_lista_ma_prawdziwy_pusty_stan_i_kontener_bez_petli",
      lambda s: replace_once(s, 'id="lista-moich-wpisow"', '''id="{{ $wpisy->isEmpty() ? 'brak-listy' : 'lista-moich-wpisow' }}"''')),
+    # #2524: przeliczony składnik i nieprzeliczona kwota autora to sprzeczna strona.
+    ("Koszt autora pozostaje bazowy po zmianie porcji (#2524)", "resources/views/pages/recipes/show.blade.php", "test_koszt_autora_i_skladniki_uzywaja_tego_samego_wyboru_porcji_takze_w_wydruku",
+     lambda s: replace_once(s, "{{ $kosztAutora }}</p>", "{{ $recipe->costLabel() }}</p>")),
+    # #2536–#2539: strukturalny import z URL bez modelu i bez utraty treści.
+    ("Pusty Recipe zasłania pełny w JSON-LD (#2536)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
+     "test_pusty_przepis_w_tym_samym_grafie_nie_zaslania_pelnego",
+     lambda s: replace_once(s,
+         "            if ($znaleziony !== null) {\n                return $znaleziony;\n            }",
+         "            if ($znaleziony === null) {\n                return null;\n            }")),
+    ("Meta content składnika znika z mikrodanych (#2538)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "test_meta_content_skladnik_i_kroki_sa_odczytane_w_kolejnosci",
+     lambda s: replace_once(s,
+         "foreach (array_merge($wlasciwosci['recipeingredient'] ?? [], $wlasciwosci['ingredients'] ?? []) as $el) {\n            $tekst = $this->jednaLinia($this->wartosc($el));",
+         "foreach (array_merge($wlasciwosci['recipeingredient'] ?? [], $wlasciwosci['ingredients'] ?? []) as $el) {\n            $tekst = $this->jednaLinia($this->tekstElementu($el));")),
+    ("Meta content kroku znika z mikrodanych (#2538)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "test_meta_content_skladnik_i_kroki_sa_odczytane_w_kolejnosci",
+     lambda s: replace_once(s,
+         "        return $this->wiersze($this->wartosc($el));",
+         "        return $this->wiersze($this->tekstElementu($el));")),
+    ("Meta content zagnieżdżonego kroku znika (#2538)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "test_meta_content_skladnik_i_kroki_sa_odczytane_w_kolejnosci",
+     lambda s: replace_once(s,
+         "                    array_push($wynik, ...$this->wiersze($this->wartosc($pole)));",
+         "                    array_push($wynik, ...$this->wiersze($this->tekstElementu($pole)));")),
+    ("Tekstowe ułamkowe porcje znikają (#2539)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
+     "test_tekstowe_ulamkowe_porcje_sa_rownowazne_liczbie_bez_zgadywania_jednostek",
+     lambda s: replace_once(s,
+         "(\\d{1,4}(?:[.,]\\d{1,2})?)",
+         "(\\d{1,3})")),
+    ("Porcje numeryczne poza granicami formularza (#2539)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
+     "test_numeryczne_porcje_respektuja_granice_i_precyzje_formularza",
+     lambda s: replace_once(s,
+         "! is_finite($liczba) || $liczba < 0.5 || $liczba > 999 || round($liczba, 2) !== $liczba",
+         "$liczba <= 0 || $liczba > 1000")),
     ("Koszt: opis celu kasuje rozpoznaną masę (#2508)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "opis_celu_po_produkcie_nie_kasuje_odczytanej_masy",
      lambda s: replace_once(s, r'^\s*(?:do|lub|albo)\s+\d', r'(?:^|\s)(?:do|lub|albo)\s+\d')),
     ("Koszt: słowny zakres gubi granice i miarę (#2477)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "slowne_zakresy_zachowuja_obie_granice_i_miare",
@@ -1662,6 +1701,13 @@ checks = [
      lambda s: replace_once(s, " i wszystko, co zapiszesz tu później", "")),
     ("Wydruk przepisu z pismem poniżej 12 pt", WYDRUK_CSS, WYDRUK_TEST,
      lambda s: replace_once(s, "font-size: calc(13pt * var(--druk-skala));", "font-size: calc(10pt * var(--druk-skala));")),
+    ("Główny link wydruku gubi wybrane porcje (#2474)", DRUK_PORCJE_WIDOK, DRUK_PORCJE_TEST,
+     lambda s: replace_once(s, 'href="{{ $adresDruku(false) }}" rel="nofollow" data-drukuj-przepis',
+                            'href="{{ route(\'recipes.show\', [\'recipe\' => $recipe->slug, \'druk\' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis')),
+    ("Strona przepisu gubi czas kroku (#2484)", DRUK_PORCJE_WIDOK, CZAS_KROKU_STRONA_TEST,
+     lambda s: replace_once(s, '                                    @if($step->timerLabel())\n                                        <p class="m-0">Czas kroku: {{ $step->timerLabel() }}</p>\n                                    @endif\n', '')),
+    ("Wydruk zeszytu gubi czas kroku (#2484)", CZAS_KROKU_WIDOK_ZESZYTU, CZAS_KROKU_ZESZYT_TEST,
+     lambda s: replace_once(s, '                                    @if($krok->timerLabel())\n                                        <p class="m-0">Czas kroku: {{ $krok->timerLabel() }}</p>\n                                    @endif\n', '')),
     ("Ściągawka do wydruku z pismem poniżej 16 pt (F4)", WYDRUK_CSS, SCIAGAWKA_TEST,
      lambda s: replace_once(s, "body:has(.sciagawka) .sciagawka * {\n    font-size: max(calc(16pt * var(--druk-skala)), 1em);", "body:has(.sciagawka) .sciagawka * {\n    font-size: max(calc(11pt * var(--druk-skala)), 1em);")),
     ("Wydruk dla pomocnika z pismem poniżej 16 pt (#2345)", WYDRUK_CSS, POMOCNIK_TEST,
@@ -2196,12 +2242,17 @@ checks = [
     # Z9 (#2283): regulamin §2 wymienia usługi, których adresy istnieją.
     ("Regulamin §2 bez „Poradźcie”", "resources/legal/regulamin.md", "RegulaminWymieniaUslugiSerwisuTest",
      lambda s: replace_once(s, " („Poradźcie”),", ",")),
-    ("Szyna zeszytu ponownie czyta całą historię (#2030)", "app/Http/Controllers/CollectionController.php",
-     "test_szyna_sprawdza_widocznosc_tylko_malej_partii_kandydatow",
-     lambda s: replace_once(s, "        $partia = 20;\n", "        $partia = 1000;\n")),
+    # #2480: sam skan musi otwierać sekcję źródła bez dopisywania historii.
+    ("Sam skan bez notatki znika ze strony przepisu", "resources/views/pages/recipes/show.blade.php", "test_wlasciciel_widzi_sam_skan_na_zwyklej_stronie_prywatnego_przepisu",
+     lambda s: replace_once(s,
+         "@if(($recipe->source_note || $recipe->source_person || $recipe->sourceScan) && ! $dlaPomocnika)",
+         "@if(($recipe->source_note || $recipe->source_person) && ! $dlaPomocnika)")),
     ("Fixture wspomnienia znika po północy w Polsce", "scripts/fixtures/rocznice-wykonania-s.php",
      "test_fixture_pomiaru_pokazuje_wspomnienie_po_polnocy_w_polsce",
      lambda s: replace_once(s, "$dzis->copy()->addDay()->subYear()", "$dzis->copy()->subYear()")),
+    ("Szyna zeszytu ponownie czyta całą historię (#2030)", "app/Http/Controllers/CollectionController.php",
+     "test_szyna_sprawdza_widocznosc_tylko_malej_partii_kandydatow",
+     lambda s: replace_once(s, "        $partia = 20;\n", "        $partia = 1000;\n")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
