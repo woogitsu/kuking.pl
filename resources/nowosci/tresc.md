@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Spis kroków w trybie gotowania
+
+Gotujecie dłuższy przepis i chcecie wrócić do kroku 3, a jesteście w 12.? W trybie gotowania pod przyciskami „Następny krok” i „Poprzedni krok” jest teraz zwinięty „Spis kroków”: numer i początek instrukcji każdego kroku. Wybieracie pozycję i otwiera się ten sam ekran jednego kroku. Wybór niczego nie odhacza i nie zmienia porcji ani odhaczeń; minutniki działają jak dotąd. Ostatni krok otwarty ze spisu jest tylko podglądem, więc nie wywołuje pytania „Jak wyszło?”.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

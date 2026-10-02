@@ -168,7 +168,11 @@ class CookingModeController extends Controller
 
         // Ostatni krok otwarty przez zalogowaną osobę — „Jak wyszło?” na
         // Starcie, jeśli nie zapisze wykonania (F1, `JakWyszlo`).
-        if ($krok === $total && $osoba !== null) {
+        //
+        // Wyjątek (#2441): wejście ze „Spisu kroków” (`?spis=1`) to podgląd
+        // dowolnego kroku, nie dojście do końca gotowania, więc ostatni krok
+        // otwarty tą drogą nie zasila F1. Zwykła nawigacja działa jak dotąd.
+        if ($krok === $total && $osoba !== null && ! $request->boolean('spis')) {
             app(JakWyszlo::class)->zanotujKoniec($request->session(), $osoba, $model);
         }
 

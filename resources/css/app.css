@@ -5363,6 +5363,29 @@
         0 0 0 5px var(--color-accent-tint-ink);
 }
 
+/* Spis kroków (#2441): zwijany; pozycje to linki o celu >= 48 px (`.btn`),
+   z zawijaniem długich fragmentów, bez poziomego przewijania przy 320 px. */
+.cook-spis-lista {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+    margin: var(--spacing-3) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.cook-spis-link {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+    white-space: normal;
+    gap: var(--spacing-2);
+}
+
+.cook-spis-numer {
+    font-weight: 800;
+}
+
 .cook-nav {
     display: flex;
     flex-direction: column;
