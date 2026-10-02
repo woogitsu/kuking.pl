@@ -1212,6 +1212,8 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // `RecipePolicy::view`. `DELETE /lista-zakupow/odhaczone` stoi PRZED
     // trasą z identyfikatorem, a ta ma `whereUuid`, więc się nie zderzają.
     Route::get('/lista-zakupow', [ListaZakupowController::class, 'index'])->name('shopping.index');
+    // „Wydrukuj do kupienia” (#2495): odczyt własnej listy, bez żadnej mutacji.
+    Route::get('/lista-zakupow/do-druku', [ListaZakupowController::class, 'druk'])->name('shopping.print');
     Route::post('/lista-zakupow', [ListaZakupowController::class, 'store'])
         ->middleware("throttle:{$limits['zakupy']},zakupy")
         ->name('shopping.store');

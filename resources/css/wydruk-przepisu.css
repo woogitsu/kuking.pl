@@ -147,6 +147,35 @@
   word-break: break-all;
 }
 
+/* Kartka „Do kupienia” (#2495) na ekranie: podgląd. Pozycja to pusty kwadrat
+   na ptaszek i tekst; długie linie zawijają się, a nie wypychają strony. */
+.kartka-zakupow-lista {
+  list-style: none;
+  margin: var(--spacing-4) 0 0;
+  padding: 0;
+}
+
+.kartka-zakupow-lista li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) 0;
+  border-bottom: 1px solid var(--color-border, currentColor);
+}
+
+.kartka-zakupow-pole {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+}
+
+.kartka-zakupow-tekst {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 @media print {
   @page {
     size: A4;
@@ -620,5 +649,36 @@
   body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika .druk-pomocnik-qr-adres {
     overflow-wrap: anywhere;
     word-break: break-all;
+  }
+
+  /* ───────────────────────────────────────────────────────────────────────
+     KARTKA „DO KUPIENIA” (#2495). Ramę i pismo (16 pt, razy skala tekstu)
+     dają `.sciagawka` i wspólne reguły wyżej; tu tylko lista z pustym
+     kwadratem na ptaszek. Pismo nie jest zmniejszane, żeby zmieścić listę
+     na jednej stronie: długa lista przechodzi na kolejne, a pozycja (kwadrat
+     z tekstem) nie rozrywa się między stronami. Czarny tekst na białym.
+     ─────────────────────────────────────────────────────────────────────── */
+  body:has(.kartka-zakupow) .kartka-zakupow-lista {
+    margin: 10pt 0 0;
+  }
+
+  body:has(.kartka-zakupow) .kartka-zakupow-lista li {
+    gap: 10pt;
+    padding: 6pt 0;
+    border-bottom: 0.5pt solid #929A8C;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body:has(.kartka-zakupow) .kartka-zakupow-pole {
+    width: 7mm;
+    height: 7mm;
+    margin-top: 1.5pt;
+    border: 1.2pt solid #151714;
+    border-radius: 0;
+  }
+
+  body:has(.kartka-zakupow) .kartka-zakupow-tekst {
+    overflow-wrap: anywhere;
   }
 }

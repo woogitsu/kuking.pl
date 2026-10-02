@@ -47,6 +47,27 @@ class ListaZakupowController extends Controller
         ]);
     }
 
+    /**
+     * „Wydrukuj do kupienia” (#2495): kartka z samymi nieodhaczonymi pozycjami
+     * WŁASNEJ listy, w kolejności listy i z dosłownym tekstem (bez parsowania
+     * i łączenia linii). GET, czyste odczytanie — nie odhacza, nie usuwa i nie
+     * zapisuje kopii na serwerze. Pochodzenie pozycji, adresy przepisów i dane
+     * konta nie trafiają na kartkę, więc niedostępny przepis niczego nie zdradza;
+     * własny tekst pozycji drukuje się zawsze.
+     */
+    public function druk(Request $request, ListaZakupow $lista): View
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $doKupienia = ListaZakupow::podziel($lista->pozycje($user))['do_kupienia'];
+
+        return view('pages.zakupy.do-druku', [
+            'pozycje' => array_map(fn (array $wiersz): string => $wiersz['pozycja']->text, $doKupienia),
+            'dataOdczytu' => Czas::lokalnie(Carbon::now())->translatedFormat('j F Y, H:i'),
+        ]);
+    }
+
     public function store(Request $request, ListaZakupow $lista): RedirectResponse
     {
         /** @var User $user */
