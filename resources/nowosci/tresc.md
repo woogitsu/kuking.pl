@@ -176,6 +176,17 @@ nadpisujemy — zobaczycie obie notatki. Pomyłkę cofacie tym samym przyciskiem
 wskazując zeszyt, z którego zapis wyszedł. Zeszyty publiczne i wspólne na razie
 w to nie wchodzą.
 
+### Wydruk wybranych przepisów z zeszytu
+
+Zeszyt ma sześćdziesiąt przepisów, a na niedzielne gotowanie potrzebujecie
+pięciu? Na podglądzie „Zeszyt do druku” jest teraz przycisk „Wybierz
+przepisy”. Zaznaczacie na liście potrzebne tytuły, klikacie „Pokaż wybrane do
+druku” i dostajecie jedną książeczkę z okładką, spisem treści i liczbą
+przepisów tylko z Waszego wyboru — także wtedy, gdy któryś przepis jest
+daleko na liście. Przycisk „Cały zeszyt” wraca do zwykłego wydruku. Zdjęcia
+włączacie i wyłączacie osobno, a to nie zmienia wybranych przepisów. Niczego
+w zeszycie to nie zmienia.
+
 ### Dzień gotowania przy „Ugotowałem”
 
 Gotowaliście w niedzielę, a zdjęcie i kilka słów dodajecie dopiero we wtorek?

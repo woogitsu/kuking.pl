@@ -30,7 +30,11 @@
     // odnośnik niesie OBA, żeby zmiana jednego nie cofała drugiego.
     $parametrZdjec = $zeZdjeciami ? [] : ['bez-zdjec' => 1];
     $parametrNotatek = $zNotatkami ? [] : ['bez-notatek' => 1];
-    $wybory = $parametrZdjec + $parametrNotatek;
+    // Wybór przepisów (#2463) jest niezależny od zdjęć i notatek (#2438): każdy
+    // odnośnik niesie WSZYSTKIE trzy, więc zmiana jednego nie rozszerza po
+    // cichu zestawu przepisów ani nie cofa wyboru notatek.
+    $parametrWyboru = $wybrane ? ['tryb' => 'wybrane', 'przepisy' => $wybraneId] : [];
+    $wybory = $parametrZdjec + $parametrNotatek + $parametrWyboru;
 @endphp
 <x-layout :title="'Zeszyt „'.$collection->name.'” do druku'" :noindex="true">
     <div class="druk-podpowiedz">
@@ -41,18 +45,24 @@
             które widzisz Ty.
         </p>
         <div class="form-actions">
-            <a class="btn btn-primary" href="{{ $adresStrony($wybory + ['druk' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis>Wydrukuj zeszyt</a>
+            @unless($pustyWybor)
+                <a class="btn btn-primary" href="{{ $adresStrony($wybory + ['druk' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis>Wydrukuj zeszyt</a>
+            @endunless
             @if($zeZdjeciami)
-                <a class="btn btn-secondary" href="{{ $adresStrony(['bez-zdjec' => 1] + $parametrNotatek) }}" rel="nofollow">Bez zdjęć</a>
+                <a class="btn btn-secondary" href="{{ $adresStrony(['bez-zdjec' => 1] + $parametrNotatek + $parametrWyboru) }}" rel="nofollow">Bez zdjęć</a>
             @else
-                <a class="btn btn-secondary" href="{{ $adresStrony($parametrNotatek) }}" rel="nofollow">Ze zdjęciami</a>
+                <a class="btn btn-secondary" href="{{ $adresStrony($parametrNotatek + $parametrWyboru) }}" rel="nofollow">Ze zdjęciami</a>
             @endif
             @if($dostepDoNotatek)
                 @if($zNotatkami)
-                    <a class="btn btn-secondary" href="{{ $adresStrony($parametrZdjec + ['bez-notatek' => 1]) }}" rel="nofollow">Bez notatek</a>
+                    <a class="btn btn-secondary" href="{{ $adresStrony($parametrZdjec + ['bez-notatek' => 1] + $parametrWyboru) }}" rel="nofollow">Bez notatek</a>
                 @else
-                    <a class="btn btn-secondary" href="{{ $adresStrony($parametrZdjec) }}" rel="nofollow">Z notatkami</a>
+                    <a class="btn btn-secondary" href="{{ $adresStrony($parametrZdjec + $parametrWyboru) }}" rel="nofollow">Z notatkami</a>
                 @endif
+            @endif
+            <a class="btn btn-secondary" href="{{ route('collections.print.select', ['collection' => $collection] + $parametrZdjec + $parametrNotatek + ($wybrane ? ['przepisy' => $wybraneId] : [])) }}" rel="nofollow">Wybierz przepisy</a>
+            @if($wybrane)
+                <a class="btn btn-secondary" href="{{ $adresStrony($parametrZdjec + $parametrNotatek) }}" rel="nofollow">Cały zeszyt</a>
             @endif
             <a class="btn btn-quiet" href="{{ route('collections.show', $collection) }}">Wróć do zeszytu</a>
         </div>
@@ -64,6 +74,19 @@
                 Jeśli dajesz kopię rodzinie, a notatki są tylko dla Ciebie, wybierz „Bez notatek” przed drukowaniem. Kopii, która już wyszła z domu, nie da się później zmienić.
             @endif
         </p>
+        @if($wybrane)
+            {{-- Wybór przepisów (#2463): zakres widać PRZED drukowaniem. --}}
+            <div class="notice mt-4" role="status" data-wybor-przepisow>
+                @if($pustyWybor)
+                    <p class="m-0"><strong>Nie wybrano żadnego przepisu.</strong> Kliknij „Wybierz przepisy”, zaznacz przynajmniej jeden przepis i naciśnij „Pokaż wybrane do druku”. Albo wybierz „Cały zeszyt”.</p>
+                @else
+                    <p class="m-0">Wydruk obejmuje tylko wybrane przepisy: {{ $liczbaPrzepisow }} z {{ $ileWZeszycie }}. Żeby zmienić wybór, kliknij „Wybierz przepisy”. Żeby wydrukować wszystko, kliknij „Cały zeszyt”.</p>
+                @endif
+                @if($niedostepneWybrane > 0)
+                    <p class="m-0 mt-3">Wybrane przepisy, które nie są już dla Ciebie dostępne: {{ $niedostepneWybrane }}. Nie ma ich w wydruku. Sprawdź wybór jeszcze raz.</p>
+                @endif
+            </div>
+        @endif
         @if(request()->boolean('druk'))
             <div class="notice mt-4" id="jak-wydrukowac" role="status">
                 <p class="m-0"><strong>Jak wydrukować zeszyt:</strong></p>
@@ -81,6 +104,7 @@
         <p class="mt-6 mb-3">Tak będzie wyglądać książka:</p>
     </div>
 
+    @unless($pustyWybor)
     <div class="zeszyt-druk">
         <section class="zeszyt-okladka" aria-labelledby="zeszyt-tytul">
             <h2 id="zeszyt-tytul" class="zeszyt-tytul">{{ $collection->name }}</h2>
@@ -91,7 +115,7 @@
                 @if($collection->owner)
                     Zeszyt osoby {{ $collection->owner->displayName() }}<br>
                 @endif
-                {{ $liczbaPrzepisow }} {{ \App\Support\Odmiana::rzeczownik($liczbaPrzepisow, 'przepis', 'przepisy', 'przepisów') }}<br>
+                {{ $wybrane ? 'Wybrane przepisy: ' : '' }}{{ $liczbaPrzepisow }} {{ \App\Support\Odmiana::rzeczownik($liczbaPrzepisow, 'przepis', 'przepisy', 'przepisów') }}<br>
                 Kuking, {{ $dataWydruku }}
             </p>
         </section>
@@ -218,4 +242,5 @@
             </article>
         @endforeach
     </div>
+    @endunless
 </x-layout>
