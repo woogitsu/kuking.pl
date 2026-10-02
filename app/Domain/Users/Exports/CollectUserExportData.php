@@ -1209,6 +1209,8 @@ final class CollectUserExportData
                 'adres_przepisu' => $przepis !== null ? route('recipes.show', $przepis->slug) : null,
                 'przepis_niedostepny' => $pozycja->source === ShoppingListItem::SOURCE_RECIPE && $przepis === null,
                 'odhaczona' => $pozycja->jestOdhaczona(),
+                'tekst_poprawiony_przez_wlasciciela' => $pozycja->jestPoprawiona(),
+                'poprawiono' => $this->date($pozycja->edited_at),
                 'dodano' => $this->date($pozycja->created_at),
             ];
         })->values()->all();

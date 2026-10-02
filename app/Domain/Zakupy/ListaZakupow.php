@@ -74,6 +74,17 @@ final class ListaZakupow
     /** Nic do cofnięcia: nie było usunięcia, wygasło albo już cofnięte (drugie kliknięcie). */
     public const COFNIECIE_BRAK = 'brak';
 
+    public const POPRAWKA_ZASTOSOWANA = 'poprawiono';
+
+    /** Tekst jest już taki, jak wpisano (po ściśnięciu odstępów): nic się nie zmienia. */
+    public const POPRAWKA_BEZ_ZMIAN = 'bez_zmian';
+
+    /** Ktoś zmienił tekst w innym oknie, odkąd ten formularz go widział. */
+    public const POPRAWKA_KONFLIKT = 'konflikt';
+
+    /** Pozycji już nie ma (usunięta w innym oknie) — nie powstaje ponownie. */
+    public const POPRAWKA_BRAK = 'brak';
+
     public function __construct(
         private readonly RecipePolicy $przepisy = new RecipePolicy,
         private readonly PlanerTygodnia $planer = new PlanerTygodnia,
@@ -344,6 +355,7 @@ final class ListaZakupow
                     'recipe_id' => in_array($p['recipe_id'], $istniejace, true) ? $p['recipe_id'] : null,
                     'position' => (int) $p['position'],
                     'checked_at' => $p['checked_at'],
+                    'edited_at' => $p['edited_at'] ?? null,
                     'created_at' => $p['created_at'],
                     'updated_at' => now(),
                 ]);
@@ -353,6 +365,82 @@ final class ListaZakupow
             $migawka->delete();
 
             return ['wynik' => self::COFNIECIE_PRZYWROCONO, 'przywrocono' => $przywrocono, 'zakres' => $zakres];
+        });
+    }
+
+    /** Znacznik tekstu widzianego w formularzu (skrót, nie sam tekst). */
+    public static function znacznikTekstu(ShoppingListItem $pozycja): string
+    {
+        return hash('sha256', $pozycja->text);
+    }
+
+    /**
+     * „Popraw” przy jednej pozycji (#2443, V2): zmienia WYŁĄCZNIE tekst
+     * istniejącej pozycji tej osoby i zapisuje chwilę korekty (`edited_at`).
+     *
+     *  - ta sama pozycja: UUID, kolejność, odhaczenie, właściciel, `source`,
+     *    `recipe_id` i `created_at` zostają; żaden składnik przepisu nie jest
+     *    ruszany. Zapis idzie zapytaniem o DWIE kolumny (plus `updated_at`),
+     *    więc równoległe odhaczenie nie ginie;
+     *  - pod blokadą wiersza osoby (jak dopisywanie i usuwanie) i z pozycją
+     *    czytaną po blokadzie: usunięta w innej karcie pozycja nie powstaje
+     *    ponownie (`brak`);
+     *  - konflikt kart: formularz niesie znacznik tekstu, który człowiek
+     *    widział; gdy tekst zmienił się w międzyczasie, nic się nie zapisuje;
+     *  - ten sam limit i ściskanie odstępów co przy dopisaniu, bez cichego
+     *    obcinania: za długi albo pusty tekst to błąd przy polu;
+     *  - bez porównywania z przepisem: znacznik `edited_at` mówi, że TEKST
+     *    jest poprawką właściciela listy, niezależnie od tego, co autor
+     *    przepisu zmieni później.
+     *
+     * @return self::POPRAWKA_ZASTOSOWANA|self::POPRAWKA_BEZ_ZMIAN|self::POPRAWKA_KONFLIKT|self::POPRAWKA_BRAK
+     *
+     * @throws ValidationException pusty albo za długi tekst
+     */
+    public function popraw(User $user, string $idPozycji, string $nowyTekst, string $widzianyZnacznik): string
+    {
+        $tekst = self::oczysc($nowyTekst);
+
+        if ($tekst === null) {
+            throw ValidationException::withMessages([
+                'text' => 'Wpisz, co trzeba kupić, np. „mleko” albo „2 cebule”.',
+            ]);
+        }
+
+        if (mb_strlen($tekst) > self::maksZnakow()) {
+            throw ValidationException::withMessages([
+                'text' => 'Skróć wpis do '.self::maksZnakow().' znaków i zapisz jeszcze raz.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($user, $idPozycji, $tekst, $widzianyZnacznik): string {
+            $this->zablokujListe($user);
+
+            // Cudza pozycja jest dla pytającego tym samym, co nieistniejąca.
+            $pozycja = ShoppingListItem::query()
+                ->where('user_id', $user->getKey())
+                ->whereKey($idPozycji)
+                ->lockForUpdate()
+                ->first();
+
+            if ($pozycja === null) {
+                return self::POPRAWKA_BRAK;
+            }
+
+            if ($pozycja->text === $tekst) {
+                return self::POPRAWKA_BEZ_ZMIAN;
+            }
+
+            if (! hash_equals(self::znacznikTekstu($pozycja), $widzianyZnacznik)) {
+                return self::POPRAWKA_KONFLIKT;
+            }
+
+            ShoppingListItem::query()
+                ->where('user_id', $user->getKey())
+                ->whereKey($pozycja->getKey())
+                ->update(['text' => $tekst, 'edited_at' => now(), 'updated_at' => now()]);
+
+            return self::POPRAWKA_ZASTOSOWANA;
         });
     }
 
@@ -382,6 +470,7 @@ final class ListaZakupow
             'recipe_id' => $p->recipe_id,
             'position' => $p->position,
             'checked_at' => $p->checked_at?->toIso8601String(),
+            'edited_at' => $p->edited_at?->toIso8601String(),
             'created_at' => $p->created_at?->toIso8601String(),
         ])->values()->all();
 

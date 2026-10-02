@@ -76,6 +76,15 @@ samym dniu, więc nie trzeba jej usuwać i dopisywać od nowa. Gdy coś się nie
 uda, na przykład tekst jest pusty albo taki sam wpis już jest tego dnia,
 zobaczycie, co poprawić, a to, co wpisaliście, zostanie w polu.
 
+### Poprawianie pozycji na liście zakupów
+
+„Mleko” trzeba zmienić na „2 mleka”, a nie chcecie usuwać pozycji i wpisywać jej
+od nowa? Przy każdej pozycji listy zakupów jest przycisk „Popraw”. Pokazuje
+obecny tekst w polu – zmieniacie go i klikacie „Zapisz”. Pozycja zostaje tam,
+gdzie była, z tym samym odhaczeniem. Jeśli poprawiacie linię skopiowaną z
+przepisu, przepis zostaje taki, jak napisał autor, a przy pozycji na Waszej
+liście zobaczycie dopisek, że tekst został przez Was poprawiony.
+
 ### Przeliczanie miar przy składniku
 
 Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrach, szklankach, łyżkach albo łyżeczkach znajdziecie rozwijany napis „Przelicz”. Po dotknięciu pokazuje to samo w innej jednostce, na przykład 25 dag to 250 g, a pół szklanki to około 125 ml. Przeliczamy tylko wagę na wagę i objętość na objętość — gramów nie zamieniamy na szklanki, bo zależy to od produktu. Przelicznik bierze ilość z wybranej liczby porcji, a tekst przepisu zostaje taki, jak napisał autor.

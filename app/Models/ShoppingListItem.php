@@ -34,7 +34,14 @@ class ShoppingListItem extends Model
         return [
             'position' => 'integer',
             'checked_at' => 'datetime',
+            'edited_at' => 'datetime',
         ];
+    }
+
+    /** Tekst poprawiony ręcznie przez właściciela listy (#2443) — nie jest już dosłowną linią. */
+    public function jestPoprawiona(): bool
+    {
+        return $this->edited_at !== null;
     }
 
     public function jestOdhaczona(): bool

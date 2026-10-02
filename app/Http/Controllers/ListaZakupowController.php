@@ -166,6 +166,63 @@ class ListaZakupowController extends Controller
         return redirect(route('shopping.index').'#pozycja-'.$pozycja->getKey());
     }
 
+    /**
+     * Ekran „Popraw” (#2443): zwykły formularz z obecnym tekstem pozycji.
+     * Niesie znacznik tekstu, który człowiek widzi — z niego akcja pozna, że
+     * ktoś w innym oknie zmienił go wcześniej.
+     */
+    public function edit(ShoppingListItem $pozycja): View
+    {
+        $this->authorize('update', $pozycja);
+
+        return view('pages.zakupy.popraw', [
+            'pozycja' => $pozycja,
+            'znacznik' => ListaZakupow::znacznikTekstu($pozycja),
+            'maksZnakow' => ListaZakupow::maksZnakow(),
+        ]);
+    }
+
+    public function update(Request $request, ShoppingListItem $pozycja, ListaZakupow $lista): RedirectResponse
+    {
+        $this->authorize('update', $pozycja);
+
+        /** @var User $user */
+        $user = $request->user();
+
+        $wracaDoFormularza = route('shopping.edit', $pozycja);
+
+        try {
+            $dane = $request->validate([
+                'text' => ['required', 'string'],
+                'stan' => ['required', 'string', 'max:64'],
+            ], [
+                'text.required' => 'Wpisz, co trzeba kupić, np. „mleko” albo „2 cebule”.',
+                'text.string' => 'Wpisz zwykły tekst, np. „mleko” albo „2 cebule”.',
+                'stan.required' => 'Ta strona jest nieaktualna. Wróć do listy zakupów i otwórz poprawianie jeszcze raz.',
+                'stan.string' => 'Ta strona jest nieaktualna. Wróć do listy zakupów i otwórz poprawianie jeszcze raz.',
+                'stan.max' => 'Ta strona jest nieaktualna. Wróć do listy zakupów i otwórz poprawianie jeszcze raz.',
+            ]);
+
+            $wynik = $lista->popraw($user, (string) $pozycja->getKey(), $dane['text'], $dane['stan']);
+        } catch (ValidationException $e) {
+            throw $e->redirectTo($wracaDoFormularza);
+        }
+
+        $naListe = route('shopping.index').'#pozycja-'.$pozycja->getKey();
+
+        return match ($wynik) {
+            ListaZakupow::POPRAWKA_ZASTOSOWANA => redirect($naListe)
+                ->with(Komunikat::sukces('Pozycja poprawiona. Zostaje na swoim miejscu, z tym samym odhaczeniem.')),
+            ListaZakupow::POPRAWKA_BEZ_ZMIAN => redirect($naListe)
+                ->with(Komunikat::informacja('Ta pozycja ma już taki tekst. Nic nie zostało zmienione.')),
+            // Wpisany tekst wraca do pola, a nad nim stoi aktualny tekst z listy.
+            ListaZakupow::POPRAWKA_KONFLIKT => redirect($wracaDoFormularza)->withInput($request->only('text'))
+                ->with(Komunikat::blad('Tekst tej pozycji zmienił się w innym oknie, więc nic nie zapisaliśmy. Poniżej widzisz aktualny tekst, a Twoja poprawka została w polu — jeśli nadal ją chcesz, kliknij „Zapisz” jeszcze raz.')),
+            default => redirect()->route('shopping.index')
+                ->with(Komunikat::blad('Tej pozycji już nie ma na liście — mogła zostać usunięta w innym oknie. Jeśli jej brakuje, dopisz ją jeszcze raz.')),
+        };
+    }
+
     public function destroy(Request $request, ShoppingListItem $pozycja, ListaZakupow $lista): RedirectResponse
     {
         $this->authorize('delete', $pozycja);

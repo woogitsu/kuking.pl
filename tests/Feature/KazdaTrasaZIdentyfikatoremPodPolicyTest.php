@@ -1546,6 +1546,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $pozycjaZakupowDoKasacji->save();
         $dodaj('shopping.toggle', 'odhaczenie pozycji listy zakupów', 'patch',
             route('shopping.toggle', $pozycjaZakupow), ['odhaczona' => '1'], [$W, $O, $O, $O, $O]);
+        // Poprawianie tekstu pozycji (#2443): ekran i zapis — tylko właściciel.
+        $dodaj('shopping.edit', 'ekran poprawiania pozycji listy zakupów', 'get',
+            route('shopping.edit', $pozycjaZakupow), [], [$W, $O, $O, $O, $O]);
+        $dodaj('shopping.update', 'poprawienie tekstu pozycji listy zakupów', 'patch',
+            route('shopping.update', $pozycjaZakupow), ['text' => '2 mleka', 'stan' => hash('sha256', 'mleko')], [$W, $O, $O, $O, $O]);
         $dodaj('shopping.destroy', 'usunięcie pozycji listy zakupów', 'delete',
             route('shopping.destroy', $pozycjaZakupowDoKasacji), [], [$W, $O, $O, $O, $O]);
         $dodaj('shopping.recipe.store', 'dodanie składników prywatnego przepisu do listy zakupów', 'post',

@@ -1245,6 +1245,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereUuid('pozycja')
         ->middleware("throttle:{$limits['zakupy']},zakupy")
         ->name('shopping.toggle');
+    // „Popraw” (#2443): ekran z obecnym tekstem i zapis tej samej pozycji.
+    Route::get('/lista-zakupow/{pozycja}/popraw', [ListaZakupowController::class, 'edit'])
+        ->whereUuid('pozycja')
+        ->name('shopping.edit');
+    Route::patch('/lista-zakupow/{pozycja}/tekst', [ListaZakupowController::class, 'update'])
+        ->whereUuid('pozycja')
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.update');
     Route::delete('/lista-zakupow/{pozycja}', [ListaZakupowController::class, 'destroy'])
         ->whereUuid('pozycja')
         ->middleware("throttle:{$limits['zakupy']},zakupy")
