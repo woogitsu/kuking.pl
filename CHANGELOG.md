@@ -2,6 +2,8 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2420): osoba zaproszona linkiem do wspólnego zeszytu po założeniu konta i pierwszych krokach wraca do podglądu zaproszenia. Samo dołączenie wymaga kliknięcia „Dołączam”; wygasły lub odwołany link nie otwiera podglądu.
+
 - Naprawione (#2614): import przepisu z tekstowego PDF zachowuje ilości `1.5 kg` i `0.5 l` w prywatnym szkicu; prawdziwe numery listy nadal usuwa bez zmiany cyfr składnika.
 - Naprawione (#2570, #2582): import z adresu odczytuje kroki i sekcje zapisane w JSON-LD jako `ListItem.item`, zachowując kolejność prawidłowych pozycji. Przy niejasnych pozycjach zostawia kolejność źródła. Sam identyfikator `@id` nie staje się tekstem kroku; szkic pozostaje prywatny i nie używa modelu dla tych danych.
 - Naprawione (#2580): import z adresu zachowuje dosłowne porównanie, np. „<80”, wraz z resztą instrukcji. Podziały kroków i usuwanie prawdziwych znaczników HTML nadal działają.
