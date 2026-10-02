@@ -434,6 +434,52 @@ final class NazwaneListyZakupowTest extends TestCase
         $this->assertSame(['karp'], $this->teksty($ja, null));
     }
 
+    /**
+     * Paczka M: listy (#2528) scalone z wydrukiem (#2495), „kupione do
+     * spiżarni” (#2481) i poprawianiem pozycji (#2443) — każdy z tych ekranów
+     * dotyczy listy otwartej na ekranie i na nią wraca.
+     */
+    public function test_wydruk_spizarnia_i_poprawka_dotycza_otwartej_listy(): void
+    {
+        $ja = $this->user('kupujaca');
+        $swieta = $this->lista($ja, 'Święta');
+        $this->pozycja($ja, 'twaróg');
+        $maslo = $this->pozycja($ja, 'masło', null, 1);
+        $maslo->checked_at = now();
+        $maslo->save();
+        $karp = $this->pozycja($ja, 'karp', $swieta, 2);
+        $mak = $this->pozycja($ja, 'mak', $swieta, 3);
+        $mak->checked_at = now();
+        $mak->save();
+
+        $ekranSwiat = (string) $this->actingAs($ja)->get(route('shopping.index', ['lista' => $swieta->getKey()]))->assertOk()->getContent();
+        $this->assertStringContainsString(e(route('shopping.print', ['lista' => $swieta->getKey()])), $ekranSwiat);
+        $this->assertStringContainsString(e(route('shopping.pantry.form', ['lista' => $swieta->getKey()])), $ekranSwiat);
+
+        $drukSwiat = (string) $this->actingAs($ja)->get(route('shopping.print', ['lista' => $swieta->getKey()]))->assertOk()->getContent();
+        $this->assertStringContainsString('karp', $drukSwiat);
+        $this->assertStringNotContainsString('twaróg', $drukSwiat, 'Wydruk nazwanej listy pokazuje pozycję listy domyślnej.');
+        $this->assertStringContainsString('Do kupienia — Święta', $drukSwiat);
+
+        $drukDomyslnej = (string) $this->actingAs($ja)->get(route('shopping.print'))->assertOk()->getContent();
+        $this->assertStringContainsString('twaróg', $drukDomyslnej);
+        $this->assertStringNotContainsString('karp', $drukDomyslnej, 'Wydruk listy domyślnej pokazuje pozycję nazwanej listy.');
+
+        $spizarniaSwiat = (string) $this->actingAs($ja)->get(route('shopping.pantry.form', ['lista' => $swieta->getKey()]))->assertOk()->getContent();
+        $this->assertStringContainsString('mak', $spizarniaSwiat);
+        $this->assertStringNotContainsString('masło', $spizarniaSwiat, 'Ekran spiżarni nazwanej listy pokazuje odhaczone z listy domyślnej.');
+
+        $spizarniaDomyslnej = (string) $this->actingAs($ja)->get(route('shopping.pantry.form'))->assertOk()->getContent();
+        $this->assertStringContainsString('masło', $spizarniaDomyslnej);
+        $this->assertStringNotContainsString('>mak<', $spizarniaDomyslnej);
+
+        $this->actingAs($ja)->patch(route('shopping.update', $karp), [
+            'text' => 'karp 2 sztuki',
+            'stan' => ListaZakupow::znacznikTekstu($karp),
+        ])->assertRedirect(route('shopping.index', ['lista' => $swieta->getKey()]).'#pozycja-'.$karp->getKey());
+        $this->assertSame(['karp 2 sztuki', 'mak'], $this->teksty($ja, $swieta));
+    }
+
     public function test_paczka_danych_ma_nazwy_list_i_lista_przy_pozycji(): void
     {
         $ja = $this->user('kupujaca');
