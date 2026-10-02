@@ -355,6 +355,10 @@ egzekwuje.
 - **Odbiorca:** EmailLabs (Vercom S.A., Poznań) — dane zostają w Polsce.
   Kod: `config/mail.php` (własny sterownik `emaillabs`),
   `app/Poczta/DziennyBudzetListow.php`.
+- **Listy bezpieczeństwa konta (#2565):** po zmianie i po resecie hasła oraz po
+  zgłoszonej zmianie adresu e-mail idzie list z potwierdzeniem. Cel: bezpieczeństwo
+  konta; podstawa: wykonanie umowy (art. 6 ust. 1 lit. b RODO); dane: adres
+  e-mail, imię i data zmiany. Bez zgód marketingowych i bez treści reklamowej.
 - **Ślad nieudanego listu (`mail_failures`):** rodzaj listu, powód odmowy,
   zamaskowany komunikat, `user_id` odbiorcy — bez adresu i treści. Odhaczone
   ślady kasowane po `kuking.poczta.retencja_dni` (90) dniach przy kolejnym
