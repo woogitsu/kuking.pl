@@ -114,7 +114,7 @@ final class ZlecImportPrzepisu
                 ->first();
 
             if ($swieze === null || ! $swieze->moznaPonowic() || $szkic === null || $szkic->status !== Recipe::STATUS_DRAFT
-                || $szkic->ingredients()->exists() || $szkic->steps()->exists()) {
+                || $szkic->content_revision !== 0 || $szkic->ingredients()->exists() || $szkic->steps()->exists()) {
                 throw new BladDlaCzlowieka('Tego odczytu nie da się już powtórzyć. Otwórz szkic i wpisz przepis ręcznie — zdjęcie kartki jest przy nim.');
             }
 

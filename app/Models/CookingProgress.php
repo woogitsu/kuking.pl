@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property float|string|null $servings
  * @property list<string> $prepared_ingredient_ids
  * @property int $revision
+ * @property int $servings_revision
  * @property CarbonImmutable $expires_at
  */
 class CookingProgress extends Model
@@ -41,6 +42,7 @@ class CookingProgress extends Model
             'done_step_ids' => 'array',
             'prepared_ingredient_ids' => 'array',
             'revision' => 'integer',
+            'servings_revision' => 'integer',
             'expires_at' => 'immutable_datetime',
             'created_at' => 'immutable_datetime',
             'updated_at' => 'immutable_datetime',
