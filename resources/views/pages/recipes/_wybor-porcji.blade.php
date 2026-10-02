@@ -10,6 +10,12 @@
     PRZYCISK, KTÓREGO NIE DA SIĘ UŻYĆ, WYGLĄDA NA WYŁĄCZONY i nie jest linkiem
     (`aria-disabled`) — przy 1 porcji „Mniej” nie udaje, że coś zrobi.
 
+    POLE „NA ILE PORCJI?” (#2499, rozszerzenie D-284) — zwykły formularz GET
+    bez JavaScriptu, żeby z 4 porcji zrobić 20 jednym wysłaniem zamiast
+    szesnastu „Więcej”. Walidację i zakres 1–100 robi `WyborPorcji::dla()`
+    (ta sama co dla linków); tu tylko pokazujemy jej wynik. Błędnie wpisany
+    tekst zostaje w polu, a ilości na stronie to ilości autora.
+
     Przepis bez liczby porcji nie ma od czego liczyć: wtedy nie ma tu nic.
 --}}
 @if($wyborPorcji->dostepny())
@@ -24,9 +30,15 @@
         ], fn ($wartosc) => $wartosc !== null)).'#skladniki';
         $mniej = $wyborPorcji->mniej();
         $wiecej = $wyborPorcji->wiecej();
+        // Błędnie wpisany tekst zostaje w polu (Blade go zakodowuje); poprawna
+        // liczba wraca z przecinkiem. Tekst obcinamy, by nie rozpychał strony.
+        $wpisane = request()->query('porcje');
+        $wartoscPola = $wyborPorcji->odrzucone && is_string($wpisane)
+            ? \Illuminate\Support\Str::limit($wpisane, 30, '')
+            : \App\Domain\Recipes\Porcje\WyborPorcji::doPola((float) $wyborPorcji->wybrane);
     @endphp
     <div class="porcje-wybor" role="group" aria-labelledby="porcje-wybor-tytul">
-        <p class="porcje-wybor-tytul" id="porcje-wybor-tytul">Na ile porcji?</p>
+        <p class="porcje-wybor-tytul" id="porcje-wybor-tytul">Liczba porcji</p>
         <div class="porcje-wybor-przyciski">
             @if($mniej !== null)
                 <a class="btn btn-secondary porcje-wybor-krok" href="{{ $adresPorcji($mniej) }}" rel="nofollow"
@@ -42,6 +54,23 @@
                 <span class="btn btn-secondary porcje-wybor-krok" aria-disabled="true">Więcej <span aria-hidden="true">+</span></span>
             @endif
         </div>
+        <form class="porcje-wybor-pole" method="GET" action="{{ route('recipes.show', $recipe->slug) }}#skladniki">
+            @if($dlaPomocnika ?? false)
+                <input type="hidden" name="druk" value="1">
+                <input type="hidden" name="dla" value="pomocnika">
+                @if($qrNaKartce ?? false)<input type="hidden" name="qr" value="1">@endif
+            @endif
+            <label class="porcje-wybor-etykieta" for="porcje-wybor-pole">Na ile porcji?</label>
+            <div class="porcje-wybor-przyciski">
+                <input class="porcje-wybor-wejscie" id="porcje-wybor-pole" name="porcje" type="text" inputmode="decimal"
+                       autocomplete="off" value="{{ $wartoscPola }}"
+                       @if($wyborPorcji->odrzucone) aria-invalid="true" aria-describedby="porcje-wybor-blad" @endif>
+                <button class="btn btn-secondary" type="submit">Przelicz</button>
+            </div>
+            @if($wyborPorcji->odrzucone)
+                <p class="field-error" id="porcje-wybor-blad" role="alert">Wpisz liczbę od {{ \App\Domain\Recipes\Porcje\WyborPorcji::NAJMNIEJ }} do {{ \App\Domain\Recipes\Porcje\WyborPorcji::NAJWIECEJ }}, na przykład 20 albo 2,5.</p>
+            @endif
+        </form>
     </div>
 
     @if($wyborPorcji->odrzucone)
@@ -49,7 +78,7 @@
              jak autor go napisał i mówimy, co zrobić. --}}
         <p class="porcje-wybor-uwaga">
             Tej liczby porcji nie da się przeliczyć. Pokazujemy ilości z przepisu.
-            Wybierz od {{ \App\Domain\Recipes\Porcje\WyborPorcji::NAJMNIEJ }} do {{ \App\Domain\Recipes\Porcje\WyborPorcji::NAJWIECEJ }} przyciskami „Mniej” i „Więcej”.
+            Wpisz od {{ \App\Domain\Recipes\Porcje\WyborPorcji::NAJMNIEJ }} do {{ \App\Domain\Recipes\Porcje\WyborPorcji::NAJWIECEJ }} w polu albo użyj przycisków „Mniej” i „Więcej”.
         </p>
     @endif
 
