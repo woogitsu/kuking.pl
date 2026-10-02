@@ -26,7 +26,11 @@
 @php
     $liczbaPrzepisow = $przepisy->count();
     $adresStrony = fn (array $parametry = []) => route('collections.print', ['collection' => $collection] + $parametry);
+    // Wybory druku (#2438): zdjęcia i notatki z zeszytu są niezależne, a każdy
+    // odnośnik niesie OBA, żeby zmiana jednego nie cofała drugiego.
     $parametrZdjec = $zeZdjeciami ? [] : ['bez-zdjec' => 1];
+    $parametrNotatek = $zNotatkami ? [] : ['bez-notatek' => 1];
+    $wybory = $parametrZdjec + $parametrNotatek;
 @endphp
 <x-layout :title="'Zeszyt „'.$collection->name.'” do druku'" :noindex="true">
     <div class="druk-podpowiedz">
@@ -37,14 +41,29 @@
             które widzisz Ty.
         </p>
         <div class="form-actions">
-            <a class="btn btn-primary" href="{{ $adresStrony($parametrZdjec + ['druk' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis>Wydrukuj zeszyt</a>
+            <a class="btn btn-primary" href="{{ $adresStrony($wybory + ['druk' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis>Wydrukuj zeszyt</a>
             @if($zeZdjeciami)
-                <a class="btn btn-secondary" href="{{ $adresStrony(['bez-zdjec' => 1]) }}" rel="nofollow">Bez zdjęć</a>
+                <a class="btn btn-secondary" href="{{ $adresStrony(['bez-zdjec' => 1] + $parametrNotatek) }}" rel="nofollow">Bez zdjęć</a>
             @else
-                <a class="btn btn-secondary" href="{{ $adresStrony() }}" rel="nofollow">Ze zdjęciami</a>
+                <a class="btn btn-secondary" href="{{ $adresStrony($parametrNotatek) }}" rel="nofollow">Ze zdjęciami</a>
+            @endif
+            @if($dostepDoNotatek)
+                @if($zNotatkami)
+                    <a class="btn btn-secondary" href="{{ $adresStrony($parametrZdjec + ['bez-notatek' => 1]) }}" rel="nofollow">Bez notatek</a>
+                @else
+                    <a class="btn btn-secondary" href="{{ $adresStrony($parametrZdjec) }}" rel="nofollow">Z notatkami</a>
+                @endif
             @endif
             <a class="btn btn-quiet" href="{{ route('collections.show', $collection) }}">Wróć do zeszytu</a>
         </div>
+        {{-- Aktualny wybór widać PRZED drukowaniem (#2438). Wcześniej zapisanych
+             kopii nie da się zdalnie odwołać — dlatego mówimy to wprost. --}}
+        <p class="meta mt-3 mb-0" data-wybory-druku>
+            Ten wydruk będzie {{ $zeZdjeciami ? 'ze zdjęciami' : 'bez zdjęć' }}@if($dostepDoNotatek) i {{ $zNotatkami ? 'z notatkami z Twojego zeszytu' : 'bez notatek z zeszytu' }}@endif.
+            @if($dostepDoNotatek && $zNotatkami)
+                Jeśli dajesz kopię rodzinie, a notatki są tylko dla Ciebie, wybierz „Bez notatek” przed drukowaniem. Kopii, która już wyszła z domu, nie da się później zmienić.
+            @endif
+        </p>
         @if(request()->boolean('druk'))
             <div class="notice mt-4" id="jak-wydrukowac" role="status">
                 <p class="m-0"><strong>Jak wydrukować zeszyt:</strong></p>
@@ -92,7 +111,7 @@
 
         @foreach($przepisy as $przepis)
             @php
-                $notatka = $dostepDoNotatek ? $przepis->pivot?->note : null;
+                $notatka = $zNotatkami ? $przepis->pivot?->note : null;
                 $czasMinut = $przepis->totalMinutes();
                 $porcje = $przepis->servingsLabel();
                 $wykonania = (int) $przepis->widoczne_wykonania_count;
