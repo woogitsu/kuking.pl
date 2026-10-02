@@ -2350,7 +2350,7 @@ checks = [
     # #2438 (decyzja właściciela z 2.10.2026, D-333): wydruk zeszytu jest
     # DOMYŚLNIE bez notatek; powrót do „notatki, chyba że bez-notatek” musi
     # wywrócić test domyślnego wydruku.
-    ("Wydruk zeszytu znowu domyślnie z notatkami (#2438)", "app/Http/Controllers/CollectionPrintController.php", "WydrukZeszytuBezNotatekTest",
+    ("Wydruk zeszytu znowu domyślnie z notatkami (#2438)", "app/Http/Controllers/CollectionPrintController.php", "WydrukZeszytuBezNotatekTest::test_domyslnie_wydruk_jest_bez_notatek_a_uwagi_autora_zostaja",
      lambda s: replace_once(s, "$zNotatkami = $dostepDoNotatek && $request->boolean('z-notatkami');", "$zNotatkami = $dostepDoNotatek && ! $request->boolean('bez-notatek');")),
     # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
     # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.

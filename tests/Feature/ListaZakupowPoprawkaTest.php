@@ -241,11 +241,13 @@ final class ListaZakupowPoprawkaTest extends TestCase
 
         $this->popraw($ja, $mleko, '2 mleka', $stary)->assertSessionHas('status_rodzaj', 'sukces');
 
-        $this->popraw($ja, $mleko, 'mleko 3,2%', $stary)
-            ->assertRedirect(route('shopping.edit', $mleko))
+        $odpowiedz = $this->popraw($ja, $mleko, 'mleko 3,2%', $stary);
+        // Najpierw dane: to one są istotą kontroli (kontrola ujemna #2443
+        // oczekuje tego komunikatu), dopiero potem przekierowanie.
+        $this->assertSame('2 mleka', $mleko->refresh()->text, 'Stara karta nie może nadpisać nowszej korekty.');
+        $odpowiedz->assertRedirect(route('shopping.edit', $mleko))
             ->assertSessionHas('status_rodzaj', 'blad');
         $this->assertStringContainsString('innym oknie', (string) session('status'));
-        $this->assertSame('2 mleka', $mleko->refresh()->text, 'Stara karta nie może nadpisać nowszej korekty.');
 
         $html = (string) $this->followRedirects($this->actingAs($ja)->patch(route('shopping.update', $mleko), [
             'text' => 'mleko 3,2%', 'stan' => $stary,
