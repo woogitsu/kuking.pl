@@ -115,8 +115,14 @@ class ProfileController extends Controller
         // wygląda tak samo jak przed tą zmianą.
         $frazaUgotowanych = FrazaWUgotowanych::zAdresu($tab === 'ugotowane' && $isOwner ? $wejscie->szukaj() : null);
 
+        // Wybór „Zrobię ponownie” (#2460): jak fraza — wyłącznie własna
+        // zakładka „Ugotowane”. Na cudzym profilu (także moderatora i gościa)
+        // `?ponownie=1` jest ignorowane: wyniki, liczniki i komunikaty takie
+        // same jak bez niego.
+        $tylkoPonownie = $tab === 'ugotowane' && $isOwner && $wejscie->ponownie();
+
         $cookedEvents = $tab === 'ugotowane'
-            ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner, $frazaUgotowanych, $autorzyZaBlokada)
+            ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner, $frazaUgotowanych, $autorzyZaBlokada, $tylkoPonownie)
             : null;
 
         $stats = [
@@ -173,6 +179,7 @@ class ProfileController extends Controller
             'przepisyWidoczneNaKartach' => $this->przepisyWidoczneNaKartach($cookedEvents, $viewer, $isOwner),
             'autorzyZaBlokada' => $autorzyZaBlokada,
             'frazaUgotowanych' => $frazaUgotowanych,
+            'tylkoPonownie' => $tylkoPonownie,
             'stats' => $stats,
             // Jedna reguła dla `noindex` i JSON-LD profilu (#2235, #2236):
             // autor dostępny (`jestDostepnyJakoAutor()` — ta sama bramka co
@@ -567,9 +574,14 @@ class ProfileController extends Controller
      * 3. `$fraza` zawęża listę właściciela do wykonań przepisu o danym
      *    tytule (#2070) — tylko zawęża, nic nie dokłada (`FrazaWUgotowanych`).
      *
+     * 4. `$tylkoPonownie` (#2460) dokłada jeden warunek
+     *    `would_make_again = true` do już autoryzowanej listy: wybiera
+     *    WYKONANIA, nie przepisy — późniejsze `false`/`null` tego samego
+     *    przepisu nie usuwa wcześniejszego `true`. Bez nowego zapytania na kartę.
+     *
      * @param  list<string>  $autorzyZaBlokada
      */
-    private function cookedEventsDlaProfilu(User $owner, ?User $viewer, bool $isOwner, FrazaWUgotowanych $fraza, array $autorzyZaBlokada): LengthAwarePaginator
+    private function cookedEventsDlaProfilu(User $owner, ?User $viewer, bool $isOwner, FrazaWUgotowanych $fraza, array $autorzyZaBlokada, bool $tylkoPonownie = false): LengthAwarePaginator
     {
         // OSOBA, KTÓRA GOTOWAŁA, JEST TU TREŚCIĄ GŁÓWNĄ — i to ona była
         // źródłem wachlarza zapytań. Karta wykonania
@@ -592,6 +604,7 @@ class ProfileController extends Controller
             // i `withQueryString()` (niesie `szukaj` do „Pokaż więcej")
             // zostają te same (#2070).
             ->tap(fn ($query) => $fraza->zawez($query, $autorzyZaBlokada))
+            ->when($tylkoPonownie, fn ($query) => $query->where('cooked_events.would_make_again', true))
             ->latest('cooked_at')
             ->latest('id')
             ->with(['recipe.author.profile', 'media'])
