@@ -716,6 +716,17 @@ chroniona: historia jest publiczna i to w niej najczęściej zostaje treść,
 którą autor później wycofał. Liczby (24, 3) potwierdził właściciel
 30.09.2026 (D-333).
 
+### 5.9 Migawka „Cofnij usunięcie” z listy zakupów (`shopping_list_undos`) — dopisane 2.10.2026 (#2630, D-333)
+
+Jedna migawka na osobę (ostatnie „Usuń” albo „Wyczyść odhaczone”) żyje 15
+minut (`kuking.zakupy.cofniecie_minut`). Po tym czasie cofnięcie ją odrzuca, a
+sama kopia jest kasowana: przy odczycie listy przez osobę, przy cofnięciu i
+zadaniem `kuking:sprzataj-cofniecia-zakupow` co kwadrans (najdłużej ok. 30
+minut w bazie). Wymazanie konta kasuje ją od razu. Tabela nie trafia do
+paczki danych (`InwentarzDanychKonta`: to te same pozycje, co w sekcji
+`lista_zakupow`, trzymane najwyżej 15 minut). Liczbę potwierdził właściciel
+2.10.2026.
+
 ## 6. Decyzje właściciela — zbiorczo
 
 **Zaktualizowane w drugiej turze (§10) — poniższe są DECYZJAMI, nie

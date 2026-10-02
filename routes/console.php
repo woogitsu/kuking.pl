@@ -425,6 +425,17 @@ Harmonogram::artisan('kuking:sprzataj-importy')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// Retencja migawek „Cofnij usunięcie” z listy zakupów (#2630): migawka żyje
+// `kuking.zakupy.cofniecie_minut` (15) minut, więc sprzątanie co kwadrans
+// zostawia wygasłą kopię najwyżej kolejne ćwierć godziny. Minuty 3, 18, 33,
+// 48 — własny rytm, żeby nie dzielić terminu z `*/15` poniżej.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:sprzataj-cofniecia-zakupow')
+    ->name('kuking:sprzataj-cofniecia-zakupow')
+    ->cron('3,18,33,48 * * * *')
+    ->onOneServer()
+    ->withoutOverlapping(10);
+
 // Odzyskiwanie odczytów przepisu (D-298 „maszyna stanów”, #1973, #1977).
 // Rezerwacja budżetu modelu porzucona przez zabity proces blokowałaby limit
 // dzienny dla WSZYSTKICH do północy, a zlecenie bez zadania wisiałoby

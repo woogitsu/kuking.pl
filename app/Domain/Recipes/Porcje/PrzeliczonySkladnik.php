@@ -19,7 +19,17 @@ final readonly class PrzeliczonySkladnik
         public string $ilosc = '',
         public string $po = '',
         public bool $zmieniony = false,
+        /** Ilość zapisana jako suma — pokazana bez przeliczenia, z uwagą (#2609). */
+        public bool $nieprzeliczony = false,
     ) {}
+
+    /** Krótka informacja przy wierszu, którego ilości nie wolno przemnożyć po kawałku. */
+    public const UWAGA_SUMA = 'Ilość podana jako suma – nie została przeliczona. Sprawdź ją samodzielnie.';
+
+    public static function nieprzeliczony(string $tekst): self
+    {
+        return new self($tekst, nieprzeliczony: true);
+    }
 
     public static function bezZmian(string $tekst): self
     {

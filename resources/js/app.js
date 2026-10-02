@@ -32,7 +32,7 @@ import './powiadomienia-push.js';
 import './drukuj-przepis.js';
 import './postep-importu.js';
 import './powiadomienia-push-uzgodnij.js';
-import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika} from './minutnik-krok.js';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika, sprawdzMinutyWlasne, etykietaMinut} from './minutnik-krok.js';
 import {podlaczKolejke} from './kolejka-gotowania.js';
 import {podlaczPrzelacznik, utworzKontrolerWakeLock, utworzPamiecWyboru} from './wake-lock-gotowania.js';
 import {podlaczStronaNieaktualna} from './strona-nieaktualna.js';
@@ -797,12 +797,19 @@ function pokazAlarmWPasie(pas, tresc, przejscie = null) {
 }
 
 document.querySelectorAll('.cook-timer').forEach((blok) => {
-    const przycisk = blok.querySelector('.cook-timer-start');
+    // Wlasny minutnik (issue #2595): krok BEZ czasu autora, ten sam mechanizm.
+    // Zamiast jednego przycisku startowego jest blok wyboru (szybkie czasy
+    // i pole „minuty"); wszystko dalej -- odliczanie, zapis, alarm w pasie,
+    // anulowanie -- idzie ta sama sciezka co minutnik autora.
+    const wlasny = blok.dataset.timerWlasny === '1';
+    const wybor = wlasny ? blok.querySelector('.cook-timer-wybor') : null;
+    const przycisk = wlasny ? wybor : blok.querySelector('.cook-timer-start');
     const anuluj = blok.querySelector('.cook-timer-anuluj');
     const odliczanie = blok.querySelector('.cook-timer-odliczanie');
     const komunikat = blok.querySelector('.cook-timer-komunikat');
-    const etykieta = blok.dataset.timerEtykieta ?? '';
-    const sekundyCalkiem = parseInt(blok.dataset.timerSekundy ?? '', 10);
+    let etykieta = blok.dataset.timerEtykieta ?? '';
+    let sekundyCalkiem = wlasny ? 0 : parseInt(blok.dataset.timerSekundy ?? '', 10);
+    const opisStartu = () => (wlasny ? 'Twój minutnik' : 'Minutnik');
     const recipeSlug = blok.dataset.timerRecipe ?? '';
     const krok = blok.dataset.timerKrok ?? '';
     const stepId = blok.dataset.timerStepId ?? '';
@@ -810,9 +817,16 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     const pasMinutnikow = document.querySelector('.cook-alarmy');
     const krokiTozsamosci = pasMinutnikow ? JSON.parse(pasMinutnikow.dataset.alarmyKroki ?? '[]') : [];
 
-    if (!przycisk || !anuluj || !odliczanie || !komunikat || !Number.isFinite(sekundyCalkiem) || sekundyCalkiem <= 0) {
+    if (!przycisk || !anuluj || !odliczanie || !komunikat || (!wlasny && (!Number.isFinite(sekundyCalkiem) || sekundyCalkiem <= 0))) {
         return;
     }
+
+    // Skrypt dziala: odslaniamy caly blok wlasnego minutnika (bez JS zostaje
+    // ukryty -- nie ma martwych przyciskow, D-053).
+    if (wlasny) {
+        blok.hidden = false;
+    }
+    const nazwa = blok.querySelector('.cook-timer-nazwa');
 
     const klucz = kluczStanu(recipeSlug, krok, stepId, fingerprint);
 
@@ -840,10 +854,13 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     };
 
     const pokazKoniec = () => {
-        komunikat.textContent = 'Czas minął!';
-        przycisk.textContent = 'Uruchom minutnik jeszcze raz';
+        komunikat.textContent = wlasny ? 'Czas minął! Twój minutnik skończył odliczanie.' : 'Czas minął!';
+        if (!wlasny) {
+            przycisk.textContent = 'Uruchom minutnik jeszcze raz';
+        }
         przycisk.hidden = false;
         przycisk.disabled = false;
+        if (nazwa) nazwa.hidden = true;
         anuluj.hidden = true;
     };
 
@@ -872,7 +889,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         }, 1000);
     };
 
-    przycisk.addEventListener('click', () => {
+    const uruchomZKlikniecia = () => {
         if (interwal !== null) {
             return;
         }
@@ -884,7 +901,8 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         przycisk.hidden = true;
         anuluj.hidden = false;
         odliczanie.hidden = false;
-        komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
+        if (nazwa) nazwa.hidden = false;
+        komunikat.textContent = `${opisStartu()} ustawiony na ${etykieta}.`;
 
         const terminMonotoniczny = performance.now() + sekundyCalkiem * 1000;
         // Zapis PRZED startem -- zeby nawigacja albo oznaczenie kroku
@@ -893,7 +911,55 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         sessionStorage.setItem(klucz, zapiszStan(sekundyCalkiem, Date.now() + sekundyCalkiem * 1000,
             {stepId, fingerprint, krokPierwotny: Number(krok)}));
         uruchomOdliczanie(terminMonotoniczny);
-    });
+    };
+
+    if (wlasny) {
+        const formularz = wybor.querySelector('form');
+        const pole = wybor.querySelector('.cook-timer-minuty');
+        const blad = wybor.querySelector('.cook-timer-blad');
+
+        const wyczyscBlad = () => {
+            blad.textContent = '';
+            blad.hidden = true;
+            pole.removeAttribute('aria-invalid');
+        };
+
+        const wystartuj = (sekundy) => {
+            if (interwal !== null) {
+                return;
+            }
+
+            sekundyCalkiem = sekundy;
+            etykieta = etykietaMinut(sekundy);
+            wyczyscBlad();
+            uruchomZKlikniecia();
+        };
+
+        wybor.querySelectorAll('.cook-timer-szybki').forEach((szybki) => {
+            szybki.addEventListener('click', () => {
+                const wynik = sprawdzMinutyWlasne(szybki.dataset.minuty ?? '');
+                if (wynik.sekundy) wystartuj(wynik.sekundy);
+            });
+        });
+
+        // Poprawnie wpisane dane zostaja w polu takze po bledzie.
+        formularz.addEventListener('submit', (zdarzenie) => {
+            zdarzenie.preventDefault();
+            const wynik = sprawdzMinutyWlasne(pole.value);
+
+            if (wynik.blad) {
+                blad.textContent = wynik.blad;
+                blad.hidden = false;
+                pole.setAttribute('aria-invalid', 'true');
+                pole.focus();
+                return;
+            }
+
+            wystartuj(wynik.sekundy);
+        });
+    } else {
+        przycisk.addEventListener('click', uruchomZKlikniecia);
+    }
 
     // Swiadome anulowanie (issue #755) -- ten sam odliczany krok da sie
     // zatrzymac, zamiast czekac na dzwiek albo opuszczac tryb gotowania.
@@ -904,11 +970,14 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
         zatrzymajOdliczanie();
         odliczanie.hidden = true;
+        if (nazwa) nazwa.hidden = true;
         anuluj.hidden = true;
         przycisk.hidden = false;
         przycisk.disabled = false;
-        przycisk.textContent = 'Uruchom minutnik w tej przeglądarce';
-        komunikat.textContent = 'Minutnik anulowany.';
+        if (!wlasny) {
+            przycisk.textContent = 'Uruchom minutnik w tej przeglądarce';
+        }
+        komunikat.textContent = wlasny ? 'Twój minutnik anulowany.' : 'Minutnik anulowany.';
     });
 
     /*
@@ -954,10 +1023,17 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
         odliczanie.hidden = false;
 
+        if (wlasny) {
+            // Wlasny czas zna tylko zapis -- atrybutow bloku nie ma.
+            sekundyCalkiem = stan.sekundyCalkiem;
+            etykieta = etykietaMinut(stan.sekundyCalkiem);
+        }
+
         if (stan.terminMonotoniczny > performance.now()) {
             przycisk.hidden = true;
             anuluj.hidden = false;
-            komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
+            if (nazwa) nazwa.hidden = false;
+            komunikat.textContent = `${opisStartu()} ustawiony na ${etykieta}.`;
             uruchomOdliczanie(stan.terminMonotoniczny);
             return true;
         }
