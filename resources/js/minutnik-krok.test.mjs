@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika, PRZETERMINOWANIE_NAJWYZEJ_MS} from './minutnik-krok.js';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika, PRZETERMINOWANIE_NAJWYZEJ_MS, sprawdzMinutyWlasne, etykietaMinut, WLASNY_MINUTNIK_MAX_MINUT} from './minutnik-krok.js';
 
 test('pozostaloSekund liczy z zegara monotonicznego, nie ze zegara sciennego (issue #751)', () => {
     // Start minutnika: 5 minut = 300 sekund, na dowolnym punkcie zegara
@@ -116,4 +116,54 @@ test('2589: edycja i przeładowanie zachowują termin B, ale nie przypisują go 
         'Stary zapis bez tożsamości nie może wskazać innej czynności');
     // Zmiana samego tytułu przepisu nie jest w odcisku kroku.
     assert.equal(aktualnyKrokMinutnika(odczyt, poEdycji), 1);
+});
+
+// --- Własny minutnik przy kroku bez czasu autora (issue #2595) ---
+
+test('własny minutnik: poprawne minuty dają sekundy, także z odstępami', () => {
+    assert.deepEqual(sprawdzMinutyWlasne('7'), {sekundy: 420});
+    assert.deepEqual(sprawdzMinutyWlasne(' 20 '), {sekundy: 1200});
+    assert.deepEqual(sprawdzMinutyWlasne('1'), {sekundy: 60});
+    assert.deepEqual(sprawdzMinutyWlasne(String(WLASNY_MINUTNIK_MAX_MINUT)), {sekundy: 24 * 3600});
+    assert.equal(etykietaMinut(420), '7 min');
+});
+
+test('własny minutnik: 0, ujemne, ponad 24 godziny i śmieci są odrzucone komunikatem po polsku', () => {
+    for (const zle of ['0', '00', '-5', '-0', '1441', '99999', '', '   ', 'abc', '7,5', '7.5', '1e3', '5 min', null, undefined]) {
+        const wynik = sprawdzMinutyWlasne(zle);
+        assert.equal(wynik.sekundy, undefined, `„${zle}” nie może uruchomić odliczania`);
+        assert.match(wynik.blad, /^[A-ZŻŹĆĄŚĘŁÓŃ].*\.$/u, `„${zle}” musi dać komunikat po polsku`);
+        assert.match(wynik.blad, /minut|ujemna|liczb/);
+    }
+
+    assert.match(sprawdzMinutyWlasne('-5').blad, /ujemna/);
+    assert.match(sprawdzMinutyWlasne('1441').blad, /1440 minut \(24 godziny\)/);
+    assert.match(sprawdzMinutyWlasne('0').blad, /większą od zera/);
+});
+
+test('własny minutnik: ten sam przebieg co minutnik autora (zapis, odtworzenie, pas, koniec)', () => {
+    const {sekundy} = sprawdzMinutyWlasne('7');
+    const tozsamosc = {stepId: '00000000-0000-4000-8000-000000000002', fingerprint: 'b'.repeat(64), krokPierwotny: 2};
+    const klucz = kluczStanu('zupa', 2, tozsamosc.stepId, tozsamosc.fingerprint);
+    const startEpoka = 1_700_000_000_000;
+
+    const zapis = zapiszStan(sekundy, startEpoka + sekundy * 1000, tozsamosc);
+    assert.match(klucz, /^kuking\.minutnik\.zupa\.id_/);
+    assert.equal(krokZKlucza(klucz, 'zupa'), `id_${tozsamosc.stepId}_${tozsamosc.fingerprint}`);
+
+    // Przeładowanie po 100 s: zostaje 320 s, nie pełne 7 minut.
+    const stan = odczytajStan(zapis, startEpoka + 100_000, 50);
+    assert.equal(stan.sekundyCalkiem, 420);
+    assert.equal(pozostaloSekund(stan.terminMonotoniczny, 50), 320);
+    assert.equal(etykietaMinut(stan.sekundyCalkiem), '7 min');
+    assert.equal(formatMinutySekundy(pozostaloSekund(stan.terminMonotoniczny, 50)), '5:20');
+
+    // Pas innych kroków rozpoznaje tożsamość kroku; zmieniony odcisk nie dostaje cudzego alarmu.
+    assert.equal(aktualnyKrokMinutnika(stan, [{id: 'x', fingerprint: 'y'}, {id: tozsamosc.stepId, fingerprint: tozsamosc.fingerprint}]), 2);
+    assert.equal(aktualnyKrokMinutnika(stan, [{id: 'x', fingerprint: 'y'}, {id: tozsamosc.stepId, fingerprint: 'c'.repeat(64)}]), null);
+
+    // Po terminie: spóźniony alarm jeszcze wraca, porzucony już nie.
+    assert.equal(odczytajStan(zapis, startEpoka + 421_000, 0), null);
+    assert.notEqual(odczytajTermin(zapis, startEpoka + 421_000, 0), null);
+    assert.equal(odczytajTermin(zapis, startEpoka + 421_000 + PRZETERMINOWANIE_NAJWYZEJ_MS, 0), null);
 });

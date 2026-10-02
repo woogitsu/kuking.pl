@@ -329,7 +329,7 @@ class CookingModeTest extends TestCase
         $recipe = $this->przepisZKrokami($this->user('autorka30'), 2, minutnikNaPierwszym: 90);
 
         $this->get(route('cooking.show', [$recipe->slug, 'krok' => 2]))
-            ->assertDontSee('data-timer-krok', false)
+            ->assertDontSee('data-timer-sekundy', false)
             ->assertSee('class="cook-alarmy stack"', false)
             ->assertSee('data-alarmy-recipe="'.$recipe->slug.'"', false)
             ->assertSee('data-alarmy-krok="2"', false)

@@ -28,31 +28,37 @@ final class IloscKuchenna
         '¾' => 3 / 4,
     ];
 
-    /** Zaokrąglona wartość — ta sama, którą potem wypisuje `zapis()`. */
-    public static function zaokraglij(float $ile, string $rodzaj): float
+    /**
+     * Zaokrąglona wartość — ta sama, którą potem wypisuje `zapis()`.
+     *
+     * Masę i objętość (g, dag, kg, ml, l) zaokrąglamy ZAWSZE w jednostce
+     * bazowej g/ml, a dopiero potem wracamy do jednostki autora (#2655).
+     * Dzięki temu „0,1 kg” i „100 g” po tym samym mnożniku dają tę samą
+     * fizyczną ilość. `$wspolczynnik` to liczba g/ml w jednostce autora
+     * (dag 10, kg 1000); bez niego kg i l liczymy jako 1000.
+     */
+    public static function zaokraglij(float $ile, string $rodzaj, ?float $wspolczynnik = null): float
     {
         if ($ile <= 0) {
             return 0.0;
         }
 
-        return match ($rodzaj) {
-            JednostkaKuchenna::METRYCZNA => self::doKroku($ile, match (true) {
-                $ile < 1 => 0.1,
-                $ile < 10 => 0.5,
-                $ile < 30 => 1.0,
-                $ile < 100 => 5.0,
-                $ile < 1000 => 10.0,
-                default => 50.0,
-            }),
-            JednostkaKuchenna::METRYCZNA_DUZA => self::doKroku($ile, 0.05),
-            default => self::doUlamka($ile),
-        };
+        if ($rodzaj === JednostkaKuchenna::METRYCZNA || $rodzaj === JednostkaKuchenna::METRYCZNA_DUZA) {
+            $wspolczynnik ??= $rodzaj === JednostkaKuchenna::METRYCZNA_DUZA ? 1000.0 : 1.0;
+            // round(…, 6) wyrównuje szum zmiennoprzecinkowy (0,1 kg × 1000
+            // to 100,00000000000001), żeby oba zapisy trafiały w ten sam krok.
+            $baza = round($ile * $wspolczynnik, 6);
+
+            return round(self::wBazie($baza) / $wspolczynnik, 6);
+        }
+
+        return self::doUlamka($ile);
     }
 
-    /** Zapis po polsku: „260”, „1,25”, „1½”, „¾”. */
-    public static function zapis(float $ile, string $rodzaj): string
+    /** Zapis po polsku: „260”, „1,25”, „0,025”, „1½”, „¾”. */
+    public static function zapis(float $ile, string $rodzaj, ?float $wspolczynnik = null): string
     {
-        $ile = self::zaokraglij($ile, $rodzaj);
+        $ile = self::zaokraglij($ile, $rodzaj, $wspolczynnik);
 
         if ($rodzaj === JednostkaKuchenna::METRYCZNA || $rodzaj === JednostkaKuchenna::METRYCZNA_DUZA) {
             return self::dziesietnie($ile);
@@ -72,6 +78,19 @@ final class IloscKuchenna
         }
 
         return self::dziesietnie($ile);
+    }
+
+    /** Krok kuchenny w gramach albo mililitrach; nigdy poniżej jednego kroku. */
+    private static function wBazie(float $ile): float
+    {
+        return self::doKroku($ile, match (true) {
+            $ile < 1 => 0.1,
+            $ile < 10 => 0.5,
+            $ile < 30 => 1.0,
+            $ile < 100 => 5.0,
+            $ile < 1000 => 10.0,
+            default => 50.0,
+        });
     }
 
     private static function doKroku(float $ile, float $krok): float
@@ -120,6 +139,7 @@ final class IloscKuchenna
 
     private static function dziesietnie(float $ile): string
     {
-        return rtrim(rtrim(number_format($ile, 2, ',', ''), '0'), ',');
+        // Do czterech miejsc: 25 g w kilogramach to 0,025, a 0,5 g — 0,0005.
+        return rtrim(rtrim(number_format($ile, 4, ',', ''), '0'), ',');
     }
 }

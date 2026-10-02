@@ -53,6 +53,13 @@ final class PorcjeNieZmieniajaProcentuSkladnikaTest extends TestCase
 
         $this->assertNotNull($element);
 
+        // Blok „Przelicz” (#2533) to podpowiedź na żądanie, nie tekst składnika.
+        $bloki = (new DOMXPath($dom))->query('.//details[@data-przelicz-miare]', $element);
+        $this->assertNotFalse($bloki);
+        foreach (iterator_to_array($bloki) as $blok) {
+            $blok->parentNode?->removeChild($blok);
+        }
+
         return trim((string) preg_replace('/\s+/u', ' ', $element->textContent));
     }
 }

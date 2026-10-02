@@ -3386,6 +3386,25 @@
     color: var(--color-ink-muted);
   }
 
+  /* „Przelicz” przy składniku (#2533): rozwijany blok bez JS, summary ≥ 48 px,
+     tekst 18 px. */
+  .skladnik-przelicz {
+    margin-top: var(--spacing-1);
+    font-size: var(--text-body);
+  }
+
+  .skladnik-przelicz > summary {
+    cursor: pointer;
+    min-height: var(--control-height-min);
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+  }
+
+  .skladnik-przelicz p {
+    margin: 0 0 var(--spacing-2);
+  }
+
   /* Wybór liczby porcji nad listą składników (D-284). Przyciski mają
      wysokość z `.btn` (≥ 48 px); zawijają się pod siebie przy 320 px
      i przy 200 % powiększenia, zamiast wychodzić poza ekran. */
@@ -5261,6 +5280,44 @@
     box-shadow:
         0 0 0 2px var(--color-accent-tint),
         0 0 0 5px var(--color-accent-tint-ink);
+}
+
+/* Własny minutnik (issue #2595): szybkie czasy i pole „minuty". Przyciski
+   zawijają się w wiersze, więc mieszczą się też przy 320 px i 200% powiększenia. */
+.cook-timer-wybor,
+.cook-timer-formularz {
+    display: grid;
+    gap: var(--spacing-3);
+}
+
+/* Cały tekst wyboru stoi na tle `.cook-timer`: zwykłe kolory `.meta` i etykiety
+   pola mają tu za mały kontrast w ciemnym motywie (axe, color-contrast). Ta sama
+   para tło/tekst co cały blok minutnika: 6,53:1 jasny, 6,98:1 ciemny. */
+.cook-timer-wybor .meta,
+.cook-timer-wybor label {
+    color: var(--color-accent-tint-ink);
+}
+
+/* Błąd „Ile minut?” jest ukryty, dopóki ktoś nie wpisze złej liczby, więc axe
+   go nie widzi. Zwykły --color-danger na tle minutnika daje w ciemnym motywie
+   1,17:1 — dlatego własne tło z pary danger-tint (7,37:1 jasny, 11,11:1 ciemny). */
+.cook-timer-wybor .field-error {
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-md);
+    background-color: var(--color-danger-tint);
+    color: var(--color-danger-tint-ink);
+}
+
+.cook-timer-szybkie {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+}
+
+.cook-timer-wybor[hidden],
+.cook-timer-blad[hidden],
+.cook-timer-nazwa[hidden] {
+    display: none;
 }
 
 .cook-timer-odliczanie {

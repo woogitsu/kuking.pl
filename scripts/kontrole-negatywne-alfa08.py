@@ -2292,6 +2292,15 @@ checks = [
     # Rollback kasuje listy ludzi bez pytania.
     ("Rollback listy zakupów nie odmawia przy danych", ZAKUPY_MIGRACJA, ZAKUPY_ROLLBACK_TEST,
      lambda s: replace_once(s, "        if ($ile === 0) {", "        if (true) {")),
+    # #2593: „Zrobione” w Planerze — własność, kopia tygodnia i rollback.
+    ("Zrobione w Planerze: policy wpuszcza cudzą osobę (#2593)", "app/Policies/MealPlanEntryPolicy.php", "PlanerZrobioneTest",
+     lambda s: replace_once(s, "    public function markDone(User $user, MealPlanEntry $entry): bool\n    {\n        return $user->getKey() === $entry->user_id;", "    public function markDone(User $user, MealPlanEntry $entry): bool\n    {\n        return true;")),
+    ("Zrobione w Planerze: domena nie sprawdza własności (#2593)", "app/Domain/Planer/Actions/OznaczPozycjePlanu.php", "PlanerZrobioneTest",
+     lambda s: replace_once(s, "                ->where('user_id', $swiezy->getKey())\n", "")),
+    ("Zrobione w Planerze: kopia tygodnia przenosi oznaczenie (#2593)", "app/Domain/Planer/Actions/SkopiujPoprzedniTydzien.php", "PlanerZrobioneTest",
+     lambda s: replace_once(s, "                    'label' => $pozycja['wpis']->label,\n", "                    'label' => $pozycja['wpis']->label,\n                    'done_at' => $pozycja['wpis']->done_at,\n")),
+    ("Zrobione w Planerze: rollback nie odmawia przy oznaczeniach (#2593)", "database/migrations/2026_10_02_190200_add_done_at_to_meal_plan_entries.php", "PlanerZrobioneTest",
+     lambda s: replace_once(s, "        if ($oznaczone > 0) {", "        if (false) {")),
     # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
     # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
     ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,

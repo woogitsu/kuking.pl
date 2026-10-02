@@ -1156,6 +1156,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/planer/kopiuj-tydzien', [PlanerController::class, 'copy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.copy');
+    Route::patch('/planer/{wpis}/zrobione', [PlanerController::class, 'markDone'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.done');
     Route::delete('/planer/{wpis}', [PlanerController::class, 'destroy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.destroy');
@@ -1172,6 +1175,11 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/lista-zakupow/odhaczone', [ListaZakupowController::class, 'clear'])
         ->middleware("throttle:{$limits['zakupy']},zakupy")
         ->name('shopping.clear');
+    // „Cofnij usunięcie” (#2630): bez identyfikatora — dotyczy wyłącznie
+    // ostatniej operacji zalogowanej osoby.
+    Route::post('/lista-zakupow/cofnij', [ListaZakupowController::class, 'undo'])
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.undo');
     Route::patch('/lista-zakupow/{pozycja}', [ListaZakupowController::class, 'toggle'])
         ->whereUuid('pozycja')
         ->middleware("throttle:{$limits['zakupy']},zakupy")

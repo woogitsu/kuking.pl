@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Zakupy\ListaZakupow;
 use App\Models\Recipe;
 use App\Models\ShoppingListItem;
+use App\Models\ShoppingListUndo;
 use App\Models\User;
 use App\Support\Czas;
 use App\Support\Komunikat;
@@ -34,9 +35,12 @@ class ListaZakupowController extends Controller
         $user = $request->user();
 
         $pozycje = $lista->pozycje($user);
+        $cofniecie = $lista->oczekujaceCofniecie($user);
 
         return view('pages.zakupy.index', [
             ...ListaZakupow::podziel($pozycje),
+            'cofniecie' => $cofniecie,
+            'cofnijDo' => $cofniecie !== null ? Czas::lokalnie($cofniecie->expires_at)->format('H:i') : null,
             'ile' => count($pozycje),
             'maksPozycji' => ListaZakupow::maksPozycji(),
             'maksZnakow' => ListaZakupow::maksZnakow(),
@@ -162,11 +166,14 @@ class ListaZakupowController extends Controller
         return redirect(route('shopping.index').'#pozycja-'.$pozycja->getKey());
     }
 
-    public function destroy(Request $request, ShoppingListItem $pozycja): RedirectResponse
+    public function destroy(Request $request, ShoppingListItem $pozycja, ListaZakupow $lista): RedirectResponse
     {
         $this->authorize('delete', $pozycja);
 
-        $pozycja->delete();
+        /** @var User $user */
+        $user = $request->user();
+
+        $lista->usunPozycje($user, $pozycja);
 
         return redirect()->route('shopping.index')
             ->with(Komunikat::sukces('Usunięte z listy zakupów: '.$pozycja->text.'.'));
@@ -182,6 +189,41 @@ class ListaZakupowController extends Controller
         return redirect()->route('shopping.index')->with($ile > 0
             ? Komunikat::sukces('Usunięte odhaczone pozycje: '.$ile.'.')
             : Komunikat::informacja('Nie ma odhaczonych pozycji do usunięcia.'));
+    }
+
+    /**
+     * „Cofnij usunięcie” — bez identyfikatora w adresie: dotyczy wyłącznie
+     * ostatniej operacji zalogowanej osoby (jej migawki), więc nie ma czyjego
+     * identyfikatora podstawić. Powtórzone żądanie dostaje „nie ma czego cofać”.
+     */
+    public function undo(Request $request, ListaZakupow $lista): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        try {
+            $wynik = $lista->cofnijUsuniecie($user);
+        } catch (ValidationException $e) {
+            return redirect()->route('shopping.index')->with(Komunikat::blad(
+                (string) collect($e->errors())->flatten()->first(),
+            ));
+        }
+
+        if ($wynik['wynik'] === ListaZakupow::COFNIECIE_BRAK) {
+            return redirect()->route('shopping.index')->with(Komunikat::informacja(
+                'Nie ma już czego cofać: usunięte pozycje zostały przywrócone albo minął czas na cofnięcie ('
+                .ListaZakupow::minutCofniecia().' minut). Jeśli ich brakuje, dopisz je jeszcze raz.',
+            ));
+        }
+
+        $ile = $wynik['przywrocono'];
+        $odhaczone = $wynik['zakres'] === ShoppingListUndo::SCOPE_CHECKED
+            ? ' Wróciły jako odhaczone, w sekcji „Odhaczone”.'
+            : '';
+
+        return redirect()->route('shopping.index')->with(Komunikat::sukces(
+            'Przywrócone pozycje: '.$ile.'.'.$odhaczone,
+        ));
     }
 
     /** Z planera wracamy do planera, ze strony przepisu — na nią. */

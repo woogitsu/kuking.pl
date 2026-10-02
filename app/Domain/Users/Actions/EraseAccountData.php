@@ -312,6 +312,11 @@ final class EraseAccountData
              */
             $fresh->shoppingListItems()->delete();
 
+            // Migawka ostatniego usunięcia z listy (#2630) to kopia tych samych
+            // pozycji — wymazanie konta kasuje ją razem z listą, żeby nic już
+            // nie dało się „cofnąć” po wymazaniu.
+            $fresh->shoppingListUndo()->delete();
+
             /*
              * „CO MAM W DOMU” ZNIKA RAZEM Z KONTEM (D-285).
              *

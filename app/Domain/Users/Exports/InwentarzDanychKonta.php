@@ -102,6 +102,7 @@ final class InwentarzDanychKonta
         'appeals.user_id' => [self::EKSPORT, 'odwolania'],
         'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],
         'shopping_list_items.user_id' => [self::EKSPORT, 'lista_zakupow'],
+        'shopping_list_undos.user_id' => [self::NIE_DOTYCZY, 'Tymczasowa kopia pozycji ostatnio usuniętych z listy zakupów, trzymana najwyżej 15 minut tylko po to, żeby dało się cofnąć usunięcie. To te same pozycje, które były w sekcji lista_zakupow; po tym czasie są kasowane.'],
         'przepisy_z_importu.user_id' => [self::EKSPORT, 'importy_przepisow'],
         'push_subscriptions.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],
         'ustawienia_powiadomien_zewnetrznych.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],

@@ -399,7 +399,7 @@ final class SkalowaniePorcjiNaStroniePrzepisuTest extends TestCase
         $wynik = [];
 
         foreach ($this->xpath($odpowiedz)->query('//ul[@class="ingredient-list"]/li') as $li) {
-            foreach ((new DOMXPath($li->ownerDocument))->query('.//span', $li) as $span) {
+            foreach ((new DOMXPath($li->ownerDocument))->query('.//span | .//details', $li) as $span) {
                 $span->parentNode?->removeChild($span);
             }
 

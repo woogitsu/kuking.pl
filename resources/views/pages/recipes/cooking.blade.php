@@ -159,6 +159,7 @@
                                 <input type="checkbox" class="cook-skladnik-pole" data-przygotowanie-pole @if($skladnikiNaKoncie) name="zaznaczone[]" value="{{ $ingredient->getKey() }}" @checked($przygotowany) @else hidden @endif>
                                 <span class="cook-skladnik-tresc">
                                 @if($przeliczony->zmieniony){{ $przeliczony->przed }}<strong class="skladnik-przeliczony">{{ $przeliczony->ilosc }}</strong>{{ $przeliczony->po }}@else{{ $ingredient->ingredient_text }}@endif
+                                @if($przeliczony->nieprzeliczony)<span class="meta" data-skladnik-suma> — {{ \App\Domain\Recipes\Porcje\PrzeliczonySkladnik::UWAGA_SUMA }}</span>@endif
                                 {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
                                      tego sam w tekście składnika (issue #44).
                                      DOPISEK JEST CELOWY I TYLKO TUTAJ (D-232): to widok
@@ -283,6 +284,41 @@
                         dwa różne czasowniki są jaśniejsze niż jeden
                         przycisk, który zmienia znaczenie w locie.
                     --}}
+                    <button type="button" class="btn btn-secondary btn-cook cook-timer-anuluj" hidden>
+                        Anuluj minutnik
+                    </button>
+                    <p class="visually-hidden cook-timer-komunikat" aria-live="assertive"></p>
+                </div>
+            @else
+                {{--
+                    Własny minutnik (issue #2595, decyzja właściciela z 2.10.2026):
+                    krok BEZ czasu autora. Cały blok jest ukryty bez JavaScriptu
+                    (jak przycisk minutnika autora, D-053) — bez skryptu nie ma
+                    czego uruchomić, a martwych przycisków nie zostawiamy. Nic
+                    nie trafia na konto ani do przepisu; stan jest w tej samej
+                    sesji przeglądarki co minutnik autora, tym samym mechanizmem.
+                --}}
+                <div class="cook-timer cook-timer-wlasny" data-timer-wlasny="1" data-timer-recipe="{{ $recipe->slug }}" data-timer-krok="{{ $krok }}"
+                     data-timer-step-id="{{ $aktualnyKrok->getKey() }}" data-timer-fingerprint="{{ $aktualnyKrok->timerFingerprint() }}" hidden>
+                    <p class="cook-timer-nazwa" hidden><strong>Twój minutnik</strong></p>
+                    <div class="cook-timer-wybor">
+                        <p><strong>Nastaw własny minutnik</strong></p>
+                        <p class="meta">Autor nie podał czasu dla tego kroku. Wybierz swój — zostanie tylko w tej przeglądarce.</p>
+                        <div class="cook-timer-szybkie">
+                            @foreach([5, 10, 15, 20] as $szybkieMinuty)
+                                <button type="button" class="btn btn-secondary btn-cook cook-timer-szybki" data-minuty="{{ $szybkieMinuty }}">{{ $szybkieMinuty }} min</button>
+                            @endforeach
+                        </div>
+                        <form class="cook-timer-formularz" novalidate>
+                            <div class="field">
+                                <label for="f-minutnik-wlasny">Ile minut?</label>
+                                <input class="field-input cook-timer-minuty" type="text" inputmode="numeric" autocomplete="off" id="f-minutnik-wlasny" aria-describedby="f-minutnik-wlasny-blad">
+                                <p class="field-error cook-timer-blad" id="f-minutnik-wlasny-blad" role="alert" hidden></p>
+                            </div>
+                            <button type="submit" class="btn btn-secondary btn-cook">Start</button>
+                        </form>
+                    </div>
+                    <p class="cook-timer-odliczanie" role="timer" aria-label="Pozostały czas" aria-live="off" hidden></p>
                     <button type="button" class="btn btn-secondary btn-cook cook-timer-anuluj" hidden>
                         Anuluj minutnik
                     </button>

@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Przeliczanie miar przy składniku
+
+Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrach, szklankach, łyżkach albo łyżeczkach znajdziecie rozwijany napis „Przelicz”. Po dotknięciu pokazuje to samo w innej jednostce, na przykład 25 dag to 250 g, a pół szklanki to około 125 ml. Przeliczamy tylko wagę na wagę i objętość na objętość — gramów nie zamieniamy na szklanki, bo zależy to od produktu. Przelicznik bierze ilość z wybranej liczby porcji, a tekst przepisu zostaje taki, jak napisał autor.
+
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
 ### Szukaj w moich planach
@@ -59,6 +63,25 @@ temperaturę”. Po jej otwarciu zobaczycie, ile to w drugiej skali, na przykła
 piekarnik, i zawsze opisany jako „około”. Tekst przepisu zostaje taki, jak
 napisał go autor, a samo „180 stopni” bez jednostki nie jest przeliczane.
 Rozwijanie działa bez żadnych ustawień i niczego nie zapisuje.
+
+### Własny minutnik w trybie gotowania
+
+Krok, przy którym autor nie podał czasu, ma teraz „Nastaw własny minutnik”: możecie wybrać 5, 10, 15 lub 20 minut albo wpisać własną liczbę i dotknąć „Start”. Minutnik odlicza i dzwoni tak samo jak ten od autora, i odlicza dalej po przejściu do następnych kroków. Czas zostaje tylko w tej przeglądarce — nie zmienia przepisu.
+
+### Zrobione w Planerze
+
+Przy każdej pozycji planu możesz oznaczyć, że jest już zrobiona, i cofnąć to jednym przyciskiem. Dzięki temu po przygotowaniu części potraw widzisz, co jeszcze zostało, a cały plan zostaje na swoim miejscu. Oznaczenie jest prywatne: nie publikuje „Ugotowałem”, nie powiadamia autora przepisu i nie zmienia nic poza Twoim planem.
+
+### Cofnij usunięcie na liście zakupów
+
+Jeśli na liście zakupów usuniecie pozycję albo klikniecie „Wyczyść odhaczone”
+i zorientujecie się, że to pomyłka, u góry listy zobaczycie informację, co
+zostało usunięte, i przycisk „Cofnij usunięcie”. Działa przez 15 minut, także
+po odświeżeniu strony. Wracają tylko usunięte pozycje: z tym samym tekstem,
+skąd pochodziły i z odhaczeniem, które miały — odhaczone wracają odhaczone,
+a to, co dopisaliście w międzyczasie, zostaje. Pamiętamy tylko ostatnie
+usunięcie, a po 15 minutach kopia znika. Pytanie przed usunięciem zostaje
+jak było.
 
 ### Wskazówki od osób, które ugotowały przepis
 
@@ -341,6 +364,7 @@ zdjęcie i kilka słów przez „Ugotowałem”. Wtedy Wasze wykonanie pojawi si
 stronie obok innych z tego tygodnia, od najnowszego. Tydzień trwa od
 poniedziałku do niedzieli. Niżej są poprzednie tygodnie razem ze zdjęciami
 z tamtych dni. Odnośnik do tej strony jest na „Świeżo z Kuking”.
+
 ### Nowe wpisy w czytniku kanałów
 
 Jeśli korzystacie z czytnika kanałów (na przykład Feedly albo Inoreader), możecie

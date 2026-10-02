@@ -189,6 +189,117 @@ final class PrzeliczSkladnikTest extends TestCase
         $this->assertSame('2¾', IloscKuchenna::zapis(2.8, JednostkaKuchenna::KUCHENNA));
         $this->assertSame('7½', IloscKuchenna::zapis(7.4, JednostkaKuchenna::KUCHENNA));
         $this->assertSame('0,3', IloscKuchenna::zapis(0.26, JednostkaKuchenna::METRYCZNA));
+        $this->assertSame('1,05', IloscKuchenna::zapis(1.05, JednostkaKuchenna::METRYCZNA_DUZA));
+        // #2655: zaokrąglenie liczone w g, nie w kg — 1,04 kg to 1040 g, krok 50 g.
         $this->assertSame('1,05', IloscKuchenna::zapis(1.04, JednostkaKuchenna::METRYCZNA_DUZA));
+        $this->assertSame('1,05', IloscKuchenna::zapis(1.049, JednostkaKuchenna::METRYCZNA_DUZA));
+    }
+
+    /** @return array<string, array{0: string, 1: string, 2: float, 3: string, 4: string}> */
+    public static function rownowazneZapisy(): array
+    {
+        return [
+            'kg i g, ćwiartka' => ['0,1 kg drożdży', '100 g drożdży', 0.25, '0,025 kg drożdży', '25 g drożdży'],
+            'l i ml, ćwiartka' => ['0,1 l mleka', '100 ml mleka', 0.25, '0,025 l mleka', '25 ml mleka'],
+            'kg i g, połowa' => ['0,25 kg cukru', '250 g cukru', 0.5, '0,13 kg cukru', '130 g cukru'],
+            'l i ml, 0,25 l' => ['0,25 l śmietanki', '250 ml śmietanki', 0.5, '0,13 l śmietanki', '130 ml śmietanki'],
+            'dag i g' => ['1 dag drożdży', '10 g drożdży', 0.25, '0,25 dag drożdży', '2,5 g drożdży'],
+            'kg i g, większa ilość' => ['1 kg mąki', '1000 g mąki', 0.25, '0,25 kg mąki', '250 g mąki'],
+            'kg i g, mnożnik ponad jeden' => ['0,3 kg masła', '300 g masła', 1.5, '0,45 kg masła', '450 g masła'],
+            'kg i g, przejście przez 1 kg' => ['0,7 kg mąki', '700 g mąki', 1.6, '1,1 kg mąki', '1100 g mąki'],
+            'zakres kg i g' => ['0,1–0,2 kg soli', '100–200 g soli', 0.25, '0,025–0,05 kg soli', '25–50 g soli'],
+        ];
+    }
+
+    #[DataProvider('rownowazneZapisy')]
+    public function test_ta_sama_masa_w_roznych_jednostkach_daje_ten_sam_wynik(string $wKg, string $wG, float $mnoznik, string $oczekiwanyKg, string $oczekiwanyG): void
+    {
+        $a = PrzeliczSkladnik::przelicz($wKg, false, $mnoznik);
+        $b = PrzeliczSkladnik::przelicz($wG, false, $mnoznik);
+
+        // „PORCJE_2655_ZAOKRAGLENIE_W_BAZIE” — kontrola ujemna: wróć do kroku 0,05 kg.
+        $this->assertSame($oczekiwanyKg, $a->tekst(), 'PORCJE_2655_ZAOKRAGLENIE_W_BAZIE');
+        $this->assertSame($oczekiwanyG, $b->tekst(), 'PORCJE_2655_ZAOKRAGLENIE_W_BAZIE');
+        // Jednostka autora zostaje, a fizyczna ilość jest ta sama.
+        $this->assertEqualsWithDelta(
+            self::wBazie($oczekiwanyKg),
+            self::wBazie($oczekiwanyG),
+            1e-6,
+            'PORCJE_2655_ZAOKRAGLENIE_W_BAZIE',
+        );
+    }
+
+    private static function wBazie(string $tekst): float
+    {
+        preg_match('/^([\d,]+)(?:–([\d,]+))? ?(kg|g|dag|l|ml)/u', $tekst, $m);
+        $wspolczynnik = ['kg' => 1000, 'l' => 1000, 'dag' => 10, 'g' => 1, 'ml' => 1][$m[3]];
+
+        return (float) str_replace(',', '.', $m[2] !== '' ? $m[2] : $m[1]) * $wspolczynnik;
+    }
+
+    /** @return array<string, array{0: string, 1: float}> */
+    public static function sumy(): array
+    {
+        return [
+            'kg i g, ×2' => ['1 kg i 200 g mąki', 2.0],
+            'kg i g, ×0,5' => ['1 kg i 200 g mąki', 0.5],
+            'kg + g' => ['1 kg + 200 g mąki', 2.0],
+            'kg+g bez spacji' => ['1 kg+200 g mąki', 2.0],
+            'kg oraz g' => ['1 kg oraz 200 g mąki', 2.0],
+            'kg plus g' => ['1 kg plus 200 g mąki', 2.0],
+            'kg g bez spójnika' => ['1 kg 200 g mąki', 2.0],
+            'po myślniku' => ['mąka – 1 kg i 200 g', 2.0],
+            'masa z mianem' => ['1 kilogram i 200 gramów mąki', 2.0],
+            'szklanka i łyżki' => ['1 szklanka i 2 łyżki mleka', 2.0],
+            'litr i ml' => ['1 l i 200 ml mleka', 0.5],
+            'mnożenie w nawiasie' => ['500 g (2 × 250 g) mąki', 2.0],
+            'mnożenie z x' => ['500 g (2x250 g)', 2.0],
+            'mnożenie po jednostce w środku zdania' => ['mąka 500 g (2 × 250 g)', 0.5],
+        ];
+    }
+
+    #[DataProvider('sumy')]
+    public function test_suma_ilosci_nie_jest_przeliczana_po_kawalku(string $tekst, float $mnoznik): void
+    {
+        $wynik = PrzeliczSkladnik::przelicz($tekst, false, $mnoznik);
+
+        // „PORCJE_2609_SUMA_BEZ_PRZELICZENIA” — kontrola ujemna: wyłącz `toSuma()`.
+        $this->assertFalse($wynik->zmieniony, 'PORCJE_2609_SUMA_BEZ_PRZELICZENIA');
+        $this->assertTrue($wynik->nieprzeliczony, 'PORCJE_2609_SUMA_BEZ_PRZELICZENIA');
+        $this->assertSame($tekst, $wynik->tekst(), 'PORCJE_2609_SUMA_BEZ_PRZELICZENIA');
+        $this->assertNull(PrzeliczSkladnik::odczytaj($tekst), 'PORCJE_2609_SUMA_BEZ_PRZELICZENIA');
+    }
+
+    /** @return array<string, array{0: string, 1: float, 2: string}> */
+    public static function niesumy(): array
+    {
+        return [
+            'opakowanie z gramaturą' => ['2 puszki (po 400 g)', 2.0, '4 puszki (po 400 g)'],
+            'opakowanie, gramatura w nawiasie' => ['2 puszki pomidorów (400 g)', 0.5, '1 puszka pomidorów (400 g)'],
+            'dwa produkty przez „i”' => ['2 jajka i 200 g mąki', 2.0, '4 jajka i 200 g mąki'],
+            'inna wielkość: masa i objętość' => ['200 g masła i 100 ml mleka', 2.0, '400 g masła i 100 ml mleka'],
+            'dwa produkty, słowo między' => ['200 g mąki i 100 g cukru', 2.0, '400 g mąki i 100 g cukru'],
+            'zakres to nie suma' => ['2–3 łyżki oleju', 2.0, '4–6 łyżek oleju'],
+            'typ mąki' => ['500 g mąki typ 650', 2.0, '1000 g mąki typ 650'],
+            'nawias bez mnożenia' => ['500 g (przesianej)', 2.0, '1000 g (przesianej)'],
+        ];
+    }
+
+    #[DataProvider('niesumy')]
+    public function test_nie_sumy_sa_przeliczane_jak_dotad(string $tekst, float $mnoznik, string $oczekiwany): void
+    {
+        $wynik = PrzeliczSkladnik::przelicz($tekst, false, $mnoznik);
+
+        $this->assertTrue($wynik->zmieniony, $tekst);
+        $this->assertFalse($wynik->nieprzeliczony, $tekst);
+        $this->assertSame($oczekiwany, $wynik->tekst());
+    }
+
+    public function test_przy_mnozniku_jeden_suma_nie_ma_uwagi(): void
+    {
+        $wynik = PrzeliczSkladnik::przelicz('1 kg i 200 g mąki', false, 1.0);
+
+        $this->assertFalse($wynik->nieprzeliczony);
+        $this->assertSame('1 kg i 200 g mąki', $wynik->tekst());
     }
 }
