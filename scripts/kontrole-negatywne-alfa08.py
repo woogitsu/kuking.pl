@@ -1291,7 +1291,7 @@ checks = [
          "(\\d{1,4}(?:[.,]\\d{1,2})?)",
          "(\\d{1,3})")),
     ("Porcje numeryczne poza granicami formularza (#2539)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
-     "test_tekstowe_ulamkowe_porcje_sa_rownowazne_liczbie_bez_zgadywania_jednostek",
+     "test_numeryczne_porcje_respektuja_granice_i_precyzje_formularza",
      lambda s: replace_once(s,
          "! is_finite($liczba) || $liczba < 0.5 || $liczba > 999 || round($liczba, 2) !== $liczba",
          "$liczba <= 0 || $liczba > 1000")),

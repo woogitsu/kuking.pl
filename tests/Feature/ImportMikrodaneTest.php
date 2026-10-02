@@ -113,9 +113,10 @@ final class ImportMikrodaneTest extends TestCase
 
         $przepis = $this->parser()->odczytaj($html);
 
-        $this->assertSame(['200 g mąki', '1 jajko'], $przepis?->skladniki, 'MICRODATA_META_SKLADNIK');
-        $this->assertSame(['Wymieszaj.', 'Upiecz.'], $przepis?->kroki, 'MICRODATA_META_KROK');
-        $this->assertSame(1.25, $przepis?->porcje);
+        $this->assertNotNull($przepis, 'MICRODATA_META_SKLADNIK');
+        $this->assertSame(['200 g mąki', '1 jajko'], $przepis->skladniki, 'MICRODATA_META_SKLADNIK');
+        $this->assertSame(['Wymieszaj.', 'Upiecz.'], $przepis->kroki, 'MICRODATA_META_KROK');
+        $this->assertSame(1.25, $przepis->porcje);
     }
 
     public function test_zagniezdzone_itemscope_nie_miesza_sie_z_polami_przepisu(): void

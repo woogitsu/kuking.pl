@@ -135,9 +135,10 @@ final class ImportParseryTest extends TestCase
 
         $przepis = (new ParserJsonLdPrzepisu)->odczytaj($html);
 
-        $this->assertSame('Pełny', $przepis?->tytul, 'JSONLD_PUSTY_NIE_ZASLANIA');
-        $this->assertSame(['mąka'], $przepis?->skladniki);
-        $this->assertSame(['Wymieszaj.'], $przepis?->kroki);
+        $this->assertNotNull($przepis, 'JSONLD_PUSTY_NIE_ZASLANIA');
+        $this->assertSame('Pełny', $przepis->tytul, 'JSONLD_PUSTY_NIE_ZASLANIA');
+        $this->assertSame(['mąka'], $przepis->skladniki);
+        $this->assertSame(['Wymieszaj.'], $przepis->kroki);
     }
 
     public function test_zagniezdzona_lista_pomija_pusty_recipe_i_nie_miesza_pol(): void
@@ -152,9 +153,10 @@ final class ImportParseryTest extends TestCase
 
         $przepis = (new ParserJsonLdPrzepisu)->odczytaj($html);
 
-        $this->assertSame('Drugi', $przepis?->tytul);
-        $this->assertSame([], $przepis?->skladniki);
-        $this->assertSame(['Gotuj.'], $przepis?->kroki);
+        $this->assertNotNull($przepis);
+        $this->assertSame('Drugi', $przepis->tytul);
+        $this->assertSame([], $przepis->skladniki);
+        $this->assertSame(['Gotuj.'], $przepis->kroki);
         $this->assertStringNotContainsString('obraz.jpg', serialize($przepis));
     }
 
@@ -170,6 +172,13 @@ final class ImportParseryTest extends TestCase
         foreach (['1.251 porcji', '4-6', '1 blacha', '0 porcji', '0,49 porcji', '1000 porcji', '999,01 porcji'] as $niejednoznaczne) {
             $this->assertNull(ParserJsonLdPrzepisu::porcje($niejednoznaczne));
         }
+    }
+
+    public function test_numeryczne_porcje_respektuja_granice_i_precyzje_formularza(): void
+    {
+        $this->assertSame(0.5, ParserJsonLdPrzepisu::porcje(0.5));
+        $this->assertSame(1.25, ParserJsonLdPrzepisu::porcje(1.25));
+        $this->assertSame(999.0, ParserJsonLdPrzepisu::porcje(999));
         foreach ([0.49, 1000, 1.251, INF, NAN] as $pozaFormularzem) {
             $this->assertNull(ParserJsonLdPrzepisu::porcje($pozaFormularzem), 'PORCJE_NUMERYCZNE_ZGODNE_Z_FORMULARZEM');
         }
