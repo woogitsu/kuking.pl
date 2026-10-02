@@ -287,6 +287,19 @@ on:
   pull_request:
     # Po zmianie podstawy PR scal gałąź integracyjną do jego headu.
     # `synchronize` uruchomi CI wyniku połączenia bez przebiegu przy edycji opisu.
+    #
+    # DRAFT = ZAKRES SKRÓCONY (decyzja właściciela z 2.10.2026, wiersz D-333,
+    # przygotowanie do repozytorium prywatnego i własnych runnerów). Pomiar
+    # z 2.10.2026: w 12,5 h 3509 jobów, ok. 28 000 minut, średnio 34 joby
+    # naraz, szczyt 157 — prawie wszystko to CI na DRAFT PR-ach agentów do
+    # `codex/integracja-*`, które nigdy nie są scalane bezpośrednio (scalamy
+    # paczki, a paczka ma pełne CI). Na drafcie bramka `zakres` wystawia
+    # `pelny=false` i biegną tylko: Pint, Larastan, testy w częściach 1–4
+    # i agregat `testy`. `ready_for_review` jest tu JAWNIE: oznaczenie PR-a
+    # jako gotowego uruchamia pełny przebieg bez dodatkowego pusha. Lista
+    # `types` powtarza trzy domyślne (`opened`, `synchronize`, `reopened`) —
+    # bez nich jawne `types` by je wyłączyło.
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main, staging, 'codex/integracja-*']
   # Zostaje obok wyzwalaczy automatycznych: pozwala puścić przebieg ręcznie
   # (Actions → CI → Run workflow) bez pustego commita — przydaje się przy
@@ -344,6 +357,15 @@ jobs:
   #  UWAGA PRZY SCALANIU: od tej zmiany „Testy (PostgreSQL 18)" mogą stać
   #  jako `skipped`, i to jest poprawny stan dla zmiany w samej dokumentacji.
   #  Kryterium scalenia brzmi więc „zielone ALBO pominięte", nie „zielone".
+  #
+  #  DRAFT PR (decyzja właściciela z 2.10.2026, wiersz D-333): siódme wyjście
+  #  `pelny` jest `false` WYŁĄCZNIE na draft PR-ze. Pomiar z 2.10.2026: 3509
+  #  jobów i ok. 28 000 minut w 12,5 h (średnio 34 joby naraz, szczyt 157),
+  #  prawie wszystko na draftach agentów do `codex/integracja-*`, których nie
+  #  scalamy bezpośrednio. Na drafcie biegną tylko Pint, Larastan, testy 1–4
+  #  i agregat `testy`; reszta ciężkich jobów ma w `if:` dodatkowo
+  #  `&& needs.zakres.outputs.pelny == 'true'`, a kontrole negatywne wypadają
+  #  z `include` macierzy. Pilnuje `CiNaDrafcieMaSkroconyZakresTest`.
   # ===========================================================================
   zakres:
     name: Zakres zmiany
@@ -356,6 +378,10 @@ jobs:
       obraz: ${{ steps.sprawdz.outputs.obraz }}
       obciazenie: ${{ steps.sprawdz.outputs.obciazenie }}
       wyscigi: ${{ steps.sprawdz.outputs.wyscigi }}
+      # `false` WYŁĄCZNIE na draft PR-ze (2.10.2026, D-333): wtedy ciężkie joby
+      # i części „kontrole negatywne" są pominięte. Push, PR nie-draft
+      # i `workflow_dispatch` dają zawsze `true`. Reguła: scripts/ci/zakres.sh.
+      pelny: ${{ steps.sprawdz.outputs.pelny }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -369,6 +395,8 @@ jobs:
           BAZA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           # Zawężanie ciężkich jobów obowiązuje WYŁĄCZNIE na PR-ach (w skrypcie).
           ZDARZENIE: ${{ github.event_name }}
+          # Draft PR -> `pelny=false` (zakres skrócony, 2.10.2026). Poza PR-em puste.
+          DRAFT: ${{ github.event.pull_request.draft }}
         # Cała logika bramki (sześć wyjść) żyje w skrypcie — #611 etap 5.
         # Test i tabela przypadków: tests/skrypty/zakres.sh.
         run: bash scripts/ci/zakres.sh
@@ -400,23 +428,35 @@ jobs:
           OBRAZ: ${{ steps.sprawdz.outputs.obraz }}
           OBCIAZENIE: ${{ steps.sprawdz.outputs.obciazenie }}
           WYSCIGI: ${{ steps.sprawdz.outputs.wyscigi }}
+          PELNY: ${{ steps.sprawdz.outputs.pelny }}
         run: |
           set -euo pipefail
+          # `P` = czy przebieg jest pełny (nie draft). Na drafcie ciężkie joby
+          # stoją jako POMINIĘTE niezależnie od pozostałych wyjść.
+          P=$([ "${PELNY}" = true ] && echo true || echo false)
           {
             echo "### Zakres tego przebiegu"
             echo
             echo "| wyjście bramki | wartość | co z tego wynika |"
             echo "| --- | --- | --- |"
-            echo "| \`kod\` | ${KOD} | ciężkie joby: $([ "${KOD}" = true ] && echo 'chodzą' || echo 'POMINIĘTE') |"
-            echo "| \`widok\` | ${WIDOK} | joby przeglądarkowe: $([ "${WIDOK}" = true ] && echo 'chodzą' || echo 'POMINIĘTE') |"
-            echo "| \`dokumenty\` | ${DOKUMENTY} | Pint i zestaw testów: $([ "${KOD}" = true ] || [ "${DOKUMENTY}" = true ] && echo 'chodzą' || echo 'POMINIĘTE') |"
-            echo "| \`obraz\` | ${OBRAZ} | build obrazu: $([ "${KOD}" = true ] && [ "${OBRAZ}" = true ] && echo 'chodzi' || echo 'POMINIĘTY') |"
-            echo "| \`obciazenie\` | ${OBCIAZENIE} | przyrząd #605: $([ "${KOD}" = true ] && [ "${OBCIAZENIE}" = true ] && echo 'chodzi' || echo 'POMINIĘTY') |"
-            echo "| \`wyscigi\` | ${WYSCIGI} | wyścigi na dwóch połączeniach: $([ "${KOD}" = true ] && [ "${WYSCIGI}" = true ] && echo 'chodzą' || echo 'POMINIĘTE') |"
+            echo "| \`pelny\` | ${PELNY} | $([ "${P}" = true ] && echo 'pełny przebieg' || echo 'DRAFT — zakres skrócony: tylko Pint, Larastan i testy 1–4; kontrole negatywne i ciężkie joby POMINIĘTE') |"
+            echo "| \`kod\` | ${KOD} | ciężkie joby: $([ "${KOD}" = true ] && [ "${P}" = true ] && echo 'chodzą' || echo 'POMINIĘTE') |"
+            echo "| \`widok\` | ${WIDOK} | joby przeglądarkowe: $([ "${WIDOK}" = true ] && [ "${P}" = true ] && echo 'chodzą' || echo 'POMINIĘTE') |"
+            echo "| \`dokumenty\` | ${DOKUMENTY} | Pint i zestaw testów: $([ "${KOD}" = true ] || [ "${DOKUMENTY}" = true ] && echo 'chodzą' || echo 'POMINIĘTE')$([ "${P}" = true ] || echo ' (testy bez kontroli negatywnych)') |"
+            echo "| \`obraz\` | ${OBRAZ} | build obrazu: $([ "${KOD}" = true ] && [ "${OBRAZ}" = true ] && [ "${P}" = true ] && echo 'chodzi' || echo 'POMINIĘTY') |"
+            echo "| \`obciazenie\` | ${OBCIAZENIE} | przyrząd #605: $([ "${KOD}" = true ] && [ "${OBCIAZENIE}" = true ] && [ "${P}" = true ] && echo 'chodzi' || echo 'POMINIĘTY') |"
+            echo "| \`wyscigi\` | ${WYSCIGI} | wyścigi na dwóch połączeniach: $([ "${KOD}" = true ] && [ "${WYSCIGI}" = true ] && [ "${P}" = true ] && echo 'chodzą' || echo 'POMINIĘTE') |"
             echo
             if [ "${KOD}" != true ]; then
               echo "> **Uwaga:** to nie jest pełny przebieg. Zielony wynik znaczy tu"
               echo "> tyle, ile zmierzyły joby wymienione wyżej jako chodzące."
+            fi
+            if [ "${P}" != true ]; then
+              echo "> **Uwaga: draft — zakres skrócony.** To nie jest pełny przebieg."
+              echo "> Zielony wynik znaczy tylko: Pint, Larastan i testy w częściach 1–4."
+              echo "> Kontrole negatywne, joby przeglądarkowe, build obrazu i assetów,"
+              echo "> audyt, wyścigi i przyrząd #605 ruszą po oznaczeniu PR-a jako gotowego"
+              echo "> (\`ready_for_review\`). Draftów do \`codex/integracja-*\` nie scalamy."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -561,7 +601,7 @@ jobs:
     name: Przyrząd testu obciążeniowego (#605)
     needs: zakres
     # Na PR-ze tylko przy zmianie `scripts/*605*`, `scripts/fixtures/obciazenie605/` albo `ci.yml` (wyjście `obciazenie`).
-    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.obciazenie == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.obciazenie == 'true' && needs.zakres.outputs.pelny == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
@@ -736,13 +776,17 @@ jobs:
       matrix:
         czesc: [1, 2, 3, 4]
         # Trzy równoległe części kontroli negatywnych (`--czesc N/3` niżej).
-        include:
-          - czesc: kontrole
-            kontrole_czesc: 1
-          - czesc: kontrole
-            kontrole_czesc: 2
-          - czesc: kontrole
-            kontrole_czesc: 3
+        #
+        # NA DRAFCIE ICH NIE MA (2.10.2026, D-333): `include` jest wyrażeniem,
+        # które przy `pelny != 'true'` daje pustą listę — macierz ma wtedy
+        # tylko części 1–4 i GitHub w ogóle nie tworzy jobów kontroli (nie
+        # zajmują runnera nawet na start usługi Postgresa). `if:` na poziomie
+        # joba nie widzi `matrix`, a `exclude` nie usuwa wpisów `include`,
+        # dlatego warunek stoi tutaj. Na pełnym przebiegu lista jest stała:
+        # trzy części, `kontrole_czesc` 1..3. Pilnują tego
+        # `PodzialTestowJestKompletnyTest`, `scripts/test_podzial_kontroli.py`
+        # i `CiNaDrafcieMaSkroconyZakresTest`.
+        include: ${{ fromJSON(needs.zakres.outputs.pelny == 'true' && '[{"czesc":"kontrole","kontrole_czesc":1},{"czesc":"kontrole","kontrole_czesc":2},{"czesc":"kontrole","kontrole_czesc":3}]' || '[]') }}
 
     services:
       postgres:
@@ -992,6 +1036,9 @@ jobs:
   #      za niewymagającą testów (kod i dokumenty różne od `true`). Dotąd
   #      wymagany check stał wtedy jako `skipped`; teraz jest zielony z tym
   #      samym uzasadnieniem w podsumowaniu.
+  #  NA DRAFCIE (2.10.2026, D-333) macierz ma tylko części 1–4 (kontroli
+  #  negatywnych nie ma w `include`), więc `success` znaczy „1–4 zielone";
+  #  podsumowanie i adnotacja mówią wtedy „draft — zakres skrócony".
   #  Każdy inny stan — czerwona albo anulowana część, pominięcie z innego
   #  powodu (np. padnięta bramka `zakres`) — jest czerwony. `!cancelled()`,
   #  a nie `always()`: job rusza także po czerwieni części (o to chodzi),
@@ -1009,10 +1056,31 @@ jobs:
           WYNIK_ZAKRESU: ${{ needs.zakres.result }}
           KOD: ${{ needs.zakres.outputs.kod }}
           DOKUMENTY: ${{ needs.zakres.outputs.dokumenty }}
+          PELNY: ${{ needs.zakres.outputs.pelny }}
           WYNIK_TESTOW: ${{ needs.test.result }}
         run: |
           set -euo pipefail
-          echo "zakres=${WYNIK_ZAKRESU} (kod=${KOD}, dokumenty=${DOKUMENTY}), części testów=${WYNIK_TESTOW}"
+          echo "zakres=${WYNIK_ZAKRESU} (kod=${KOD}, dokumenty=${DOKUMENTY}, pelny=${PELNY}), części testów=${WYNIK_TESTOW}"
+          # Draft (2.10.2026, D-333): macierz ma tylko części 1–4, kontroli
+          # negatywnych NIE MA. Zieleń jest uczciwa, ale skrócona — i tak ją
+          # opisujemy. Na pełnym przebiegu (`pelny=true`) `success` obejmuje
+          # wszystkie siedem jobów macierzy, jak dotąd. Brak albo dziwna wartość
+          # `pelny` jest CZERWONA: macierz bez `pelny == 'true'` nie ma kontroli
+          # negatywnych, więc „zielone" znaczyłoby tu „pominięte po cichu".
+          if [ "${PELNY}" != "true" ] && [ "${PELNY}" != "false" ]; then
+            echo "::error::Bramka zakres nie wystawiła wyjścia pelny (jest: '${PELNY}') — nie wiadomo, czy kontrole negatywne biegły."
+            exit 1
+          fi
+          if [ "${WYNIK_TESTOW}" = "success" ] && [ "${PELNY}" = "false" ]; then
+            {
+              echo "### Testy (PostgreSQL 18): draft — zakres skrócony"
+              echo
+              echo "Części 1–4 zielone. Kontrole negatywne (trzy części) POMINIĘTE na drafcie —"
+              echo "ruszą po oznaczeniu PR-a jako gotowego (\`ready_for_review\`)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice title=Draft — zakres skrócony::Testy 1–4 zielone, kontrole negatywne pominięte (draft PR)."
+            exit 0
+          fi
           if [ "${WYNIK_TESTOW}" = "success" ]; then
             echo "### Testy (PostgreSQL 18): wszystkie części zielone" >> "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -1051,7 +1119,7 @@ jobs:
     name: Wyścigi na dwóch połączeniach
     needs: zakres
     # Na PR-ze tylko przy zmianie kodu, danych albo zaplecza tej grupy (wyjście `wyscigi`).
-    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.wyscigi == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.wyscigi == 'true' && needs.zakres.outputs.pelny == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
 
@@ -1133,7 +1201,7 @@ jobs:
   assets:
     name: Build assetów (Vite)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.pelny == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
@@ -1346,7 +1414,7 @@ jobs:
   port_panelu:
     name: Panel marki — puste i pełne widoki (część ${{ matrix.czesc }}/2)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true' && needs.zakres.outputs.pelny == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
     strategy:
@@ -1503,7 +1571,10 @@ jobs:
   #    - obie części `port_panelu` są `success`, albo
   #    - `port_panelu` jest `skipped`, bo bramka `zakres` (sama zielona)
   #      uznała, że zmiana nie dotyka kodu albo warstwy widoku — dokładnie
-  #      ten stan, w którym dawny job też był `skipped`.
+  #      ten stan, w którym dawny job też był `skipped`, albo
+  #    - `port_panelu` jest `skipped` na DRAFT PR-ze: bramka (zielona)
+  #      orzekła `pelny=false` (2.10.2026, D-333) — podsumowanie mówi
+  #      „draft — zakres skrócony".
   #  Każdy inny stan (czerwona albo anulowana część, pominięcie z innego
   #  powodu) jest czerwony. `!cancelled()`: rusza także po czerwieni części.
   # ===========================================================================
@@ -1519,12 +1590,22 @@ jobs:
           WYNIK_ZAKRESU: ${{ needs.zakres.result }}
           KOD: ${{ needs.zakres.outputs.kod }}
           WIDOK: ${{ needs.zakres.outputs.widok }}
+          PELNY: ${{ needs.zakres.outputs.pelny }}
           WYNIK_PANELU: ${{ needs.port_panelu.result }}
         run: |
           set -euo pipefail
-          echo "zakres=${WYNIK_ZAKRESU} (kod=${KOD}, widok=${WIDOK}), części panelu=${WYNIK_PANELU}"
+          echo "zakres=${WYNIK_ZAKRESU} (kod=${KOD}, widok=${WIDOK}, pelny=${PELNY}), części panelu=${WYNIK_PANELU}"
           if [ "${WYNIK_PANELU}" = "success" ]; then
             echo "### Panel marki: obie części zielone" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Draft (2.10.2026, D-333): `port_panelu` jest pomijany na drafcie.
+          # Pominięcie jest uczciwe TYLKO, gdy bramka sama jest zielona i jawnie
+          # orzekła `pelny=false`; na pełnym przebiegu ta gałąź nie trafia.
+          if [ "${WYNIK_PANELU}" = "skipped" ] && [ "${WYNIK_ZAKRESU}" = "success" ] \
+            && [ "${PELNY}" = "false" ]; then
+            echo "### Panel marki: draft — zakres skrócony (panel ruszy po \`ready_for_review\`)" >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice title=Draft — zakres skrócony::Panel marki pominięty na draft PR-ze."
             exit 0
           fi
           if [ "${WYNIK_PANELU}" = "skipped" ] && [ "${WYNIK_ZAKRESU}" = "success" ] \
@@ -1538,7 +1619,7 @@ jobs:
   port_marki:
     name: Port marki (kompozycje, zoom i kontrole ujemne)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true' && needs.zakres.outputs.pelny == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
 
@@ -1725,7 +1806,7 @@ jobs:
   port_funkcje:
     name: Port marki — rodziny ekranów, zoom i kreator (część ${{ matrix.czesc }}/2)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true' && needs.zakres.outputs.pelny == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_BROWSER_MAIN) || vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
     # #611, etap 9: jeden kawałek trwał 25-30 min (limit 35 min po przebiegu
     # 35241344523), więc dwie części macierzy po ok. 13-15 min każda; limit
@@ -1920,7 +2001,7 @@ jobs:
   dostepnosc:
     name: Dostępność (axe-core) i wydajność (Lighthouse)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true' && needs.zakres.outputs.pelny == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
 
@@ -2338,7 +2419,7 @@ jobs:
   kaskada:
     name: Martwe reguły CSS (nie blokuje do 06.10.2026)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true' && needs.zakres.outputs.pelny == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
     continue-on-error: true
@@ -2468,7 +2549,7 @@ jobs:
   audit:
     name: Audyt zależności (blokuje high i critical)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.pelny == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
@@ -2531,7 +2612,7 @@ jobs:
     name: Build obrazu (weryfikacja)
     needs: zakres
     # Na PR-ze tylko przy zmianie tego, co czyta build obrazu (wyjście `obraz`).
-    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.obraz == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.obraz == 'true' && needs.zakres.outputs.pelny == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
 

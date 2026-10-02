@@ -6,11 +6,12 @@
 #  to ~11 tys. znaków powłoki w `run: |`, które testy wyjmowały z `ci.yml`
 #  tekstem. Teraz da się je uruchomić lokalnie na liście ścieżek, sprawdzić
 #  `shellcheck`-iem i przetestować wprost: `bash tests/skrypty/zakres.sh`
-#  (tabela: lista zmienionych plików -> sześć wyjść, plus kontrola ujemna
+#  (tabela: lista zmienionych plików -> siedem wyjść, plus kontrola ujemna
 #  na każdym wyjściu).
 #
 #  ZACHOWANIE JEST IDENTYCZNE Z WERSJĄ Z `ci.yml`: te same sześć wyjść
 #  (kod, widok, dokumenty, obraz, obciazenie, wyscigi) i te same reguły.
+#  Od 2.10.2026 jest SIÓDME, `pelny` (draft PR = zakres skrócony, niżej).
 #  Nowe są dwie rzeczy: `scripts/ci/` stoi w filtrach „zmiana przyrządu =
 #  mierz wszystko" (zmiana tego pliku nie może obejść bramki), oraz tryb
 #  testowy opisany niżej.
@@ -18,6 +19,8 @@
 #  WEJŚCIE (zmienne środowiska, ustawia je krok w `ci.yml`):
 #    BAZA       — SHA bazy porównania (PR: baza PR-a, push: `event.before`);
 #    ZDARZENIE  — `github.event_name`; zawężanie ciężkich jobów tylko na PR-ach;
+#    DRAFT      — `github.event.pull_request.draft` (`true` na drafcie, puste
+#                 poza PR-em); steruje SIÓDMYM wyjściem `pelny` (niżej);
 #    GITHUB_OUTPUT — plik wyjść kroku.
 #  TRYB TESTOWY: gdy ustawione `ZAKRES_LISTA_PLIK`, lista zmienionych plików
 #  idzie z tego pliku (jedna ścieżka na wiersz), a `BAZA` i `git` nie są
@@ -26,6 +29,32 @@
 #  środowiska (128 kB), a strażnik SIGPIPE-a używa listy 450 kB.
 # =============================================================================
 set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# WYJŚCIE `pelny` — CZY TO JEST PEŁNY PRZEBIEG (decyzja właściciela z 2.10.2026,
+# bez nowego numeru D; wiersz w D-333).
+#
+# PO CO: pomiar z 2.10.2026 — w 12,5 h 3509 jobów, ok. 28 000 minut runnera,
+# średnio 34 joby naraz, szczyt 157. Prawie całość to `CI` na DRAFT PR-ach
+# agentów do `codex/integracja-*`, które NIGDY nie są scalane bezpośrednio:
+# scalamy paczki, a paczka ma pełne CI. Na drafcie biegną więc tylko szybkie
+# kontrole (Pint, Larastan, testy w częściach 1–4); kontrole negatywne
+# i ciężkie joby przeglądarkowe, obrazu, audytu itd. czekają na „ready".
+#
+# `pelny=false` WYŁĄCZNIE gdy zdarzenie to `pull_request` I `DRAFT` brzmi
+# dokładnie `true`. Każdy inny przypadek — push na main/staging/integrację,
+# PR nie-draft, `workflow_dispatch`, brak `ZDARZENIE` albo `DRAFT` — daje
+# `pelny=true`: pomyłka w konfiguracji ma dać nadmiarowy przebieg, nie
+# pominięty pomiar. Zapisane NA POCZĄTKU, żeby ścieżki „brak bazy" niżej
+# (które kończą skrypt wcześniej) też je wystawiały.
+# Tabela i kontrola ujemna: tests/skrypty/zakres.sh; joby na drafcie:
+# tests/Feature/CiNaDrafcieMaSkroconyZakresTest.php.
+if [ "${ZDARZENIE:-}" = "pull_request" ] && [ "${DRAFT:-}" = "true" ]; then
+  echo "Draft PR — zakres skrócony (Pint, Larastan, testy 1–4)."
+  echo "pelny=false" >> "$GITHUB_OUTPUT"
+else
+  echo "pelny=true" >> "$GITHUB_OUTPUT"
+fi
 
 # Tryb testowy (patrz nagłówek): lista z pliku zamiast z `git diff`.
 if [ -n "${ZAKRES_LISTA_PLIK:-}" ]; then

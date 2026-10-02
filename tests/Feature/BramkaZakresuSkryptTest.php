@@ -14,14 +14,15 @@ use Tests\TestCase;
  * Do etapu 5 bramka była ~11 tys. znaków powłoki w `run: |` i strażnicy
  * wyjmowali ją z YAML-a tekstem. Teraz to osobny plik:
  *
- *   - tabelę przypadków (lista plików -> sześć wyjść) i kontrolę ujemną na
+ *   - tabelę przypadków (lista plików -> siedem wyjść) i kontrolę ujemną na
  *     każdym wyjściu trzyma `tests/skrypty/zakres.sh` — tu jest ona uruchamiana
  *     w zestawie PHPUnit, obok `scripts/kontrole-powloki.sh` (check.sh i CI);
  *   - ścieżkę z PRAWDZIWĄ bazą porównania (diff między commitami) sprawdzamy
  *     tu, na tymczasowym repozytorium, bo test powłoki nie wywołuje gita;
- *   - krok w `ci.yml` ma wołać ten plik i dawać mu wejście (BAZA, ZDARZENIE).
+ *   - krok w `ci.yml` ma wołać ten plik i dawać mu wejście (BAZA, ZDARZENIE,
+ *     od 2.10.2026 także DRAFT — wyjście `pelny`, D-333).
  *
- * @bez-kontroli-dodatniej Uruchamia skrypt bramki i asertuje na jego wyjściu i kodzie wyjścia; kontrolę ujemną (mutacja każdego z sześciu wyjść musi zapalić tabelę) robi sam przyrząd `tests/skrypty/zakres.sh`, a nie treść źródła aplikacji.
+ * @bez-kontroli-dodatniej Uruchamia skrypt bramki i asertuje na jego wyjściu i kodzie wyjścia; kontrolę ujemną (mutacja każdego z siedmiu wyjść musi zapalić tabelę) robi sam przyrząd `tests/skrypty/zakres.sh`, a nie treść źródła aplikacji.
  */
 #[Group('ci')]
 class BramkaZakresuSkryptTest extends TestCase
@@ -31,15 +32,18 @@ class BramkaZakresuSkryptTest extends TestCase
     public function test_tabela_przypadkow_i_kontrola_ujemna_na_kazdym_wyjsciu_przechodza(): void
     {
         $proces = new Process(['bash', 'tests/skrypty/zakres.sh'], base_path());
-        $proces->setTimeout(120);
+        // 240 s, nie 120: od 2.10.2026 tabela ma wiersze draftu i kontrolę
+        // ujemną wyjścia `pelny` (ok. 1,7 raza więcej uruchomień skryptu);
+        // na obciążonej maszynie lokalnej 120 s bywało za mało.
+        $proces->setTimeout(240);
         $proces->run();
 
         $this->assertSame(0, $proces->getExitCode(), $proces->getOutput().$proces->getErrorOutput());
         $this->assertStringContainsString('Bramka zakres: OK', $proces->getOutput());
 
         // Kontrola dodatnia przyrządu: test powłoki naprawdę zrobił kontrolę
-        // ujemną na każdym z sześciu wyjść, a nie zakończył się po cichu.
-        foreach (['kod', 'widok', 'dokumenty', 'obraz', 'obciazenie', 'wyscigi'] as $wyjscie) {
+        // ujemną na każdym z siedmiu wyjść, a nie zakończył się po cichu.
+        foreach (['kod', 'widok', 'dokumenty', 'obraz', 'obciazenie', 'wyscigi', 'pelny'] as $wyjscie) {
             $this->assertStringContainsString("wyjście {$wyjscie}: mutacja zapaliła tabelę", $proces->getOutput());
         }
     }
@@ -61,13 +65,13 @@ class BramkaZakresuSkryptTest extends TestCase
             file_put_contents($repo.'/docs/A.md', "b\n");
             $this->uruchom($repo, ['git', '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-am', 'b']);
             $this->assertEquals(
-                ['kod' => 'false', 'widok' => 'false', 'dokumenty' => 'true', 'obraz' => 'false', 'obciazenie' => 'false', 'wyscigi' => 'false'],
+                ['kod' => 'false', 'widok' => 'false', 'dokumenty' => 'true', 'obraz' => 'false', 'obciazenie' => 'false', 'wyscigi' => 'false', 'pelny' => 'true'],
                 $this->wyjscia($repo, $baza, 'pull_request'),
             );
 
             // Pusty diff (baza = HEAD): same false.
             $this->assertEquals(
-                ['kod' => 'false', 'widok' => 'false', 'dokumenty' => 'false', 'obraz' => 'false', 'obciazenie' => 'false', 'wyscigi' => 'false'],
+                ['kod' => 'false', 'widok' => 'false', 'dokumenty' => 'false', 'obraz' => 'false', 'obciazenie' => 'false', 'wyscigi' => 'false', 'pelny' => 'true'],
                 $this->wyjscia($repo, trim($this->uruchom($repo, ['git', 'rev-parse', 'HEAD'])), 'pull_request'),
             );
 
@@ -76,9 +80,18 @@ class BramkaZakresuSkryptTest extends TestCase
             $this->uruchom($repo, ['git', 'add', '-A']);
             $this->uruchom($repo, ['git', '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'c']);
             $this->assertEquals(
-                ['kod' => 'true', 'widok' => 'true', 'dokumenty' => 'true', 'obraz' => 'false', 'obciazenie' => 'false', 'wyscigi' => 'true'],
+                ['kod' => 'true', 'widok' => 'true', 'dokumenty' => 'true', 'obraz' => 'false', 'obciazenie' => 'false', 'wyscigi' => 'true', 'pelny' => 'true'],
                 $this->wyjscia($repo, $baza, 'pull_request'),
             );
+
+            // Ten sam diff na DRAFT PR-ze (2.10.2026, D-333): sześć wyjść
+            // obszarów bez zmian, `pelny=false`. Na pushu DRAFT nie działa.
+            $this->assertEquals(
+                ['kod' => 'true', 'widok' => 'true', 'dokumenty' => 'true', 'obraz' => 'false', 'obciazenie' => 'false', 'wyscigi' => 'true', 'pelny' => 'false'],
+                $this->wyjscia($repo, $baza, 'pull_request', 'true'),
+            );
+            $this->assertSame('true', $this->wyjscia($repo, $baza, 'push', 'true')['pelny']);
+            $this->assertSame('true', $this->wyjscia($repo, $baza, 'pull_request', 'false')['pelny']);
         } finally {
             (new Process(['rm', '-rf', $repo]))->run();
         }
@@ -93,6 +106,8 @@ class BramkaZakresuSkryptTest extends TestCase
         $this->assertStringContainsString('run: bash '.self::SKRYPT, $krok[1]);
         $this->assertMatchesRegularExpression('/^          BAZA: /m', $krok[1]);
         $this->assertMatchesRegularExpression('/^          ZDARZENIE: \$\{\{ github\.event_name \}\}$/m', $krok[1]);
+        $this->assertMatchesRegularExpression('/^          DRAFT: \$\{\{ github\.event\.pull_request\.draft \}\}$/m', $krok[1]);
+        $this->assertStringContainsString('pelny: ${{ steps.sprawdz.outputs.pelny }}', $ci, 'Job `zakres` nie wystawia wyjścia `pelny`.');
         // Logika nie wraca do YAML-a: krok nie liczy niczego samodzielnie.
         $this->assertStringNotContainsString('GITHUB_OUTPUT', $krok[1]);
         $this->assertFileExists(base_path(self::SKRYPT));
@@ -116,7 +131,7 @@ class BramkaZakresuSkryptTest extends TestCase
     }
 
     /** @return array<string, string> */
-    private function wyjscia(string $repo, string $baza, string $zdarzenie): array
+    private function wyjscia(string $repo, string $baza, string $zdarzenie, ?string $draft = null): array
     {
         $wyjscie = tempnam(sys_get_temp_dir(), 'zakres-wyj');
         $this->assertIsString($wyjscie);
@@ -124,6 +139,7 @@ class BramkaZakresuSkryptTest extends TestCase
         $proces = new Process(['bash', base_path(self::SKRYPT)], $repo, [
             'BAZA' => $baza,
             'ZDARZENIE' => $zdarzenie,
+            'DRAFT' => $draft ?? false,
             'GITHUB_OUTPUT' => $wyjscie,
             // Odziedziczony tryb testowy zasłoniłby prawdziwy diff.
             'ZAKRES_LISTA_PLIK' => false,
@@ -140,7 +156,7 @@ class BramkaZakresuSkryptTest extends TestCase
         }
         @unlink($wyjscie);
 
-        $this->assertCount(6, $wynik, 'Skrypt ma wystawić dokładnie sześć wyjść.');
+        $this->assertCount(7, $wynik, 'Skrypt ma wystawić dokładnie siedem wyjść.');
 
         return $wynik;
     }

@@ -118,8 +118,19 @@ class PodzialTestowJestKompletnyTest extends TestCase
         ), 'Przyrząd przepuścił macierz krótszą niż podział w skrypcie.');
 
         $this->assertNotSame([], $this->naruszeniaWorkflow(
-            str_replace("          - czesc: kontrole\n            kontrole_czesc: 3\n", '', $workflow),
+            str_replace(',{"czesc":"kontrole","kontrole_czesc":3}', '', $workflow),
         ), 'Przyrząd przepuścił macierz bez trzeciej części kontroli negatywnych — jej wpisy `checks` nie uruchomiłyby się nigdzie.');
+
+        // 2.10.2026 (D-333): części kontroli są w `include` WYŁĄCZNIE na pełnym
+        // przebiegu. Odwrócenie warunku zabrałoby je właśnie tam, a lista
+        // kontroli w gałęzi „draft" puszczałaby je także na drafcie.
+        $this->assertNotSame([], $this->naruszeniaWorkflow(
+            str_replace("needs.zakres.outputs.pelny == 'true' && '[{\"czesc\":\"kontrole\"", "needs.zakres.outputs.pelny == 'false' && '[{\"czesc\":\"kontrole\"", $workflow),
+        ), 'Przyrząd przepuścił kontrole negatywne wyłączone na PEŁNYM przebiegu (odwrócony warunek `pelny`).');
+
+        $this->assertNotSame([], $this->naruszeniaWorkflow(
+            str_replace("\"kontrole_czesc\":3}]' || '[]') }}", "\"kontrole_czesc\":3}]' || '[{\"czesc\":\"kontrole\",\"kontrole_czesc\":1}]') }}", $workflow),
+        ), 'Przyrząd przepuścił kontrole negatywne na drafcie (gałąź „draft” `include` nie jest pusta).');
 
         $this->assertNotSame([], $this->naruszeniaWorkflow(
             str_replace('kontrole-negatywne-alfa08.py --czesc "${{ matrix.kontrole_czesc }}/3"', 'kontrole-negatywne-alfa08.py --czesc "${{ matrix.kontrole_czesc }}/2"', $workflow),
@@ -220,8 +231,29 @@ class PodzialTestowJestKompletnyTest extends TestCase
 
         // Kontrole negatywne: `include` z `czesc: kontrole` i `kontrole_czesc: 1..K`
         // oraz wywołanie skryptu z `--czesc N/K` o tym samym K.
-        preg_match_all('/^          - czesc: kontrole\n            kontrole_czesc: (\d+)$/m', $test, $kontrole);
-        $czesciKontroli = array_map('intval', $kontrole[1]);
+        //
+        // Od 2.10.2026 (D-333) `include` jest wyrażeniem: lista części kontroli
+        // na pełnym przebiegu (`pelny == 'true'`), pusta na drafcie. Kształt
+        // jest sprawdzany DOSŁOWNIE — inny zapis (np. odwrócony warunek albo
+        // niepusta gałąź draftu) to naruszenie, nie „nie umiem przeczytać".
+        $czesciKontroli = [];
+        if (preg_match(
+            '/^        include: \$\{\{ fromJSON\(needs\.zakres\.outputs\.pelny == \'true\' && \'(\[[^\']*\])\' \|\| \'\[\]\'\) \}\}$/m',
+            $test,
+            $wyrazenie,
+        ) !== 1) {
+            $naruszenia[] = 'Macierz `test` nie ma `include` w kształcie `fromJSON(needs.zakres.outputs.pelny == \'true\' && \'[…]\' || \'[]\')` — '
+                .'kontrole negatywne nie ruszą na pełnym przebiegu albo ruszą na drafcie.';
+        } else {
+            $wpisyInclude = json_decode($wyrazenie[1], true);
+            foreach (is_array($wpisyInclude) ? $wpisyInclude : [] as $wpis) {
+                if (is_array($wpis) && ($wpis['czesc'] ?? null) === 'kontrole' && is_int($wpis['kontrole_czesc'] ?? null)) {
+                    $czesciKontroli[] = $wpis['kontrole_czesc'];
+                } else {
+                    $naruszenia[] = 'Nieznany wpis `include` macierzy testów: '.json_encode($wpis);
+                }
+            }
+        }
         $liczbaKontroli = count($czesciKontroli);
 
         if ($liczbaKontroli < 3 || $czesciKontroli !== range(1, $liczbaKontroli)) {

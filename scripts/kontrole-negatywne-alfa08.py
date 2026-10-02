@@ -2667,6 +2667,20 @@ checks = [
      lambda s: replace_once(s,
          "                    ->where('p.frozen', false)\n                    ->whereRaw(PriorytetZuzycia::DOSTEPNY_SQL, [$dzis]);",
          "                    ->where('p.frozen', false);")),
+    # 2.10.2026 (D-333): CI na draft PR-ach skrócone. Ciężki job bez warunku
+    # `pelny`, kontrole negatywne na drafcie, bramka skracająca push i agregat
+    # panelu zielony z pominiętych części na pełnym przebiegu.
+    ("Build obrazu biegnie na drafcie (D-333, 2.10.2026)", CI_WORKFLOW, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, "needs.zakres.outputs.obraz == 'true' && needs.zakres.outputs.pelny == 'true'\n",
+                            "needs.zakres.outputs.obraz == 'true'\n")),
+    ("Kontrole negatywne na drafcie (D-333, 2.10.2026)", CI_WORKFLOW, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, "\"kontrole_czesc\":3}]' || '[]') }}",
+                            "\"kontrole_czesc\":3}]' || '[{\"czesc\":\"kontrole\",\"kontrole_czesc\":1}]') }}")),
+    ("Agregat panelu zielony bez części na pełnym przebiegu (D-333, 2.10.2026)", CI_WORKFLOW, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, '            && [ "${PELNY}" = "false" ]; then\n', '            ; then\n')),
+    ("Bramka skraca także push z DRAFT=true (D-333, 2.10.2026)", BRAMKA_SKRYPT, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, 'if [ "${ZDARZENIE:-}" = "pull_request" ] && [ "${DRAFT:-}" = "true" ]; then',
+                            'if [ "${DRAFT:-}" = "true" ]; then')),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
