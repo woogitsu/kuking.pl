@@ -900,6 +900,16 @@ def replace_once(source, old, new):
     return source.replace(old, new, 1)
 
 
+def kopie_przestaw_krok_po_wymazaniu(source, poczatek, srodek, koniec):
+    """#2708: fizycznie przenieś instrukcję CSAM za komendy wymazania."""
+    if any(source.count(marker) != 1 for marker in (poczatek, srodek, koniec)):
+        raise RuntimeError("Kontrola nie znalazła dokładnie jednego kroku odtworzenia CSAM.")
+    od = source.index(poczatek)
+    sro = source.index(srodek, od)
+    do = source.index(koniec, sro)
+    return source[:od] + source[sro:do] + source[od:sro] + source[do:]
+
+
 def zakupy_usun_bez_pytania(source):
     """#2466: przywróć bezpośredni formularz DELETE sprzed potwierdzenia."""
     poczatek = '        <details class="confirm planer-usuwanie">'
@@ -2705,8 +2715,20 @@ checks = [
     # odtworzonej bazy do serwisu — okno, w którym serwis pokazuje wymazane osoby.
     ("Runbook odtworzenia stosuje rejestr usunięć po podpięciu bazy (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
      "test_runbook_kaze_zastosowac_rejestr_usuniec_przed_podpieciem_bazy_do_serwisu",
-     lambda s: replace_once(s, "# 4. NAJPIERW rejestr usunięć",
-                            'railway variables --set "DB_URL=<nowy_DATABASE_URL>"\n# 4. NAJPIERW rejestr usunięć')),
+     lambda s: replace_once(s, "# 5. Dopiero po potwierdzeniu kroku 4 zastosuj rejestr usunięć",
+                            'railway variables --set "DB_URL=<nowy_DATABASE_URL>"\n# 5. Dopiero po potwierdzeniu kroku 4 zastosuj rejestr usunięć')),
+    ("Odtworzenie CSAM po pierwszym wymazaniu kont (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_obie_kontrole_csam_poprzedzaja_wymazanie_i_podpiecie_bazy",
+     lambda s: kopie_przestaw_krok_po_wymazaniu(
+         s, '# 4. NAJPIERW odtwórz i zweryfikuj decyzje CSAM',
+         '# 5. Dopiero po potwierdzeniu kroku 4',
+         '# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie')),
+    ("Odtworzenie nowych decyzji CSAM po ponownym wymazaniu (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_obie_kontrole_csam_poprzedzaja_wymazanie_i_podpiecie_bazy",
+     lambda s: kopie_przestaw_krok_po_wymazaniu(
+         s, '# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie',
+         'railway run --service kuking.pl --environment production \\\n  env DB_URL="$DB_URL_NOWEJ_BAZY" \\\n  php artisan kuking:wymaz-ponownie --od="<chwila kopii>" --na-sucho',
+         '# 7. Dopiero teraz podepnij nowy DB_URL')),
     # Paczka L: komunikat Planera trafił do C w kodowaniu UTF-8 odczytanym jako
     # Latin-1 („juÅ¼… OdÅ›wieÅ¼”). Strażnik ma znaleźć taki napis w kodzie.
     ("Zepsute kodowanie polskich liter w komunikacie Planera (paczka L)", "app/Http/Controllers/PlanerController.php",
