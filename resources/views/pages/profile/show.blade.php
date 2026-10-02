@@ -419,7 +419,7 @@
             <x-show-more :paginator="$recipes" czego="przepisów" lista="lista-przepisow" />
         @endif
     @else
-        @if($isOwner && ($stats['cooked'] > 0 || $frazaUgotowanych->fraza !== ''))
+        @if($isOwner && ($stats['cooked'] > 0 || $frazaUgotowanych->fraza !== '' || $tylkoPonownie))
             {{--
                 „SZUKAJ W MOICH WYKONANIACH” (issue #2070) — tylko na WŁASNEJ
                 zakładce, ten sam wzorzec co „Szukaj w moich zeszytach” (#779).
@@ -442,8 +442,35 @@
                         <span class="field-error" id="f-szukaj-ugotowane-error">{{ $frazaUgotowanych->blad }}</span>
                     @endif
                 </div>
+                {{-- Wybór „Zrobię ponownie” (#2460): domyślnie wyłączony, zwykły
+                     formularz GET (działa bez skryptu). Zaznaczenie zawęża
+                     listę do wykonań z odpowiedzią „Tak, zrobię ponownie”;
+                     nie ocenia przepisów i nie wyróżnia „najlepszych”. --}}
+                <div class="field mt-4">
+                    <label class="choice" for="f-ponownie-ugotowane">
+                        <input id="f-ponownie-ugotowane" type="checkbox" name="ponownie" value="1" aria-describedby="f-ponownie-ugotowane-help" @checked($tylkoPonownie)>
+                        <span class="choice-label">Tylko wykonania, przy których zaznaczono „Zrobię ponownie”</span>
+                    </label>
+                    <span class="field-help" id="f-ponownie-ugotowane-help">Pokażemy tylko te wykonania, przy których wybrano „Tak, zrobię ponownie”. Wykonania bez odpowiedzi albo z odpowiedzią „Raczej nie powtórzę” zostaną ukryte do czasu, aż odznaczysz ten wybór.</span>
+                </div>
                 <button class="btn btn-primary mt-4" type="submit">Szukaj</button>
             </form>
+        @endif
+
+        @if($tylkoPonownie)
+            <section class="stack mb-6" aria-labelledby="wyniki-ponownie" data-wyniki-ponownie>
+                <h2 id="wyniki-ponownie" class="m-0">Wykonania z zaznaczonym „Zrobię ponownie”@if($frazaUgotowanych->aktywna()) i frazą „{{ $frazaUgotowanych->fraza }}”@endif</h2>
+                @if($cookedEvents->total() === 0)
+                    {{-- Pusty wynik wyboru to nie pusty profil i nie brak przepisu. --}}
+                    <p class="m-0">Żadne z Twoich wykonań{{ $frazaUgotowanych->aktywna() ? ' z taką frazą' : '' }} nie ma zaznaczonego „Zrobię ponownie”. Wykonania nadal są na Twojej liście — odznacz ten wybór, żeby je zobaczyć.</p>
+                @else
+                    <p class="meta m-0">Znaleźliśmy {{ $cookedEvents->total() }} {{ \App\Support\Odmiana::rzeczownik($cookedEvents->total(), 'wykonanie', 'wykonania', 'wykonań') }}, od najnowszego. Każde gotowanie to osobna karta, także gdy to ten sam przepis.</p>
+                @endif
+                <p class="m-0 flex flex-wrap gap-3">
+                    <a class="btn btn-secondary" href="{{ route('profile.show', array_filter(['username' => $p->username, 'zakladka' => 'ugotowane', 'szukaj' => $frazaUgotowanych->fraza])) }}">Wyłącz ten wybór</a>
+                    <a class="btn btn-secondary" href="{{ route('profile.show', ['username' => $p->username, 'zakladka' => 'ugotowane']) }}">Wyczyść wszystkie filtry</a>
+                </p>
+            </section>
         @endif
 
         @if($frazaUgotowanych->aktywna())
@@ -460,7 +487,7 @@
         @endif
 
         {{-- Przy frazie bez dopasowań komunikat stoi wyżej, w sekcji wyników. --}}
-        @if($cookedEvents->count() === 0 && ! $frazaUgotowanych->aktywna())
+        @if($cookedEvents->count() === 0 && ! $frazaUgotowanych->aktywna() && ! $tylkoPonownie)
             <x-empty-state :title="$isOwner ? 'Nie masz jeszcze żadnego wykonania' : 'Brak wykonań'"
                            :action="$isOwner ? 'Znajdź przepis' : null"
                            :href="$isOwner ? route('search') : null">

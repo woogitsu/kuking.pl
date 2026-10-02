@@ -69,10 +69,24 @@ final class ListaZakupow
 
     public const WYNIK_BRAK_SKLADNIKOW = 'brak_skladnikow';
 
+    /** Wybór składników (#2462): przepis zmienił się od otwarcia podglądu — nic nie dopisano. */
+    public const WYNIK_ZMIENIONY = 'zmieniony';
+
     public const COFNIECIE_PRZYWROCONO = 'przywrocono';
 
     /** Nic do cofnięcia: nie było usunięcia, wygasło albo już cofnięte (drugie kliknięcie). */
     public const COFNIECIE_BRAK = 'brak';
+
+    public const POPRAWKA_ZASTOSOWANA = 'poprawiono';
+
+    /** Tekst jest już taki, jak wpisano (po ściśnięciu odstępów): nic się nie zmienia. */
+    public const POPRAWKA_BEZ_ZMIAN = 'bez_zmian';
+
+    /** Ktoś zmienił tekst w innym oknie, odkąd ten formularz go widział. */
+    public const POPRAWKA_KONFLIKT = 'konflikt';
+
+    /** Pozycji już nie ma (usunięta w innym oknie) — nie powstaje ponownie. */
+    public const POPRAWKA_BRAK = 'brak';
 
     public function __construct(
         private readonly RecipePolicy $przepisy = new RecipePolicy,
@@ -163,9 +177,19 @@ final class ListaZakupow
      * potwierdziła, nic nie jest dopisywane: wynik `juz_jest` niesie datę
      * wcześniejszego dodania, żeby ekran mógł zapytać.
      *
+     * WYBÓR SKŁADNIKÓW (#2462, V2): z `$wybraneId` dopisujemy dokładnie wskazane
+     * linie TEGO przepisu (kolejność przepisu, nie żądania). Identyfikatory nie
+     * są treścią ani autoryzacją — tekst czyta serwer, po blokadzie, z linii
+     * przepisu, który osoba nadal widzi. `$odcisk` to skrót listy linii z chwili
+     * podglądu: jeśli przepis zmienił się od podglądu, nic nie jest kopiowane
+     * (`zmieniony`), a człowiek dostaje świeży podgląd. Identyfikator spoza
+     * przepisu odrzuca całość. Ostrzeżenie o ponownym dodaniu, limit i zapis
+     * „wszystko albo nic” działają jak przy dodaniu wszystkich.
+     *
+     * @param  list<string>|null  $wybraneId
      * @return array{wynik: string, dodano: int, wczesniej: ?CarbonInterface}
      */
-    public function dodajSkladniki(User $user, Recipe $przepis, bool $potwierdzone = false): array
+    public function dodajSkladniki(User $user, Recipe $przepis, bool $potwierdzone = false, ?array $wybraneId = null, ?string $odcisk = null): array
     {
         if (! $this->przepisy->view($user, $przepis)) {
             throw new AuthorizationException;
@@ -177,8 +201,18 @@ final class ListaZakupow
             return ['wynik' => self::WYNIK_BRAK_SKLADNIKOW, 'dodano' => 0, 'wczesniej' => null];
         }
 
-        return DB::transaction(function () use ($user, $przepis, $linie, $potwierdzone): array {
+        return DB::transaction(function () use ($user, $przepis, $linie, $potwierdzone, $wybraneId, $odcisk): array {
             $this->zablokujListe($user);
+
+            if ($wybraneId !== null) {
+                $wybrane = $this->wybraneLinie($przepis, $wybraneId, (string) $odcisk);
+
+                if ($wybrane === null) {
+                    return ['wynik' => self::WYNIK_ZMIENIONY, 'dodano' => 0, 'wczesniej' => null];
+                }
+
+                $linie = $wybrane;
+            }
 
             $wczesniej = ShoppingListItem::query()
                 ->where('user_id', $user->getKey())
@@ -344,6 +378,7 @@ final class ListaZakupow
                     'recipe_id' => in_array($p['recipe_id'], $istniejace, true) ? $p['recipe_id'] : null,
                     'position' => (int) $p['position'],
                     'checked_at' => $p['checked_at'],
+                    'edited_at' => $p['edited_at'] ?? null,
                     'created_at' => $p['created_at'],
                     'updated_at' => now(),
                 ]);
@@ -353,6 +388,82 @@ final class ListaZakupow
             $migawka->delete();
 
             return ['wynik' => self::COFNIECIE_PRZYWROCONO, 'przywrocono' => $przywrocono, 'zakres' => $zakres];
+        });
+    }
+
+    /** Znacznik tekstu widzianego w formularzu (skrót, nie sam tekst). */
+    public static function znacznikTekstu(ShoppingListItem $pozycja): string
+    {
+        return hash('sha256', $pozycja->text);
+    }
+
+    /**
+     * „Popraw” przy jednej pozycji (#2443, V2): zmienia WYŁĄCZNIE tekst
+     * istniejącej pozycji tej osoby i zapisuje chwilę korekty (`edited_at`).
+     *
+     *  - ta sama pozycja: UUID, kolejność, odhaczenie, właściciel, `source`,
+     *    `recipe_id` i `created_at` zostają; żaden składnik przepisu nie jest
+     *    ruszany. Zapis idzie zapytaniem o DWIE kolumny (plus `updated_at`),
+     *    więc równoległe odhaczenie nie ginie;
+     *  - pod blokadą wiersza osoby (jak dopisywanie i usuwanie) i z pozycją
+     *    czytaną po blokadzie: usunięta w innej karcie pozycja nie powstaje
+     *    ponownie (`brak`);
+     *  - konflikt kart: formularz niesie znacznik tekstu, który człowiek
+     *    widział; gdy tekst zmienił się w międzyczasie, nic się nie zapisuje;
+     *  - ten sam limit i ściskanie odstępów co przy dopisaniu, bez cichego
+     *    obcinania: za długi albo pusty tekst to błąd przy polu;
+     *  - bez porównywania z przepisem: znacznik `edited_at` mówi, że TEKST
+     *    jest poprawką właściciela listy, niezależnie od tego, co autor
+     *    przepisu zmieni później.
+     *
+     * @return self::POPRAWKA_ZASTOSOWANA|self::POPRAWKA_BEZ_ZMIAN|self::POPRAWKA_KONFLIKT|self::POPRAWKA_BRAK
+     *
+     * @throws ValidationException pusty albo za długi tekst
+     */
+    public function popraw(User $user, string $idPozycji, string $nowyTekst, string $widzianyZnacznik): string
+    {
+        $tekst = self::oczysc($nowyTekst);
+
+        if ($tekst === null) {
+            throw ValidationException::withMessages([
+                'text' => 'Wpisz, co trzeba kupić, np. „mleko” albo „2 cebule”.',
+            ]);
+        }
+
+        if (mb_strlen($tekst) > self::maksZnakow()) {
+            throw ValidationException::withMessages([
+                'text' => 'Skróć wpis do '.self::maksZnakow().' znaków i zapisz jeszcze raz.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($user, $idPozycji, $tekst, $widzianyZnacznik): string {
+            $this->zablokujListe($user);
+
+            // Cudza pozycja jest dla pytającego tym samym, co nieistniejąca.
+            $pozycja = ShoppingListItem::query()
+                ->where('user_id', $user->getKey())
+                ->whereKey($idPozycji)
+                ->lockForUpdate()
+                ->first();
+
+            if ($pozycja === null) {
+                return self::POPRAWKA_BRAK;
+            }
+
+            if ($pozycja->text === $tekst) {
+                return self::POPRAWKA_BEZ_ZMIAN;
+            }
+
+            if (! hash_equals(self::znacznikTekstu($pozycja), $widzianyZnacznik)) {
+                return self::POPRAWKA_KONFLIKT;
+            }
+
+            ShoppingListItem::query()
+                ->where('user_id', $user->getKey())
+                ->whereKey($pozycja->getKey())
+                ->update(['text' => $tekst, 'edited_at' => now(), 'updated_at' => now()]);
+
+            return self::POPRAWKA_ZASTOSOWANA;
         });
     }
 
@@ -382,6 +493,7 @@ final class ListaZakupow
             'recipe_id' => $p->recipe_id,
             'position' => $p->position,
             'checked_at' => $p->checked_at?->toIso8601String(),
+            'edited_at' => $p->edited_at?->toIso8601String(),
             'created_at' => $p->created_at?->toIso8601String(),
         ])->values()->all();
 
@@ -423,19 +535,128 @@ final class ListaZakupow
      */
     private function linieSkladnikow(Recipe $przepis): array
     {
+        return array_column($this->liniePrzepisu($przepis), 'tekst');
+    }
+
+    /**
+     * Te same linie z identyfikatorami, płasko, w kolejności ze strony przepisu.
+     *
+     * @return list<array{id: string, tekst: string}>
+     */
+    private function liniePrzepisu(Recipe $przepis): array
+    {
         $linie = [];
 
-        foreach (GrupySkladnikow::ulozyc($przepis->ingredients()->get()) as $grupa) {
-            foreach ($grupa['skladniki'] as $skladnik) {
-                /** @var RecipeIngredient $skladnik */
-                $tekst = self::oczysc((string) $skladnik->ingredient_text);
-                if ($tekst !== null) {
-                    $linie[] = mb_substr($tekst, 0, self::maksZnakow());
-                }
+        foreach ($this->grupyPrzepisu($przepis) as $grupa) {
+            foreach ($grupa['skladniki'] as $linia) {
+                $linie[] = $linia;
             }
         }
 
         return $linie;
+    }
+
+    /**
+     * Grupy składników z identyfikatorami linii (do ekranu wyboru, #2462).
+     * Linia pusta po oczyszczeniu odpada; grupa bez linii znika.
+     *
+     * @return list<array{nazwa: ?string, skladniki: list<array{id: string, tekst: string}>}>
+     */
+    private function grupyPrzepisu(Recipe $przepis): array
+    {
+        $grupy = [];
+
+        foreach (GrupySkladnikow::ulozyc($przepis->ingredients()->get()) as $grupa) {
+            $linie = [];
+            foreach ($grupa['skladniki'] as $skladnik) {
+                /** @var RecipeIngredient $skladnik */
+                $tekst = self::oczysc((string) $skladnik->ingredient_text);
+                if ($tekst !== null) {
+                    $linie[] = ['id' => (string) $skladnik->getKey(), 'tekst' => mb_substr($tekst, 0, self::maksZnakow())];
+                }
+            }
+
+            if ($linie !== []) {
+                $grupy[] = ['nazwa' => $grupa['nazwa'], 'skladniki' => $linie];
+            }
+        }
+
+        return $grupy;
+    }
+
+    /**
+     * Skrót listy linii (id + tekst, w kolejności ze strony) — odcisk podglądu wyboru.
+     *
+     * @param  list<array{id: string, tekst: string}>  $linie
+     */
+    private static function odciskLinii(array $linie): string
+    {
+        return hash('sha256', implode("\n", array_map(fn (array $l): string => $l['id'].'|'.$l['tekst'], $linie)));
+    }
+
+    /**
+     * Ekran wyboru składników (#2462): grupy z identyfikatorami linii i odcisk
+     * aktualnej listy. Tylko odczyt — niczego nie dopisuje.
+     *
+     * @return array{grupy: list<array{nazwa: ?string, skladniki: list<array{id: string, tekst: string}>}>, odcisk: string, ile: int}
+     */
+    public function doWyboru(Recipe $przepis): array
+    {
+        $grupy = $this->grupyPrzepisu($przepis);
+        $linie = $this->liniePrzepisu($przepis);
+
+        return ['grupy' => $grupy, 'odcisk' => self::odciskLinii($linie), 'ile' => count($linie)];
+    }
+
+    /** Kiedy składniki TEGO przepisu trafiły na listę po raz pierwszy (albo null) — do ostrzeżenia. */
+    public function pierwszeDodanie(User $user, Recipe $przepis): ?CarbonInterface
+    {
+        $wczesniej = ShoppingListItem::query()
+            ->where('user_id', $user->getKey())
+            ->where('recipe_id', $przepis->getKey())
+            ->min('created_at');
+
+        return $wczesniej === null ? null : Carbon::parse($wczesniej);
+    }
+
+    /**
+     * Teksty wybranych linii w kolejności przepisu — albo `null`, gdy przepis
+     * zmienił się od podglądu (odcisk się nie zgadza). Identyfikator spoza
+     * tego przepisu przy zgodnym odcisku to podmiana: odrzucamy całość.
+     * Wołane po blokadzie listy, z linii czytanych na nowo.
+     *
+     * @param  list<string>  $wybraneId
+     * @return list<string>|null
+     *
+     * @throws ValidationException
+     */
+    private function wybraneLinie(Recipe $przepis, array $wybraneId, string $odcisk): ?array
+    {
+        $linie = $this->liniePrzepisu($przepis);
+
+        if (! hash_equals(self::odciskLinii($linie), $odcisk)) {
+            return null;
+        }
+
+        $znane = array_column($linie, 'id');
+        $wybraneId = array_values(array_unique($wybraneId));
+
+        if ($wybraneId === [] || array_diff($wybraneId, $znane) !== []) {
+            throw ValidationException::withMessages([
+                'skladniki' => $wybraneId === []
+                    ? 'Zaznacz co najmniej jeden składnik i naciśnij „Dodaj wybrane”. Nic nie zostało dodane.'
+                    : 'Nie rozpoznajemy części zaznaczonych składników. Odśwież stronę, zaznacz je jeszcze raz — nic nie zostało dodane.',
+            ]);
+        }
+
+        $teksty = [];
+        foreach ($linie as $linia) {
+            if (in_array($linia['id'], $wybraneId, true)) {
+                $teksty[] = $linia['tekst'];
+            }
+        }
+
+        return $teksty;
     }
 
     private static function oczysc(string $tekst): ?string

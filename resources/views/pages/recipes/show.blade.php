@@ -813,6 +813,8 @@
                             @csrf
                             <button class="btn btn-secondary" type="submit">Dodaj składniki do listy zakupów</button>
                         </form>
+                        {{-- Opcjonalnie tylko wybrane linie (#2462); pełne dodanie wyżej zostaje bez zmian. --}}
+                        <p class="mt-3"><a class="btn btn-secondary" href="{{ route('shopping.recipe.pick', $recipe) }}">Wybierz składniki do zakupów</a></p>
                     @endauth
                 @endif
                 {{-- Alergeny według autora (#1902, D-333): stały blok pod składnikami,

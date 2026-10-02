@@ -594,6 +594,9 @@ final class CollectUserExportData
                 ? ($this->plikiWlasnychPrzepisow[(string) $event->recipe_id] ?? null)
                 : null,
             'kiedy' => $this->date($event->cooked_at),
+            // Ślad ostatniej korekty uwagi, opisu zmian lub czasu (#2459);
+            // `null` = wykonanie nie było poprawiane. Bez poprzedniej treści.
+            'poprawiono' => $this->date($event->poprawiono_at),
             // Prywatny dzień gotowania podany przez samą osobę (#2583) — sam
             // dzień `RRRR-MM-DD`; `null` = nie podano. Osobny od `kiedy`
             // (chwili zgłoszenia).
@@ -1259,6 +1262,8 @@ final class CollectUserExportData
                 'adres_przepisu' => $przepis !== null ? route('recipes.show', $przepis->slug) : null,
                 'przepis_niedostepny' => $pozycja->source === ShoppingListItem::SOURCE_RECIPE && $przepis === null,
                 'odhaczona' => $pozycja->jestOdhaczona(),
+                'tekst_poprawiony_przez_wlasciciela' => $pozycja->jestPoprawiona(),
+                'poprawiono' => $this->date($pozycja->edited_at),
                 'dodano' => $this->date($pozycja->created_at),
             ];
         })->values()->all();

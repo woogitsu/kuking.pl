@@ -90,25 +90,16 @@
                  CSS dopasowuje siatkę do ich liczby; bez zdjęć hero ma jedną
                  kolumnę. Dobór i sprawdzenie widoczności należą do HeroKolaz.
 
-                 DLACZEGO TO JEST OZDOBNIK (`alt=""` + `aria-hidden`)
-                 Rozstrzygnięcie, nie odruch. Te zdjęcia nie są odnośnikiem,
-                 nie mają podpisu przy sobie, nie da się z nich nigdzie przejść
-                 i nie niosą ani jednej informacji, której nie ma w zdaniu
-                 obok („miejsce dla ludzi, którzy gotują codziennie — w swojej
-                 kuchni"). Cztery niepowiązane opisy dań przeczytane na głos
-                 PRZED przyciskiem „Zostań kuKINGiem" nie informują, tylko
-                 odsuwają człowieka od jedynej akcji tego ekranu — a część
-                 zdjęć w serwisie i tak nie ma wpisanego `alt_text`, więc
-                 „opisy" znaczyłoby w praktyce „cztery razy to samo zdanie
-                 zastępcze". Ozdobnik zamiast treści jest tu decyzją na
-                 korzyść czytającego ekranem, nie oszczędnością.
-
-                 PODPIS POD KOLAŻEM NIE JEST OZDOBNIKIEM i celowo stoi POZA
-                 `aria-hidden`. To są nazwiska ludzi, których zdjęcia właśnie
-                 pokazujemy na stronie zachęcającej do rejestracji; prawo do
-                 oznaczenia autorstwa jest prawem osobistym i nie przenosi go
-                 żadna licencja (projekt klauzuli UGC, §10). Jedno zdanie
-                 kosztuje tu mniej niż rozmowa o tym, dlaczego go nie ma.
+                 OD 2.10.2026 (#2708) KAŻDY KAFEL JEST ODNOŚNIKIEM Z PODPISEM.
+                 Do tego dnia kolaż był ozdobnikiem (`aria-hidden`, `alt=""`,
+                 jeden wspólny podpis „Zdjęcia od: …"). To były nazwiska ludzi,
+                 których zdjęcia pokazujemy na stronie zachęcającej do
+                 rejestracji, a prawo do oznaczenia autorstwa jest prawem
+                 osobistym i nie przenosi go żadna licencja. Dlatego przy
+                 KAŻDYM zdjęciu stoi widoczny podpis z nazwą autora i odnośnik
+                 do wpisu źródłowego, a kolaż nie jest już chowany przed
+                 czytnikiem ekranu. Pilnuje tego
+                 `KolazPowitalnyPodpisAutoraPrzyKazdymZdjeciuTest`.
 
                  WYDAJNOŚĆ: to jest pierwsza rzecz, jaką ładuje gość.
                  Wariant `thumb` (320 px), nie `feed` ani oryginał — największy
@@ -152,36 +143,37 @@
 
                  `decoding="async"` zdejmuje dekodowanie z wątku układu. --}}
             @if($kolaz->isNotEmpty())
-                @php
-                    $autorzyKolazu = $kolaz->pluck('autor')
-                        ->map(fn ($autor) => $autor->displayName())
-                        ->unique()
-                        ->values();
-
-                    $podpisKolazu = $autorzyKolazu->count() > 1
-                        ? $autorzyKolazu->slice(0, -1)->implode(', ').' i '.$autorzyKolazu->last()
-                        : (string) $autorzyKolazu->first();
-                @endphp
-
+                {{-- #2708 (analiza prawna 2.10.2026, pytanie 1; P0-05): PRZY KAŻDYM
+                     ZDJĘCIU stoi WIDOCZNY podpis z nazwą autora i odnośnik do wpisu
+                     źródłowego — nie wspólny podpis pod całością i nie sam `alt`.
+                     Cały kafel jest jednym odnośnikiem (duży cel dotyku, jedna
+                     pozycja w kolejności tabulatora). Zdjęcie ma `alt=""`, bo jego
+                     nazwę podaje podpis w tym samym odnośniku; czytnik ekranu
+                     czyta „Zdjęcie: Maria. Zobacz wpis". Podpis ma 18 px
+                     (`--text-body`), bez hovera. Nazwa autora = `displayName()`
+                     (wyświetlana nazwa albo pseudonim z profilu). --}}
                 <figure class="hero-kolaz-blok">
-                    <div class="hero-kolaz" aria-hidden="true">
+                    <ul class="hero-kolaz" role="list">
                         @foreach($kolaz as $kafel)
-                            <img class="hero-kolaz-kafel"
-                                 src="{{ $kafel['media']->url('thumb') }}"
-                                 alt=""
-                                 width="{{ $kafel['media']->width('thumb') ?? 320 }}"
-                                 height="{{ $kafel['media']->height('thumb') ?? 320 }}"
-                                 @if($loop->first)
-                                 fetchpriority="high"
-                                 @else
-                                 loading="lazy"
-                                 @endif
-                                 decoding="async">
+                            <li class="hero-kolaz-pole">
+                                <a class="hero-kolaz-link" href="{{ route('posts.show', $kafel['wpis']) }}">
+                                    <img class="hero-kolaz-kafel"
+                                         src="{{ $kafel['media']->url('thumb') }}"
+                                         alt=""
+                                         width="{{ $kafel['media']->width('thumb') ?? 320 }}"
+                                         height="{{ $kafel['media']->height('thumb') ?? 320 }}"
+                                         @if($loop->first)
+                                         fetchpriority="high"
+                                         @else
+                                         loading="lazy"
+                                         @endif
+                                         decoding="async">
+                                    <span class="hero-kolaz-autor">Zdjęcie: {{ $kafel['autor']->displayName() }}</span>
+                                    <span class="hero-kolaz-wpis">Zobacz wpis</span>
+                                </a>
+                            </li>
                         @endforeach
-                    </div>
-                    <figcaption class="hero-kolaz-podpis">
-                        Zdjęcia od: {{ $podpisKolazu }}.
-                    </figcaption>
+                    </ul>
                 </figure>
             @endif
         </div>

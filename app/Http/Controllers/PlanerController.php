@@ -6,8 +6,11 @@ namespace App\Http\Controllers;
 
 use App\Domain\Planer\Actions\DodajDoPlanu;
 use App\Domain\Planer\Actions\OznaczPozycjePlanu;
+use App\Domain\Planer\Actions\PrzeniesPozycjePlanu;
+use App\Domain\Planer\Actions\SkopiujDzienPlanu;
 use App\Domain\Planer\Actions\SkopiujPoprzedniTydzien;
 use App\Domain\Planer\Actions\ZapiszDopisekPlanu;
+use App\Domain\Planer\Actions\ZmienTekstPozycjiPlanu;
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Planer\ZakresDatPlanu;
 use App\Domain\Search\SearchQuery;
@@ -19,6 +22,10 @@ use App\Support\Odmiana;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\MessageBag;
+use Illuminate\Support\ViewErrorBag;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -97,6 +104,26 @@ class PlanerController extends Controller
                 ->whereBetween('day', [$poniedzialek->subDays(7)->toDateString(), $poniedzialek->subDay()->toDateString()])
                 ->exists(),
             'wpisowNaDzien' => PlanerTygodnia::wpisowNaDzien(),
+        ]);
+    }
+
+    /**
+     * „Wydrukuj ten tydzień” (#2498): kartka z planem WYBRANEGO tygodnia
+     * (`?tydzien=`, jak ekran planera — zły parametr to bieżący tydzień).
+     * Czysty odczyt WŁASNEGO planu: nic nie zapisuje, nie tworzy kopii na
+     * serwerze i nie bierze identyfikatora osoby z adresu. Widoczność
+     * przepisów liczy `PlanerTygodnia` (niedostępny i usunięty zostają
+     * pozycjami bez tytułu); prywatne dopiski i „Zrobione” nie trafiają
+     * do widoku.
+     */
+    public function druk(Request $request, PlanerTygodnia $planer): View
+    {
+        $poniedzialek = PlanerTygodnia::poniedzialek($request->query('tydzien'));
+
+        return view('pages.planer.do-druku', [
+            'poniedzialek' => $poniedzialek,
+            'dni' => $planer->tydzien($request->user(), $poniedzialek),
+            'dataOdczytu' => Czas::lokalnie(Carbon::now())->translatedFormat('j F Y, H:i'),
         ]);
     }
 
@@ -207,6 +234,116 @@ class PlanerController extends Controller
     }
 
     /**
+     * „Skopiuj ten dzień” (#2494): wybór dnia docelowego i podgląd. Zwykły GET
+     * — nic się nie zapisuje, a adres da się odświeżyć. Zapis idzie dopiero
+     * z przycisku „Skopiuj” (`copyDay`).
+     */
+    public function copyDayForm(Request $request, SkopiujDzienPlanu $kopiuj): View|RedirectResponse
+    {
+        $zrodlo = self::dzienZParametru($request->query('dzien'));
+        if ($zrodlo === null) {
+            return redirect()->route('planer.show');
+        }
+
+        $bledy = new MessageBag;
+        $cel = null;
+        $ocena = null;
+
+        $celParametr = $request->query('cel');
+        if (is_string($celParametr) && $celParametr !== '') {
+            $cel = self::dzienZParametru($celParametr);
+            if ($cel === null) {
+                $bledy->add('cel', 'Wybierz dzień z kalendarza albo wpisz go w formacie rrrr-mm-dd, np. 2026-10-02.');
+            } elseif ($cel->equalTo($zrodlo)) {
+                $bledy->add('cel', 'To ten sam dzień, z którego kopiujesz. Wybierz inny dzień — nic nie zostało skopiowane.');
+            } elseif (($blad = SkopiujDzienPlanu::bladZakresu($cel)) !== null) {
+                $bledy->add('cel', $blad);
+            } else {
+                $ocena = $kopiuj->ocen($request->user(), $zrodlo, $cel);
+            }
+        }
+
+        // Błędy z samego adresu (GET nie niesie sesji z błędami). Idą przez
+        // współdzielone `$errors`, żeby widział je też `x-field` i
+        // podsumowanie błędów; błędy po nieudanym zapisie przychodzą z sesji
+        // i nie wolno ich tu przykryć pustym workiem.
+        if ($bledy->isNotEmpty()) {
+            view()->share('errors', (new ViewErrorBag)->put('default', $bledy));
+        }
+
+        return view('pages.planer.kopiuj-dzien', [
+            'zrodlo' => $zrodlo,
+            'cel' => $cel,
+            'ocena' => $ocena,
+            'wpisowNaDzien' => PlanerTygodnia::wpisowNaDzien(),
+        ]);
+    }
+
+    public function copyDay(Request $request, SkopiujDzienPlanu $kopiuj): RedirectResponse
+    {
+        $zrodlo = self::dzienZParametru($request->input('dzien'));
+        if ($zrodlo === null) {
+            return redirect()->route('planer.show')
+                ->with(Komunikat::blad('Nie wiemy, który dzień kopiować. Wybierz „Skopiuj ten dzień” przy dniu w planerze jeszcze raz.'));
+        }
+        $wracaDoFormularza = route('planer.copyday', ['dzien' => $zrodlo->toDateString()]);
+
+        try {
+            $dane = $request->validate([
+                'cel' => ['required', 'string', 'date_format:Y-m-d'],
+                'odcisk' => ['required', 'string', 'max:64'],
+            ], [
+                'cel.required' => 'Wybierz dzień, na który kopiujesz.',
+                'cel.string' => 'Wybierz dzień z kalendarza albo wpisz go w formacie rrrr-mm-dd, np. 2026-10-02.',
+                'cel.date_format' => 'Wybierz dzień z kalendarza albo wpisz go w formacie rrrr-mm-dd, np. 2026-10-02.',
+                'odcisk.required' => 'Ta strona jest nieaktualna. Obejrzyj podgląd jeszcze raz i zatwierdź kopię.',
+                'odcisk.string' => 'Ta strona jest nieaktualna. Obejrzyj podgląd jeszcze raz i zatwierdź kopię.',
+                'odcisk.max' => 'Ta strona jest nieaktualna. Obejrzyj podgląd jeszcze raz i zatwierdź kopię.',
+            ]);
+
+            $cel = CarbonImmutable::createFromFormat('!Y-m-d', $dane['cel']);
+            $wynik = $kopiuj->handle($request->user(), $zrodlo, $cel, $dane['odcisk']);
+        } catch (ValidationException $e) {
+            throw $e->redirectTo($wracaDoFormularza);
+        }
+
+        $kiedy = PlanerTygodnia::naDzien($cel);
+        $tydzienCelu = route('planer.show', ['tydzien' => PlanerTygodnia::poniedzialek($cel->toDateString())->toDateString()])
+            .'#dzien-'.$cel->toDateString();
+
+        return match ($wynik['wynik']) {
+            SkopiujDzienPlanu::ZASTOSOWANO => redirect($tydzienCelu)->with(Komunikat::sukces(
+                'Skopiowane na '.$kiedy.': '.$wynik['dodane'].' '
+                .Odmiana::rzeczownik($wynik['dodane'], 'pozycja', 'pozycje', 'pozycji')
+                .'. Dzień, z którego kopiowano, został bez zmian.')),
+            SkopiujDzienPlanu::NIC_NOWEGO => redirect($tydzienCelu)->with(Komunikat::informacja(
+                'Nic nowego do skopiowania: wszystko z tego dnia już jest w planie na '.$kiedy.' albo przepis jest niedostępny.')),
+            SkopiujDzienPlanu::PUSTY => redirect()->route('planer.show', ['tydzien' => $zrodlo->toDateString()])
+                ->with(Komunikat::informacja('Ten dzień jest pusty — nie ma czego skopiować.')),
+            SkopiujDzienPlanu::TEN_SAM_DZIEN => redirect($wracaDoFormularza)
+                ->with(Komunikat::informacja('To ten sam dzień, z którego kopiujesz. Wybierz inny dzień — nic nie zostało skopiowane.')),
+            default => redirect(route('planer.copyday', ['dzien' => $zrodlo->toDateString(), 'cel' => $cel->toDateString()]))
+                ->with(Komunikat::blad('Plan zmienił się od podglądu, więc nic nie zostało skopiowane. Sprawdź nowy podgląd poniżej i zatwierdź kopię jeszcze raz.')),
+        };
+    }
+
+    /** Dzień z adresu albo formularza (`Y-m-d`); cokolwiek innego to null. */
+    private static function dzienZParametru(mixed $wartosc): ?CarbonImmutable
+    {
+        if (! is_string($wartosc) || preg_match('/^\d{4}-\d{2}-\d{2}$/', $wartosc) !== 1) {
+            return null;
+        }
+
+        try {
+            $dzien = CarbonImmutable::createFromFormat('!Y-m-d', $wartosc);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $dzien instanceof CarbonImmutable && $dzien->format('Y-m-d') === $wartosc ? $dzien : null;
+    }
+
+    /**
      * Prywatne „Zrobione” (#2593). Ustawia żądany stan (`zrobione` = 1 albo 0),
      * nie przełącza; formularz niesie znacznik stanu, który człowiek widział,
      * żeby stara karta nie odwróciła nowszej decyzji.
@@ -279,6 +416,137 @@ class PlanerController extends Controller
             ZapiszDopisekPlanu::ZA_DLUGI => $przyPolu('Dopisek może mieć najwyżej '.ZapiszDopisekPlanu::MAX_ZNAKOW.' znaków. Skróć go i zapisz jeszcze raz.'),
             ZapiszDopisekPlanu::NIE_DOTYCZY => $wroc->with(Komunikat::blad('Dopisek dodasz tylko do pozycji z przepisem. Własny wpis możesz usunąć i wpisać od nowa.')),
             default => $wroc->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),
+        };
+    }
+
+    /**
+     * Ekran „Przenieś na inny dzień” (#2447): zwykły formularz bez skryptu.
+     * Niesie dzień, na którym człowiek widział pozycję — z tego znacznika
+     * akcja pozna, że ktoś w innym oknie już ją przeniósł.
+     */
+    public function moveForm(Request $request, MealPlanEntry $wpis, PlanerTygodnia $planer): View
+    {
+        $this->authorize('move', $wpis);
+
+        $dzien = CarbonImmutable::instance($wpis->day);
+        $pozycja = collect($planer->pozycje($request->user(), $dzien, $dzien))
+            ->first(fn (array $p): bool => $p['wpis']->getKey() === $wpis->getKey());
+
+        $nazwa = match ($pozycja['stan'] ?? null) {
+            PlanerTygodnia::STAN_PRZEPIS => $pozycja['przepis']?->title,
+            PlanerTygodnia::STAN_WLASNY => $wpis->label,
+            PlanerTygodnia::STAN_NIEDOSTEPNY => 'Przepis jest już niedostępny.',
+            default => 'Przepis został usunięty.',
+        };
+
+        return view('pages.planer.przenies', [
+            'wpis' => $wpis,
+            'nazwa' => $nazwa,
+            'dzien' => $dzien,
+        ]);
+    }
+
+    public function move(Request $request, MealPlanEntry $wpis, PrzeniesPozycjePlanu $przenies): RedirectResponse
+    {
+        $this->authorize('move', $wpis);
+
+        $wracaDoFormularza = route('planer.move.form', $wpis);
+
+        try {
+            $dane = $request->validate([
+                'day' => ['required', 'string', 'date_format:Y-m-d'],
+                'stan' => ['required', 'string', 'date_format:Y-m-d'],
+            ], [
+                'day.required' => 'Wybierz dzień, na który przenosisz pozycję.',
+                'day.date_format' => 'Wybierz dzień z kalendarza albo wpisz go w formacie rrrr-mm-dd, np. 2026-10-02.',
+                'day.string' => 'Wybierz dzień z kalendarza albo wpisz go w formacie rrrr-mm-dd, np. 2026-10-02.',
+                'stan.required' => 'Ta strona jest nieaktualna. Wróć do planera i otwórz przenoszenie jeszcze raz.',
+                'stan.date_format' => 'Ta strona jest nieaktualna. Wróć do planera i otwórz przenoszenie jeszcze raz.',
+                'stan.string' => 'Ta strona jest nieaktualna. Wróć do planera i otwórz przenoszenie jeszcze raz.',
+            ]);
+
+            $nowyDzien = CarbonImmutable::createFromFormat('!Y-m-d', $dane['day']);
+            $wynik = $przenies->handle($request->user(), (string) $wpis->getKey(), $nowyDzien, $dane['stan']);
+        } catch (ValidationException $e) {
+            // Błąd wraca na formularz przenoszenia (z wybranym dniem), a nie
+            // tam, skąd przyszło żądanie.
+            throw $e->redirectTo($wracaDoFormularza);
+        }
+
+        $kiedy = PlanerTygodnia::naDzien($nowyDzien);
+        $tydzien = PlanerTygodnia::poniedzialek($nowyDzien->toDateString())->toDateString();
+
+        return match ($wynik) {
+            PrzeniesPozycjePlanu::ZASTOSOWANO => redirect(route('planer.show', ['tydzien' => $tydzien]).'#dzien-'.$nowyDzien->toDateString())
+                ->with(Komunikat::sukces("Przeniesione na {$kiedy}.")),
+            PrzeniesPozycjePlanu::JUZ_TAK_BYLO => redirect(route('planer.show', ['tydzien' => $tydzien]).'#dzien-'.$nowyDzien->toDateString())
+                ->with(Komunikat::informacja("Ta pozycja już jest w planie na {$kiedy}. Nic nie zostało zmienione.")),
+            PrzeniesPozycjePlanu::KONFLIKT => redirect()->route('planer.show', ['tydzien' => $wpis->day->toDateString()])
+                ->with(Komunikat::blad('Ta pozycja została w innym oknie przeniesiona na inny dzień, więc nic nie zmieniliśmy. Sprawdź, gdzie stoi teraz (poniżej, w planie) i w razie potrzeby przenieś ją jeszcze raz.')),
+            default => redirect()->route('planer.show')
+                ->with(Komunikat::blad('Tej pozycji juÅ¼ nie ma w planie. OdÅwieÅ¼ stronÄ.')),
+        };
+    }
+
+    /**
+     * Ekran „Zmień tekst” (#2454): zwykły formularz z obecnym tekstem. Niesie
+     * znacznik tekstu, który człowiek widzi — z niego akcja pozna, że ktoś
+     * w innym oknie zmienił go wcześniej.
+     */
+    public function editText(MealPlanEntry $wpis): View|RedirectResponse
+    {
+        $this->authorize('update', $wpis);
+
+        if ($wpis->recipe_id !== null || $wpis->label === null) {
+            return redirect()->route('planer.show', ['tydzien' => $wpis->day->toDateString()])
+                ->with(Komunikat::blad('Tę pozycję nie da się poprawić, bo to nie jest własny wpis. Przepis możesz usunąć z planu i dodać inny.'));
+        }
+
+        return view('pages.planer.tekst', [
+            'wpis' => $wpis,
+            'dzien' => CarbonImmutable::instance($wpis->day),
+            'znacznik' => ZmienTekstPozycjiPlanu::znacznik($wpis),
+            'maxZnakow' => ZmienTekstPozycjiPlanu::MAX_ZNAKOW,
+        ]);
+    }
+
+    public function updateText(Request $request, MealPlanEntry $wpis, ZmienTekstPozycjiPlanu $zmien): RedirectResponse
+    {
+        $this->authorize('update', $wpis);
+
+        $wracaDoFormularza = route('planer.text.edit', $wpis);
+
+        try {
+            $dane = $request->validate([
+                'label' => ['required', 'string'],
+                'stan' => ['required', 'string', 'max:64'],
+            ], [
+                'label.required' => 'Wpisz, co planujesz na ten dzień, np. „obiad u mamy”.',
+                'label.string' => 'Wpisz zwykły tekst, np. „obiad u mamy”.',
+                'stan.required' => 'Ta strona jest nieaktualna. Wróć do planera i otwórz poprawianie jeszcze raz.',
+                'stan.string' => 'Ta strona jest nieaktualna. Wróć do planera i otwórz poprawianie jeszcze raz.',
+                'stan.max' => 'Ta strona jest nieaktualna. Wróć do planera i otwórz poprawianie jeszcze raz.',
+            ]);
+
+            $wynik = $zmien->handle($request->user(), (string) $wpis->getKey(), $dane['label'], $dane['stan']);
+        } catch (ValidationException $e) {
+            throw $e->redirectTo($wracaDoFormularza);
+        }
+
+        $tydzien = route('planer.show', ['tydzien' => $wpis->day->toDateString()]).'#dzien-'.$wpis->day->toDateString();
+
+        return match ($wynik) {
+            ZmienTekstPozycjiPlanu::ZASTOSOWANO => redirect($tydzien)
+                ->with(Komunikat::sukces('Tekst poprawiony. Pozycja zostaje na '.PlanerTygodnia::naDzien($wpis->day).'.')),
+            ZmienTekstPozycjiPlanu::JUZ_TAK_BYLO => redirect($tydzien)
+                ->with(Komunikat::informacja('Ta pozycja ma już taki tekst. Nic nie zostało zmienione.')),
+            // Wpisany tekst wraca do pola, a nad nim stoi aktualny tekst z planu.
+            ZmienTekstPozycjiPlanu::KONFLIKT => redirect($wracaDoFormularza)->withInput($request->only('label'))
+                ->with(Komunikat::blad('Tekst tej pozycji zmienił się w innym oknie, więc nic nie zapisaliśmy. Poniżej widzisz aktualny tekst, a Twoja poprawka została w polu — jeśli nadal ją chcesz, kliknij „Zapisz” jeszcze raz.')),
+            ZmienTekstPozycjiPlanu::NIE_WLASNY => redirect($tydzien)
+                ->with(Komunikat::blad('Tę pozycję nie da się poprawić, bo to nie jest własny wpis.')),
+            default => redirect()->route('planer.show')
+                ->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),
         };
     }
 

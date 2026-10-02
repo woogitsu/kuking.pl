@@ -30,6 +30,25 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Zmiana nazwy produktu w „Co mam w domu”
+
+Wpisaliście „mleko”, a w lodówce jest „mleko kokosowe”? Albo w nazwie została
+literówka? Przy każdym produkcie na liście „Co mam w domu” jest przycisk „Zmień
+nazwę”. Poprawiacie nazwę w jednym polu i klikacie „Zapisz nazwę”. Ilość,
+termin i oznaczenie „mrożone” zostają takie, jakie były – nie trzeba nic
+wpisywać od nowa. Jeśli taki produkt już jest na Waszej liście, powiemy o tym i
+nic nie zmienimy.
+
+### Wybór składników do listy zakupów
+
+Sól i mąkę macie, brakuje tylko drożdży? Na stronie przepisu (i w Planerze, przy
+przepisie w planie) jest przycisk „Wybierz składniki do zakupów”. Pokazuje
+składniki przepisu z polami wyboru – zaznaczacie to, czego potrzebujecie, i
+klikacie „Dodaj wybrane”. Na listę zakupów trafiają dokładnie te linie, tak jak
+napisał je autor, bez sumowania. Dotychczasowy przycisk „Dodaj składniki do
+listy zakupów”, który dopisuje wszystkie, zostaje bez zmian. Jeśli te składniki
+już były na liście, zapytamy, czy dodać je jeszcze raz.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie
@@ -57,6 +76,44 @@ wpis został w międzyczasie usunięty, nie wróci, a ekran powie, ile zapisów
 brakuje. Zeszytów publicznych i wspólnych nie da się odzyskać, o czym
 informuje komunikat po usunięciu. Po upływie terminu zeszyt jest usuwany na
 stałe, tak samo po usunięciu konta.
+
+### Przenoszenie pozycji Planera na inny dzień
+
+Obiad zaplanowany na środę wypadł w piątek? Przy każdej pozycji Planera jest
+przycisk „Przenieś na inny dzień”. Wybieracie nowy dzień, klikacie „Przenieś”
+i ta sama pozycja – przepis albo własny tekst – stoi już na nowym dniu. Nie
+trzeba jej usuwać ani szukać przepisu od nowa. To przeniesienie, nie kopiowanie:
+na dawnym dniu pozycji nie będzie. Jeśli dzień jest już pełny albo ta sama
+pozycja już tam stoi, nic się nie zmieni, a komunikat powie, co zrobić.
+Lista zakupów zostaje taka, jaka była.
+
+### Kopiowanie jednego dnia w Planerze
+
+Niedzielny obiad składa się z zupy, drugiego dania i ciasta, a za dwa tygodnie
+chcecie go powtórzyć? Przy dniu w Planerze jest przycisk „Skopiuj ten dzień”.
+Wybieracie dzień, na który kopiujecie, i najpierw widzicie podgląd: co zostanie
+dodane, co już tam jest i co pominięto, bo przepis jest niedostępny. Dopiero
+„Skopiuj” coś zapisuje. Dzień, z którego kopiujecie, zostaje taki, jaki był,
+a to, co już stoi w dniu docelowym, nie jest zastępowane. Jeśli nowy dzień nie
+mieści całego zestawu, nie kopiujemy nic i podpowiadamy, co zrobić.
+
+### Poprawianie własnego tekstu w Planerze
+
+Skopiowaliście tydzień, a „obiad u mamy” trzeba zmienić na „obiad u Kasi o 14”?
+Przy własnym wpisie w Planerze jest przycisk „Zmień tekst”. Pokazuje obecny
+tekst w polu – poprawiacie go i klikacie „Zapisz”. Pozycja zostaje na tym
+samym dniu, więc nie trzeba jej usuwać i dopisywać od nowa. Gdy coś się nie
+uda, na przykład tekst jest pusty albo taki sam wpis już jest tego dnia,
+zobaczycie, co poprawić, a to, co wpisaliście, zostanie w polu.
+
+### Poprawianie pozycji na liście zakupów
+
+„Mleko” trzeba zmienić na „2 mleka”, a nie chcecie usuwać pozycji i wpisywać jej
+od nowa? Przy każdej pozycji listy zakupów jest przycisk „Popraw”. Pokazuje
+obecny tekst w polu – zmieniacie go i klikacie „Zapisz”. Pozycja zostaje tam,
+gdzie była, z tym samym odhaczeniem. Jeśli poprawiacie linię skopiowaną z
+przepisu, przepis zostaje taki, jak napisał autor, a przy pozycji na Waszej
+liście zobaczycie dopisek, że tekst został przez Was poprawiony.
 
 ### Dwa opakowania jednego produktu w „Co mam w domu”
 
@@ -87,6 +144,83 @@ Ten początek możecie poprawić albo usunąć, a nic nie wyśle się samo, dop�
 nie dotkniecie „Wyślij komentarz”. To zwykły komentarz, więc autor dostaje
 powiadomienie jak zawsze. Gdy autor później zmieni krok, Wasze pytanie zostaje
 takie, jakie wysłaliście.
+
+### Poprawa własnego „Ugotowałem”
+
+Zauważyliście literówkę w uwadze albo wpisaliście 120 minut zamiast 20? Na
+stronie własnego wykonania jest teraz przycisk „Popraw uwagę lub czas”. Pola są
+już wypełnione, więc zmieniacie tylko to, co trzeba — albo czyścicie pole, jeśli
+wolicie nic nie podawać. To nadal to samo wykonanie: zostają zdjęcia, data i
+rozmowa pod nim, a autor przepisu nie dostaje nowego powiadomienia. Przy
+wykonaniu będzie widać napis „Poprawiono” z datą. Uwagi nie zmienicie, dopóki
+jest wskazówką przy przepisie albo czeka na Waszą odpowiedź — ekran powie, co
+zrobić. Jeśli ktoś zgłosił wykonanie do moderacji, teksty poczekają na decyzję;
+czas poprawicie zawsze.
+
+### Wracanie do wykonań z „Zrobię ponownie”
+
+Nie pamiętacie nazwy dania, ale wiecie, że przy tym gotowaniu zaznaczyliście
+„Tak, zrobię ponownie”? Na własnej zakładce „Ugotowane”, w polu „Szukaj w moich
+wykonaniach”, jest teraz odznaczone domyślnie pole „Tylko wykonania, przy
+których zaznaczono „Zrobię ponownie””. Po zaznaczeniu i kliknięciu „Szukaj”
+zobaczycie tylko takie wykonania, nadal od najnowszego, także razem z kawałkiem
+tytułu. Każde gotowanie jest osobną kartą. Przyciski „Wyłącz ten wybór” i
+„Wyczyść wszystkie filtry” wracają do pełnej listy. Widzicie to tylko Wy — na
+cudzym profilu nic się nie zmienia.
+
+### Co z zeszytu już ugotowaliście
+
+Macie w zeszycie kilkadziesiąt przepisów i chcecie znaleźć te, które naprawdę
+gotowaliście? W polu „Szukaj w moich zeszytach” jest teraz wybór „Ugotowane
+przeze mnie” oraz kolejność „Ostatnio ugotowane”. Pierwszy zostawia tylko
+zapisane przepisy z Waszym własnym „Ugotowałem”, druga stawia na górze te, do
+których wracaliście najpóźniej — przepisy jeszcze nieugotowane lądują na końcu,
+nic nie znika. Przy takim wyniku zobaczycie datę ostatniego gotowania; widzicie
+ją tylko Wy, a wykonania innych osób się nie liczą. Można to łączyć z szukaniem
+po tytule albo składniku, a „Wyczyść wyszukiwanie” wraca do zwykłego widoku.
+
+### Przenoszenie zapisu do innego zeszytu
+
+Odkładaliście przepisy do „Zapisanych”, a teraz zakładacie zeszyty tematyczne?
+Przy każdym przepisie i wpisie w Waszym prywatnym zeszycie jest przycisk
+„Przenieś do innego zeszytu”. Wybieracie drugi własny, prywatny zeszyt i
+klikacie „Przenieś” — zapis idzie z całą notatką i datą zapisu, więc nic nie
+trzeba przepisywać. Autor przepisu nie dostaje żadnego powiadomienia. Jeśli
+w docelowym zeszycie ta pozycja już jest, nic się nie przenosi i nic nie
+nadpisujemy — zobaczycie obie notatki. Pomyłkę cofacie tym samym przyciskiem,
+wskazując zeszyt, z którego zapis wyszedł. Zeszyty publiczne i wspólne na razie
+w to nie wchodzą.
+
+### Wydruk wybranych przepisów z zeszytu
+
+Zeszyt ma sześćdziesiąt przepisów, a na niedzielne gotowanie potrzebujecie
+pięciu? Na podglądzie „Zeszyt do druku” jest teraz przycisk „Wybierz
+przepisy”. Zaznaczacie na liście potrzebne tytuły, klikacie „Pokaż wybrane do
+druku” i dostajecie jedną książeczkę z okładką, spisem treści i liczbą
+przepisów tylko z Waszego wyboru — także wtedy, gdy któryś przepis jest
+daleko na liście. Przycisk „Cały zeszyt” wraca do zwykłego wydruku. Zdjęcia
+włączacie i wyłączacie osobno, a to nie zmienia wybranych przepisów. Niczego
+w zeszycie to nie zmienia.
+
+### Wydruk listy „Do kupienia”
+
+Wolicie iść do sklepu z kartką niż z telefonem? Pod listą „Do kupienia” jest
+teraz przycisk „Wydrukuj do kupienia”. Otwiera podgląd kartki tylko z tym, co
+jeszcze trzeba kupić — odhaczone pozycje zostają poza nią — z pustym
+kwadratem przy każdej, żeby odhaczać długopisem. Na górze jest data i godzina,
+z której pochodzi kopia: kartka nie zmienia się razem z listą, więc po
+dopisaniu czegoś otwórzcie wydruk jeszcze raz. Drukowanie niczego na liście
+nie odhacza ani nie usuwa.
+
+### Wydruk planu na tydzień
+
+Chcecie powiesić plan na lodówce albo omówić go przy stole? W Planerze, obok
+wyboru tygodnia, jest przycisk „Wydrukuj ten tydzień”. Otwiera podgląd kartki z
+planem tego tygodnia, który właśnie oglądacie: zakres dat z rokiem, siedem dni
+z datami i wszystkie zaplanowane pozycje — bez przycisków, wyszukiwania i listy
+zakupów. Wasze prywatne dopiski i oznaczenia „Zrobione” zostają w planerze, nie
+trafiają na papier. To kopia z chwili otwarcia, więc po zmianie planu otwórzcie
+wydruk jeszcze raz.
 
 ### Dzień gotowania przy „Ugotowałem”
 
