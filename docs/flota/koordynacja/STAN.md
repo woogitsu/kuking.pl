@@ -179,7 +179,7 @@ Nowa sesja zaczyna od przeczytania tego pliku, potem AGENTS.md. Stan GitHuba
 - Dopisek z gotowania usuwamy przy „Ugotowałem” (#2587).
 - #595: rozbicie na 3 usługi jest zrobione.
 
-### Otwarte sprawy właściciela
+### Otwarte sprawy właściciela (lista do odhaczania: #2713)
 - DPA: Cloudflare, EmailLabs i OpenAI.
 - Źródła `.eml` trzech listów, do sprawdzenia, że nie mają piksela.
 - Odczyt retencji kopii, PITR i dzienników w panelu Railway.
