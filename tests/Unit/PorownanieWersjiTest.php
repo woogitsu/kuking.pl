@@ -13,9 +13,15 @@ use PHPUnit\Framework\TestCase;
  */
 final class PorownanieWersjiTest extends TestCase
 {
-    private function skladnik(string $tekst, ?string $grupa = null): array
+    private function skladnik(string $tekst, ?string $grupa = null, ?bool $bezIlosci = null): array
     {
-        return ['group_name' => $grupa, 'text' => $tekst, 'note' => null, 'substitutes' => null, 'position' => 0];
+        $wiersz = ['group_name' => $grupa, 'text' => $tekst, 'note' => null, 'substitutes' => null, 'position' => 0];
+
+        if ($bezIlosci !== null) {
+            $wiersz['no_amount'] = $bezIlosci;
+        }
+
+        return $wiersz;
     }
 
     private function krok(string $tresc, ?int $timer = null): array
@@ -56,6 +62,71 @@ final class PorownanieWersjiTest extends TestCase
 
         $this->assertCount(1, $wynik);
         $this->assertSame(PorownanieWersji::USUNIETO, $wynik[0]['rodzaj']);
+    }
+
+    public function test_jawna_zmiana_bez_ilosci_w_obie_strony_jest_widoczna_bez_zmiany_tekstu_autora(): void
+    {
+        $bezWyboru = ['ingredients' => [$this->skladnik('Sól', bezIlosci: false)]];
+        $zWyborem = ['ingredients' => [$this->skladnik('Sól', bezIlosci: true)]];
+
+        $wlaczenie = PorownanieWersji::porownaj($bezWyboru, $zWyborem);
+        $wylaczenie = PorownanieWersji::porownaj($zWyborem, $bezWyboru);
+
+        $this->assertSame([
+            ['rodzaj' => PorownanieWersji::ZMIENIONO,
+                'przed' => 'Sól (wybór „Bez ilości”: nie)',
+                'po' => 'Sól (wybór „Bez ilości”: tak)'],
+        ], $wlaczenie['skladniki'], 'HISTORIA_BEZ_ILOSCI_ZMIANA');
+        $this->assertSame('Sól (wybór „Bez ilości”: tak)', $wylaczenie['skladniki'][0]['przed']);
+        $this->assertSame('Sól (wybór „Bez ilości”: nie)', $wylaczenie['skladniki'][0]['po']);
+        $this->assertFalse($wlaczenie['brakZmian']);
+        $this->assertFalse($wylaczenie['brakZmian']);
+        $this->assertSame([], $wlaczenie['bezDanych']);
+        $this->assertTrue(PorownanieWersji::porownaj($zWyborem, $zWyborem)['brakZmian']);
+        $this->assertTrue(PorownanieWersji::porownaj($bezWyboru, $bezWyboru)['brakZmian']);
+    }
+
+    public function test_stara_migawka_bez_wyboru_nie_staje_sie_nie_a_pozostale_zmiany_sa_widoczne(): void
+    {
+        $stara = ['ingredients' => [$this->skladnik('Sól')]];
+        $nowa = ['ingredients' => [$this->skladnik('Sól', bezIlosci: true)]];
+        $wynik = PorownanieWersji::porownaj($stara, $nowa);
+
+        $this->assertSame([], $wynik['skladniki']);
+        $this->assertSame(['wybór „Bez ilości” przy składniku 1 („Sól”)'], $wynik['bezDanych'], 'HISTORIA_BEZ_ILOSCI_BRAK_DANYCH');
+        $this->assertFalse($wynik['brakZmian']);
+        $this->assertTrue($wynik['bezWykrytychZmian']);
+
+        $nowa['ingredients'][0]['no_amount'] = false;
+        $bezZgadywaniaFalse = PorownanieWersji::porownaj($stara, $nowa);
+        $this->assertSame([], $bezZgadywaniaFalse['skladniki']);
+        $this->assertSame(['wybór „Bez ilości” przy składniku 1 („Sól”)'], $bezZgadywaniaFalse['bezDanych']);
+
+        $nowa['ingredients'][0]['no_amount'] = true;
+        $nowa['ingredients'][0]['note'] = 'morska';
+        $nowa['ingredients'][0]['group_name'] = 'Przyprawy';
+        $nowa['ingredients'][0]['substitutes'] = 'sól kamienna';
+        $zInnaZmiana = PorownanieWersji::porownaj($stara, $nowa);
+        $this->assertSame('Sól — morska. Zamiast tego: sól kamienna (grupa: Przyprawy)', $zInnaZmiana['skladniki'][0]['po']);
+        $this->assertSame(['wybór „Bez ilości” przy składniku 1 („Sól”)'], $zInnaZmiana['bezDanych']);
+
+        $jawnieStara = ['ingredients' => [$this->skladnik('Sól', bezIlosci: false)]];
+        $razem = PorownanieWersji::porownaj($jawnieStara, $nowa);
+        $this->assertSame('Sól (wybór „Bez ilości”: nie)', $razem['skladniki'][0]['przed']);
+        $this->assertSame('Sól — morska. Zamiast tego: sól kamienna (grupa: Przyprawy) (wybór „Bez ilości”: tak)', $razem['skladniki'][0]['po']);
+        $this->assertSame([], $razem['bezDanych']);
+    }
+
+    public function test_powtorzone_i_dodane_skladniki_zachowuja_parowanie_po_tekscie(): void
+    {
+        $stara = ['ingredients' => [$this->skladnik('woda', bezIlosci: false), $this->skladnik('woda', bezIlosci: true)]];
+        $nowa = ['ingredients' => [$this->skladnik('woda', bezIlosci: true), $this->skladnik('woda', bezIlosci: true), $this->skladnik('sól', bezIlosci: true)]];
+
+        $zmiany = PorownanieWersji::porownaj($stara, $nowa)['skladniki'];
+
+        $this->assertSame([PorownanieWersji::ZMIENIONO, PorownanieWersji::DODANO], array_column($zmiany, 'rodzaj'));
+        $this->assertSame('woda (wybór „Bez ilości”: nie)', $zmiany[0]['przed']);
+        $this->assertSame('sól', $zmiany[1]['po']);
     }
 
     public function test_kroki_wstawiony_w_srodku_nie_przesuwa_reszty_w_zmiany(): void
