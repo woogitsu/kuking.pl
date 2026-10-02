@@ -289,11 +289,14 @@ final class ParserJsonLdPrzepisu
      */
     public static function wiersze(string $tekst): array
     {
+        // Granice rozpoznajemy dopiero po dwóch obsługiwanych warstwach encji.
+        // Sprzątanie pojedynczego wiersza nie może już dekodować go ponownie.
+        $tekst = self::decodeEntities($tekst);
         $tekst = (string) preg_replace('#<\s*(br|/p|/li|/div|/h[1-6])\b[^>]*>#i', "\n", $tekst);
         $wynik = [];
 
         foreach (preg_split('/\R/u', $tekst) ?: [] as $wiersz) {
-            $wiersz = self::tekst($wiersz);
+            $wiersz = self::plainText($wiersz);
 
             if ($wiersz !== '') {
                 $wynik[] = $wiersz;
@@ -309,10 +312,33 @@ final class ParserJsonLdPrzepisu
             return '';
         }
 
-        // Dwa razy: wtyczki WordPressa potrafią zakodować encje podwójnie
-        // (`&amp;frac12;`).
-        $tekst = html_entity_decode(strip_tags($wartosc), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $tekst = html_entity_decode(strip_tags($tekst), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return self::plainText(self::decodeEntities($wartosc));
+    }
+
+    private static function decodeEntities(string $tekst): string
+    {
+        // Dwie warstwy, nie pętla do skutku: WordPress zapisuje także
+        // `&amp;frac12;`. Odtworzony markup sprzątamy dopiero po dekodowaniu.
+        for ($layer = 0; $layer < 2; $layer++) {
+            $tekst = html_entity_decode($tekst, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+
+        return $tekst;
+    }
+
+    private static function plainText(string $tekst): string
+    {
+        // `strip_tags()` uznaje także zwykłe „<80” za początek niedomkniętego
+        // znacznika i ucina resztę instrukcji. Chronimy tylko porównanie z
+        // liczbą; prawdziwy markup nadal usuwa ta sama funkcja. Znacznik
+        // odróżniamy od takiego samego znaku w wejściu bez szukania w pętli.
+        $znacznik = "\u{E000}";
+        $tekst = str_replace($znacznik, $znacznik.$znacznik, $tekst);
+        $tekst = (string) preg_replace('/<(?=\d)/', $znacznik.'L', $tekst);
+        $tekst = strtr(strip_tags($tekst), [
+            $znacznik.$znacznik => $znacznik,
+            $znacznik.'L' => '<',
+        ]);
 
         return trim((string) preg_replace('/\s+/u', ' ', $tekst));
     }

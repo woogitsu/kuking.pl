@@ -10,6 +10,8 @@ use App\Domain\Import\Url\ParserJsonLdPrzepisu;
 use App\Domain\Import\Url\RobotsTxt;
 use App\Domain\Import\Url\TekstStrony;
 use App\Domain\Import\ZadanieFragmentow;
+use App\Models\Recipe;
+use App\Support\LimityTekstuPrzepisu;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -278,6 +280,51 @@ final class ImportParseryTest extends TestCase
         $zrzut = serialize($przepis);
         $this->assertStringNotContainsString('zdjecie.jpg', $zrzut);
         $this->assertStringNotContainsString('Jan Obcy', $zrzut);
+    }
+
+    public function test_json_ld_zakodowane_granice_zachowuja_kroki_i_skladniki(): void
+    {
+        $warianty = ["Wymieszaj ½ łyżki & sól.\nPiecz.", 'Wymieszaj ½ łyżki &amp; sól.&#10;Piecz.', 'Wymieszaj ½ łyżki &amp; sól.&amp;#10;Piecz.'];
+        foreach (['Wymieszaj ½ łyżki &amp; sól.<br>Piecz.', '<p>Wymieszaj ½ łyżki &amp; sól.</p><p>Piecz.</p>', '<ul><li>Wymieszaj ½ łyżki &amp; sól.</li><li>Piecz.</li></ul>'] as $html) {
+            // `&amp;` jest już jedną warstwą: zwykłe znaki treści nie
+            // dostają przypadkiem trzeciej warstwy podczas kodowania HTML.
+            $html = str_replace('&amp;', '&', $html);
+            for ($layer = 0; $layer <= 2; $layer++) {
+                $warianty[] = $html;
+                $html = htmlspecialchars($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            }
+        }
+
+        foreach ($warianty as $instrukcje) {
+            foreach ([$instrukcje, [$instrukcje]] as $poleInstrukcji) {
+                $przepis = (new ParserJsonLdPrzepisu)->odczytaj($this->stronaZJsonLd([
+                    '@type' => 'Recipe', 'name' => 'Żółty placek &amp;frac12;',
+                    'recipeIngredient' => '&amp;lt;p&amp;gt;½ kg mąki&amp;lt;/p&amp;gt;&amp;lt;p&amp;gt;sól &amp;amp; pieprz&amp;lt;/p&amp;gt;',
+                    'recipeInstructions' => $poleInstrukcji,
+                ]));
+
+                $this->assertNotNull($przepis, 'IMPORT_2564_KROKI_BEZ_SKLEJANIA');
+                $this->assertSame(['Wymieszaj ½ łyżki & sól.', 'Piecz.'], $przepis->kroki, 'IMPORT_2564_KROKI_BEZ_SKLEJANIA');
+                $this->assertSame(['½ kg mąki', 'sól & pieprz'], $przepis->skladniki, 'IMPORT_2564_SKLADNIKI_BEZ_SKLEJANIA');
+                $this->assertSame('Żółty placek ½', $przepis->tytul);
+            }
+        }
+    }
+
+    public function test_json_ld_dekoduje_tylko_dwie_warstwy_i_usuwanie_markup_zostaje(): void
+    {
+        $this->assertSame('Zażółć ½ & sól', ParserJsonLdPrzepisu::tekst('&amp;lt;b&amp;gt;Zażółć &amp;frac12; &amp;amp; sól&amp;lt;/b&amp;gt;'), 'IMPORT_2564_MARKUP_NIE_JEST_TEKSTEM');
+        $this->assertSame(['Mix.&lt;br&gt;Bake.'], ParserJsonLdPrzepisu::wiersze('Mix.&amp;amp;lt;br&amp;amp;gt;Bake.'), 'IMPORT_2564_TYLKO_DWIE_WARSTWY');
+        $this->assertSame('', ParserJsonLdPrzepisu::tekst(null));
+
+        $przepis = (new ParserJsonLdPrzepisu)->odczytaj($this->stronaZJsonLd([
+            '@type' => 'Recipe', 'name' => str_repeat('A', 300),
+            'recipeIngredient' => 'mąka',
+            'recipeInstructions' => str_repeat('&lt;p&gt;Piecz.&lt;/p&gt;', 65),
+        ]));
+        $this->assertNotNull($przepis);
+        $this->assertSame(LimityTekstuPrzepisu::POLA['title'], mb_strlen($przepis->tytul));
+        $this->assertCount(Recipe::MAX_STEPS, $przepis->kroki);
     }
 
     public function test_pusty_przepis_w_tym_samym_grafie_nie_zaslania_pelnego(): void
