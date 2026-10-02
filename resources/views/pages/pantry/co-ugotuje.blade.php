@@ -72,6 +72,11 @@
                     Produkty po terminie „Należy zużyć do” pomijamy przy doborze przepisów, a na Twojej liście
                     są teraz tylko takie. Popraw datę albo usuń produkt na liście „Co mam w domu”.
                 </x-empty-state>
+            @elseif($zZeszytow && $najpierwTermin)
+                <x-empty-state title="W tym trybie nie ma propozycji z Twoich zeszytów" action="Pokaż wszystkie propozycje z moich zeszytów" :href="route('pantry.cook', ['zakres' => 'zeszyty'])">
+                    Nie znaleźliśmy w Twoich zeszytach przepisu na produkty z krótkim terminem.
+                    Zobacz wszystkie propozycje z zeszytów, także te bez krótkiego terminu.
+                </x-empty-state>
             @elseif($zZeszytow)
                 {{-- Osobny stan (#2591): to nie znaczy, że lista produktów jest pusta
                      ani że nigdzie nie ma pasującego przepisu — tylko że w Twoich zeszytach go nie ma. --}}

@@ -123,6 +123,23 @@ class CoUgotujeZZeszytowTest extends TestCase
             ->assertSee('href="'.route('pantry.cook').'"', false);
     }
 
+    public function test_pusty_tryb_krotkiego_terminu_nie_twierdzi_ze_w_zeszytach_nie_ma_przepisu_z_tymi_produktami(): void
+    {
+        $osoba = $this->osobaZJajkami();
+        $przepis = $this->przepis('Omlet ZZ-bez-krotkiego-terminu');
+        $this->zapisz($this->zeszyt($osoba), $przepis);
+
+        $this->actingAs($osoba)->get(route('pantry.cook', ['zakres' => 'zeszyty']))->assertOk()
+            ->assertSee('Omlet ZZ-bez-krotkiego-terminu');
+
+        $odpowiedz = $this->actingAs($osoba)->get(route('pantry.cook', ['zakres' => 'zeszyty', 'najpierw' => 'termin']))->assertOk();
+        $html = (string) $odpowiedz->getContent();
+        $this->assertStringContainsString('W tym trybie nie ma propozycji z Twoich zeszytów', $html, 'ZESZYTY_2591_PUSTY_PILNY_ZAKRES');
+        $this->assertStringContainsString('Pokaż wszystkie propozycje z moich zeszytów', $html, 'ZESZYTY_2591_DROGA_DO_ZWYKLEGO_ZAKRESU');
+        $this->assertStringContainsString('href="'.route('pantry.cook', ['zakres' => 'zeszyty']).'"', $html, 'ZESZYTY_2591_LINK_BEZ_TRYBU_PILNEGO');
+        $this->assertStringNotContainsString('W Twoich zeszytach nie ma przepisu z tymi produktami', $html, 'ZESZYTY_2591_BEZ_FALSZYWEGO_BRAKU');
+    }
+
     public function test_zakres_i_tryb_terminu_dzialaja_razem_i_zostaja_przy_pokaz_wiecej(): void
     {
         $osoba = $this->osobaZJajkami();

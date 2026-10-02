@@ -44,6 +44,7 @@ OCZEKUJ = {
     "Pusta linia Unicode tworzy składnik (#2621)": r'PUSTE_LINIE_2621_UNICODE',
     "Pusta linia Unicode skleja kroki po POST (#2621)": r'PUSTE_LINIE_2621_POST_KROKI',
     "Co ugotuję: ostatnia strona wraca do siebie (#2599)": r'PAGINACJA_2599_BEZ_PETLI',
+    "Co ugotuję: pusty termin myli się z pustym zeszytem (#2591)": r'ZESZYTY_2591_PUSTY_PILNY_ZAKRES',
     "HTTP import paczki nie pilnuje budżetu struktury (#2611)": r'BUDZET_2611_HTTP_ODMOWA',
     "Paczka JSON bez budżetu struktury (#2611)": r'BUDZET_2611_ODMOWA_BEZ_FATALA',
     "Porcje mnożą procent tłuszczu (#2629)": r'PORCJE_2629_PROCENT_NIE_JEST_ILOSCIA',
