@@ -18,7 +18,9 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * RETENCJA POTWIERDZEŃ RODO — DZIŚ WYŁĄCZONA (decyzja właściciela, D-233).
+ * RETENCJA POTWIERDZEŃ RODO — WŁĄCZONA 2.10.2026 (decyzja właściciela, #2708, odsyła do D-233).
+ * Do tej daty kasowanie było wyłączone (D-233); niżej testy dowodzą obu stanów
+ * przełącznika awaryjnego, domyślnego włączenia i wpisu w harmonogramie.
  *
  * ═══════════════════════════════════════════════════════════════════════
  *  CO TEN PLIK PILNUJE, A CO PILNOWAŁ WCZEŚNIEJ
@@ -154,32 +156,53 @@ class RetencjaPotwierdzenRodoTest extends TestCase
     }
 
     #[Test]
-    public function test_retencja_jest_domyslnie_wylaczona_a_okres_nieustalony(): void
+    public function test_retencja_jest_domyslnie_wlaczona_na_36_miesiecy(): void
     {
-        // TO JEST TEST DECYZJI, NIE IMPLEMENTACJI (D-233). Gdy padnie, nie
-        // „popraw konfigurację" — sprawdź najpierw, czy prawnik potwierdził
-        // okres i czy właściciel świadomie włączył kasowanie.
-        $this->assertFalse(
-            (bool) config('kuking.potwierdzenia_rodo.retencja_wlaczona'),
-            'Kasowanie potwierdzeń RODO zostało włączone domyślnie. To była decyzja właściciela (D-233), nie usterka do naprawienia.',
-        );
+        // TO JEST TEST DECYZJI WŁAŚCICIELA Z 2.10.2026 (#2708): 36 miesięcy,
+        // włączone, z wyłącznikiem awaryjnym w zmiennej środowiskowej.
+        $this->assertTrue((bool) config('kuking.potwierdzenia_rodo.retencja_wlaczona'), 'Retencja potwierdzeń RODO nie jest domyślnie włączona.');
+        $this->assertSame(36, config('kuking.potwierdzenia_rodo.retention_months'));
+    }
 
-        $this->assertNull(
-            config('kuking.potwierdzenia_rodo.retention_months'),
-            'Okres retencji dostał wartość domyślną. Dopóki prawnik go nie potwierdzi, ma być `null` — inaczej samo przestawienie flagi kasuje według zgadniętego progu.',
-        );
+    #[Test]
+    public function test_komenda_na_domyslnej_konfiguracji_kasuje_po_36_miesiacach_i_zostawia_mlodsze(): void
+    {
+        $stare = $this->potwierdzenie(zakonczono: Carbon::today()->subMonthsNoOverflow(36)->subDay()->toDateString());
+        $granica = $this->potwierdzenie(zakonczono: Carbon::today()->subMonthsNoOverflow(36)->addDay()->toDateString());
+
+        $this->artisan('kuking:sprzataj-potwierdzenia-rodo')->assertSuccessful();
+
+        $this->assertDatabaseMissing('potwierdzenia_zadan_rodo', ['numer' => $stare]);
+        $this->assertDatabaseHas('potwierdzenia_zadan_rodo', ['numer' => $granica]);
+    }
+
+    #[Test]
+    public function test_potwierdzenie_konta_z_zabezpieczonym_dowodem_zostaje_a_inne_znika(): void
+    {
+        $zatrzymane = User::factory()->create();
+        $inne = User::factory()->create();
+        $a = $this->potwierdzenie(zakonczono: '2022-01-15');
+        $b = $this->potwierdzenie(zakonczono: '2022-01-15');
+        DB::table('potwierdzenia_zadan_rodo')->where('numer', $a)->update(['konto_id' => $zatrzymane->getKey()]);
+        DB::table('potwierdzenia_zadan_rodo')->where('numer', $b)->update(['konto_id' => $inne->getKey()]);
+        $this->zabezpieczDowod($zatrzymane);
+
+        $this->artisan('kuking:sprzataj-potwierdzenia-rodo')->assertSuccessful();
+
+        $this->assertDatabaseHas('potwierdzenia_zadan_rodo', ['numer' => $a]);
+        $this->assertDatabaseMissing('potwierdzenia_zadan_rodo', ['numer' => $b]);
     }
 
     #[Test]
     public function test_komenda_przy_wylaczonej_retencji_nie_kasuje_niczego(): void
     {
+        config(['kuking.potwierdzenia_rodo.retencja_wlaczona' => false]);
         $stare = $this->potwierdzenie(zakonczono: '2022-01-15');
 
         Artisan::call('kuking:sprzataj-potwierdzenia-rodo', ['--miesiace' => 36]);
         $wyjscie = Artisan::output();
 
         $this->assertStringContainsString('WYŁĄCZONA', $wyjscie);
-        $this->assertStringContainsString('D-233', $wyjscie);
         $this->assertDatabaseHas('potwierdzenia_zadan_rodo', ['numer' => $stare]);
 
         // KONTROLA DODATNIA: wiersz NAPRAWDĘ był kandydatem do skasowania,
@@ -195,6 +218,7 @@ class RetencjaPotwierdzenRodoTest extends TestCase
     #[Test]
     public function test_na_sucho_liczy_takze_przy_wylaczonej_retencji(): void
     {
+        config(['kuking.potwierdzenia_rodo.retencja_wlaczona' => false]);
         // Tym właściciel ma przygotować dane historyczne, zanim prawnik
         // potwierdzi okres — dlatego dry-run NIE jest blokowany wyłączeniem.
         $stare = $this->potwierdzenie(zakonczono: '2022-01-15');
@@ -209,6 +233,7 @@ class RetencjaPotwierdzenRodoTest extends TestCase
     #[Test]
     public function test_bez_okresu_komenda_odmawia_zamiast_zgadywac(): void
     {
+        config(['kuking.potwierdzenia_rodo.retention_months' => null]);
         $this->potwierdzenie(zakonczono: '2022-01-15');
 
         // Bez `--miesiace` i bez potwierdzonego okresu w configu nie ma z czego
@@ -248,26 +273,27 @@ class RetencjaPotwierdzenRodoTest extends TestCase
     }
 
     #[Test]
-    public function test_harmonogram_celowo_nie_zna_tej_komendy(): void
+    public function test_harmonogram_zna_te_komende_na_wolnym_slocie(): void
     {
-        // DRUGA BARIERA WYŁĄCZENIA (D-233): zadania nie ma w harmonogramie,
-        // więc nie wystartuje nawet przy przypadkowo ustawionej zmiennej.
-        // Dopisanie go tutaj jest jednym z trzech kroków włączenia opisanych
-        // przy kluczu `potwierdzenia_rodo` w `config/kuking.php`.
-        $nazwy = array_map(
-            static fn (object $zadanie): ?string => $zadanie->description ?? null,
-            app(Schedule::class)->events(),
-        );
+        $zadania = [];
+        foreach (app(Schedule::class)->events() as $zdarzenie) {
+            $zadania[(string) ($zdarzenie->description ?? '')] = $zdarzenie->expression;
+        }
 
-        $this->assertNotContains(
-            'kuking:sprzataj-potwierdzenia-rodo',
-            $nazwy,
-            'Zadanie retencji wróciło do harmonogramu. To była decyzja właściciela (D-233) — sprawdź ją, zanim to „naprawisz".',
-        );
+        $this->assertSame('0 2 * * *', $zadania['kuking:sprzataj-potwierdzenia-rodo'] ?? null, 'Retencja potwierdzeń RODO nie stoi w harmonogramie o 02:00.');
 
-        // KONTROLA DODATNIA: skan harmonogramu naprawdę widzi zadania,
-        // więc powyższa nieobecność coś znaczy.
-        $this->assertContains('kuking:sprzataj-audyt', $nazwy);
+        // KONTROLA DODATNIA: skan harmonogramu widzi też inne zadania.
+        $this->assertArrayHasKey('kuking:sprzataj-audyt', $zadania);
+    }
+
+    private function zabezpieczDowod(User $konto): void
+    {
+        DB::table('zabezpieczenia_dowodow')->insert([
+            'id' => (string) Str::uuid(),
+            'target_type' => 'post',
+            'target_id' => (string) Str::uuid(),
+            'subject_user_id' => $konto->getKey(),
+        ]);
     }
 
     /**

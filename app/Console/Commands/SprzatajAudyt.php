@@ -37,7 +37,11 @@ class SprzatajAudyt extends Command
             ? "Do skasowania: {$wynik['skasowano']} wpisów audytu starszych niż {$miesiace} miesięcy."
             : "Skasowano {$wynik['skasowano']} wpisów audytu starszych niż {$miesiace} miesięcy.");
 
-        $this->line("Pominięto jako niekasowalne (dowód RODO/DSA — AuditLogEntry::NIGDY_NIE_KASUJ): {$wynik['niekasowalne']}.");
+        $this->line("Pominięto jako niekasowalne albo wstrzymane (dowód RODO/DSA): {$wynik['niekasowalne']}.");
+
+        if ($wynik['wstrzymane_do_przeniesienia']) {
+            $this->warn('Wpisy account.* NIE są kasowane: nie wszystkie zamknięte sprawy mają potwierdzenie RODO. Uruchom kuking:przenies-potwierdzenia-rodo (najpierw z --dry-run).');
+        }
         $this->line(($naSucho ? 'Do wyczyszczenia' : 'Wyczyszczono')." skrót IP we wpisach dowodowych starszych niż {$miesiace} miesięcy: {$wynik['wyczyszczono_ip']}.");
 
         return self::SUCCESS;

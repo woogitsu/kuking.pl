@@ -41,3 +41,10 @@ zarezerwowany dla poprawki kolizji numeru w #1222. Niczego nie przenumerowano.
 
 Pilnuje tego `tests/Feature/RetencjaPotwierdzenRodoTest.php` — obie strony:
 że domyślnie nic się nie kasuje i że po jawnym włączeniu automat działa.
+
+**Aktualizacja 2 października 2026 (#2708).** Właściciel uznał analizę z
+2.10.2026 (pytanie 7) za potwierdzenie okresu i zdjął wyłączenie: 36 miesięcy
+od `zakonczono`, kasowanie włączone, komenda w harmonogramie, droga w
+kolejności z `PROJEKT_POTWIERDZENIA_RODO.md` §6. Pełny zapis jest w wierszu
+„Retencja potwierdzeń żądań RODO: 36 miesięcy” w D-333. Reszta tej decyzji
+(twardy `DELETE`, brak ekranu, CHECK-i) obowiązuje bez zmian.
