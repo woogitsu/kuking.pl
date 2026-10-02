@@ -49,6 +49,7 @@ OCZEKUJ = {
     'Odżywcze: inny surowiec trafia w mąkę pszenną (#2607)': r'SUROWIEC_2607_NIE_POMIJAJ_ZRODLA',
     'Odżywcze: stan przed nazwą znika (#2563)': r'STAN_2563_PRZED_NAZWA',
     'Odżywcze: stan po nazwie znika (#2563)': r'STAN_2563_PO_NAZWIE',
+    "Spiżarnia: sól z 'bez soli' udaje masło (#2613)": r'SPIZARNIA_2613_SOL_NIE_JEST_MASLEM',
     "Spiżarnia usuwa bez pytania (#2467)": r'SPIZARNIA_2467_USUNIECIE_WYMAGA_PYTANIA',
     'Planer usuwa bez pytania (#2468)': r'PLANER_2468_PIERWSZY_KLIK_BEZ_DELETE',
     "Zmiana porcji zachowuje stare odmierzenie (#2502)": r'PORCJE_2502_NOWA_ILOSC_NIE_PRZYGOTOWANA',
