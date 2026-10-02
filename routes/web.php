@@ -54,6 +54,7 @@ use App\Http\Controllers\KartaQrController;
 use App\Http\Controllers\KolejkaGotowaniaController;
 use App\Http\Controllers\ListaZakupowController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\MojeProbyPrzepisuController;
 use App\Http\Controllers\MojeWpisyController;
 use App\Http\Controllers\MojRokController;
 use App\Http\Controllers\MojStolController;
@@ -1121,6 +1122,8 @@ Route::middleware('auth')->group(function () use ($limits): void {
 
     // "Ugotowałem" — najważniejsza akcja w produkcie.
     Route::get('/przepisy/{recipe}/ugotowalem', [CookedEventController::class, 'create'])->name('cooked.create');
+    // „Moje próby tego przepisu” (#2412): prywatna historia własnych wykonań.
+    Route::get('/przepisy/{recipe}/moje-proby', [MojeProbyPrzepisuController::class, 'index'])->name('cooked.proby');
     Route::post('/przepisy/{recipe}/ugotowalem', [CookedEventController::class, 'store'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('cooked.store');

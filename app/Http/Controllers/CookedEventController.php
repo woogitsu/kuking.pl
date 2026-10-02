@@ -313,6 +313,11 @@ class CookedEventController extends Controller
                 : null,
             'maPrzypietaWersje' => $cookedEvent->user_id === $request->user()?->getKey()
                 && $cookedEvent->recipe_version_id !== null,
+            // Odnośnik do „Moich prób tego przepisu” (#2412): tylko kucharz
+            // i tylko do przepisu, który może otworzyć (inaczej 403).
+            'mojeProbyLink' => $cookedEvent->user_id === $request->user()?->getKey()
+                && $cookedEvent->recipe !== null
+                && Gate::forUser($request->user())->allows('view', $cookedEvent->recipe),
             'komentarze' => $komentarze,
             // Nagłówek „Komentarze (N)” mówi o CAŁEJ rozmowie razem
             // z odpowiedziami, jak karta wpisu i strona przepisu (D-281,
