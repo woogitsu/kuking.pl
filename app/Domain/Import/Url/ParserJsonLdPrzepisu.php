@@ -150,10 +150,22 @@ final class ParserJsonLdPrzepisu
             return [];
         }
 
+        // Pojedynczy obiekt (np. jeden `PropertyValue`) to jedna pozycja, a nie
+        // lista jego pól — inaczej nazwa i jednostka stałyby się osobnymi składnikami.
+        if (! array_is_list($wartosc)) {
+            $wartosc = [$wartosc];
+        }
+
         $wynik = [];
 
         foreach ($wartosc as $element) {
-            if (is_string($element) || is_int($element) || is_float($element)) {
+            if (is_array($element) && $this->jestTypem($element, 'PropertyValue')) {
+                $tekst = self::skladnikZPropertyValue($element);
+
+                if ($tekst !== '') {
+                    $wynik[] = $tekst;
+                }
+            } elseif (is_string($element) || is_int($element) || is_float($element)) {
                 $tekst = self::tekst((string) $element);
 
                 if ($tekst !== '') {
@@ -169,6 +181,60 @@ final class ParserJsonLdPrzepisu
         }
 
         return $wynik;
+    }
+
+    /**
+     * Jednostki z kodów UN/CEFACT (`unitCode`), które rozumiemy bez zgadywania.
+     * Każdy inny kod zostaje w tekście składnika razem z prośbą o sprawdzenie
+     * w źródle — nie tłumaczymy ani nie przeliczamy go po cichu (#2548).
+     */
+    private const JEDNOSTKI_UNIT_CODE = [
+        'GRM' => 'g', 'KGM' => 'kg', 'MGM' => 'mg',
+        'MLT' => 'ml', 'CLT' => 'cl', 'DLT' => 'dl', 'LTR' => 'l',
+    ];
+
+    /**
+     * `PropertyValue` jako składnik: `value`, jednostka i `name` zapisane
+     * wolnym tekstem. Nic nie jest przeliczane ani dopisywane — brak ilości
+     * zostaje brakiem, a nieznany `unitCode` jest widoczny w tekście.
+     *
+     * @param  array<mixed>  $wezel
+     */
+    private static function skladnikZPropertyValue(array $wezel): string
+    {
+        $nazwa = self::tekst($wezel['name'] ?? '');
+        $wartosc = $wezel['value'] ?? null;
+        $ilosc = match (true) {
+            is_int($wartosc), is_float($wartosc) => (string) $wartosc,
+            is_string($wartosc) => self::tekst($wartosc),
+            default => '',
+        };
+
+        if ($nazwa === '' && $ilosc === '') {
+            return '';
+        }
+
+        // Jednostka bez ilości nic nie znaczy — nie dopisujemy jej do samej nazwy.
+        if ($ilosc === '') {
+            return $nazwa;
+        }
+
+        $jednostka = self::tekst($wezel['unitText'] ?? '');
+        $kod = self::tekst($wezel['unitCode'] ?? '');
+
+        if ($jednostka === '' && $kod !== '') {
+            $znana = self::JEDNOSTKI_UNIT_CODE[strtoupper($kod)] ?? null;
+
+            if ($znana === null) {
+                return $nazwa === ''
+                    ? "{$ilosc} (kod jednostki ze źródła: {$kod}; sprawdź w źródle)"
+                    : "{$nazwa} — ilość: {$ilosc}, kod jednostki ze źródła: {$kod}; sprawdź w źródle";
+            }
+
+            $jednostka = $znana;
+        }
+
+        return trim(implode(' ', array_filter([$ilosc, $jednostka, $nazwa], static fn (string $c): bool => $c !== '')));
     }
 
     /**
