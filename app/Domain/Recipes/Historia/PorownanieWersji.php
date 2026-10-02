@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Historia;
 
+use App\Domain\Recipes\GrupySkladnikow;
+
 /**
  * Porównanie dwóch zapisanych migawek przepisu: co dodano, usunięto
  * i zmieniono (issue #2024).
@@ -41,6 +43,7 @@ final class PorownanieWersji
      *     pola: list<array{etykieta: string, rodzaj: string, przed: ?string, po: ?string}>,
      *     bezDanych: list<string>,
      *     skladniki: list<array{rodzaj: string, przed: ?string, po: ?string}>,
+     *     zmienionaKolejnoscSkladnikow: bool,
      *     kroki: list<array{rodzaj: string, numer: int, przed: ?string, po: ?string}>,
      *     brakZmian: bool,
      *     bezWykrytychZmian: bool
@@ -52,24 +55,101 @@ final class PorownanieWersji
         $b = new MigawkaWersji($nowsza);
 
         [$pola, $bezDanych] = self::pola($a, $b, $zAlergenami);
-        $skladniki = self::skladniki($a->skladniki(), $b->skladniki());
+        $stareSkladniki = $a->skladniki();
+        $noweSkladniki = $b->skladniki();
+        $skladniki = self::skladniki($stareSkladniki, $noweSkladniki);
+        $zmienionaKolejnoscSkladnikow = self::zmienionaKolejnoscSkladnikow($stareSkladniki, $noweSkladniki);
         $kroki = self::kroki($a->kroki(), $b->kroki());
 
         return [
             'pola' => $pola,
             'bezDanych' => $bezDanych,
             'skladniki' => $skladniki,
+            'zmienionaKolejnoscSkladnikow' => $zmienionaKolejnoscSkladnikow,
             'kroki' => $kroki,
             // „Brak zmian" tylko wtedy, gdy porównanie objęło WSZYSTKO
             // (#2240). Pole z wartością po jednej stronie i bez klucza po
             // drugiej to „nie wiemy", nie „bez zmian" — ekran nie może
             // wtedy twierdzić, że wersje są identyczne.
-            'brakZmian' => $pola === [] && $skladniki === [] && $kroki === [] && $bezDanych === [],
+            'brakZmian' => $pola === [] && $skladniki === [] && ! $zmienionaKolejnoscSkladnikow && $kroki === [] && $bezDanych === [],
             // Nic z tego, co da się porównać, się nie zmieniło, ale części
             // pól porównać się nie da. Osobny stan, żeby widok nie mówił
             // naraz „nie ma różnic" i „tego nie da się porównać".
-            'bezWykrytychZmian' => $pola === [] && $skladniki === [] && $kroki === [] && $bezDanych !== [],
+            'bezWykrytychZmian' => $pola === [] && $skladniki === [] && ! $zmienionaKolejnoscSkladnikow && $kroki === [] && $bezDanych !== [],
         ];
+    }
+
+    /**
+     * Porównuje układ widoczny na stronie, a nie numery position. Wspólne
+     * wiersze rozpoznaje po całym widocznym opisie i numerze wystąpienia;
+     * dodany albo usunięty wiersz nie przesuwa pozostałych w „zmiany”.
+     *
+     * @param  list<array{group_name: ?string, text: string, note: ?string, substitutes: ?string}>  $stare
+     * @param  list<array{group_name: ?string, text: string, note: ?string, substitutes: ?string}>  $nowe
+     */
+    private static function zmienionaKolejnoscSkladnikow(array $stare, array $nowe): bool
+    {
+        $stareGrupy = self::grupyDoPorownania($stare);
+        $noweGrupy = self::grupyDoPorownania($nowe);
+        $wspolne = array_intersect(array_keys($stareGrupy), array_keys($noweGrupy));
+        $staraKolejnoscGrup = array_values(array_intersect(array_keys($stareGrupy), $wspolne));
+        $nowaKolejnoscGrup = array_values(array_intersect(array_keys($noweGrupy), $wspolne));
+
+        if ($staraKolejnoscGrup !== $nowaKolejnoscGrup) {
+            return true;
+        }
+
+        foreach ($wspolne as $grupa) {
+            $licznikiStare = array_count_values($stareGrupy[$grupa]);
+            $licznikiNowe = array_count_values($noweGrupy[$grupa]);
+            $limity = [];
+            foreach ($licznikiStare as $klucz => $liczba) {
+                $limity[$klucz] = min($liczba, $licznikiNowe[$klucz] ?? 0);
+            }
+
+            if (self::wspolnaKolejnosc($stareGrupy[$grupa], $limity) !== self::wspolnaKolejnosc($noweGrupy[$grupa], $limity)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  list<array{group_name: ?string, text: string, note: ?string, substitutes: ?string}>  $skladniki
+     * @return array<string, list<string>>
+     */
+    private static function grupyDoPorownania(array $skladniki): array
+    {
+        $wynik = [];
+        foreach (GrupySkladnikow::ulozyc($skladniki) as $grupa) {
+            $klucz = $grupa['nazwa'] === null ? '' : GrupySkladnikow::klucz($grupa['nazwa']);
+            $wynik[$klucz] = array_map(
+                fn (array $wiersz): string => serialize([$wiersz['text'], $wiersz['note'], $wiersz['substitutes']]),
+                $grupa['skladniki'],
+            );
+        }
+
+        return $wynik;
+    }
+
+    /**
+     * @param  list<string>  $wiersze
+     * @param  array<string, int>  $limity
+     * @return list<string>
+     */
+    private static function wspolnaKolejnosc(array $wiersze, array $limity): array
+    {
+        $widziane = [];
+        $wynik = [];
+        foreach ($wiersze as $klucz) {
+            $widziane[$klucz] = ($widziane[$klucz] ?? 0) + 1;
+            if ($widziane[$klucz] <= ($limity[$klucz] ?? 0)) {
+                $wynik[] = $klucz;
+            }
+        }
+
+        return $wynik;
     }
 
     /**

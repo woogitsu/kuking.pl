@@ -306,6 +306,24 @@ class HistoriaWersjiPrzepisuTest extends TestCase
             ->assertSee('nie ma różnic');
     }
 
+    public function test_zmiana_kolejnosci_skladnikow_nie_mowi_o_braku_roznic(): void
+    {
+        $przepis = Recipe::factory()->create();
+        $this->wersja($przepis, 1, ['ingredients' => [
+            ['group_name' => 'Ciasto', 'text' => 'mąka', 'position' => 0],
+            ['group_name' => 'Ciasto', 'text' => 'woda', 'position' => 1],
+        ]]);
+        $this->wersja($przepis, 2, ['ingredients' => [
+            ['group_name' => 'Ciasto', 'text' => 'woda', 'position' => 0],
+            ['group_name' => 'Ciasto', 'text' => 'mąka', 'position' => 1],
+        ]]);
+
+        $this->get(route('recipes.history.changes', [$przepis->slug, 2]))
+            ->assertOk()
+            ->assertSee('Zmieniono: kolejność składników lub grup')
+            ->assertDontSee('W tekście i danych przepisu nie ma różnic');
+    }
+
     public function test_pole_ktorego_brakuje_w_starszej_migawce_nie_jest_zmiana(): void
     {
         $przepis = Recipe::factory()->create();
