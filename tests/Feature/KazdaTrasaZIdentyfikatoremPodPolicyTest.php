@@ -1155,6 +1155,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('recipes.history.restore', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.history.restore.store', 'przywrócenie wersji prywatnego przepisu', 'post',
             route('recipes.history.restore.store', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
+        // #2525: „Zastosuj jako nową poprawkę” — podgląd i zapis wyłącznie autor
+        // (`RecipePolicy::applyVersion`); moderator i obca osoba dostają odmowę.
+        $dodaj('recipes.history.apply', 'podgląd zastosowania wersji prywatnego przepisu jako poprawki', 'get',
+            route('recipes.history.apply', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.apply.store', 'zastosowanie wersji prywatnego przepisu jako poprawki', 'post',
+            route('recipes.history.apply.store', [$przepisPrywatny, 1]), ['sekcje' => ['dane'], 'rewizja' => '0'], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.edit', 'edycja przepisu', 'get',
             route('recipes.edit', $przepis), [], [$W, $O, $O, $O, $O]);
         // Zlecenie odczytu zdjęcia kartki (V2, D-298) — prywatny szkic ze

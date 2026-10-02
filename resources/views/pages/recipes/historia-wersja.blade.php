@@ -15,6 +15,16 @@
     @endif
     @include('pages.recipes.partials.historia-przycisk-ukrycia', ['wersja' => $wersja, 'czyNajnowsza' => $czyNajnowsza, 'uprawnienia' => $uprawnienia])
 
+    {{-- „Zastosuj jako nową poprawkę” (#2525): tylko autor własnego przepisu, nie dla
+         najnowszej ani ukrytej wersji. Link prowadzi do ODCZYTOWEGO podglądu. --}}
+    @if(! $czyNajnowsza && ! $wersja->czyUkryta())
+        @can('applyVersion', $recipe)
+            <p class="historia-akcje">
+                <a class="btn btn-primary" href="{{ route('recipes.history.apply', [$recipe->slug, $wersja->version_number]) }}">Zastosuj jako nową poprawkę</a>
+            </p>
+        @endcan
+    @endif
+
     <p class="historia-akcje">
         @if($starszy !== null)
             <a class="btn btn-secondary" href="{{ route('recipes.history.changes', [$recipe->slug, $wersja->version_number]) }}">Co się zmieniło względem wersji {{ $starszy }}</a>

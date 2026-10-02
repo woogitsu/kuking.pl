@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Poprawka własnego przepisu z dawnej wersji
+
+Zmieniliście kilka proporcji, a po kolejnym gotowaniu chcecie wrócić do poprzedniej receptury? W historii zmian własnego przepisu, przy starszej wersji, jest przycisk „Zastosuj jako nową poprawkę”. Najpierw widzicie podgląd: co wróci z tej wersji, co jest dziś i czego nie przywracamy (zdjęcia, pochodzenie przepisu, widoczność). Samo oglądanie niczego nie zmienia. Zaznaczacie, co zastosować — dane, składniki, kroki — i dopiero wtedy powstaje nowa wersja. To nie cofnięcie czasu: dawne wersje zostają, a przepis dostaje kolejną poprawkę.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

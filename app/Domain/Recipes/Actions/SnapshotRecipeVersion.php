@@ -114,6 +114,19 @@ final class SnapshotRecipeVersion
     }
 
     /**
+     * Dzisiejsza treść przepisu w kształcie migawki — do odczytowego podglądu
+     * „Zastosuj jako nową poprawkę” (#2525). Nic nie zapisuje.
+     *
+     * @return array<string, mixed>
+     */
+    public function tresc(Recipe $recipe): array
+    {
+        $recipe->loadMissing(['ingredients.unit', 'steps']);
+
+        return $this->migawka($recipe);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function migawka(Recipe $recipe): array

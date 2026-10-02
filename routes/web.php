@@ -1129,6 +1129,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // Kto: `RecipeVersionPolicy`; stan: `UkrywanieWersji`. Limit
     // `usuwanie`: ukrycie zdejmuje treść z widoku jak usunięcie, a to samo
     // tempo (potwierdzenie + klik) mieści porządki w długiej historii.
+    // „Zastosuj jako nową poprawkę” (#2525): GET to odczytowy podgląd (nic nie
+    // zapisuje), POST — jawne zastosowanie. Kto: `RecipePolicy::applyVersion`.
+    Route::get('/przepisy/{recipe}/historia/{numer}/zastosuj', [HistoriaPrzepisuController::class, 'podgladPoprawki'])
+        ->where('numer', '[1-9][0-9]{0,8}')
+        ->name('recipes.history.apply');
+    Route::post('/przepisy/{recipe}/historia/{numer}/zastosuj', [HistoriaPrzepisuController::class, 'zastosujPoprawke'])
+        ->where('numer', '[1-9][0-9]{0,8}')
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('recipes.history.apply.store');
     Route::get('/przepisy/{recipe}/historia/{numer}/ukryj', [HistoriaPrzepisuController::class, 'potwierdzUkrycie'])
         ->where('numer', '[1-9][0-9]{0,8}')
         ->name('recipes.history.hide');
