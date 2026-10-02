@@ -68,6 +68,8 @@
         // Issue #1810: jawne polecenia widza z drogą do cofnięcia (AGENTS.md §8).
         'hidden' => ['settings.hidden', 'Ukryte', 'Wpisy i osoby, które ukrywasz tylko dla siebie'],
         'birthday' => ['settings.birthday', 'Urodziny', 'Dzień i miesiąc — życzenia od nas, bez roku'],
+        // #2553: opcjonalna, domyślnie wyłączona lista do powrotu do przepisu.
+        'ogladane' => ['settings.ogladane', 'Ostatnio oglądane', 'Prywatna lista przepisów, do których chcesz wrócić'],
         'data' => ['settings.data', 'Twoje dane', 'Pobranie danych i usunięcie konta'],
     ];
 

@@ -84,6 +84,7 @@ use App\Http\Controllers\Settings\DevicesSettingsController;
 use App\Http\Controllers\Settings\EmailSettingsController;
 use App\Http\Controllers\Settings\FormOfAddressController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
+use App\Http\Controllers\Settings\OstatnioOgladaneController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
 use App\Http\Controllers\Settings\SciagawkaController;
@@ -1651,6 +1652,20 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/ustawienia/urodziny', [BirthdaySettingsController::class, 'destroy'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('settings.birthday.destroy');
+
+    // Opcjonalna, prywatna lista ostatnio oglądanych przepisów (#2553). Domyślnie
+    // wyłączona; trzy zwykłe POST-y (włącz / wyłącz i usuń / wyczyść), bez
+    // identyfikatora w adresie — właściciel zawsze z sesji.
+    Route::get('/ustawienia/ostatnio-ogladane', [OstatnioOgladaneController::class, 'edit'])->name('settings.ogladane');
+    Route::post('/ustawienia/ostatnio-ogladane/wlacz', [OstatnioOgladaneController::class, 'wlacz'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.ogladane.wlacz');
+    Route::post('/ustawienia/ostatnio-ogladane/wylacz', [OstatnioOgladaneController::class, 'wylacz'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.ogladane.wylacz');
+    Route::post('/ustawienia/ostatnio-ogladane/wyczysc', [OstatnioOgladaneController::class, 'wyczysc'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('settings.ogladane.wyczysc');
 
     Route::get('/ustawienia/twoje-dane', [DataSettingsController::class, 'show'])->name('settings.data');
     // Paczka RODO to najdroższe pojedyncze żądanie w serwisie — własny klucz

@@ -32,6 +32,9 @@
         @if(auth()->user()->memories_enabled)
             <a class="btn btn-secondary" href="{{ route('moj-rok.show') }}" data-link-moj-rok>Mój rok w kuchni</a>
         @endif
+        {{-- Opcjonalna, prywatna lista do powrotu (#2553): domyślnie wyłączona,
+             więc ten odnośnik prowadzi na ekran, który to wyjaśnia, a nie na pustą listę. --}}
+        <a class="btn btn-secondary" href="{{ route('settings.ogladane') }}">Ostatnio oglądane</a>
     </p>
 
     {{-- Błąd przy polu ORAZ w podsumowaniu (docs/UX_50_PLUS.md). Bez tego

@@ -285,6 +285,19 @@ zdecydujecie sami. Jeśli któregoś zdjęcia nie da się już użyć, ekran pow
 o tym wprost. Po upływie terminu przepis jest usuwany na stałe i nie ma już
 drogi powrotu, tak samo po wymazaniu konta.
 
+### Prywatna lista ostatnio oglądanych przepisów
+
+Przepis obejrzany, ale niezapisany, łatwo zgubić: po godzinie trudno sobie
+przypomnieć, jak się nazywał. Dlatego można włączyć krótką listę ostatnio
+oglądanych przepisów. Jest
+domyślnie wyłączona i włącza ją dopiero przycisk „Włącz listę” w ustawieniach
+(odnośnik jest też w „Moje”). Zapamiętujemy tylko, który przepis otwarto i
+kiedy — do 10 przepisów z ostatnich 7 dni, a starsze znikają same. Widzicie
+ją tylko Wy: nie wpływa na to, co pokazujemy w serwisie, i niczego nie
+zapisuje w zeszycie ani w „Ugotowałem”. Przycisk „Wyczyść listę” albo
+wyłączenie listy usuwa wszystko od razu. Przepis, który przestał być dla
+Was dostępny, sam znika z listy.
+
 ## Alfa 0.78
 
 **Co zużyć najpierw, lista zakupów i wydruk zeszytu.**

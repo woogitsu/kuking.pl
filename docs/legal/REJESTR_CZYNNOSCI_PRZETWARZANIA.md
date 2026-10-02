@@ -916,6 +916,32 @@ trafi tam pierwszy rekord.
 - **Eksport:** `usuniete_zeszyty` (nazwa, opis, daty, pozycje z dopiskami;
   tytuł przepisu tylko gdy przepis jest dziś widoczny dla osoby).
 
+### 3.31 Opcjonalna, prywatna lista ostatnio oglądanych przepisów (V2, issue #2553)
+
+- **Cel:** powrót do przepisu, który osoba obejrzała, ale nie zapisała w
+  zeszycie. Wyłącznie ten cel: lista nie służy do polecania treści, układania
+  ekranów, statystyk, moderacji ani powiadomień.
+- **Dane:** identyfikator konta i przepisu oraz czas ostatniej wizyty
+  (`recent_recipe_views`), a w koncie data świadomego włączenia funkcji
+  (`users.ostatnio_ogladane_wlaczone_at`). Bez treści, zdjęć, adresu z
+  parametrami, wyszukiwanych fraz i wyboru alergenów. Tylko dla zalogowanych;
+  goście niczego nie zapisują.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — funkcja, którą osoba włącza na
+  własne życzenie; **domyślnie wyłączona**, bez zapisu wstecz. Weryfikacja
+  przez prawnika zostaje w #8.
+- **Odbiorcy:** Railway. Dane widzi wyłącznie właściciel konta (ekran w
+  ustawieniach, bez identyfikatora w adresie); nic nie jest wysyłane do
+  podmiotów trzecich, nie trafia do adresu, cache przeglądarki ani brzegu,
+  telemetrii ani do autora przepisu.
+- **Termin usunięcia:** `kuking.ostatnio_ogladane.dni` (7) dni od ostatniej
+  wizyty i najwyżej `kuking.ostatnio_ogladane.limit` (10) różnych przepisów
+  (wartości do potwierdzenia przez właściciela, D-333); starsze i nadliczbowe
+  pozycje są niewidoczne już przy odczycie, a `kuking:sprzataj-ostatnio-ogladane`
+  kasuje je co noc o 02:15. Od razu: „Wyczyść listę”, wyłączenie funkcji
+  (kasuje też zgodę) albo wymazanie konta (`EraseAccountData`).
+- **Eksport:** `ostatnio_ogladane` (przepis — tytuł tylko gdy przepis jest dziś
+  widoczny dla osoby — i czas) oraz `konto.ostatnio_ogladane_wlaczone_od`.
+
 ---
 
 ### 3.29 Wskazówki od gotujących (V2, #2352, D-333)
