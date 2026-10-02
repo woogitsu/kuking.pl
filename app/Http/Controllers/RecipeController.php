@@ -16,6 +16,7 @@ use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Domain\Recipes\TypowyCzasPrzepisu;
+use App\Domain\Recipes\Udostepnienia\OdbierzDostepDoPrzepisu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
 use App\Models\Comment;
@@ -416,6 +417,14 @@ class RecipeController extends Controller
             return redirect()->route('recipes.show', $target, 301);
         }
 
+        // Osoba, której autor UDOSTĘPNIŁ ten przepis (#2650), nie ma `view()`
+        // — dostaje stronę czytania, a nie 403. Tylko wtedy, gdy zwykłego
+        // wejścia nie ma: kto widzi przepis i tak, zostaje na pełnej stronie.
+        if (Gate::forUser($request->user())->denies('view', $model)
+            && Gate::forUser($request->user())->allows('readShared', $model)) {
+            return redirect()->route('recipes.shared.show', $model);
+        }
+
         $this->authorize('view', $model);
 
         // Przepis niewidoczny bez roli obsługi (ukryty, zdjęty, autor
@@ -669,6 +678,10 @@ class RecipeController extends Controller
         $this->authorize('delete', $model);
 
         $model->delete();
+
+        // Udostępnienia wskazanym osobom (#2650) znikają razem z przepisem,
+        // a nie czekają w bazie na trwałe usunięcie wiersza.
+        app(OdbierzDostepDoPrzepisu::class)->wszystkieDlaPrzepisu($model);
 
         return redirect()->route('home')->with(Komunikat::sukces('Przepis usunięty.'));
     }

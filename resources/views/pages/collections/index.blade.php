@@ -25,6 +25,9 @@
         <a class="btn btn-secondary" href="{{ route('collections.own-posts') }}">Moje wpisy</a>
         <a class="btn btn-secondary" href="{{ route('planer.show') }}">Planer tygodnia</a>
         <a class="btn btn-secondary" href="{{ route('shopping.index') }}">Lista zakupów</a>
+        @if($maUdostepnionePrzepisy ?? false)
+            <a class="btn btn-secondary" href="{{ route('recipes.shared.index') }}">Przepisy udostępnione mi</a>
+        @endif
     </p>
 
     {{-- Błąd przy polu ORAZ w podsumowaniu (docs/UX_50_PLUS.md). Bez tego

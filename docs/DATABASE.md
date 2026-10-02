@@ -34,7 +34,7 @@ Przy zmianie schematu dopisz opis do pliku obszaru (z planem wycofania, AGENTS.m
 | [`konta-2fa-i-tozsamosci`](baza/konta-2fa-i-tozsamosci.md) | Konta — 2FA, indeksy panelu, logowanie zewnętrzne | users (2FA, indeksy), facebook_connection_proofs, tozsamosci_zewnetrzne |
 | [`profile-relacje-reakcje`](baza/profile-relacje-reakcje.md) | Profile, obserwowanie, blokady, reakcje, ukrywanie | profiles, follows, blocks, post_reactions, hides |
 | [`media-i-wpisy`](baza/media-i-wpisy.md) | Media i wpisy | media, posts, post_media, zalegle_czyszczenia_cdn |
-| [`przepisy`](baza/przepisy.md) | Przepisy, ceny i wersje | recipes, ceny_skladnikow, recipe_slug_redirects, recipe_versions |
+| [`przepisy`](baza/przepisy.md) | Przepisy, ceny, wersje i udostępnienia | recipes, ceny_skladnikow, recipe_slug_redirects, recipe_versions, recipe_shares |
 | [`skladniki-kroki-i-miary`](baza/skladniki-kroki-i-miary.md) | Składniki, kroki, miary | ingredients, units, recipe_ingredients, recipe_steps, skladniki_odzywcze, miary_domowe, aliasy_skladnikow, users.moj_stol_enabled |
 | [`wspomnienia-i-urodziny`](baza/wspomnienia-i-urodziny.md) | Wspomnienia „Rok temu gotowałaś…" i urodziny bez roku | wspomnienia (issue #34), urodziny bez roku (users) |
 | [`ugotowalem-komentarze-zeszyty`](baza/ugotowalem-komentarze-zeszyty.md) | Ugotowałem, komentarze, zeszyty | collection_items, cooked_events, cooked_event_media, comment_thanks, comments, collections, users.ulubiony_zeszyt_id, collection_members, collection_invitations, first_post_events |

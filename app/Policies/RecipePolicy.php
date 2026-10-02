@@ -7,6 +7,7 @@ namespace App\Policies;
 use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Http\Support\BlokadyWZadaniu;
 use App\Models\Recipe;
+use App\Models\RecipeShare;
 use App\Models\User;
 
 class RecipePolicy
@@ -64,6 +65,88 @@ class RecipePolicy
             'private' => $user !== null && $user->getKey() === $recipe->author_id,
             default => false,
         };
+    }
+
+    /**
+     * ODCZYT PRZEZ UDOSTĘPNIENIE (#2650) — osobna zdolność, NIE gałąź `view()`.
+     *
+     * Dlaczego nie w `view()`: z `view()` korzystają `cook()`, `fork()`,
+     * komentarze, zapis do zeszytu, historia wersji, tryb gotowania, karta QR,
+     * API i zdjęcia. Rozszerzenie `view()` dałoby odbiorcy po cichu wszystkie
+     * te drogi naraz (issue: „nie utożsamiać odczytu ze wszystkimi akcjami").
+     * Udostępnienie daje JEDNĄ stronę — `recipes.shared.show` — i zdjęcia
+     * przepisu (bez skanu kartki) w `DostepDoZdjecia`.
+     *
+     * Każdy warunek sprawdzany przy KAŻDYM żądaniu, z bazy, bez pamięci
+     * podręcznej — odebranie dostępu działa od następnego żądania:
+     *  - odbiorca zalogowany, nie autor (autor ma zwykłą stronę przepisu);
+     *  - przepis opublikowany — szkic, ukryty i zdjęty przez moderację
+     *    nie otwierają się nikomu przez udostępnienie;
+     *  - OBA konta aktywne: zawieszenie którejkolwiek strony wstrzymuje
+     *    dostęp (wiersz zostaje — po końcu kary wraca), ban, zamykanie
+     *    i wymazanie konta też (wymazanie kasuje wiersz);
+     *  - bez blokady w żadną stronę (blokada i tak kasuje wiersz);
+     *  - wiersz `recipe_shares` dla tej pary istnieje.
+     *
+     * Moderator nie ma tu żadnej furtki: wgląd w treść z urzędu idzie przez
+     * `view()` i dziennik wglądu.
+     */
+    public function readShared(?User $user, Recipe $recipe): bool
+    {
+        if ($user === null || $user->getKey() === $recipe->author_id) {
+            return false;
+        }
+
+        if (! $recipe->isPublished() || ! self::czynne($user)) {
+            return false;
+        }
+
+        $autor = $recipe->author;
+
+        if ($autor === null || ! self::czynne($autor)) {
+            return false;
+        }
+
+        if (BlokadyWZadaniu::miedzy($user, $autor)) {
+            return false;
+        }
+
+        return RecipeShare::query()
+            ->where('recipe_id', $recipe->getKey())
+            ->where('recipient_id', $user->getKey())
+            ->exists();
+    }
+
+    /**
+     * Konto czynne — także zawieszone, którego kara już minęła, choć
+     * `reinstate()` jeszcze nie zaszło (dzieje się przy pierwszym żądaniu
+     * TEJ osoby; odbiorca nie może czekać, aż autor się zaloguje).
+     */
+    private static function czynne(User $konto): bool
+    {
+        return $konto->isActive() || $konto->punishmentHasExpired();
+    }
+
+    /**
+     * Ekran „Komu pokazuję ten przepis" i odbieranie dostępu — wyłącznie
+     * autor, w każdym stanie konta i przepisu: zawężanie dostępu wolno zawsze.
+     */
+    public function manageShares(User $user, Recipe $recipe): bool
+    {
+        return $user->getKey() === $recipe->author_id;
+    }
+
+    /**
+     * Nowe udostępnienie: autor z AKTYWNYM kontem (to rozszerza dostęp, więc
+     * zawieszenie je zamyka), przepis opublikowany i NIE publiczny — przepis
+     * „Wszyscy" widzi każdy, udostępniać nie ma czego.
+     */
+    public function share(User $user, Recipe $recipe): bool
+    {
+        return $user->getKey() === $recipe->author_id
+            && $user->isActive()
+            && $recipe->isPublished()
+            && $recipe->visibility !== 'public';
     }
 
     /**

@@ -30,6 +30,17 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Pokaż przepis jednej bliskiej osobie
+
+Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie
+„Tylko ja” albo „dla obserwujących” jest teraz przycisk „Pokaż wybranej
+osobie”. Wpiszcie nazwę konta tej osoby (jest na jej profilu, po znaku @),
+sprawdźcie, kogo pokazujemy, i potwierdźcie. Ta osoba przeczyta przepis po
+zalogowaniu, w „Moje” → „Przepisy udostępnione mi”. Nikt inny go nie
+zobaczy, a przepis nie pojawi się w wyszukiwarce. Dostęp odbieracie jednym
+przyciskiem — działa od razu. Nie wysyłamy powiadomienia, więc dajcie tej
+osobie znać sami.
+
 ### Przeliczanie miar przy składniku
 
 Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrach, szklankach, łyżkach albo łyżeczkach znajdziecie rozwijany napis „Przelicz”. Po dotknięciu pokazuje to samo w innej jednostce, na przykład 25 dag to 250 g, a pół szklanki to około 125 ml. Przeliczamy tylko wagę na wagę i objętość na objętość — gramów nie zamieniamy na szklanki, bo zależy to od produktu. Przelicznik bierze ilość z wybranej liczby porcji, a tekst przepisu zostaje taki, jak napisał autor.

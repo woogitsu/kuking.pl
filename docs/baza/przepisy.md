@@ -549,3 +549,53 @@ zrobić ręcznie (kopia `id, hidden_at, hidden_by_role`, rollback, po ponownym
 `migrate` przywrócenie z kopii). Bez ukrytych wersji (świeża baza, CI)
 `down()` zdejmuje CHECK i obie kolumny bez pytania. Pilnuje
 `tests/Feature/UkrywanieWersjiPrzepisuTest.php` (odmowa + kontrola dodatnia).
+
+### recipe_shares — udostępnienie jednego przepisu wskazanej osobie (#2650)
+
+Migracja `2026_10_03_120000_create_recipe_shares_table` (nowa tabela).
+Decyzja i granice: wiersz #2650 w **D-333**. Jeden wiersz = „autor pozwolił
+tej osobie CZYTAĆ ten przepis". Udostępnienie **nie zmienia**
+`recipes.visibility`: przepis „Tylko ja" dalej nie wychodzi w feedzie,
+wyszukiwarce, mapie strony, JSON-LD ani na profilu.
+
+- `id uuid` (`gen_random_uuid()`);
+- `recipe_id uuid NOT NULL` → `recipes` `ON DELETE CASCADE` (trwałe
+  usunięcie); zwykłe usunięcie przepisu przez autora kasuje udostępnienia
+  jawnie (`OdbierzDostepDoPrzepisu::wszystkieDlaPrzepisu()`);
+- `recipient_id uuid NOT NULL` → `users` `ON DELETE CASCADE`; wymazanie konta
+  (wiersz `users` zostaje jako `erased`) kasuje udostępnienia obu stron
+  jawnie (`KoniecUdostepnienPrzepisow::przyWymazaniu()`);
+- `created_at`, `updated_at timestamptz` — od kiedy osoba ma dostęp.
+
+Autor nie ma kolumny — jest nim `recipes.author_id` (druga kopia mogłaby się
+rozjechać). Ograniczenia:
+
+- `recipe_shares_recipe_recipient_unique` — `UNIQUE (recipe_id, recipient_id)`:
+  jedno udostępnienie na parę, także przy dwóch równoległych kliknięciach
+  (`insertOrIgnore`);
+- `recipe_shares_recipient_idx` — lista „Przepisy udostępnione mi";
+- **wyzwalacz `recipe_shares_guard`** (`BEFORE INSERT OR UPDATE`, funkcja
+  `recipe_shares_guard()`) odmawia (`check_violation`, 23514) wpisania autora
+  jako odbiorcy jego własnego przepisu — CHECK tego nie wyrazi, bo warunek
+  dotyczy wiersza `recipes` (wzór: `collection_members_guard`).
+
+**Brak stanu „odebrane".** Odebranie dostępu, rezygnacja odbiorcy, blokada
+(`ZerwijUdostepnieniaPrzepisow::miedzy()` pod `ZamekPary`) i usunięcie
+przepisu KASUJĄ wiersz — nic nie może go po cichu przywrócić (odblokowanie,
+zmiana widoczności). Zawieszenie, ban, zamykanie konta i ukrycie przepisu
+przez moderację wiersza nie kasują; dostęp wstrzymuje
+`RecipePolicy::readShared()`, która pyta bazę przy każdym żądaniu (bez cache).
+
+`$fillable` modelu `RecipeShare` jest puste — klucze ustawia wyłącznie
+`UdostepnijPrzepis` (pod `ZamekPary`, potem blokada doradcza `2650` na przepis
+dla limitu `kuking.udostepnienia.max_osob`; kolejność blokad: konta, potem
+przepis — D-079 §1).
+
+**Rollback (D-088).** `down()` kasuje tabelę i funkcję wyzwalacza, więc
+**odmawia**, gdy w tabeli jest choć jeden wiersz: decyzja autora o tym, komu
+pokazał przepis, nie wróci po ponownym `up()`. Komunikat mówi, co zrobić
+(kopia `CREATE TABLE recipe_shares_kopia AS SELECT * FROM recipe_shares`,
+potem `KUKING_ROLLBACK_KASUJE_UDOSTEPNIENIA_PRZEPISOW=1`). Na pustej tabeli
+(CI, `migrate:refresh`) przechodzi bez pytania. Pilnuje
+`tests/Feature/UdostepnieniePrzepisuSchematTest.php` (odmowa, wymuszenie,
+kontrola dodatnia).

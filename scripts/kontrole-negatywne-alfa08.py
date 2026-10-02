@@ -1333,6 +1333,10 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    # #2650: rollback `recipe_shares` ma ODMÓWIĆ przy istniejących udostępnieniach (D-088).
+    ("Rollback udostępnień przepisów kasuje bez pytania (#2650)", "database/migrations/2026_10_03_120000_create_recipe_shares_table.php",
+     "test_rollback_odmawia_przy_udostepnieniach_i_przechodzi_na_pustej_tabeli",
+     lambda s: replace_once(s, "            $this->upewnijSieZeWolnoKasowac();\n", "")),
     # #2291: regresja domyślnej konfiguracji ma zapalić odczyt `SHOW jit` na
     # rzeczywistym nowym połączeniu PostgreSQL, nie tylko test tekstu configu.
     ("Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)", "config/database.php", "PolaczenieBazyMaWylaczonyJitTest::swieze_polaczenie_aplikacji_ma_jit_off",

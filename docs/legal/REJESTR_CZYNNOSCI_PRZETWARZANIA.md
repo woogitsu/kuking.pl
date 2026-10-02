@@ -800,6 +800,23 @@ trafi tam pierwszy rekord.
 - **Eksport:** znacznik jest `NIE_DOTYCZY` w `InwentarzDanychKonta` (sama
   treść jest w paczce).
 
+### 3.28a Pokazanie przepisu wybranej osobie (V2, #2650)
+
+- **Cel:** autor pozwala JEDNEMU wskazanemu kontu czytać jeden swój
+  opublikowany przepis, bez zmiany tego, kto widzi przepis w serwisie.
+- **Dane:** `recipe_shares` — przepis, konto odbiorcy (`recipient_id`), daty.
+  Odbiorcę wskazuje się publiczną nazwą konta, nie e-mailem. Bez
+  powiadomienia, listu i Web Push. Odbiorca widzi nazwę autora i treść
+  przepisu (bez skanu kartki i historii wersji); autor widzi listę odbiorców.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO.
+- **Odbiorcy:** Railway.
+- **Termin usunięcia:** wiersz znika przy odebraniu dostępu, rezygnacji
+  odbiorcy, blokadzie między stronami (`ZerwijUdostepnieniaPrzepisow::miedzy()`),
+  usunięciu przepisu przez autora albo wymazaniu konta którejkolwiek strony
+  (`ZerwijUdostepnieniaPrzepisow::przyWymazaniu()`). Bez historii odebranych dostępów.
+- **Eksport:** `udostepnione_przepisy` (`udostepniam`, `udostepnione_mi` — tytuł
+  i autor, bez treści cudzego przepisu).
+
 ### 3.28 Sieć, CDN i ochrona przed atakami (Cloudflare jako pośrednik, #2282)
 
 - **Cel:** dostarczenie serwisu: zakończenie połączenia HTTPS, podawanie
