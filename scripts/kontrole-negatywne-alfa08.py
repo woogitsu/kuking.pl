@@ -431,7 +431,8 @@ R2_ZAPIS_WERYFIKACJI_TEST = "test_data_sprawdzenia_r2_w_polityce_to_ostatni_zapi
 KONTROLER_AWATARA = "app/Http/Controllers/Settings/AvatarSettingsController.php"
 DOKUMENTACJA_AWATARA_TEST = "DokumentacjaAwataraZgodnaZKodemTest"
 AWATAR_KOMENTARZ = "        // Awatar dalej podlega zgłoszeniom od ludzi, jak każda treść.\n"
-DATABASE_DOC = "docs/DATABASE.md"
+INDEKS_BAZY_TEST = "IndeksDokumentacjiBazyTest"
+DATABASE_DOC = "docs/baza/zgloszenia.md"  # opis schematu bazy leży w docs/baza/, DATABASE.md to indeks
 AWATAR_DATABASE = "Wprowadził ją automat oceny\nzdjęć profilowych (issue #237), a oznaczenie wskazywało `media.id`."
 
 # Awans roli z powłoki gasi sesje sprzed awansu (#1315). Test chodzi po HTTP
@@ -1732,6 +1733,10 @@ checks = [
     ("DATABASE.md znów mówi, że model ocenia awatar", DATABASE_DOC, DOKUMENTACJA_AWATARA_TEST,
      lambda s: replace_once(s, AWATAR_DATABASE, "Dziś trafia tu wyłącznie\nzdjęcie profilowe: model ocenia je po "
                             "przetworzeniu (`PrzeanalizujAwatar`),\na oznaczenie wskazuje `media.id`.")),
+    ("Indeks bazy gubi plik obszaru", "docs/DATABASE.md", INDEKS_BAZY_TEST,
+     lambda s: replace_once(s, "(baza/kontakt.md)", "(baza/kontakt-stary.md)")),
+    ("Link względny w docs/baza/ bez poprawki po przeniesieniu", "docs/baza/budzet-polaczen.md", INDEKS_BAZY_TEST,
+     lambda s: replace_once(s, "(../infra/MONITORING_ODBIOR_2026_09_20.md)", "(infra/MONITORING_ODBIOR_2026_09_20.md)")),
     ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
      lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
                             "return $this->zdejmij($user, $recipe, $collection);")),

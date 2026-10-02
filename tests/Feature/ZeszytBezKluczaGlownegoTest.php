@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\DokumentacjaBazy;
 use Tests\TestCase;
 
 /**
@@ -81,7 +82,7 @@ class ZeszytBezKluczaGlownegoTest extends TestCase
 
     public function test_dokumentacja_nie_przypisuje_zeszytowi_klucza_glownego(): void
     {
-        $dokument = (string) file_get_contents(base_path('docs/DATABASE.md'));
+        $dokument = DokumentacjaBazy::tresc();
 
         // Szukamy TWIERDZENIA, nie samego słowa: „collection_items ma
         // PRIMARY KEY". Zdanie „klucz główny musiał zniknąć" i ostrzeżenie
@@ -109,12 +110,12 @@ class ZeszytBezKluczaGlownegoTest extends TestCase
      */
     public function test_dokumentacja_podaje_ten_sam_okres_retencji_powiadomien_co_konfiguracja(): void
     {
-        $dokument = (string) file_get_contents(base_path('docs/DATABASE.md'));
+        $dokument = DokumentacjaBazy::tresc();
 
         $this->assertSame(
             1,
             preg_match('/^### notifications$.*?(?=^### )/msu', $dokument, $dopasowanie),
-            'Nie znaleziono sekcji „### notifications" w docs/DATABASE.md. '
+            'Nie znaleziono sekcji „### notifications" w docs/baza/ (indeks: docs/DATABASE.md). '
             .'Jeśli sekcję przemianowano, popraw ten test razem z nią — '
             .'inaczej przestanie cokolwiek sprawdzać.',
         );
