@@ -149,7 +149,8 @@ z 29 września 2026) — wolno budować:
 - kolejka do 4 przepisów z niezależnymi minutnikami, `/gotuj-kilka` (#2379) —
   **zbudowane**. Kolejka żyje tylko w przeglądarce (`localStorage`, bez konta
   i bez migracji), wygasa po 24 godzinach od ostatniej zmiany, ma przycisk
-  „Wyczyść kolejkę”; zamknięcie karty kończy działające minutniki (kolejka
+  „Wyczyść kolejkę”; samo otwarcie lub odświeżenie nie odnawia tego terminu;
+  zamknięcie karty kończy działające minutniki (kolejka
   zostaje); alarm ma ten sam dźwięk co minutnik pojedynczego przepisu plus
   komunikat tekstowy; bez AI. Każdy przepis przechodzi `RecipePolicy::view`,
   a ten, którego osoba już nie widzi, wypada z kolejki z komunikatem. Bez
