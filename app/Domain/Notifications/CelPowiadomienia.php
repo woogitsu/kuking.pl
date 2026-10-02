@@ -567,6 +567,38 @@ final class CelPowiadomienia
             return $urls;
         }
 
+        foreach ($this->adresyKomentarzy(array_keys($byComment), $viewer) as $commentId => $url) {
+            foreach ($byComment[(string) $commentId] as $id) {
+                $urls[$id] = $url;
+            }
+        }
+
+        return $urls;
+    }
+
+    /**
+     * Adresy KONKRETNYCH komentarzy (strona komentarzy korzeni, porcja
+     * odpowiedzi i kotwica) liczone dla widza, jednym zapytaniem — wspólne
+     * dla powiadomień (`adresy()`) i prywatnej listy „Moje rozmowy” (#2432).
+     *
+     * Metoda NIE sprawdza, czy sam komentarz i treść, pod którą stoi, są
+     * dostępne dla widza — pyta tylko, czy korzeń jest dla niego widoczny
+     * i w którym miejscu rozmowy leży komentarz. Dostęp rozstrzyga wywołujący
+     * (powiadomienia: `WidocznoscPowiadomien`; lista rozmów: `MojeRozmowy`).
+     * Komentarz bez wyniku (korzeń niewidoczny, treść usunięta) nie dostaje
+     * adresu.
+     *
+     * @param  list<string>  $commentIds
+     * @return array<string, string> id komentarza => adres z numerem strony i kotwicą
+     */
+    public function adresyKomentarzy(array $commentIds, User $viewer): array
+    {
+        $urls = [];
+
+        if ($commentIds === []) {
+            return $urls;
+        }
+
         // Ten sam zakres co w relacjach comments() i na ekranie rozmowy.
         // Korelacja po korzeniu nie pobiera całych rozmów do pamięci PHP.
         $roots = Comment::query()->whereNull('comments.parent_id')->widoczneDla($viewer);
@@ -595,7 +627,7 @@ final class CelPowiadomienia
             ->leftJoin('posts', 'posts.id', '=', 'comments.post_id')
             ->leftJoin('recipes', 'recipes.id', '=', 'comments.recipe_id')
             ->leftJoin('cooked_events', 'cooked_events.id', '=', 'comments.cooked_event_id')
-            ->whereIn('comments.id', array_keys($byComment))
+            ->whereIn('comments.id', $commentIds)
             ->whereIn('root.id', (clone $roots)->select('comments.id'))
             ->where(function (Builder $subject): void {
                 $subject->whereColumn('comments.post_id', 'root.post_id')
@@ -640,9 +672,7 @@ final class CelPowiadomienia
                 ]);
             }
             $url .= '#komentarz-'.$comment->getKey();
-            foreach ($byComment[(string) $comment->getKey()] as $id) {
-                $urls[$id] = $url;
-            }
+            $urls[(string) $comment->getKey()] = $url;
         }
 
         return $urls;

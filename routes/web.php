@@ -57,6 +57,7 @@ use App\Http\Controllers\KolejkaGotowaniaController;
 use App\Http\Controllers\ListaZakupowController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeProbyPrzepisuController;
+use App\Http\Controllers\MojeRozmowyController;
 use App\Http\Controllers\MojeWpisyController;
 use App\Http\Controllers\MojRokController;
 use App\Http\Controllers\MojStolController;
@@ -1403,6 +1404,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // „moje-wpisy” trafiłoby do wiązania zeszytu po UUID. Nazwa pod
     // `collections.*`, żeby pozycja „Moje” w nawigacji była bieżąca.
     Route::get('/zeszyt/moje-wpisy', MojeWpisyController::class)->name('collections.own-posts');
+    // „Moje rozmowy” (#2432): wątki, w których osoba pisze; prywatne, bez
+    // identyfikatora w adresie. Też PRZED `/zeszyt/{collection}`.
+    Route::get('/zeszyt/moje-rozmowy', MojeRozmowyController::class)->name('collections.own-conversations');
     // „Usunięte przepisy” (#2620, D-333): własny, omyłkowo usunięty przepis
     // wraca jako prywatny szkic do końca retencji. Też PRZED
     // `/zeszyt/{collection}`. POST bierze UUID przepisu, ale to nie jest
