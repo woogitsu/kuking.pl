@@ -15,6 +15,7 @@ use App\Domain\Recipes\LimitZapisuKreatora;
 use App\Domain\Recipes\KosztPrzepisu;
 use App\Domain\Recipes\Porcje\GotoweSztuki;
 use App\Domain\Recipes\StepTimer;
+use App\Domain\Recipes\ZmianaNazwyGrupy;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Livewire\Forms\PrzepisForm;
 use App\Models\Media;
@@ -31,6 +32,7 @@ use App\Support\KreatorPrzepisu\WalidacjaKreatora;
 use App\Support\KreatorPrzepisu\WierszePrzepisu;
 use App\Support\KreatorPrzepisu\WynikWalidacjiKreatora;
 use App\Support\KreatorPrzepisu\ZdjeciaKreatora;
+use App\Support\LimityTekstuPrzepisu;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -176,6 +178,29 @@ new class extends Component
 
     /** @var list<array{_key: string, group_name: string, text: string, note: string, substitutes: string, no_amount: bool}> */
     public array $ingredients = [];
+
+    /**
+     * Zbiorcza zmiana nazwy grupy składników (V2, #2444).
+     *
+     * `grupaDoZmiany` — klucz wybranej grupy (`GrupySkladnikow::klucz()`),
+     * `null` = akcja nie jest otwarta. `podgladGrupy` — to, co człowiek
+     * widział przed zatwierdzeniem (wpisana nazwa i liczba objętych
+     * składników); zatwierdzenie zmienia dane tylko wtedy, gdy aktualny stan
+     * wierszy nadal się z nim zgadza. Oba `#[Locked]`: o zakresie decyduje
+     * serwer, nie przeglądarka. `nowaNazwaGrupy` to pole tekstowe.
+     */
+    #[Locked]
+    public ?string $grupaDoZmiany = null;
+
+    /** @var array{wpisana: string, nowa: string, obecna: string, liczba: int, scalaLiczba: ?int}|null */
+    #[Locked]
+    public ?array $podgladGrupy = null;
+
+    public string $nowaNazwaGrupy = '';
+
+    /** Wynik ostatniej zmiany grupy albo wyjaśnienie, czemu się nie wykonała. */
+    public string $komunikatGrupy = '';
+
 
     /**
      * Alergeny według autora (#1902, D-333) — kody zaznaczone w kroku 2
@@ -450,6 +475,150 @@ new class extends Component
     }
 
     // -----------------------------------------------------------------
+    // Zmiana nazwy całej grupy składników (V2, #2444)
+    // -----------------------------------------------------------------
+
+    /** @return list<array{klucz: string, nazwa: string, liczba: int}> */
+    public function grupySkladnikow(): array
+    {
+        return ZmianaNazwyGrupy::grupy($this->ingredients);
+    }
+
+    public function wybierzGrupeDoZmiany(string $klucz): void
+    {
+        $this->komunikatGrupy = '';
+        $this->resetErrorBag('nowaNazwaGrupy');
+        $this->podgladGrupy = null;
+
+        $grupa = collect($this->grupySkladnikow())->firstWhere('klucz', $klucz);
+
+        if ($grupa === null) {
+            $this->grupaDoZmiany = null;
+            $this->komunikatGrupy = 'Tej grupy nie ma już na liście. Wybierz grupę jeszcze raz.';
+
+            return;
+        }
+
+        $this->grupaDoZmiany = $grupa['klucz'];
+        $this->nowaNazwaGrupy = $grupa['nazwa'];
+        $this->dispatch('kreator-fokus-pole', pole: NawigacjaKreatora::idPola('nowaNazwaGrupy'));
+    }
+
+    /** Krok pierwszy: sprawdza nazwę i pokazuje, co się zmieni. Niczego nie zapisuje. */
+    public function pokazZmianeGrupy(): void
+    {
+        $this->komunikatGrupy = '';
+        $this->resetErrorBag('nowaNazwaGrupy');
+        $this->podgladGrupy = null;
+
+        if ($this->grupaDoZmiany === null) {
+            return;
+        }
+
+        $nowa = ZmianaNazwyGrupy::oczyscNazwe($this->nowaNazwaGrupy);
+
+        if (mb_strlen($nowa) > LimityTekstuPrzepisu::POLA['ingredients.*.group_name']) {
+            $this->addError('nowaNazwaGrupy', WierszePrzepisu::KOMUNIKATY['ingredients.*.group_name']);
+
+            return;
+        }
+
+        $opis = ZmianaNazwyGrupy::opis($this->ingredients, $this->grupaDoZmiany, $nowa);
+
+        if ($opis === null) {
+            $this->zamknijZmianeGrupy();
+            $this->komunikatGrupy = 'Tej grupy nie ma już na liście. Wybierz grupę jeszcze raz.';
+
+            return;
+        }
+
+        if ($opis['bezZmiany']) {
+            $this->addError('nowaNazwaGrupy', 'To jest ta sama nazwa. Wpisz inną nazwę albo kliknij „Anuluj”.');
+
+            return;
+        }
+
+        $this->podgladGrupy = [
+            'wpisana' => $nowa,
+            'nowa' => $opis['nowa'],
+            'obecna' => $opis['obecna'],
+            'liczba' => $opis['liczba'],
+            'scalaLiczba' => $opis['scala']['liczba'] ?? null,
+        ];
+    }
+
+    /** Wraca z podglądu do pola z nazwą. */
+    public function wrocDoNazwyGrupy(): void
+    {
+        $this->podgladGrupy = null;
+        $this->komunikatGrupy = '';
+    }
+
+    /**
+     * Krok drugi: zmienia `group_name` wierszy tej grupy i niczego więcej.
+     *
+     * Zakres liczymy od nowa z AKTUALNYCH wierszy (po kluczu grupy, nie po
+     * dawnym indeksie). Jeśli różni się od podglądu — wiersze ktoś zmienił
+     * w międzyczasie — nic się nie zmienia, a człowiek dostaje świeży
+     * podgląd do ponownego zatwierdzenia.
+     */
+    public function zatwierdzZmianeGrupy(): void
+    {
+        $this->komunikatGrupy = '';
+        $this->resetErrorBag('nowaNazwaGrupy');
+
+        $podglad = $this->podgladGrupy;
+
+        if ($this->grupaDoZmiany === null || $podglad === null) {
+            return;
+        }
+
+        $opis = ZmianaNazwyGrupy::opis($this->ingredients, $this->grupaDoZmiany, $podglad['wpisana']);
+
+        if ($opis === null) {
+            $this->zamknijZmianeGrupy();
+            $this->komunikatGrupy = 'Tej grupy nie ma już na liście, więc nic nie zmieniono. Wybierz grupę jeszcze raz.';
+
+            return;
+        }
+
+        if ($opis['liczba'] !== $podglad['liczba']
+            || ($opis['scala']['liczba'] ?? null) !== $podglad['scalaLiczba']
+            || $opis['nowa'] !== $podglad['nowa']
+            || $opis['bezZmiany']) {
+            $this->nowaNazwaGrupy = $podglad['wpisana'];
+            $this->podgladGrupy = null;
+            $this->pokazZmianeGrupy();
+            $this->komunikatGrupy = 'Składniki zmieniły się od chwili podglądu, więc nic nie zmieniono. Sprawdź nowy podgląd i zatwierdź jeszcze raz.';
+
+            return;
+        }
+
+        $this->ingredients = ZmianaNazwyGrupy::zastosuj($this->ingredients, $this->grupaDoZmiany, $podglad['wpisana']);
+
+        $this->komunikatGrupy = $opis['bezNaglowka']
+            ? 'Usunięto nagłówek grupy „'.$opis['obecna'].'”. Składniki ('.$opis['liczba'].') zostały w liście, w części bez nagłówka.'
+            : 'Zmieniono nazwę grupy „'.$opis['obecna'].'” na „'.$opis['nowa'].'”. Objęte składniki: '.$opis['liczba'].'.';
+
+        $this->zamknijZmianeGrupy();
+        $this->autozapis();
+    }
+
+    public function anulujZmianeGrupy(): void
+    {
+        $this->zamknijZmianeGrupy();
+        $this->komunikatGrupy = '';
+        $this->resetErrorBag('nowaNazwaGrupy');
+    }
+
+    private function zamknijZmianeGrupy(): void
+    {
+        $this->grupaDoZmiany = null;
+        $this->podgladGrupy = null;
+        $this->nowaNazwaGrupy = '';
+    }
+
+    // -----------------------------------------------------------------
     // Wiersze przygotowania (issue #13)
     // -----------------------------------------------------------------
 
@@ -529,6 +698,15 @@ new class extends Component
      */
     public function updated(string $property): void
     {
+        // Wpisana nazwa grupy należy do akcji „Zmień nazwę grupy” (#2444):
+        // nie zapisuje szkicu, a zmiana tekstu po podglądzie go unieważnia.
+        if ($property === 'nowaNazwaGrupy') {
+            $this->podgladGrupy = null;
+            $this->komunikatGrupy = '';
+
+            return;
+        }
+
         if (AutozapisKreatora::pominZmiane($property)) {
             return;
         }
@@ -1444,6 +1622,11 @@ new class extends Component
         =============================================================== --}}
         <x-kreator.krok-skladniki
             :ingredients="$ingredients"
+            :grupy="$this->grupySkladnikow()"
+            :grupa-do-zmiany="$grupaDoZmiany"
+            :podglad-grupy="$podgladGrupy"
+            :komunikat-grupy="$komunikatGrupy"
+            :nowa-nazwa-grupy="$nowaNazwaGrupy"
             :liczba-krokow="$this::STEPS"
             :z-odczytu="$zOdczytu"
             :skan="$zOdczytu ? $this->skanOdczytu() : null"

@@ -18,7 +18,7 @@ namespace App\Support\KreatorPrzepisu;
  * Mapa klucz → krok (klucze takie, jakie trafiają do worka błędów):
  *
  *   krok 1  form.<pole>, heroPhoto            (a także każdy nieznany klucz)
- *   krok 2  ingredients, ingredients.N.<pole>
+ *   krok 2  ingredients, ingredients.N.<pole>, nowaNazwaGrupy
  *   krok 3  steps, steps.N.<pole> (instruction, timer_minutes, photo)
  *   krok 4  publikacja, odczyt_sprawdzony, sprawdzilemOdczyt  (podgląd)
  *
@@ -63,6 +63,8 @@ final class NawigacjaKreatora
             $klucz === 'ingredients', str_starts_with($klucz, 'ingredients.') => 2,
             // Oznaczenie alergenów (#1902) stoi pod składnikami.
             $klucz === 'alergeny' => 2,
+            // Pole „Nowa nazwa grupy” (#2444) stoi nad wierszami składników.
+            $klucz === 'nowaNazwaGrupy' => 2,
             // `steps` to błąd „opisz przynajmniej jeden krok”, `steps.N.…` to pola wierszy.
             $klucz === 'steps', str_starts_with($klucz, 'steps.') => 3,
             in_array($klucz, self::KLUCZE_PODGLADU, true) => self::KROK_PODGLADU,
