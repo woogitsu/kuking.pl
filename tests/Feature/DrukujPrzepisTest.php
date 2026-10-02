@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Recipe;
+use App\Models\RecipeIngredient;
+use DOMDocument;
+use DOMElement;
+use DOMNodeList;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -32,6 +37,71 @@ class DrukujPrzepisTest extends TestCase
             ->assertSee('<a class="btn btn-secondary" href="'.e($cel).'" rel="nofollow" data-drukuj-przepis>Drukuj przepis</a>', false)
             // Instrukcja tylko po kliknięciu — nie na każdej stronie przepisu.
             ->assertDontSee('id="jak-wydrukowac"', false);
+    }
+
+    public function test_glowny_link_drukowania_przenosi_wybrane_porcje_i_otwiera_przeliczona_kartke(): void
+    {
+        $recipe = Recipe::factory()->create(['servings' => 4]);
+        RecipeIngredient::create(['recipe_id' => $recipe->getKey(), 'position' => 0, 'ingredient_text' => '400 g mąki']);
+
+        $strona = $this->get(route('recipes.show', ['recipe' => $recipe->slug, 'porcje' => 2]))->assertOk();
+        $href = $this->adresGlownyDrukowania((string) $strona->getContent());
+        parse_str((string) parse_url($href, PHP_URL_QUERY), $parametry);
+        $this->assertSame('2', $parametry['porcje'] ?? null, 'DRUK_PORCJE_HREF: link nie zachował zaakceptowanych porcji.');
+        $this->assertSame('1', $parametry['druk'] ?? null);
+
+        $kartka = $this->get(explode('#', $href, 2)[0])->assertOk();
+        $kartka->assertSee('Jak wydrukować ten przepis:');
+        $this->assertSame('200 g mąki', $this->pierwszySkladnik((string) $kartka->getContent()));
+    }
+
+    public function test_link_drukowania_nie_przenosi_blednych_ani_domyslnych_porcji(): void
+    {
+        $recipe = Recipe::factory()->create(['servings' => 4]);
+        RecipeIngredient::create(['recipe_id' => $recipe->getKey(), 'position' => 0, 'ingredient_text' => '400 g mąki']);
+
+        foreach ([null, '0', 'abc'] as $wartosc) {
+            $adres = route('recipes.show', array_filter([
+                'recipe' => $recipe->slug, 'porcje' => $wartosc,
+            ], static fn ($value) => $value !== null));
+            $href = $this->adresGlownyDrukowania((string) $this->get($adres)->assertOk()->getContent());
+            parse_str((string) parse_url($href, PHP_URL_QUERY), $parametry);
+            $this->assertArrayNotHasKey('porcje', $parametry, 'Odrzucone lub domyślne porcje nie powinny przechodzić do druku.');
+            $this->assertSame('400 g mąki', $this->pierwszySkladnik(
+                (string) $this->get(explode('#', $href, 2)[0])->assertOk()->getContent(),
+            ));
+        }
+    }
+
+    private function adresGlownyDrukowania(string $html): string
+    {
+        $xpath = $this->xpath($html);
+        $link = $xpath->query('//a[@data-drukuj-przepis]');
+        $this->assertInstanceOf(DOMNodeList::class, $link);
+        $this->assertSame(1, $link->length, 'Na stronie przepisu powinien być jeden główny link drukowania.');
+        $element = $link->item(0);
+        $this->assertInstanceOf(DOMElement::class, $element);
+
+        return $element->getAttribute('href');
+    }
+
+    private function pierwszySkladnik(string $html): string
+    {
+        $skladnik = $this->xpath($html)->query('//ul[@class="ingredient-list"]/li[1]');
+        $this->assertInstanceOf(DOMNodeList::class, $skladnik);
+        $this->assertSame(1, $skladnik->length, 'Na kartce brakuje pierwszego składnika.');
+        $element = $skladnik->item(0);
+        $this->assertInstanceOf(DOMElement::class, $element);
+
+        return trim((string) preg_replace('/\s+/u', ' ', $element->textContent));
+    }
+
+    private function xpath(string $html): DOMXPath
+    {
+        $dom = new DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+
+        return new DOMXPath($dom);
     }
 
     public function test_gosc_tez_widzi_przycisk(): void

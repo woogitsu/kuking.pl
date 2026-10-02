@@ -29,13 +29,7 @@ final class ParserJsonLdPrzepisu
     public function odczytaj(string $html): ?OdczytanyPrzepis
     {
         foreach ($this->bloki($html) as $dane) {
-            $wezel = $this->znajdzPrzepis($dane, 0);
-
-            if ($wezel === null) {
-                continue;
-            }
-
-            $przepis = $this->zWezla($wezel);
+            $przepis = $this->znajdzPrzepis($dane, 0);
 
             if ($przepis !== null) {
                 return $przepis;
@@ -72,9 +66,10 @@ final class ParserJsonLdPrzepisu
     }
 
     /**
-     * @return ?array<string, mixed>
+     * Pierwszy UŻYTECZNY Recipe w porządku grafu, nie pierwszy sam typ.
+     * Pusty węzeł nie może zasłonić kolejnego przepisu w tym samym bloku.
      */
-    private function znajdzPrzepis(mixed $dane, int $glebokosc): ?array
+    private function znajdzPrzepis(mixed $dane, int $glebokosc): ?OdczytanyPrzepis
     {
         if (! is_array($dane) || $glebokosc > self::MAKS_GLEBOKOSC) {
             return null;
@@ -82,7 +77,11 @@ final class ParserJsonLdPrzepisu
 
         if ($this->jestPrzepisem($dane)) {
             /** @var array<string, mixed> $dane */
-            return $dane;
+            $przepis = $this->zWezla($dane);
+
+            if ($przepis !== null) {
+                return $przepis;
+            }
         }
 
         foreach ($dane as $wartosc) {
@@ -263,8 +262,9 @@ final class ParserJsonLdPrzepisu
 
     /**
      * Liczba porcji tylko wtedy, gdy źródło podaje JEDNĄ liczbę:
-     * „4", „4 porcje", „Serves 4". Przedział („4–6") i sztuki bez słowa
-     * o porcjach zostają puste — nie zgadujemy.
+     * „4", „1,25 porcji", „Serves 0.5". Przedział („4–6") i sztuki bez
+     * słowa o porcjach zostają puste — nie zgadujemy. Granice 0,5–999 i
+     * maksymalnie setne są takie same jak w formularzu przepisu.
      */
     public static function porcje(mixed $wartosc): ?float
     {
@@ -273,7 +273,7 @@ final class ParserJsonLdPrzepisu
         }
 
         if (is_int($wartosc) || is_float($wartosc)) {
-            return $wartosc > 0 && $wartosc <= 1000 ? (float) $wartosc : null;
+            return self::poprawnaLiczbaPorcji((float) $wartosc);
         }
 
         if (! is_string($wartosc)) {
@@ -282,13 +282,22 @@ final class ParserJsonLdPrzepisu
 
         $tekst = mb_strtolower(self::tekst($wartosc));
 
-        if (preg_match('/^(?:serves|dla|na)?\s*(\d{1,3})\s*(?:porcj\w*|osob\w*|os\.?|servings?|people|persons?)?$/u', $tekst, $m) === 1) {
-            $liczba = (int) $m[1];
+        if (preg_match('/^(?:serves|dla|na)?\s*(\d{1,4}(?:[.,]\d{1,2})?)\s*(?:porcj\w*|osob\w*|os\.?|servings?|people|persons?)?$/u', $tekst, $m) === 1) {
+            $liczba = (float) str_replace(',', '.', $m[1]);
 
-            return $liczba > 0 ? (float) $liczba : null;
+            return self::poprawnaLiczbaPorcji($liczba);
         }
 
         return null;
+    }
+
+    private static function poprawnaLiczbaPorcji(float $liczba): ?float
+    {
+        if (! is_finite($liczba) || $liczba < 0.5 || $liczba > 999 || round($liczba, 2) !== $liczba) {
+            return null;
+        }
+
+        return $liczba;
     }
 
     /** Czas ISO 8601 (`PT1H30M`, `P0DT45M`) w minutach; inny zapis = brak. */
