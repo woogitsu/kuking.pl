@@ -43,6 +43,12 @@ use Illuminate\View\View;
  * alfabetycznie. W zeszycie, którego nikt nie układał, nic się nie zmienia.
  * Dotyczy to wszystkich oglądających wydruk, bo układ jest częścią zeszytu.
  *
+ * NOTATKI Z ZESZYTU (#2438): osoba z dostępem wybiera „Z notatkami”
+ * (domyślnie, jak dotąd) albo „Bez notatek” — kopia do przekazania rodzinie
+ * bez prywatnych dopisków. Wybór niczego nie zmienia w bazie i nie zależy od
+ * zdjęć. Pominięcie dotyczy wyłącznie `collection_items.note`, nie uwag
+ * autora przepisu.
+ *
  * LIMIT: zeszyt nie ma górnej granicy liczby przepisów, a strona idzie
  * jednym żądaniem. Pierwsze `kuking.collections.print_max_recipes` pozycji;
  * reszta jest zapowiedziana zdaniem (nic nie znika po cichu).
@@ -82,6 +88,14 @@ class CollectionPrintController extends Controller
         $dostepDoNotatek = $widz !== null
             && ($widz->getKey() === $collection->owner_id || Gate::forUser($widz)->allows('removeItem', $collection));
 
+        // Wybór „Z notatkami / Bez notatek” (#2438) jest niezależny od zdjęć.
+        // Parametr `bez-notatek` może tylko ZAWĘZIĆ wydruk: prawa do notatek
+        // nie przyznaje nigdy (`$dostepDoNotatek` rozstrzyga o tym wyłącznie
+        // Policy). Przy „bez” notatka nie trafia do zmiennych widoku, więc nie
+        // ma jej ani w HTML, ani w ukrytych elementach; samo ukrycie CSS-em
+        // by nie wystarczyło.
+        $zNotatkami = $dostepDoNotatek && ! $request->boolean('bez-notatek');
+
         return view('pages.collections.do-druku', [
             'collection' => $collection,
             'przepisy' => $przepisy,
@@ -89,6 +103,7 @@ class CollectionPrintController extends Controller
             'kolejnoscReczna' => KolejnoscPrzepisow::jestUlozony($collection),
             'limit' => $limit,
             'dostepDoNotatek' => $dostepDoNotatek,
+            'zNotatkami' => $zNotatkami,
             'zeZdjeciami' => ! $request->boolean('bez-zdjec'),
             'dataWydruku' => Carbon::now('Europe/Warsaw')->translatedFormat('j F Y'),
         ]);
