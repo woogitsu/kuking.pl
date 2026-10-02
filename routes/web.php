@@ -70,6 +70,7 @@ use App\Http\Controllers\PorcjeZapamietaneController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublikacjaPrzywroconegoWpisuController;
 use App\Http\Controllers\PwaInstallController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\RecipeController;
@@ -935,6 +936,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/wpisy/{post}', [PostController::class, 'update'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('posts.update');
+    // Autor publikuje ponownie wpis, który moderacja przywróciła jako szkic
+    // (#2461): ekran potwierdzenia i zwykły POST. Ten sam limit co przy
+    // publikacji; bramka to PostPolicy::publishRestored + akcja pod blokadą.
+    Route::get('/wpisy/{post}/publikacja', [PublikacjaPrzywroconegoWpisuController::class, 'potwierdz'])->name('posts.restored.confirm');
+    Route::post('/wpisy/{post}/publikacja', [PublikacjaPrzywroconegoWpisuController::class, 'publikuj'])
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('posts.restored.publish');
     Route::delete('/wpisy/{post}', [PostController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('posts.destroy');

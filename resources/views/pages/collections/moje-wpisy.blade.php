@@ -42,7 +42,7 @@
                     @endif
                     <h2 class="mt-3 mb-2 text-xl">{{ $opis }}</h2>
                     <p class="meta m-0">
-                        @if($wpis->published_at)
+                        @if($wpis->published_at && $wpis->status !== \App\Models\Post::STATUS_DRAFT)
                             Opublikowany <time datetime="{{ $data->toIso8601String() }}">{{ \App\Support\Czas::dataWpisu($data) }}</time>
                         @else
                             Założony <time datetime="{{ $data->toIso8601String() }}">{{ \App\Support\Czas::dataWpisu($data) }}</time>
@@ -57,6 +57,9 @@
                     @endif
                     <p class="m-0 mt-3">
                         <a class="btn btn-secondary" href="{{ $wpis->url() }}">Otwórz wpis</a>
+                        @if($wpis->status === \App\Models\Post::STATUS_DRAFT && \App\Domain\Posts\Actions\PublishRestoredDraft::powodOdmowy($wpis) === null)
+                            <a class="btn btn-primary" href="{{ route('posts.restored.confirm', $wpis) }}" data-opublikuj-przywrocony>Opublikuj</a>
+                        @endif
                     </p>
                 </article>
             @endforeach
