@@ -117,6 +117,10 @@ Przypadkiem zastąpiliście długi krok krótkim fragmentem i szkic zdążył si
 
 Gotujecie dłuższy przepis i chcecie wrócić do kroku 3, a jesteście w 12.? W trybie gotowania pod przyciskami „Następny krok” i „Poprzedni krok” jest teraz zwinięty „Spis kroków”: numer i początek instrukcji każdego kroku. Wybieracie pozycję i otwiera się ten sam ekran jednego kroku. Wybór niczego nie odhacza i nie zmienia porcji ani odhaczeń; minutniki działają jak dotąd. Ostatni krok otwarty ze spisu jest tylko podglądem, więc nie wywołuje pytania „Jak wyszło?”.
 
+### Powiadomienia: tylko nieprzeczytane
+
+Plakietka pokazuje, że czeka nieprzeczytane powiadomienie, ale po kilku nowszych, już przeczytanych, trudno je było znaleźć? Nad listą powiadomień są teraz dwa linki: „Wszystkie” i „Nieprzeczytane”. Drugi pokazuje tylko te, których jeszcze nie otworzyliście, w tej samej kolejności, a pierwszy wraca do całej historii. Samo wejście na listę, przełączenie i przejście na następną stronę niczego nie oznaczają jako przeczytane; „Oznacz wszystkie jako przeczytane” działa jak dotąd.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

@@ -49,13 +49,19 @@ final class OdczytPowiadomien
      * wejściu (ok. 0,4–0,5 s przy 1000–2000 powiadomieniach, retencja trzy
      * miesiące). Pilnuje `PowiadomieniaKosztPlanuTest`.
      *
+     * ZAKRES „NIEPRZECZYTANE” (#2442): ten sam odczyt, ten sam filtr
+     * widoczności (`visibleTo`), tylko z dodatkowym `read_at IS NULL` PRZED
+     * limitem i paginacją — nie filtrowanie w PHP i nie osobne `COUNT(*)`.
+     * Odczyt strony niczego nie oznacza jako przeczytane.
+     *
      * @return Paginator<int, Notification>
      */
-    public function strona(User $odbiorca, int $naStrone = self::NA_STRONE): Paginator
+    public function strona(User $odbiorca, int $naStrone = self::NA_STRONE, bool $tylkoNieprzeczytane = false): Paginator
     {
         $strona = $odbiorca
             ->notifications()
             ->visibleTo($odbiorca)
+            ->when($tylkoNieprzeczytane, fn ($zapytanie) => $zapytanie->whereNull('notifications.read_at'))
             ->with('actor.profile.avatar')
             ->simplePaginate($naStrone);
 
