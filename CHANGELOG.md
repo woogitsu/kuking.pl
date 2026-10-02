@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2445): porównanie wersji przepisu pokazuje stary i nowy czas minutnika także wtedy, gdy zmieniono równocześnie tekst kroku. Dodany lub usunięty krok z minutnikiem pokazuje swój czas; kroki bez minutnika wyglądają jak dotąd.
 - Naprawione (#2621): wklejona pusta linia z nierozdzielającą spacją nie dodaje niewidocznego składnika ani nie skleja dwóch kroków przepisu. Spacja wewnątrz wpisanej ilości zostaje bez zmian.
 - Naprawione (#2599): „Pokaż więcej” w „Co ugotuję” kończy się na ostatniej dostępnej stronie zamiast pokazywać ją w pętli. Ekran wyjaśnia ograniczenie przeglądania i prowadzi do zmiany listy produktów.
 - Naprawione (#2611): nadmiernie rozbudowana paczka własnych danych jest odrzucana z instrukcją przed wyczerpaniem pamięci przy podglądzie. Poprawne duże paczki nadal można wczytać; nic nie zapisujemy przed pokazaniem podglądu.

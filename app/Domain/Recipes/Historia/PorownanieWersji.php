@@ -317,21 +317,36 @@ final class PorownanieWersji
         $pary = min(count($lukaStare), count($lukaNowe));
 
         for ($p = 0; $p < $pary; $p++) {
+            $staryKrok = $stare[$lukaStare[$p]];
+            $nowyKrok = $nowe[$lukaNowe[$p]];
+            // Gdy choć jedna strona ma minutnik, opisujemy obie (brak = „brak”,
+            // nie zgadnięty czas); bez minutnika po obu stronach — sam tekst.
+            $zMinutnikiem = $staryKrok['timer_seconds'] !== null || $nowyKrok['timer_seconds'] !== null;
             $wynik[] = [
                 'rodzaj' => self::ZMIENIONO,
                 'numer' => $lukaNowe[$p] + 1,
-                'przed' => $stare[$lukaStare[$p]]['instruction'],
-                'po' => $nowe[$lukaNowe[$p]]['instruction'],
+                'przed' => $staryKrok['instruction'].($zMinutnikiem ? self::opisMinutnika($staryKrok['timer_seconds']) : ''),
+                'po' => $nowyKrok['instruction'].($zMinutnikiem ? self::opisMinutnika($nowyKrok['timer_seconds']) : ''),
             ];
         }
         foreach (array_slice($lukaStare, $pary) as $i) {
-            $wynik[] = ['rodzaj' => self::USUNIETO, 'numer' => $i + 1, 'przed' => $stare[$i]['instruction'], 'po' => null];
+            $wynik[] = ['rodzaj' => self::USUNIETO, 'numer' => $i + 1, 'przed' => self::opisKroku($stare[$i]), 'po' => null];
         }
         foreach (array_slice($lukaNowe, $pary) as $j) {
-            $wynik[] = ['rodzaj' => self::DODANO, 'numer' => $j + 1, 'przed' => null, 'po' => $nowe[$j]['instruction']];
+            $wynik[] = ['rodzaj' => self::DODANO, 'numer' => $j + 1, 'przed' => null, 'po' => self::opisKroku($nowe[$j])];
         }
 
         return $wynik;
+    }
+
+    /**
+     * Krok dodany albo usunięty: czas tylko wtedy, gdy migawka go zapisała.
+     *
+     * @param  array{instruction: string, timer_seconds: ?int}  $krok
+     */
+    private static function opisKroku(array $krok): string
+    {
+        return $krok['instruction'].($krok['timer_seconds'] !== null ? self::opisMinutnika($krok['timer_seconds']) : '');
     }
 
     private static function opisMinutnika(?int $sekundy): string
