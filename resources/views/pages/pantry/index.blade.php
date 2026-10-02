@@ -75,8 +75,16 @@
                         <a class="btn btn-primary" href="{{ route('pantry.cook', ['najpierw' => 'termin']) }}">Najpierw to, co się psuje</a>
                     </p>
                 @endif
-                <p class="meta" data-regula-priorytetu>{{ $regula }}</p>
+                <p data-regula-priorytetu>{{ $regula }}</p>
             </section>
+
+            @if($grupy['po_terminie']->isNotEmpty())
+                <section class="mt-8" aria-labelledby="sekcja-po-terminie" data-sekcja="po_terminie">
+                    <h3 id="sekcja-po-terminie">Po terminie „Należy zużyć do”</h3>
+                    <p>Nie podpowiadamy tych produktów do gotowania. Jeśli termin został wpisany błędnie, popraw go. W przeciwnym razie usuń produkt z listy.</p>
+                    @include('pages.pantry._produkty', ['lista' => $grupy['po_terminie'], 'dzis' => $dzis])
+                </section>
+            @endif
 
             @if($grupy['pozniej']->isNotEmpty())
                 <section class="mt-8" aria-labelledby="sekcja-pozniej" data-sekcja="pozniej">
@@ -121,7 +129,7 @@
                            @checked(auth()->user()->wants_pantry_reminder)>
                     <span>
                         <span class="choice-label">Chcę dostawać w sobotę e-mail o produktach do zużycia</span>
-                        <span class="choice-help">Jeden list tygodniowo, rano, i tylko wtedy, gdy na liście jest produkt z terminem, który minął albo upływa w ciągu {{ \App\Domain\Pantry\PriorytetZuzycia::pilneDni() }} dni. W liście są nazwy produktów z Twojej listy. Wypisać się możesz odnośnikiem na dole listu, bez logowania.</span>
+                        <span class="choice-help">Jeden list tygodniowo, rano, i tylko wtedy, gdy na liście jest produkt z terminem, który minął albo upływa w ciągu {{ \App\Domain\Pantry\PriorytetZuzycia::pilneDni() }} dni. Nie przypominamy o produktach po terminie „Należy zużyć do”. W liście są nazwy produktów z Twojej listy. Wypisać się możesz odnośnikiem na dole listu, bez logowania.</span>
                     </span>
                 </label>
             </div>

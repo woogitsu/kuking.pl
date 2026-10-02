@@ -2488,6 +2488,16 @@ checks = [
     ("Szyna zeszytu ponownie czyta całą historię (#2030)", "app/Http/Controllers/CollectionController.php",
      "test_szyna_sprawdza_widocznosc_tylko_malej_partii_kandydatow",
      lambda s: replace_once(s, "        $partia = 20;\n", "        $partia = 1000;\n")),
+    ("Przeterminowany use_by wraca do doboru (#2453)", "app/Domain/Pantry/PriorytetZuzycia.php",
+     "test_po_terminie_nalezy_zuzyc_do_nie_jest_skladnikiem_w_zadnym_trybie_ale_inne_terminy_pozostaja",
+     lambda s: replace_once(s,
+         'public const DOSTEPNY_SQL = "(p.expiry_kind IS DISTINCT FROM \'use_by\' OR p.expires_on >= ? OR p.frozen)";',
+         'public const DOSTEPNY_SQL = "(true OR p.expires_on >= ? OR p.frozen)";')),
+    ("Przeterminowany use_by wybiera odbiorcę listu (#2453)", "app/Console/Commands/WyslijPrzypomnieniaOProduktach.php",
+     "test_produkt_po_terminie_nalezy_zuzyc_do_nie_wywoluje_listu",
+     lambda s: replace_once(s,
+         "                    ->where('p.frozen', false)\n                    ->whereRaw(PriorytetZuzycia::DOSTEPNY_SQL, [$dzis]);",
+         "                    ->where('p.frozen', false);")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

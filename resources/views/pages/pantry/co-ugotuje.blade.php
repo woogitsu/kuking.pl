@@ -35,6 +35,7 @@
 
         <p>
             Porównujemy z Twoją listą: {{ $produktow }} {{ \App\Support\Odmiana::rzeczownik($produktow, 'produkt', 'produkty', 'produktów') }}.
+            Produkty po terminie „Należy zużyć do” pomijamy przy doborze przepisów.
             <a href="{{ route('pantry.index') }}">Zmień listę</a>
         </p>
 

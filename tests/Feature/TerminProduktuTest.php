@@ -278,7 +278,7 @@ class TerminProduktuTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame('2026-10-01', $produkt->fresh()->expires_on?->toDateString());
-        $this->actingAs($ja)->get(route('pantry.index'))->assertSee('Termin minął 9 dni temu.');
+        $this->actingAs($ja)->get(route('pantry.index'))->assertSee('Termin „Należy zużyć do” minął.');
     }
 
     /**
@@ -553,8 +553,9 @@ class TerminProduktuTest extends TestCase
         $this->assertLessThan(strpos($html, 'Później'), strpos($html, 'Zużyj w pierwszej kolejności'));
         $this->assertLessThan(strpos($html, 'Bez terminu'), strpos($html, 'Później'));
         $this->assertLessThan(strpos($html, 'Mrożone'), strpos($html, 'Bez terminu'));
-        $this->assertLessThan(strpos($html, 'szynka'), strpos($html, 'mleko'), 'Wcześniejszy termin pierwszy.');
-        $this->assertStringContainsString('Termin minął 2 dni temu.', $html);
+        $this->assertLessThan(strpos($html, 'Po terminie „Należy zużyć do”'), strpos($html, 'Zużyj w pierwszej kolejności'));
+        $this->assertStringContainsString('Termin „Należy zużyć do” minął.', $html);
+        $this->assertStringContainsString('Nie podpowiadamy tych produktów do gotowania.', $html);
         $this->assertStringContainsString('Termin za 3 dni (13 października).', $html);
         $this->assertStringContainsString('W zamrażarce.', $html);
         $this->assertStringContainsString('Bez terminu.', $html);

@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Analytics\ZapiszSygnal;
 use App\Domain\Pantry\CoUgotuje;
+use App\Domain\Pantry\PriorytetZuzycia;
 use App\Models\CookedEvent;
 use App\Models\ProductSignal;
 use App\Models\Recipe;
@@ -119,7 +120,7 @@ class CoUgotujeNajpierwTerminTest extends TestCase
         $this->assertSame([['nazwa' => 'mleko', 'termin' => '2026-10-11']], $wynik['do_zuzycia'][$a->getKey()]);
     }
 
-    public function test_termin_ktory_minal_tez_jest_pilny(): void
+    public function test_termin_nalezy_zuzyc_do_ktory_minal_nie_jest_pilny(): void
     {
         $ja = $this->user();
         $this->lista($ja, ['mleko' => '2026-09-20']);
@@ -127,7 +128,99 @@ class CoUgotujeNajpierwTerminTest extends TestCase
 
         $wynik = app(CoUgotuje::class)->dla($ja, 0, 20, true);
 
-        $this->assertSame([$przepis->title], $wynik['przepisy']->pluck('title')->all());
+        $this->assertSame([], $wynik['przepisy']->pluck('title')->all());
+        $this->actingAs($ja)->get(route('pantry.cook'))->assertOk()
+            ->assertSee('Nie znaleźliśmy przepisu z tymi produktami')
+            ->assertDontSee($przepis->title)
+            ->assertDontSee('Najpierw wpisz, co masz w domu');
+    }
+
+    public function test_po_terminie_nalezy_zuzyc_do_nie_jest_skladnikiem_w_zadnym_trybie_ale_inne_terminy_pozostaja(): void
+    {
+        $ja = $this->user();
+        $obca = $this->user('obca_z_terminem');
+        $this->lista($ja, [
+            'mleko' => '2026-10-09', 'jajka' => '2026-10-10',
+            'mąka' => '2026-10-09', 'kurczak' => '2026-10-09',
+            'ser' => '2026-10-11',
+        ]);
+        $ja->pantryItems()->where('name', 'mąka')->update(['expiry_kind' => 'best_before']);
+        $ja->pantryItems()->where('name', 'kurczak')->update(['frozen' => true]);
+        $this->lista($obca, ['tajne jajka' => '2026-10-10']);
+
+        $mieszany = $this->przepis('Placek z mlekiem', ['mąka', 'mleko']);
+        $this->przepis('Budyń tylko z mleka', ['mleko']);
+        $this->przepis('Kurczak pieczony', ['kurczak']);
+        $this->przepis('Jajecznica', ['jajka']);
+        $this->przepis('Ser zapiekany', ['ser']);
+
+        $domyslny = app(CoUgotuje::class)->dla($ja);
+        $this->assertContains($mieszany->getKey(), $domyslny['przepisy']->modelKeys(), 'USE_BY_2453_BEZ_DOBORU');
+        $this->assertSame(['mleko'], $domyslny['brakujace'][$mieszany->getKey()], 'USE_BY_2453_BEZ_DOBORU');
+        $this->assertNotContains('Budyń tylko z mleka', $domyslny['przepisy']->pluck('title')->all(), 'USE_BY_2453_BEZ_DOBORU');
+        $this->assertContains('Kurczak pieczony', $domyslny['przepisy']->pluck('title')->all(), 'Mrożony produkt zostaje dostępny.');
+        $this->assertContains('Jajecznica', $domyslny['przepisy']->pluck('title')->all(), 'Termin dzisiaj zostaje dostępny.');
+        $this->assertContains('Ser zapiekany', $domyslny['przepisy']->pluck('title')->all(), 'Termin jutro zostaje dostępny.');
+
+        $pilny = app(CoUgotuje::class)->dla($ja, 0, 20, true);
+        $this->assertSame(['mąka'], array_column($pilny['do_zuzycia'][$mieszany->getKey()], 'nazwa'), 'USE_BY_2453_BEZ_DOBORU');
+        $this->assertNotContains('Budyń tylko z mleka', $pilny['przepisy']->pluck('title')->all(), 'USE_BY_2453_BEZ_DOBORU');
+        $this->assertContains('Jajecznica', $pilny['przepisy']->pluck('title')->all());
+
+        $this->actingAs($ja)->get(route('pantry.cook'))->assertOk()
+            ->assertSee('Placek z mlekiem')
+            ->assertSee('Brakuje: mleko.')
+            ->assertDontSee('Budyń tylko z mleka');
+        $this->get(route('pantry.cook', ['najpierw' => 'termin']))->assertOk()
+            ->assertSee('Zużyjesz:')
+            ->assertDontSee('Budyń tylko z mleka')
+            ->assertDontSee('tajne jajka');
+    }
+
+    public function test_granica_dnia_w_warszawie_odcina_wczorajszy_use_by_od_doboru_i_http(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-09 21:59:00', 'UTC'));
+        $ja = $this->user();
+        $this->lista($ja, ['mleko' => '2026-10-09']);
+        $przepis = $this->przepis('Budyń z mleka', ['mleko']);
+
+        $this->assertContains($przepis->getKey(), app(CoUgotuje::class)->dla($ja)['przepisy']->modelKeys(), 'USE_BY_2453_GRANICA_WARSZAWY');
+        $this->actingAs($ja)->get(route('pantry.cook'))->assertOk()->assertSee($przepis->title);
+
+        // 22:01 UTC to już 00:01 następnego dnia w Warszawie.
+        Carbon::setTestNow(Carbon::parse('2026-10-09 22:01:00', 'UTC'));
+        $this->assertNotContains($przepis->getKey(), app(CoUgotuje::class)->dla($ja)['przepisy']->modelKeys(), 'USE_BY_2453_GRANICA_WARSZAWY');
+        $this->actingAs($ja)->get(route('pantry.cook'))->assertOk()->assertDontSee($przepis->title);
+        $this->assertTrue(PriorytetZuzycia::pilneDla($ja)->isEmpty(), 'Na Starcie i w liście nie ma wczorajszego use_by.');
+    }
+
+    public function test_strony_offset_limit_nie_przemycaja_wygaslego_use_by_w_zadnym_trybie(): void
+    {
+        $ja = $this->user();
+        $autor = $this->user('autor_2453');
+        $this->lista($ja, ['mleko' => '2026-10-09', 'mąka' => '2026-10-09']);
+        $ja->pantryItems()->where('name', 'mąka')->update(['expiry_kind' => 'best_before']);
+
+        for ($i = 0; $i < 21; $i++) {
+            $this->przepis('Placek '.str_pad((string) $i, 2, '0', STR_PAD_LEFT), ['mąka'], atrybuty: ['author_id' => $autor->getKey()]);
+        }
+        $wygasly = $this->przepis('Budyń z wygasłym mlekiem', ['mleko'], atrybuty: ['author_id' => $autor->getKey()]);
+
+        foreach ([false, true] as $najpierwTermin) {
+            $pierwsza = app(CoUgotuje::class)->dla($ja, 0, 20, $najpierwTermin);
+            $druga = app(CoUgotuje::class)->dla($ja, 20, 20, $najpierwTermin);
+            $this->assertCount(20, $pierwsza['przepisy'], 'USE_BY_2453_OFFSET_LIMIT');
+            $this->assertTrue($pierwsza['jest_wiecej'], 'USE_BY_2453_OFFSET_LIMIT');
+            $this->assertCount(1, $druga['przepisy'], 'USE_BY_2453_OFFSET_LIMIT');
+            $this->assertFalse($druga['jest_wiecej'], 'USE_BY_2453_OFFSET_LIMIT');
+            $this->assertNotContains($wygasly->getKey(), [...$pierwsza['przepisy']->modelKeys(), ...$druga['przepisy']->modelKeys()], 'USE_BY_2453_OFFSET_LIMIT');
+
+            $adres = route('pantry.cook', array_filter(['najpierw' => $najpierwTermin ? 'termin' : null]));
+            $strona = $this->actingAs($ja)->get($adres)->assertOk()->assertSee('Pokaż więcej przepisów');
+            $nastepna = route('pantry.cook', array_filter(['od' => 20, 'najpierw' => $najpierwTermin ? 'termin' : null]));
+            $strona->assertSee($nastepna)->assertDontSee($wygasly->title);
+            $this->get($nastepna)->assertOk()->assertDontSee($wygasly->title)->assertDontSee('Pokaż więcej przepisów');
+        }
     }
 
     public function test_zdanie_zuzyjesz_zawiera_tylko_produkty_wlasciciela(): void

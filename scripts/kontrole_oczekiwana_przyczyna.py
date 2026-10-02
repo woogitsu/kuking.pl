@@ -98,6 +98,8 @@ OCZEKUJ = {
     'Koszt: uszkodzona pojedyncza liczba daje wycenę (#2477)': r'KOSZT_2477_USZKODZONA_JEDNA_LICZBA_NIE_DAJE_WYCENY',
     'Koszt: mąka gryczana udaje kaszę (#2605)': r'KOSZT_2605_MAKA_NIE_JEST_KASZA|KOSZT_2605_MAKA_NIE_DAJE_POKRYCIA',
     'Szyna zeszytu ponownie czyta całą historię (#2030)': r'SZYNA_2030_CALA_HISTORIA',
+    'Przeterminowany use_by wraca do doboru (#2453)': r'USE_BY_2453_BEZ_DOBORU',
+    'Przeterminowany use_by wybiera odbiorcę listu (#2453)': r'ODBIORCA_2453_BEZ_PRZETERMINOWANEGO_USE_BY',
     'Bieżący eksport pomija wybór Bez ilości (#2476)': r'EKSPORT_BIEZACY_BEZ_ILOSCI',
     'Eksport gubi relację wykonania z własnym przepisem (#2639)': r'EKSPORT_2639_RELACJA_WYKONANIA_DO_PLIKU',
     'Eksport planu zdjęć ładuje autora przepisu (#2639)': r'EKSPORT_2639_PLAN_ZDJEC_BEZ_LENIWEGO_AUTORA',

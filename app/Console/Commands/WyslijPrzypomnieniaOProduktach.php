@@ -67,7 +67,8 @@ class WyslijPrzypomnieniaOProduktach extends Command
             return self::SUCCESS;
         }
 
-        $kandydaci = $this->kandydaci(PriorytetZuzycia::granicaPilnych())->get();
+        $dzis = PriorytetZuzycia::dzis();
+        $kandydaci = $this->kandydaci(PriorytetZuzycia::granicaPilnych($dzis), $dzis)->get();
 
         if ($kandydaci->isEmpty()) {
             $this->info('Nikt nie czeka dziś na przypomnienie o produktach.');
@@ -158,7 +159,7 @@ class WyslijPrzypomnieniaOProduktach extends Command
     }
 
     /** @return Builder<User> */
-    private function kandydaci(string $granica): Builder
+    private function kandydaci(string $granica, string $dzis): Builder
     {
         return User::query()
             ->where('wants_pantry_reminder', true)
@@ -167,13 +168,14 @@ class WyslijPrzypomnieniaOProduktach extends Command
             ->where(function (Builder $q): void {
                 $q->where('is_seeded', false)->orWhereNull('is_seeded');
             })
-            ->whereExists(function ($q) use ($granica): void {
+            ->whereExists(function ($q) use ($granica, $dzis): void {
                 $q->selectRaw('1')
                     ->from('pantry_items as p')
                     ->whereColumn('p.user_id', 'users.id')
                     ->whereNotNull('p.expires_on')
                     ->where('p.expires_on', '<=', $granica)
-                    ->where('p.frozen', false);
+                    ->where('p.frozen', false)
+                    ->whereRaw(PriorytetZuzycia::DOSTEPNY_SQL, [$dzis]);
             })
             // SPRAWIEDLIWA KOLEJNOŚĆ: przy sufcie mniejszym niż liczba zgód
             // `orderBy('id')` głodziłby co tydzień tych samych ostatnich. Najpierw
