@@ -385,7 +385,12 @@ function podlaczEkran(root, s) {
     // Przepisy, które wypadły celowo, tracą też minutniki.
     const zostaja = new Set(dane.map((p) => p.slug));
     usunMinutniki(s.sessionStorage, odczyt.pozycje.filter((p) => !zostaja.has(p.slug)).map((p) => p.slug));
-    zapiszPozycje(s.localStorage, dane.map(({slug, krok}) => ({slug, krok})), s.teraz());
+    const pozycje = dane.map(({slug, krok}) => ({slug, krok}));
+    const zmienione = pozycje.length !== odczyt.pozycje.length
+        || pozycje.some((p, i) => p.slug !== odczyt.pozycje[i].slug || p.krok !== odczyt.pozycje[i].krok);
+
+    // Samo wejście na ekran ani pobranie tytułu nie przedłuża 24 godzin.
+    if (zmienione || pozycje.length === 0) zapiszPozycje(s.localStorage, pozycje, s.teraz());
 
     if (dane.length === 0) return;
 

@@ -71,10 +71,16 @@
             </section>
         @endif
 
-        @if($porownanie['skladniki'] !== [])
+        @if($porownanie['skladniki'] !== [] || $porownanie['zmienionaKolejnoscSkladnikow'])
             <section class="sekcja-strony" aria-labelledby="hz-skladniki">
                 <h2 id="hz-skladniki">Składniki</h2>
                 <ul class="historia-zmiany list-none p-0">
+                    @if($porownanie['zmienionaKolejnoscSkladnikow'])
+                        <li class="historia-zmiana historia-zmiana-zmieniono">
+                            <p class="historia-zmiana-slowo">Zmieniono: kolejność składników lub grup</p>
+                            <p>Otwórz obie wersje, żeby zobaczyć ich układ.</p>
+                        </li>
+                    @endif
                     @foreach($porownanie['skladniki'] as $zmiana)
                         <li class="historia-zmiana historia-zmiana-{{ $zmiana['rodzaj'] }}">
                             <p class="historia-zmiana-slowo">{{ $slowa[$zmiana['rodzaj']] }}</p>
