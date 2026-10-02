@@ -427,6 +427,9 @@ curl -s https://kuking.pl/health   # oczekiwane: {"status":"ok"}
 # 7. Kontrolnie jeszcze raz (idempotentne; „Wymazano ponownie: 0” jest dobrym wynikiem)
 railway run --service kuking.pl --environment production \
   php artisan kuking:wymaz-ponownie --od="<chwila kopii>"
+
+# 7. OBOWIĄZKOWO: powtórz decyzje CSAM z okna kopia–awaria (§3.2).
+#    Ten krok jest ręczny; kod nie ma dziennika tych decyzji poza bazą.
 ```
 
 Potem: odtwórz DNS/WAF/Cache Rules wg `DEPLOYMENT_RUNBOOK.md` KROK 10 (jeśli
@@ -560,6 +563,64 @@ php artisan kuking:wymaz-ponownie --od="<chwila, z której pochodzi kopia>"
   (odtworzenie wierszy sprzed wymazania → `kuking:wymaz-ponownie` → `erased`);
   okno awarii dziennika przed odtworzeniem:
   `tests/Feature/DziennikWymazanPrzezOdtworzenieTest.php`.
+
+### 3.2 Po KAŻDYM odtworzeniu: decyzje CSAM z okresu między kopią a awarią (issue #2708, pytanie 17)
+
+**Dotyczy tych samych przypadków co §3.1.** Akcja „CSAM — natychmiast ukryj
+i zabezpiecz” (`ZabezpieczDowodCsam`) zapisuje wszystko **w tej samej bazie**:
+miękkie usunięcie treści (`deleted_at`), `media.status = secured`, wiersze
+`zabezpieczenia_dowodow`, decyzję w `moderation_actions`, wpis `audit_log`
+i blokadę konta autora. Odtworzenie kopii sprzed decyzji przywraca stan sprzed
+decyzji: treść znów jest widoczna, zdjęcie ma status `ready`, rejestr
+zabezpieczeń go nie zna (więc kasują go nocne retencje i wymazanie konta),
+a autor jest odblokowany. **Nic w kodzie tego dziś nie odtwarza** — odwrotnie niż
+przy wymazaniach kont nie ma dziennika poza bazą (`DziennikWymazan` obejmuje
+wyłącznie konta). To jest znane, nierozwiązane ryzyko, nie założenie.
+
+**Zanim odtworzona baza przyjmie ruch** (maintenance albo brak `DB_URL`
+w serwisie, aż punkty 1–4 są zrobione):
+
+1. **Ustal okno**: od chwili kopii (`--od` z §3.1) do chwili awarii.
+2. **Zbierz decyzje CSAM z tego okna ze źródeł poza bazą** — w kolejności
+   wiarygodności:
+   - **notatki moderatora z zawiadomienia** (procedura każe zapisać numer sprawy,
+     czas, adresata — `docs/flota/CSAM_JEDNA_KARTKA.md` pkt 9): każde zawiadomienie
+     do Policji, prokuratury albo Dyżurnet.pl złożone w oknie to osobna decyzja,
+     którą trzeba powtórzyć;
+   - **alarm na Discordzie / kanał moderatorów**, jeśli moderator coś tam
+     napisał (kod **nie wysyła** alarmu o decyzji CSAM; kanał `blad_webhook`
+     dostaje tylko błędy techniczne);
+   - **prywatny dysk zdjęć, prefiks `zabezpieczone/<id zdjęcia>/`**: zadanie
+     `PrzeniesPubliczneWariantyDowodu` przenosi tam warianty zabezpieczonego
+     zdjęcia. Wylistuj prefiks (bez pobierania plików) i porównaj identyfikatory
+     z `media`/`zabezpieczenia_dowodow` w odtworzonej bazie: identyfikator, którego
+     rejestr nie zna albo który ma status inny niż `secured`, to zdjęcie
+     zabezpieczone w oknie. Ślad jest **niepełny**: nie ma go dla treści bez
+     zdjęcia, ani gdy dysk wariantów jest tym samym dyskiem co oryginał;
+   - odpowiedzi zgłaszającym i e-maile do autorów (blokada konta) w logu
+     dostawcy poczty, jeśli go masz — ślad pośredni, tylko do potwierdzenia.
+3. **Powtórz każdą decyzję z listy** akcją „CSAM — natychmiast ukryj
+   i zabezpiecz” w panelu (treść z kopii istnieje, więc akcja zadziała od nowa;
+   użyj jej tak samo jak przy pierwszym razie: ze zgłoszenia w kolejce albo ze
+   strony treści; dla samego zdjęcia — przez zgłoszenie celu `media`).
+   Nie licz na to, że brakujące warianty zdjęcia „ukryją” je same: oryginał
+   zostaje w magazynie i może być wydany przez trasę aplikacji.
+4. **Sprawdź wynik zapytaniem** (tylko odczyt) — dla każdej treści z listy:
+   `deleted_at` ustawione, status zdjęć `secured`, wiersz w `zabezpieczenia_dowodow`,
+   konto autora zablokowane.
+5. **Jeśli nie da się ustalić listy** (nikt nie zapisał, brak śladów w prefiksie):
+   nie zgaduj. Poproś moderatorów i administratorów o przypomnienie, które
+   sprawy CSAM zamykali w oknie, i przejrzyj ręcznie zgłoszenia z tego okna;
+   to ostatnia deska ratunku, nie procedura.
+
+**Czego to NIE zamyka.** Rozwiązanie trwałe wymaga projektu, którego nie ma:
+dziennik decyzji CSAM poza bazą (analogiczny do `DziennikWymazan`) musiałby
+zapisywać wpis **przed zatwierdzeniem** decyzji, nie mógłby blokować ukrycia
+treści przy awarii magazynu (inaczej niż wymazanie konta, tu opóźnienie jest
+gorsze od braku wpisu), a jego treść — sam identyfikator, rodzaj, chwila,
+bez opisu — wymaga zgody prawnika i właściciela (dziennik sam byłby danymi
+o sprawie karnej, retencja inna niż 120 dni). Do czasu decyzji obowiązują
+kroki 1–5 wyżej. Pozycja do dopisania na liście właściciela w #2708.
 
 ### 3(c) Utracone zdjęcia
 
