@@ -1125,6 +1125,7 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->name('recipes.import.pdf.wybor.store');
     Route::delete('/dodaj/przepis/z-pdf/wybor/{token}', [WyborStronPdfController::class, 'odrzuc'])
         ->whereUuid('token')
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('recipes.import.pdf.wybor.destroy');
     // „Dopisz przepis” z własnego wpisu ze zdjęciem (#1334): ten sam
     // formularz sześciu rzeczy, ze zdjęciem wpisu zamiast nowego pliku.

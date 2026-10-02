@@ -1624,7 +1624,9 @@ checks = [
      lambda s: replace_once(s, "kasza gryczana|kaszy gryczanej|kasze gryczana,,",
                             "kasza gryczana|kaszy gryczanej|kasze gryczana|gryczana|gryczanej,,")),
     # #2476: dwa bieżące składniki z identycznym tekstem/ile=null są różne.
-    ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/CollectUserExportData.php",
+    # #2531: mapowanie pól przepisu przeszło do `PrzepisDoPaczki` (wspólne dla
+    # pełnej paczki i kopii jednego przepisu).
+    ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/PrzepisDoPaczki.php",
      "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",
      lambda s: replace_once(s, "                'bez_ilosci' => (bool) $item->no_amount,\n", "")),
     # #2639: własne wykonanie musi wskazać istniejący własny plik tej paczki.
@@ -2024,7 +2026,7 @@ checks = [
     # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
     ("Klucz eksportu z rodzajem", EKSPORT_DANE, EKSPORT_KLUCZE_TEST,
      lambda s: replace_once(s, "'na_czym_sie_znam' =>", "'w_czym_jestem_dobra' =>")),
-    ("Eksport gubi wybór widoczności wartości odżywczych", EKSPORT_DANE, EKSPORT_WIDOCZNOSC_TEST,
+    ("Eksport gubi wybór widoczności wartości odżywczych", "app/Domain/Users/Exports/PrzepisDoPaczki.php", EKSPORT_WIDOCZNOSC_TEST,
      lambda s: replace_once(s, EKSPORT_WIDOCZNOSC_POLE, "")),
     # #1752 (D-332): rollback formy zwracania się bez strażnika D-088
     # i anonimizacja konta, która zostawia wybraną formę.
