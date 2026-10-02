@@ -258,7 +258,8 @@ async function zmierzWybranePorcjeNaKartce(strona, ile, sciezka) {
     const wynik = [];
     const wybor = document.querySelector('.porcje-wybor-liczba');
     const prostokat = wybor?.getBoundingClientRect();
-    if (wybor?.textContent.trim() !== String(wybrane) || !prostokat || prostokat.width <= 0
+    const etykieta = { 2: '2 porcje', 4: '4 porcje', 6: '6 porcji' }[wybrane];
+    if (wybor?.textContent.trim() !== etykieta || !prostokat || prostokat.width <= 0
       || prostokat.height <= 0 || getComputedStyle(wybor).visibility === 'hidden') {
       wynik.push('na kartce nie widać wybranej liczby porcji');
     }
