@@ -450,7 +450,7 @@ final class ParserJsonLdPrzepisu
         return $liczba;
     }
 
-    /** Czas ISO 8601 (`PT1H30M`, `P0DT45M`) w minutach; inny zapis = brak. */
+    /** Czas ISO 8601 (`PT1H30M`, `PT120S`) w pełnych minutach; inny zapis albo ułamek minuty = brak. */
     public static function minuty(mixed $wartosc): ?int
     {
         if (! is_string($wartosc)) {
@@ -461,8 +461,18 @@ final class ParserJsonLdPrzepisu
             return null;
         }
 
-        $minuty = ((int) ($m[1] ?? 0)) * 1440 + ((int) ($m[2] ?? 0)) * 60 + (int) ($m[3] ?? 0);
+        // Cały czas liczymy w sekundach, a limit 10080 minut sprawdzamy dopiero
+        // na sumie — sekundy nie mogą ani znikać, ani omijać limitu (#2546).
+        $sekundy = ((float) ($m[1] ?? 0)) * 86400 + ((float) ($m[2] ?? 0)) * 3600
+            + ((float) ($m[3] ?? 0)) * 60 + (float) ($m[4] ?? 0);
 
-        return $minuty > 0 && $minuty <= 10080 ? $minuty : null;
+        // Pole czasu przyjmuje pełne minuty. „PT90S” (1,5 min) nie jest ani
+        // 1, ani 2 minutami — zgadywanie jest gorsze niż puste pole, które
+        // autor uzupełnia sam (jak przy „4–6 porcji”). PT120S to dokładnie 2.
+        if ($sekundy < 60 || $sekundy > 10080 * 60 || abs($sekundy / 60 - round($sekundy / 60)) > 1e-9) {
+            return null;
+        }
+
+        return (int) round($sekundy / 60);
     }
 }
