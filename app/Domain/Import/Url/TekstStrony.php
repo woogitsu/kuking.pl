@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domain\Import\Url;
 
 use DOMDocument;
-use DOMElement;
 
 /**
  * Czysty tekst strony bez danych strukturalnych — wejście dla trybu
@@ -77,7 +76,7 @@ final class TekstStrony
         $doUsuniecia = [];
 
         foreach ($dokument->getElementsByTagName('*') as $element) {
-            if (! $element instanceof DOMElement || ! in_array($element->tagName, ['section', 'div', 'ol', 'ul'], true)) {
+            if (! in_array($element->tagName, ['section', 'div', 'ol', 'ul'], true)) {
                 continue;
             }
 
