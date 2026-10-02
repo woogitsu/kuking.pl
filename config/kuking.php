@@ -3605,6 +3605,14 @@ return [
         'regon' => '388971059',
 
         /*
+         * Art. 206 § 1 KSH: sąd rejestrowy i kapitał zakładowy w informacjach
+         * spółki (analiza prawna z 2.10.2026, pyt. 14). Dane podał właściciel
+         * 2.10.2026 (D-333).
+         */
+        'sad_rejestrowy' => 'Sąd Rejonowy w Białymstoku, XII Wydział Gospodarczy Krajowego Rejestru Sądowego',
+        'kapital_zakladowy' => '5 000,00 zł',
+
+        /*
          * Adres, pod którym odpowiada spółka — i to NIE jest to samo, co
          * `community.contact_email` niżej.
          *
