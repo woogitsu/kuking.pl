@@ -2248,7 +2248,7 @@ checks = [
      lambda s: replace_once(s, "                ->where('user_id', $swiezy->getKey())\n", "")),
     ("Zrobione w Planerze: kopia tygodnia przenosi oznaczenie (#2593)", "app/Domain/Planer/Actions/SkopiujPoprzedniTydzien.php", "PlanerZrobioneTest",
      lambda s: replace_once(s, "                    'label' => $pozycja['wpis']->label,\n", "                    'label' => $pozycja['wpis']->label,\n                    'done_at' => $pozycja['wpis']->done_at,\n")),
-    ("Zrobione w Planerze: rollback nie odmawia przy oznaczeniach (#2593)", "database/migrations/2026_10_02_190000_add_done_at_to_meal_plan_entries.php", "PlanerZrobioneTest",
+    ("Zrobione w Planerze: rollback nie odmawia przy oznaczeniach (#2593)", "database/migrations/2026_10_02_190200_add_done_at_to_meal_plan_entries.php", "PlanerZrobioneTest",
      lambda s: replace_once(s, "        if ($oznaczone > 0) {", "        if (false) {")),
     # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
     # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.

@@ -301,7 +301,7 @@ final class PlanerZrobioneTest extends TestCase
 
     public function test_cofniecie_migracji_odmawia_przy_oznaczeniach_i_przechodzi_bez_nich(): void
     {
-        $migracja = require base_path('database/migrations/2026_10_02_190000_add_done_at_to_meal_plan_entries.php');
+        $migracja = require base_path('database/migrations/2026_10_02_190200_add_done_at_to_meal_plan_entries.php');
         $ja = $this->user('planujaca');
         $wpis = $this->pozycja($ja, '2026-10-01', tekst: 'Obiad');
         $this->oznacz($ja, $wpis, true);
