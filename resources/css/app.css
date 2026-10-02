@@ -5324,9 +5324,38 @@
     gap: var(--spacing-3);
 }
 
+/* Dodatkowy czas (#2458): przycisk i mały formularz „Ile dodatkowych minut?".
+   Te same pary kolorów co własny minutnik wyżej (sprawdzony kontrast w obu
+   motywach); błąd z własnym tłem danger-tint, bo na tle minutnika zwykły
+   kolor błędu nie spełnia kontrastu. */
+.cook-timer-dodaj {
+    margin-top: var(--spacing-3);
+}
+
+.cook-timer-dodatkowy {
+    display: grid;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-3);
+}
+
+.cook-timer-dodatkowy label,
+.cook-timer-dodatkowy .field-help {
+    color: var(--color-accent-tint-ink);
+}
+
+.cook-timer-dodatkowy .field-error {
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-md);
+    background-color: var(--color-danger-tint);
+    color: var(--color-danger-tint-ink);
+}
+
 .cook-timer-wybor[hidden],
 .cook-timer-blad[hidden],
-.cook-timer-nazwa[hidden] {
+.cook-timer-nazwa[hidden],
+.cook-timer-dodaj[hidden],
+.cook-timer-dodatkowy[hidden],
+.cook-timer-dodatkowy .field-error[hidden] {
     display: none;
 }
 

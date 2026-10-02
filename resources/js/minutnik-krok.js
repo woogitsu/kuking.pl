@@ -214,3 +214,60 @@ export function sprawdzMinutyWlasne(tekst) {
 export function etykietaMinut(sekundy) {
     return `${Math.round(sekundy / 60)} min`;
 }
+
+/*
+ * DODATKOWY CZAS PRZY MINUTNIKU KROKU (#2458, decyzja właściciela z 2.10.2026).
+ *
+ * Po 40 minutach garnek trzeba sprawdzić i dopiec jeszcze 5 — a „Uruchom
+ * jeszcze raz” odlicza od nowa pełne 40. Dodatkowy czas zmienia WYŁĄCZNIE
+ * lokalny termin tego jednego minutnika; czas autora (`timer_seconds`),
+ * postęp, odhaczenia, porcje i minutniki innych kroków zostają bez zmian.
+ * Arytmetyka jest tu, bez DOM-u, żeby widok pojedynczego kroku i kolejka
+ * czytały ten sam zapis i ten sam termin.
+ */
+
+/** Najwięcej, co można dodać za jednym razem: 3 godziny. */
+export const DODATKOWY_MINUTNIK_MAX_MINUT = 180;
+
+/**
+ * Sprawdza minuty wpisane w polu „Ile dodatkowych minut?”.
+ * Zwraca `{sekundy}` albo `{blad}` — komunikat po polsku, mówiący, co zrobić.
+ * Tylko pełne dodatnie minuty w limicie: puste, tekst, ułamki, zapis
+ * naukowy, zero, liczby ujemne i zbyt duże nie zmieniają terminu.
+ */
+export function sprawdzDodatkoweMinuty(tekst) {
+    const wpisane = String(tekst ?? '').trim();
+
+    if (wpisane === '') {
+        return {blad: 'Wpisz, ile dodatkowych minut dodać do minutnika, na przykład 5.'};
+    }
+
+    if (/^-\s*\d/.test(wpisane)) {
+        return {blad: 'Liczba dodatkowych minut nie może być ujemna. Wpisz liczbę większą od zera, na przykład 5.'};
+    }
+
+    if (!/^\d+$/.test(wpisane)) {
+        return {blad: 'Wpisz pełną liczbę minut cyframi, na przykład 5.'};
+    }
+
+    const minuty = Number(wpisane);
+
+    if (!Number.isFinite(minuty) || minuty < 1) {
+        return {blad: 'Wpisz liczbę minut większą od zera, na przykład 5.'};
+    }
+
+    if (minuty > DODATKOWY_MINUTNIK_MAX_MINUT) {
+        return {blad: `Naraz można dodać najwyżej ${DODATKOWY_MINUTNIK_MAX_MINUT} minut (3 godziny). Wpisz mniejszą liczbę.`};
+    }
+
+    return {sekundy: minuty * 60};
+}
+
+/**
+ * Nowy termin monotoniczny po dodaniu czasu: do POZOSTAŁEGO czasu, a jeśli
+ * termin już minął (albo mija w tej chwili) — liczony od teraz. Nigdy od
+ * pełnego czasu autora.
+ */
+export function nowyTerminPoDodaniu(terminMonotoniczny, terazMonotoniczny, dodatkoweSekundy) {
+    return Math.max(terminMonotoniczny, terazMonotoniczny) + dodatkoweSekundy * 1000;
+}
