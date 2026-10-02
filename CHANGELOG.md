@@ -2,6 +2,12 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2480): kartka przypięta do przepisu jest widoczna na jego zwykłej stronie także wtedy, gdy autor nie dodał osoby ani notatki o źródle. Prywatność zdjęcia i wariant dla pomocnika pozostają bez zmian.
+- Naprawione (#2451): porównanie wersji przepisu pokazuje przestawienie składników i grup. Dodanie lub usunięcie składnika nie tworzy pozornej zmiany kolejności pozostałych.
+- Naprawione (#2524): po wybraniu innej liczby porcji szacunkowy koszt całego przepisu podany przez autora zmienia się razem z ilościami składników. Podpis mówi, że kwota jest przeliczona z szacunku autora; powrót do jego porcji przywraca oryginalne zdanie. Dotyczy też wydruku tej strony, bez zmiany zapisanego kosztu i przedziału z cennika.
+- Naprawione (#2474, #2484): odnośnik „Drukuj przepis” zachowuje wybrane porcje, a zwykła kartka i wydruk zeszytu pokazują zapisany czas kroku bez przycisku odliczania.
+- Naprawione (#2505): samo otwarcie lub odświeżenie niezmienionej kolejki gotowania nie odnawia jej 24-godzinnej ważności. Dodanie, usunięcie, zmiana kolejności lub kroku nadal odnawiają termin.
+- Naprawione (#2536, #2538, #2539): import z adresu wybiera pierwszy przepis JSON-LD z rzeczywistą treścią, odczytuje `content` składników i kroków z mikrodanych oraz zachowuje jednoznaczną ułamkową liczbę porcji. Szkic pozostaje prywatny, bez dodatkowego użycia AI.
 - Naprawione (#2477, #2508): koszt zachowuje obie granice słownego zakresu ilości. Dopisek celu, np. „300 g mąki do 2 porcji”, zachowuje rozpoznaną masę; nie zmieniamy tekstu autora.
 
 - Naprawione (#2476, #2478, #2479): osobista paczka danych zachowuje sam rok rodzinny w HTML, odróżnia przepis ukryty od szkicu i zapisuje jawny wybór „Bez ilości” w bieżących składnikach JSON.

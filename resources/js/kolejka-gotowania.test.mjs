@@ -18,6 +18,7 @@ import {
     usunMinutniki,
     wyczyscKolejke,
     czytaj,
+    podlaczKolejke,
 } from './kolejka-gotowania.js';
 import {kluczStanu, zapiszStan} from './minutnik-krok.js';
 
@@ -66,6 +67,92 @@ const ZLY_STORAGE = {
 };
 
 const T0 = 1_800_000_000_000;
+
+/** Minimalny ekran potrzebny do wykonania rzeczywistego podlaczKolejke(). */
+function ekranKolejki(pozycje, localStorage, teraz, {zAdresu = '1', pominiete = []} = {}) {
+    const przekierowania = [];
+    const panelMinutnikow = {hidden: true};
+    const root = {
+        dataset: {
+            kolejkaDane: JSON.stringify(pozycje.map((p) => ({...p, tytul: p.tytul ?? p.slug}))),
+            kolejkaAdres: '/gotuj-kilka',
+            kolejkaZAdresu: zAdresu,
+            kolejkaPominiete: JSON.stringify(pominiete),
+        },
+        querySelector(selector) {
+            if (selector === '[data-kolejka-minutniki]') return panelMinutnikow;
+            if (selector === '[data-kolejka-minutniki-lista]') return {append() {}};
+            if (selector === '[data-kolejka-alarmy]') return {children: []};
+
+            return null;
+        },
+    };
+    const document = {
+        querySelectorAll() { return []; },
+        querySelector() { return root; },
+    };
+
+    podlaczKolejke({
+        document,
+        localStorage,
+        sessionStorage: new FalszywyStorage(),
+        location: {replace(adres) { przekierowania.push(adres); }},
+        teraz: () => teraz,
+        zegar: {now: () => teraz},
+        ustawInterwal() { return 1; },
+    });
+
+    return przekierowania;
+}
+
+test('odczyt identycznego ekranu po 23 h nie odnawia kolejki, więc po 25 h wygasa', () => {
+    const ls = new FalszywyStorage();
+    const pozycje = [{slug: 'zupa', krok: 2}];
+    ls.setItem(KLUCZ_KOLEJKI, zapiszKolejke(pozycje, T0));
+
+    assert.deepEqual(ekranKolejki(pozycje, ls, T0 + 23 * 60 * 60 * 1000), []);
+    assert.equal(JSON.parse(ls.getItem(KLUCZ_KOLEJKI)).zapisano, T0, 'SAM_ODCZYT_2505_NIE_ODNAWIA_TTL');
+
+    assert.deepEqual(ekranKolejki(pozycje, ls, T0 + 25 * 60 * 60 * 1000), ['/gotuj-kilka?wygasla=1']);
+    assert.equal(ls.getItem(KLUCZ_KOLEJKI), null);
+});
+
+test('rzeczywista zmiana kroku na ekranie odnawia termin kolejki', () => {
+    const ls = new FalszywyStorage();
+    ls.setItem(KLUCZ_KOLEJKI, zapiszKolejke([{slug: 'zupa', krok: 1}], T0));
+    const pozniej = T0 + 23 * 60 * 60 * 1000;
+
+    assert.deepEqual(ekranKolejki([{slug: 'zupa', krok: 2}], ls, pozniej), []);
+    assert.equal(JSON.parse(ls.getItem(KLUCZ_KOLEJKI)).zapisano, pozniej);
+    assert.equal(odczytajKolejke(ls.getItem(KLUCZ_KOLEJKI), T0 + 25 * 60 * 60 * 1000).stan, 'ok');
+});
+
+test('goły adres i nowy tytuł nie odnawiają identycznej kolejki', () => {
+    const ls = new FalszywyStorage();
+    const pozycje = [{slug: 'zupa', krok: 1}];
+    ls.setItem(KLUCZ_KOLEJKI, zapiszKolejke(pozycje, T0));
+    const pozniej = T0 + 23 * 60 * 60 * 1000;
+
+    assert.deepEqual(ekranKolejki([], ls, pozniej, {zAdresu: '0'}), ['/gotuj-kilka?p=zupa:1&a=zupa']);
+    assert.deepEqual(ekranKolejki([{...pozycje[0], tytul: 'Nowy tytuł'}], ls, pozniej), []);
+    assert.equal(JSON.parse(ls.getItem(KLUCZ_KOLEJKI)).zapisano, T0);
+});
+
+test('zmiana kolejności i odpadnięcie niedostępnego przepisu są zmianą danych', () => {
+    const ls = new FalszywyStorage();
+    const poczatkowe = [{slug: 'zupa', krok: 1}, {slug: 'sernik', krok: 1}];
+    ls.setItem(KLUCZ_KOLEJKI, zapiszKolejke(poczatkowe, T0));
+    const pozniej = T0 + 23 * 60 * 60 * 1000;
+
+    assert.deepEqual(ekranKolejki([...poczatkowe].reverse(), ls, pozniej), []);
+    assert.equal(JSON.parse(ls.getItem(KLUCZ_KOLEJKI)).zapisano, pozniej);
+    assert.deepEqual(odczytajKolejke(ls.getItem(KLUCZ_KOLEJKI), pozniej).pozycje, [...poczatkowe].reverse());
+
+    const jeszczePozniej = pozniej + 1000;
+    assert.deepEqual(ekranKolejki([{slug: 'sernik', krok: 1}], ls, jeszczePozniej, {pominiete: ['zupa']}), []);
+    assert.equal(JSON.parse(ls.getItem(KLUCZ_KOLEJKI)).zapisano, jeszczePozniej);
+    assert.deepEqual(odczytajKolejke(ls.getItem(KLUCZ_KOLEJKI), jeszczePozniej).pozycje, [{slug: 'sernik', krok: 1}]);
+});
 
 test('limit kolejki to 4 przepisy: piąty nie wchodzi, kolejka bez zmian', () => {
     assert.equal(LIMIT, 4);
@@ -116,7 +203,9 @@ test('kolejka wygasa po 24 godzinach od ostatniej zmiany', () => {
 test('zmiana kolejki odnawia 24 godziny', () => {
     const stary = zapiszKolejke([{slug: 'zupa', krok: 1}], T0);
     const dzienPozniej = T0 + WAZNOSC_MS - 1000;
-    const odnowiony = zapiszKolejke(odczytajKolejke(stary, dzienPozniej).pozycje, dzienPozniej);
+    const dodane = dodajDoKolejki(odczytajKolejke(stary, dzienPozniej).pozycje, 'kotlet');
+    assert.equal(dodane.wynik, 'dodano');
+    const odnowiony = zapiszKolejke(dodane.pozycje, dzienPozniej);
 
     assert.equal(odczytajKolejke(odnowiony, dzienPozniej + WAZNOSC_MS).stan, 'ok');
 });
