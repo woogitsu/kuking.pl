@@ -288,6 +288,65 @@ stałym `DEFAULT`, więc stary kod ich nie czyta i nic się nie psuje. Testy:
 `TerminySpizarniEksportIWymazanieTest`); `EraseAccountData` kasuje cały
 `pantry_items` konta, więc nie ma nic nowego do kasowania.
 
+## pantry_second_packages — drugie opakowanie produktu (V2, #2568)
+
+Drugie opakowanie tego samego produktu z „Co mam w domu”, z własnym terminem,
+rodzajem terminu, ilością i oznaczeniem „mrożone”. Migracja
+`2026_10_03_200000_create_pantry_second_packages_table`. **Nazwa produktu
+zostaje jedna** (`UNIQUE (user_id, klucz)` w `pantry_items` bez zmian), a zwykłe
+dodanie tej samej nazwy niczego nie tworzy — drugie opakowanie powstaje
+wyłącznie jawną akcją „Dodaj drugie opakowanie” (`DrugieOpakowanieProduktu`).
+**Pierwsze opakowanie to nadal kolumny `pantry_items`** (`expires_on`,
+`expiry_kind`, `quantity_note`, `frozen`); dotychczasowe terminy i ilości nie są
+przenoszone ani przeliczane.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | identyfikator drugiego opakowania (niesie go formularz edycji) |
+| `pantry_item_id` | `uuid NOT NULL` → `pantry_items` (`ON DELETE CASCADE`), `UNIQUE` | produkt; najwyżej jedno drugie opakowanie na produkt, więc razem dwa. Nie ma własnego `user_id` — właściciel to właściciel produktu |
+| `expires_on` | `date NULL` | jak w `pantry_items` (dzień z opakowania, bez strefy) |
+| `expiry_kind` | `varchar(12) NULL` | `use_by` albo `best_before`; `NULL` dokładnie wtedy, gdy `expires_on IS NULL` |
+| `quantity_note` | `varchar(40) NULL` | ilość jako wolny tekst |
+| `frozen` | `boolean NOT NULL DEFAULT false` | to opakowanie w zamrażarce; nie wpływa na pierwsze |
+| `created_at` | `timestamptz NOT NULL DEFAULT now()` | |
+
+Ograniczenia: `UNIQUE (pantry_item_id)` (`pantry_second_packages_pantry_item_id_unique`;
+limit „dwa opakowania” stoi w bazie, więc dwa równoległe zapisy nie dadzą
+trzeciego), `…_expiry_kind_check`, `…_expiry_pair_check`,
+`…_expires_on_range_check` (2020-01-01 … 2100-12-31) i `…_quantity_note_check`
+(1–40 znaków po obcięciu spacji) — te same reguły co dla pierwszego opakowania.
+Nowa, pusta tabela nie potrzebuje wzorca `NOT VALID`. Modelu nie wypełnia się
+masowo (`$fillable = []`): wiersz zapisuje tylko akcja domenowa, po walidacji
+wspólnej z `ZmienTerminProduktu`.
+
+Reguły, które na tym stoją:
+- **Dostępność, pilność i dopasowanie liczy się na każdym opakowaniu osobno**
+  (`PriorytetZuzycia::OPAKOWANIA_SQL` — `UNION ALL` opakowań pod aliasem `p`),
+  a produkt „jest”, gdy choć jedno opakowanie spełnia warunek (`EXISTS`,
+  `count(DISTINCT p.id)`). Produkt z jednym opakowaniem daje wiersze jak dawniej.
+  Opakowanie po „Należy zużyć do” nie otwiera produktu do gotowania, ale dobre
+  drugie — tak. Mrożone opakowanie nie chowa pilnego niemrożonego.
+- **Usunięcie jednego opakowania nie rusza drugiego.** Usunięcie drugiego kasuje
+  jego wiersz. Usunięcie pierwszego przenosi treść drugiego na miejsce pierwszego
+  (kolumny `pantry_items`) i kasuje wiersz drugiego w jednej transakcji pod
+  blokadą wiersza produktu; formularz niesie odcisk treści z chwili otwarcia, więc
+  stary formularz nie zadziała na opakowaniu, którego człowiek nie widział.
+  Usunięcie całego produktu (`pantry.destroy`) kasuje oba kaskadą.
+- **Limit 150** dotyczy produktów (`CoMamWDomu::MAKS_PRODUKTOW`), nie opakowań;
+  opakowań jest więc najwyżej 300.
+- **Eksport i wymazanie.** Paczka danych (`co_mam_w_domu[].drugie_opakowanie`,
+  `null` gdy go nie ma) obejmuje drugie opakowanie; wymazanie konta usuwa
+  `pantry_items`, a drugie opakowania znikają kaskadą. Tabela nie ma kolumny
+  wskazującej na `users`, więc nie wchodzi do `InwentarzDanychKonta`.
+- **Rollback (D-088).** `down()` ODMAWIA, gdy istnieje choć jedno drugie
+  opakowanie: to osobna decyzja człowieka (osobny termin, ilość, zamrożenie),
+  której nie wolno scalić po cichu z pierwszym ani skasować. Komunikat podaje
+  liczbę i polecenie kopii (`CREATE TABLE pantry_second_packages_kopia AS SELECT *
+  …`). Wymuszenie po kopii: `KUKING_ROLLBACK_KASUJE_DRUGIE_OPAKOWANIA=1`. Na
+  świeżej bazie cofnięcie przechodzi bez pytania, a produkty i pierwsze
+  opakowania zostają. Wycofanie samego kodu jest bezpieczne: tabela przestaje być
+  czytana.
+
 ## cooking_progress — zapamiętany postęp gotowania (V2, #2016)
 
 Opcjonalna synchronizacja odhaczonych kroków trybu gotowania między

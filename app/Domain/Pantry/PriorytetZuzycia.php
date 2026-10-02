@@ -58,6 +58,19 @@ final class PriorytetZuzycia
     /** Ten sam warunek dostępności w zapytaniach do przepisów i na liście. */
     public const DOSTEPNY_SQL = "(p.expiry_kind IS DISTINCT FROM 'use_by' OR p.expires_on >= ? OR p.frozen)";
 
+    /**
+     * Źródło „opakowań” w SQL (#2568): pierwsze opakowanie z `pantry_items`
+     * i drugie z `pantry_second_packages`, oba z `id`, `user_id`, nazwą
+     * i rdzeniami PRODUKTU. Zapytania używają go jako `FROM … p` zamiast
+     * gołego `pantry_items p`, więc dostępność, pilność i dopasowanie do
+     * składników liczą się osobno dla każdego opakowania, a produkt „jest”
+     * (`EXISTS`, `count(DISTINCT p.id)`), gdy choć jedno opakowanie spełnia
+     * warunek. Produkt z jednym opakowaniem daje dokładnie te same wiersze co dawniej.
+     */
+    public const OPAKOWANIA_SQL = '(SELECT i.id, i.user_id, i.name, i.rdzenie, i.expires_on, i.expiry_kind, i.frozen FROM pantry_items i '
+        .'UNION ALL SELECT i.id, i.user_id, i.name, i.rdzenie, d.expires_on, d.expiry_kind, d.frozen '
+        .'FROM pantry_second_packages d JOIN pantry_items i ON i.id = d.pantry_item_id)';
+
     /** Podpisy rodzajów terminu — dosłownie jak na opakowaniach. */
     public const RODZAJE = [
         self::RODZAJ_ZUZYC_DO => 'Należy zużyć do',
@@ -101,21 +114,34 @@ final class PriorytetZuzycia
      * i sobotni list. Filtr w SQL (termin do `dziś + N`, nie mrożone), kolejność
      * z `pogrupuj()`, więc ta sama co na liście.
      *
-     * @return Collection<int, PantryItem>
+     * @return Collection<int, Opakowanie>
      */
     public static function pilneDla(User $user, ?string $dzis = null): Collection
     {
         $dzis ??= self::dzis();
+        $granica = self::granicaPilnych($dzis);
 
+        // Wstępny filtr w SQL: produkt, którego PIERWSZE albo DRUGIE opakowanie
+        // ma termin do `dziś + N` i nie jest mrożone. O pilności decyduje
+        // potem `grupa()` osobno dla każdego opakowania (mrożone opakowanie
+        // nie chowa pilnego niemrożonego, a po terminie „Należy zużyć do”
+        // nie jest pilne).
         $produkty = PantryItem::query()->from('pantry_items as p')
             ->where('p.user_id', $user->getKey())
-            ->where('p.frozen', false)
-            ->whereNotNull('p.expires_on')
-            ->where('p.expires_on', '<=', self::granicaPilnych($dzis))
-            ->whereRaw(self::DOSTEPNY_SQL, [$dzis])
+            ->where(function ($q) use ($granica): void {
+                $q->where(fn ($pierwsze) => $pierwsze->where('p.frozen', false)->whereNotNull('p.expires_on')->where('p.expires_on', '<=', $granica))
+                    ->orWhereExists(function ($drugie) use ($granica): void {
+                        $drugie->selectRaw('1')->from('pantry_second_packages as d')
+                            ->whereColumn('d.pantry_item_id', 'p.id')
+                            ->where('d.frozen', false)->whereNotNull('d.expires_on')->where('d.expires_on', '<=', $granica);
+                    });
+            })
+            ->with('secondPackage')
             ->get();
 
-        return self::pogrupuj($produkty, $dzis)['pilne'];
+        // Produkt raz, z najwcześniejszym pilnym opakowaniem (kolejność z `pogrupuj()`):
+        // dwa pilne opakowania tej samej nazwy to jedna pozycja w liście i w zdaniu na Starcie.
+        return self::pogrupuj($produkty, $dzis)['pilne']->unique(fn (Opakowanie $o): string => $o->id)->values();
     }
 
     /**
@@ -123,7 +149,7 @@ final class PriorytetZuzycia
      * 2 produkty.” — albo `null`, gdy nic nie jest pilne (blok się wtedy nie
      * pojawia, bez pustego stanu). Bez licznika i bez ikon.
      *
-     * @param  Collection<int, PantryItem>  $pilne  wynik `pilneDla()`
+     * @param  Collection<int, PantryItem|Opakowanie>  $pilne  wynik `pilneDla()`
      */
     public static function zdanieDlaStartu(Collection $pilne): ?string
     {
@@ -131,7 +157,7 @@ final class PriorytetZuzycia
             return null;
         }
 
-        $nazwy = $pilne->take(2)->map(fn (PantryItem $p): string => (string) $p->name)->values();
+        $nazwy = $pilne->take(2)->map(fn (PantryItem|Opakowanie $p): string => (string) $p->name)->values();
         $reszta = $pilne->count() - $nazwy->count();
         $dni = self::pilneDni();
         $poczatek = 'Do zużycia w ciągu '.$dni.' '.($dni === 1 ? 'dnia' : 'dni').': ';
@@ -143,7 +169,7 @@ final class PriorytetZuzycia
         return $poczatek.($nazwy->count() === 2 ? $nazwy[0].' i '.$nazwy[1] : $nazwy[0]).'.';
     }
 
-    public static function grupa(PantryItem $produkt, ?string $dzis = null): string
+    public static function grupa(PantryItem|Opakowanie $produkt, ?string $dzis = null): string
     {
         if ($produkt->frozen) {
             return self::MROZONE;
@@ -165,8 +191,12 @@ final class PriorytetZuzycia
     }
 
     /**
-     * @param  iterable<PantryItem>  $produkty
-     * @return array{pilne: Collection<int, PantryItem>, pozniej: Collection<int, PantryItem>, bez_terminu: Collection<int, PantryItem>, mrozone: Collection<int, PantryItem>, po_terminie: Collection<int, PantryItem>}
+     * Każde OPAKOWANIE trafia do swojej grupy osobno (#2568): produkt z jednym
+     * opakowaniem po terminie „Należy zużyć do” i drugim dobrym stoi w dwóch
+     * sekcjach. Produkt bez wczytanej relacji `secondPackage` ma jedno opakowanie.
+     *
+     * @param  iterable<PantryItem|Opakowanie>  $produkty
+     * @return array{pilne: Collection<int, Opakowanie>, pozniej: Collection<int, Opakowanie>, bez_terminu: Collection<int, Opakowanie>, mrozone: Collection<int, Opakowanie>, po_terminie: Collection<int, Opakowanie>}
      */
     public static function pogrupuj(iterable $produkty, ?string $dzis = null): array
     {
@@ -174,7 +204,9 @@ final class PriorytetZuzycia
         $zbiory = [self::PILNE => [], self::POZNIEJ => [], self::BEZ_TERMINU => [], self::MROZONE => [], self::PO_TERMINIE => []];
 
         foreach ($produkty as $produkt) {
-            $zbiory[self::grupa($produkt, $dzis)][] = $produkt;
+            foreach ($produkt instanceof PantryItem ? Opakowanie::zProduktu($produkt) : [$produkt] as $opakowanie) {
+                $zbiory[self::grupa($opakowanie, $dzis)][] = $opakowanie;
+            }
         }
 
         return [
@@ -187,12 +219,12 @@ final class PriorytetZuzycia
     }
 
     /**
-     * @param  list<PantryItem>  $lista
-     * @return Collection<int, PantryItem>
+     * @param  list<Opakowanie>  $lista
+     * @return Collection<int, Opakowanie>
      */
     private static function posortuj(array $lista, bool $poTerminie): Collection
     {
-        usort($lista, function (PantryItem $a, PantryItem $b) use ($poTerminie): int {
+        usort($lista, function (Opakowanie $a, Opakowanie $b) use ($poTerminie): int {
             if ($poTerminie) {
                 // Bez terminu (mrożone bez daty) na końcu swojej grupy.
                 $porownanie = ($a->expires_on?->toDateString() ?? '9999-12-31') <=> ($b->expires_on?->toDateString() ?? '9999-12-31');
@@ -207,14 +239,16 @@ final class PriorytetZuzycia
                 }
             }
 
-            return [mb_strtolower((string) $a->name), (string) $a->getKey()]
-                <=> [mb_strtolower((string) $b->name), (string) $b->getKey()];
+            // Na końcu numer opakowania: dwa opakowania jednego produktu z tym
+            // samym terminem mają stałą kolejność (pierwsze, drugie).
+            return [mb_strtolower((string) $a->name), (string) $a->getKey(), $a->numer]
+                <=> [mb_strtolower((string) $b->name), (string) $b->getKey(), $b->numer];
         });
 
         return new Collection($lista);
     }
 
-    private static function wagaRodzaju(PantryItem $produkt): int
+    private static function wagaRodzaju(PantryItem|Opakowanie $produkt): int
     {
         return match ($produkt->expiry_kind) {
             self::RODZAJ_ZUZYC_DO => 0,
@@ -224,7 +258,7 @@ final class PriorytetZuzycia
     }
 
     /** „Należy zużyć do 3 października” — albo null, gdy nie ma terminu. */
-    public static function etykietaTerminu(PantryItem $produkt): ?string
+    public static function etykietaTerminu(PantryItem|Opakowanie $produkt): ?string
     {
         if ($produkt->expires_on === null) {
             return null;
@@ -249,7 +283,7 @@ final class PriorytetZuzycia
      * właściciela z opakowania, a Kuking nie ocenia, czy produkt nadaje się
      * do jedzenia.
      */
-    public static function opisStanu(PantryItem $produkt, ?string $dzis = null): string
+    public static function opisStanu(PantryItem|Opakowanie $produkt, ?string $dzis = null): string
     {
         if ($produkt->frozen) {
             return 'W zamrażarce.';

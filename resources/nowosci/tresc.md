@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Dwa opakowania jednego produktu w „Co mam w domu”
+
+Kupiliście drugie mleko, a pierwsze jeszcze stoi w lodówce? Na ekranie „Ustaw termin” jest teraz przycisk „Dodaj drugie opakowanie”. Każde opakowanie ma własny termin („Należy zużyć do” albo „Najlepiej spożyć przed”), własną ilość i własne oznaczenie „Mam to w zamrażarce”. Zwykłe dopisanie tej samej nazwy do listy niczego nie dubluje — drugie opakowanie powstaje dopiero po tym przycisku. Gdy jedno opakowanie jest po terminie „Należy zużyć do”, a drugie dobre, lista ostrzega przy tym pierwszym, a „Co ugotuję” korzysta z dobrego. Usunięcie jednego opakowania nie rusza drugiego, a usunięcie całego produktu jest osobnym, nazwanym przyciskiem. Widzicie to tylko Wy.
+
 ### Przeliczanie miar przy składniku
 
 Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrach, szklankach, łyżkach albo łyżeczkach znajdziecie rozwijany napis „Przelicz”. Po dotknięciu pokazuje to samo w innej jednostce, na przykład 25 dag to 250 g, a pół szklanki to około 125 ml. Przeliczamy tylko wagę na wagę i objętość na objętość — gramów nie zamieniamy na szklanki, bo zależy to od produktu. Przelicznik bierze ilość z wybranej liczby porcji, a tekst przepisu zostaje taki, jak napisał autor.
