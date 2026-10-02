@@ -1336,6 +1336,14 @@ checks = [
     ("Co ugotuję: ostatnia strona wraca do siebie (#2599)", "resources/views/pages/pantry/co-ugotuje.blade.php",
      "CoUgotujeGranicaPaginacjiTest::test_ostatnia_dostepna_strona_nie_odsyla_do_siebie_w_obu_trybach",
      lambda s: replace_once(s, "@if($jest_wiecej && ! $granicaPrzegladania)", "@if($jest_wiecej)")),
+    ("HTTP import paczki nie pilnuje budżetu struktury (#2611)", "app/Domain/Users/Import/PodgladPaczkiEksportu.php",
+     "test_paczka_tuz_ponad_budzetem_struktury_jest_odrzucona_przez_http_bez_poczekalni",
+     lambda s: replace_once(s, 'if ($kontenery > self::MAX_KONTENEROW_JSON) {', 'if ($kontenery > self::MAX_KONTENEROW_JSON + 1) {')),
+    # #2611: wyłączenie preflightu musi oblać izolowane procesy PHP 256M
+    # konkretną odmową (w starym kodzie kończyły się fatalem), a nie bazę CI.
+    ("Paczka JSON bez budżetu struktury (#2611)", "app/Domain/Users/Import/PodgladPaczkiEksportu.php",
+     "BudzetStrukturyPaczkiTest::test_nadmierna_struktura_jest_odrzucona_przed_fatalem_256_mb",
+     lambda s: replace_once(s, "        $this->sprawdzBudzetStruktury($json);\n", "")),
     ("PDF: ilość dziesiętna staje się numerem listy (#2614)",
      "app/Domain/Import/ParserTekstuPrzepisu.php",
      "ImportParseryTest::test_tekst_pdf_zachowuje_dziesietne_ilosci_a_usuwa_tylko_jednoznaczna_numeracje",

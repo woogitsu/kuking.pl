@@ -110,6 +110,30 @@ class PodgladPaczkiEksportuTest extends TestCase
         $this->assertSame(0, Recipe::query()->where('author_id', $zenek->getKey())->count());
     }
 
+    public function test_poprawny_duzy_eksport_wpisow_blisko_12_mb_nadal_daje_podglad(): void
+    {
+        $json = '{"o_tym_pliku":{"serwis":"Kuking.pl","wersja_formatu":1},"przepisy":[],"wpisy":[';
+
+        for ($i = 0; $i < 3_500; $i++) {
+            $json .= ($i === 0 ? '' : ',').'{"rodzaj":"dish","tresc":"'
+                .str_repeat('a', 3_296).str_pad((string) $i, 4, '0', STR_PAD_LEFT).'"}';
+        }
+
+        $json .= '],"kolekcje":[]}';
+
+        $this->assertGreaterThan(11 * 1024 * 1024, strlen($json));
+        $this->assertLessThan(PodgladPaczkiEksportu::MAX_DANE_BAJTOW, strlen($json));
+
+        $sciezka = $this->zip(['dane.json' => $json]);
+        unset($json);
+
+        $wynik = (new PodgladPaczkiEksportu)->czytaj($this->user('zenek'), $sciezka);
+
+        $this->assertCount(3_500, $wynik->wpisy);
+        $this->assertSame(PozycjaPodgladu::NOWA, $wynik->wpisy[0]->stan);
+        $this->assertSame(PozycjaPodgladu::NOWA, $wynik->wpisy[3_499]->stan);
+    }
+
     public function test_te_same_tresci_na_koncie_wlasciciela_sa_konfliktem_a_nie_nowoscia(): void
     {
         $basia = $this->user('basia');

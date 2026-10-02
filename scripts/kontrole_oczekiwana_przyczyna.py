@@ -38,6 +38,8 @@ OCZEKUJ = {
     "Pusta linia Unicode tworzy składnik (#2621)": r'PUSTE_LINIE_2621_UNICODE',
     "Pusta linia Unicode skleja kroki po POST (#2621)": r'PUSTE_LINIE_2621_POST_KROKI',
     "Co ugotuję: ostatnia strona wraca do siebie (#2599)": r'PAGINACJA_2599_BEZ_PETLI',
+    "HTTP import paczki nie pilnuje budżetu struktury (#2611)": r'BUDZET_2611_HTTP_ODMOWA',
+    "Paczka JSON bez budżetu struktury (#2611)": r'BUDZET_2611_ODMOWA_BEZ_FATALA',
     'PDF: ilość dziesiętna staje się numerem listy (#2614)': r'PDF_2614_ILOSC_DZIESIETNA_NIE_JEST_NUMEREM_LISTY',
     'Identyfikator JSON-LD udaje krok (#2582)': r'JSONLD_ID_KROKU_NIE_JEST_TEKSTEM',
     'ListItem.item nie trafia do szkicu importu (#2570)': r'JSONLD_LISTITEM_ITEM_ZAPISUJE_KROKI',
@@ -119,7 +121,7 @@ OCZEKUJ = {
     # Mutacja wysyła 181-znakowy tytuł prosto do bazy — objawem jest odmowa
     # kolumny varchar(180), a nie asercja testu.
     'Autozapis kreatora zapisuje bez walidacji pól': Wyjatek(r'value too long for type character varying\(180\).*insert into "recipes"'),
-    'Sufit paczki importu wraca do 32 MB': r'Failed asserting that 33554432 is identical to 12582912',
+    'Sufit paczki importu wraca do 32 MB': r'BUDZET_1985_DANE_MAX_12_MB',
     'Nowe konto Google gubi powrót do rozmowy': r'Expected response status code \[201, 301, 302, 303, 307, 308\] but received 200\.',
     'Nowe konto Facebook gubi powrót do rozmowy': r'Expected response status code \[201, 301, 302, 303, 307, 308\] but received 200\.',
     'APT install bez migawki': r'Instalacja pakietów APT bez przypięcia do migawki \(audyt, issue #',
