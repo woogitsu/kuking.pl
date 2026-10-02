@@ -8,13 +8,17 @@
      $liczbaKrokow      int — `recipe-wizard::STEPS`
      $juzOpublikowany   bool
      $zrodloImportu     ?string ('url' | 'pdf' | 'zdjecie' | null)
-     $heroMediaId       ?string — id zdjęcia dania --}}
+     $heroMediaId       ?string — id zdjęcia dania
+     $czasZrodlaMinuty  ?int — czas łączny ze źródła importu (#2572/#2677)
+     $czasZrodlaDoUsuniecia bool — autor kliknął „Usuń tę informację”, zapis ją skasuje --}}
 @props([
     'form',
     'liczbaKrokow',
     'juzOpublikowany' => false,
     'zrodloImportu' => null,
     'heroMediaId' => null,
+    'czasZrodlaMinuty' => null,
+    'czasZrodlaDoUsuniecia' => false,
 ])
 <section class="panel-formularza">
     <h2 class="form-section-title">Krok 1 z {{ $liczbaKrokow }}: o przepisie</h2>
@@ -89,6 +93,21 @@
         <x-field name="form.cook_minutes" label="Gotowanie / pieczenie (minuty)" type="number" inputmode="numeric" wire="form.cook_minutes"
                  :value="$form->cook_minutes" :min="0" :max="10080" />
     </div>
+
+    {{-- Czas łączny podany przez źródło importu (#2677). Usunięcie dzieje się
+         przy zapisie; do tego czasu „Przywróć” je cofa. Zwykłe przyciski
+         Livewire (`wire:click`), bez własnego JS. --}}
+    @if($czasZrodlaMinuty !== null)
+        <div class="czas-zrodla-kreatora mt-4" data-czas-zrodla-kreatora>
+            @if($czasZrodlaDoUsuniecia)
+                <p>Źródło podawało łącznie: około {{ \App\Support\Czas::czasPrzepisu($czasZrodlaMinuty) }}. Ta informacja zniknie ze strony przepisu po zapisaniu.</p>
+                <button class="btn btn-secondary mt-2" type="button" wire:click="przywrocCzasZrodla">Przywróć</button>
+            @else
+                <p>Źródło podaje łącznie: około {{ \App\Support\Czas::czasPrzepisu($czasZrodlaMinuty) }}.</p>
+                <button class="btn btn-secondary mt-2" type="button" wire:click="usunCzasZrodla">Usuń tę informację</button>
+            @endif
+        </div>
+    @endif
 
     {{-- Koszt wg autora (D-286) — pole tekstowe, bo „24,50" z przecinkiem
          ma przejść (uzasadnienie przy tym samym polu w `szczegoly.blade.php`). --}}
