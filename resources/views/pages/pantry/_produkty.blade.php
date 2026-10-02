@@ -32,6 +32,9 @@
                 <div class="flex flex-wrap items-center gap-3">
                     <a class="btn btn-secondary" href="{{ route('pantry.edit', $produkt) }}"
                        aria-label="{{ $produkt->expires_on ? 'Zmień termin' : 'Ustaw termin' }}: {{ $produkt->name }}">{{ $produkt->expires_on ? 'Zmień termin' : 'Ustaw termin' }}</a>
+                    {{-- Poprawienie samej nazwy bez utraty ilości i terminu (#2448). --}}
+                    <a class="btn btn-secondary" href="{{ route('pantry.name.edit', $produkt) }}"
+                       aria-label="Zmień nazwę: {{ $produkt->name }}">Zmień nazwę</a>
                 </div>
             </div>
             <details class="confirm group mt-3 w-full min-w-0" data-potwierdzenie-spizarni>

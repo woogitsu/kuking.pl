@@ -1264,6 +1264,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereUuid('pantryItem')
         ->middleware("throttle:{$limits['spizarnia']},spizarnia")
         ->name('pantry.update');
+    // Zmiana nazwy produktu (#2448): osobny, wąski formularz; też tylko
+    // właściciel (`PantryItemPolicy::update`).
+    Route::get('/co-mam-w-domu/{pantryItem}/nazwa', [PantryController::class, 'editName'])
+        ->whereUuid('pantryItem')
+        ->name('pantry.name.edit');
+    Route::put('/co-mam-w-domu/{pantryItem}/nazwa', [PantryController::class, 'updateName'])
+        ->whereUuid('pantryItem')
+        ->middleware("throttle:{$limits['spizarnia']},spizarnia")
+        ->name('pantry.name.update');
     Route::delete('/co-mam-w-domu/{pantryItem}', [PantryController::class, 'destroy'])
         ->whereUuid('pantryItem')
         ->middleware("throttle:{$limits['spizarnia']},spizarnia")

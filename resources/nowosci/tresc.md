@@ -30,6 +30,15 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Zmiana nazwy produktu w „Co mam w domu”
+
+Wpisaliście „mleko”, a w lodówce jest „mleko kokosowe”? Albo w nazwie została
+literówka? Przy każdym produkcie na liście „Co mam w domu” jest przycisk „Zmień
+nazwę”. Poprawiacie nazwę w jednym polu i klikacie „Zapisz nazwę”. Ilość,
+termin i oznaczenie „mrożone” zostają takie, jakie były – nie trzeba nic
+wpisywać od nowa. Jeśli taki produkt już jest na Waszej liście, powiemy o tym i
+nic nie zmienimy.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.

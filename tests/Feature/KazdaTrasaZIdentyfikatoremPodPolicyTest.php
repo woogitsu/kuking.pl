@@ -1393,6 +1393,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('pantry.edit', $produktDoTerminu), [], [$W, $O, $O, $O, $O]);
         $dodaj('pantry.update', 'zapis terminu przy produkcie z listy', 'put',
             route('pantry.update', $produktDoTerminu), ['rodzaj' => 'nieznany'], [$W, $O, $O, $O, $O]);
+        // Zmiana nazwy produktu (#2448): ekran i zapis — tylko właściciel.
+        $dodaj('pantry.name.edit', 'ekran „Zmień nazwę” produktu z listy', 'get',
+            route('pantry.name.edit', $produktDoTerminu), [], [$W, $O, $O, $O, $O]);
+        $dodaj('pantry.name.update', 'zmiana nazwy produktu z listy', 'put',
+            route('pantry.name.update', $produktDoTerminu), ['nazwa' => 'jajka kurze', 'stara_nazwa' => 'jajka'], [$W, $O, $O, $O, $O]);
         // ZMIANA STATUSU WŁAŚCICIELA MA ZAWĘŻAĆ, NIGDY NIE ROZSZERZAĆ (#1092).
         //
         // Dwa wiersze na tej samej trasie, różniące się WYŁĄCZNIE flagą
