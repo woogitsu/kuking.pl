@@ -523,7 +523,7 @@ odgadnięcia go po nazwie.
 
 ### Skrót do zeszytu w „Moje” — `users.ulubiony_zeszyt_id` (issue #2542, D-333)
 
-Migracja `2026_10_02_190000_add_ulubiony_zeszyt_to_users`.
+Migracja `2026_10_02_190100_add_ulubiony_zeszyt_to_users`.
 
 - **`users.ulubiony_zeszyt_id`** (`uuid NULL`) → `collections` `ON DELETE SET NULL`
   (`users_ulubiony_zeszyt_fk`, dodany `NOT VALID` + `VALIDATE`), indeks częściowy

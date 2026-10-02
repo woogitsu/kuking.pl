@@ -42,6 +42,7 @@ use Laravel\Sanctum\TransientToken;
  * Tu jest tylko to, co dotyczy logowania, ustawień i stanu konta.
  *
  * @property bool $wants_pantry_reminder zgoda na sobotnie przypomnienie o produktach do zużycia (#1903); kolumna dodana surowym SQL, więc Larastan nie zna jej z migracji
+ * @property string|null $ulubiony_zeszyt_id własny zeszyt jako skrót w „Moje” (#2542); kolumna dodana surowym SQL (FK NOT VALID + VALIDATE), więc Larastan nie zna jej z migracji
  */
 class User extends Authenticatable implements MustVerifyEmailContract
 {

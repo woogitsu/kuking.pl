@@ -23,7 +23,7 @@ final class UlubionyZeszytMigracjaTest extends TestCase
 
     private function migracja(): object
     {
-        return require database_path('migrations/2026_10_02_190000_add_ulubiony_zeszyt_to_users.php');
+        return require database_path('migrations/2026_10_02_190100_add_ulubiony_zeszyt_to_users.php');
     }
 
     private function maKolumne(): bool
