@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Kopia szkicu do drugiego wariantu
+
+Macie rodzinny przepis w szkicu i chcecie wypróbować drugi wariant, nie ruszając pierwowzoru? Na liście „Wszystkie szkice” przy szkicu jest przycisk „Zrób kopię”. Najpierw zobaczycie, co się skopiuje (składniki, kroki, minutniki, porcje, czasy), a czego nie (zdjęć), potem powstaje osobny, prywatny szkic, który od razu otwieramy w kreatorze. Pierwowzór zostaje taki, jaki był. Gdy zdecydujecie się opublikować kopię, musi się czymś różnić od pierwowzoru — składnikami, krokami, porcjami albo czasami.
+
 ### Zmiana nazwy produktu w „Co mam w domu”
 
 Wpisaliście „mleko”, a w lodówce jest „mleko kokosowe”? Albo w nazwie została

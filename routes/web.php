@@ -54,6 +54,7 @@ use App\Http\Controllers\ImportPrzepisuController;
 use App\Http\Controllers\JakWyszloController;
 use App\Http\Controllers\KartaQrController;
 use App\Http\Controllers\KolejkaGotowaniaController;
+use App\Http\Controllers\KopiaSzkicuController;
 use App\Http\Controllers\ListaZakupowController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeWpisyController;
@@ -1049,6 +1050,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
 
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
     Route::get('/dodaj/szkice', [RecipeController::class, 'drafts'])->name('recipes.drafts');
+    // „Zrób kopię” własnego szkicu do drugiego wariantu (#2507, V2): ekran
+    // potwierdzenia zakresu (GET, nic nie zapisuje) i POST; Policy `copyDraft`.
+    Route::get('/dodaj/szkice/{szkic}/kopia', [KopiaSzkicuController::class, 'potwierdz'])
+        ->whereUuid('szkic')
+        ->name('recipes.drafts.copy');
+    Route::post('/dodaj/szkice/{szkic}/kopia', [KopiaSzkicuController::class, 'zrob'])
+        ->whereUuid('szkic')
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('recipes.drafts.copy.store');
     // „Odłóż na później” / „Wróć do pracy” przy własnym szkicu (#2550, V2):
     // prywatne oznaczenie listy, nie status. Zwykłe formularze bez JS, Policy `postpone`.
     Route::post('/dodaj/szkice/{szkic}/odlozenie', [OdlozenieSzkicuController::class, 'odloz'])

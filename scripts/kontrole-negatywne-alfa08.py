@@ -1345,6 +1345,21 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Niezmieniona kopia szkicu wychodzi do ludzi (#2507)", "app/Domain/Recipes/Actions/PublishRecipe.php",
+     "test_publikacja_niezmienionej_kopii_przez_formularz_jest_odrzucona",
+     lambda s: replace_once(s, "                MojaWersja::pilnujRoznicyKopii($recipe);\n", "")),
+    ("Kopia szkicu gubi podpis Mojej wersji (#2507)", "app/Domain/Recipes/Actions/ZrobKopieSzkicu.php",
+     "test_kopia_adaptacji_zachowuje_podpis_oryginalu_takze_gdy_oryginal_zniknal",
+     lambda s: replace_once(s, "'forked_from_id' => $swiezeZrodlo->forked_from_id,", "'forked_from_id' => null,")),
+    ("Kopia szkicu przejmuje zdjęcia kroków (#2507)", "app/Domain/Recipes/Actions/ZrobKopieSzkicu.php",
+     "test_kopia_to_niezalezny_prywatny_szkic_ze_skopiowana_trescia_i_bez_mediow",
+     lambda s: replace_once(s, "'media_id' => null,\n                    'timer_seconds'", "'media_id' => $krok->media_id,\n                    'timer_seconds'")),
+    ("Kopia szkicu ocenia prawo na starym stanie (#2507)", "app/Domain/Recipes/Actions/ZrobKopieSzkicu.php",
+     "test_stan_i_prawo_sa_sprawdzane_od_nowa_pod_blokada",
+     lambda s: replace_once(s, "Gate::forUser($swiezyUser)->authorize('copyDraft', $swiezeZrodlo);", "")),
+    ("Kopię cudzego szkicu zrobi każdy (#2507)", "app/Policies/RecipePolicy.php",
+     "test_tylko_wlasciciel_aktywny_wlasnego_szkicu",
+     lambda s: replace_once(s, "public function copyDraft(User $user, Recipe $recipe): bool\n    {\n        return $user->getKey() === $recipe->author_id\n            && $user->isActive()", "public function copyDraft(User $user, Recipe $recipe): bool\n    {\n        return $user->isActive()")),
     ("Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
      lambda s: replace_once(s, "return $request->user() !== null", "return false")),
     ("Dyktowanie daje mikrofon gościowi (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",

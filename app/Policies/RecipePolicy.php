@@ -167,6 +167,20 @@ class RecipePolicy
     }
 
     /**
+     * „Zrób kopię” własnego szkicu do drugiego wariantu (#2507): wyłącznie AKTYWNY
+     * autor własnego, nieopublikowanego szkicu. Przepis opublikowany, zamrożony
+     * przez moderację i cudzy nie mają tej akcji — własny opublikowany przepis
+     * poprawia się albo (cudzy) robi się z niego „Moją wersję” (`fork`, D-301).
+     */
+    public function copyDraft(User $user, Recipe $recipe): bool
+    {
+        return $user->getKey() === $recipe->author_id
+            && $user->isActive()
+            && $recipe->status === Recipe::STATUS_DRAFT
+            && $recipe->published_at === null;
+    }
+
+    /**
      * „Odłóż na później” / „Wróć do pracy” (#2550): wyłącznie autor własnego
      * szkicu. Przepis opublikowany albo zamrożony przez moderację (`hidden`,
      * `removed`) nie ma czego odkładać — oznaczenie nie zmienia widoczności.
