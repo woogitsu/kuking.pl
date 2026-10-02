@@ -35,6 +35,25 @@ use Illuminate\Support\Str;
  */
 final class ZapisWykonaniaRequest extends FormRequest
 {
+    /**
+     * Reguły trzech pól wspólnych z korektą własnego wykonania (#2459,
+     * `PoprawkaWykonaniaRequest`): jedno źródło limitów i komunikatów, żeby
+     * zapis i poprawka nie rozjechały się po cichu.
+     */
+    public const REGULY_POL_KOREKTY = [
+        'note' => ['nullable', 'string', 'max:2000'],
+        'changes_note' => ['nullable', 'string', 'max:1000'],
+        'actual_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
+    ];
+
+    public const KOMUNIKATY_POL_KOREKTY = [
+        'note.max' => 'Ta uwaga jest za długa. Zmieść się w 2000 znakach.',
+        'changes_note.max' => 'To jest za długie. Zmieść się w 1000 znakach.',
+        'actual_minutes.integer' => 'Wpisz sam czas w minutach, samymi cyframi — na przykład 90.',
+        'actual_minutes.min' => 'Czas nie może być ujemny. Wpisz liczbę minut, na przykład 90.',
+        'actual_minutes.max' => 'Ten czas jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
+    ];
+
     private ?Recipe $przepis = null;
 
     public function authorize(): bool
@@ -137,11 +156,9 @@ final class ZapisWykonaniaRequest extends FormRequest
     public function walidatorPol(): Validator
     {
         return ValidatorFactory::make($this->all(), [
-            'note' => ['nullable', 'string', 'max:2000'],
-            'changes_note' => ['nullable', 'string', 'max:1000'],
+            ...self::REGULY_POL_KOREKTY,
             'would_make_again' => ['nullable', 'boolean'],
             'perceived_difficulty' => ['nullable', 'in:easy,medium,hard'],
-            'actual_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             // Prywatny dzień gotowania (#2583). Jedna reguła w `DzienGotowania`
             // (też w akcji), z komunikatem mówiącym, co zrobić.
             'dzien_gotowania' => ['nullable', 'string', function (string $pole, mixed $wartosc, \Closure $niepowodzenie): void {
@@ -163,8 +180,7 @@ final class ZapisWykonaniaRequest extends FormRequest
         ], [
             'faktyczne_porcje.string' => PorcjeWykonania::KOMUNIKAT_NIEZROZUMIALY,
             'dzien_gotowania.string' => DzienGotowania::KOMUNIKAT_NIEZROZUMIALY,
-            'note.max' => 'Ta uwaga jest za długa. Zmieść się w 2000 znakach.',
-            'changes_note.max' => 'To jest za długie. Zmieść się w 1000 znakach.',
+            ...self::KOMUNIKATY_POL_KOREKTY,
             // `in` ma mówić, CO WYBRAĆ, nie że „wybrana wartość jest
             // nieprawidłowa" (issue #86) — to pole renderuje się jako
             // trzy przyciski, więc zdanie wymienia dokładnie te trzy.
@@ -176,9 +192,6 @@ final class ZapisWykonaniaRequest extends FormRequest
             // pole inaczej niż etykieta na ekranie. Teraz zdania wymieniają
             // to, co człowiek widzi: dwa przyciski i „Ile Ci to zajęło".
             'would_make_again.boolean' => 'Zaznacz jedną z odpowiedzi: „Tak, zrobię ponownie” albo „Raczej nie powtórzę”.',
-            'actual_minutes.integer' => 'Wpisz sam czas w minutach, samymi cyframi — na przykład 90.',
-            'actual_minutes.min' => 'Czas nie może być ujemny. Wpisz liczbę minut, na przykład 90.',
-            'actual_minutes.max' => 'Ten czas jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
         ]);
     }
 

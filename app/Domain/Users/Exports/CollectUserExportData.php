@@ -30,6 +30,7 @@ use App\Models\RecentRecipeView;
 use App\Models\Recipe;
 use App\Models\RecipeHint;
 use App\Models\RecipeServingPreference;
+use App\Models\RecipeShare;
 use App\Models\RecipeVersion;
 use App\Models\ShoppingListItem;
 use App\Models\User;
@@ -202,6 +203,9 @@ final class CollectUserExportData
             // patrz `sharedCollections()` i `collectionInvitations()` niżej.
             'zeszyty_udostepnione_mi' => $this->sharedCollections($user),
             'zaproszenia_do_zeszytow' => $this->collectionInvitations($user),
+            // Udostępnienia przepisów wskazanym osobom (#2650): komu ja
+            // pokazuję swoje przepisy i kto pokazał mi swoje — patrz `recipeShares()`.
+            'udostepnione_przepisy' => $this->recipeShares($user),
             // Ta sama granica co lista na profilu (B2-05): bez kont
             // zbanowanych, zamykanych i objętych blokadą. Relacja `follows`
             // zostaje w bazie — gdy konto wróci albo blokada zniknie, osoba
@@ -590,6 +594,9 @@ final class CollectUserExportData
                 ? ($this->plikiWlasnychPrzepisow[(string) $event->recipe_id] ?? null)
                 : null,
             'kiedy' => $this->date($event->cooked_at),
+            // Ślad ostatniej korekty uwagi, opisu zmian lub czasu (#2459);
+            // `null` = wykonanie nie było poprawiane. Bez poprzedniej treści.
+            'poprawiono' => $this->date($event->poprawiono_at),
             // Prywatny dzień gotowania podany przez samą osobę (#2583) — sam
             // dzień `RRRR-MM-DD`; `null` = nie podano. Osobny od `kiedy`
             // (chwili zgłoszenia).
@@ -944,6 +951,47 @@ final class CollectUserExportData
     }
 
     /**
+     * Udostępnienia przepisów (#2650) — w granicach RODO art. 15 ust. 4.
+     *
+     * `udostepniam`: moje przepisy i osoby, którym je pokazuję (nazwa
+     * wyświetlana i publiczna nazwa konta, bez e-maila) — to moja decyzja.
+     * `udostepnione_mi`: TYTUŁ cudzego przepisu, jego autor i data — bez
+     * treści przepisu. Treść należy do autora; paczka mówi, CO mi pokazano,
+     * a nie kopiuje cudzego rodzinnego przepisu poza serwis.
+     *
+     * @return array{udostepniam: list<array<string, mixed>>, udostepnione_mi: list<array<string, mixed>>}
+     */
+    private function recipeShares(User $user): array
+    {
+        $udostepniam = RecipeShare::query()
+            ->whereIn('recipe_id', Recipe::withTrashed()->where('author_id', $user->getKey())->select('id'))
+            ->with(['recipe' => fn ($q) => $q->withTrashed(), 'recipient.profile'])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (RecipeShare $u): array => [
+                'przepis' => $u->recipe?->title,
+                'komu' => $u->recipient?->displayName(),
+                'nazwa_uzytkownika' => $u->recipient?->profile?->username,
+                'od' => $this->date($u->created_at),
+            ])->values()->all();
+
+        $udostepnioneMi = RecipeShare::query()
+            ->where('recipient_id', $user->getKey())
+            ->with(['recipe' => fn ($q) => $q->withTrashed(), 'recipe.author'])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (RecipeShare $u): array => [
+                'przepis' => $u->recipe?->title,
+                'autor' => $u->recipe?->author?->displayName(),
+                'od' => $this->date($u->created_at),
+            ])->values()->all();
+
+        return ['udostepniam' => $udostepniam, 'udostepnione_mi' => $udostepnioneMi];
+    }
+
+    /**
      * Lista innych osób (obserwowani, obserwujący, zablokowani).
      *
      * Tylko nazwa wyświetlana i publiczna nazwa użytkownika — bez e-maila
@@ -1214,6 +1262,8 @@ final class CollectUserExportData
                 'adres_przepisu' => $przepis !== null ? route('recipes.show', $przepis->slug) : null,
                 'przepis_niedostepny' => $pozycja->source === ShoppingListItem::SOURCE_RECIPE && $przepis === null,
                 'odhaczona' => $pozycja->jestOdhaczona(),
+                'tekst_poprawiony_przez_wlasciciela' => $pozycja->jestPoprawiona(),
+                'poprawiono' => $this->date($pozycja->edited_at),
                 'dodano' => $this->date($pozycja->created_at),
             ];
         })->values()->all();

@@ -42,7 +42,7 @@ final class HeroKolaz
      * renderować kolażu w ogóle. Kolekcja niepusta ma od jednej do
      * `SLOTOW` pozycji.
      *
-     * @return Collection<int, array{media: Media, autor: User, wybrane: bool}>
+     * @return Collection<int, array{media: Media, autor: User, wpis: Post, wybrane: bool}>
      */
     public function doKolazu(): Collection
     {
@@ -145,7 +145,7 @@ final class HeroKolaz
      * Zdjęcia wskazane ręcznie, w kolejności z panelu, po odsianiu tych,
      * których już nie wolno pokazać.
      *
-     * @return Collection<int, array{media: Media, autor: User, wybrane: bool}>
+     * @return Collection<int, array{media: Media, autor: User, wpis: Post, wybrane: bool}>
      */
     private function wskazaneRecznie(): Collection
     {
@@ -182,7 +182,7 @@ final class HeroKolaz
                 continue;
             }
 
-            $kafle->push(['media' => $zdjecie, 'autor' => $wpis->author, 'wybrane' => true]);
+            $kafle->push(['media' => $zdjecie, 'autor' => $wpis->author, 'wpis' => $wpis, 'wybrane' => true]);
         }
 
         return $kafle;
@@ -207,7 +207,7 @@ final class HeroKolaz
      *
      * @param  list<string>  $pomijaniAutorzy
      * @param  list<string>  $pomijaneZdjecia
-     * @return Collection<int, array{media: Media, autor: User, wybrane: bool}>
+     * @return Collection<int, array{media: Media, autor: User, wpis: Post, wybrane: bool}>
      */
     private function dobraneAutomatycznie(int $ile, array $pomijaniAutorzy, array $pomijaneZdjecia): Collection
     {
@@ -255,7 +255,7 @@ final class HeroKolaz
 
                 $odOsoby[$autor] = ($odOsoby[$autor] ?? 0) + 1;
                 $uzyte[] = (string) $zdjecie->getKey();
-                $kafle->push(['media' => $zdjecie, 'autor' => $wpis->author, 'wybrane' => false]);
+                $kafle->push(['media' => $zdjecie, 'autor' => $wpis->author, 'wpis' => $wpis, 'wybrane' => false]);
             }
         }
 

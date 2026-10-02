@@ -8,6 +8,7 @@ use App\Models\Profile;
 use App\Support\Czas;
 use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -29,8 +30,14 @@ use Illuminate\Notifications\Notification;
  * tam, gdzie nikt niczego nie potwierdza. Dlatego wszystko, czego ten list
  * potrzebuje, przychodzi w konstruktorze: obiektu `User` tu nie ma i nie
  * ma go po co wciągać (kolejka serializuje całe powiadomienie).
+ *
+ * ŁADUNEK JEST SZYFROWANY (`ShouldBeEncrypted`, #2708). Podpisany link do
+ * potwierdzenia leży w konstruktorze, więc przechodzi przez `jobs`, a przy
+ * nieudanej wysyłce zostaje w `failed_jobs` na czas retencji tej tabeli.
+ * Tak samo jak pozostałe listy z żywym odnośnikiem (audyt A5-10): zrzut
+ * bazy albo odczyt `failed_jobs` nie daje jawnego linku.
  */
-final class PotwierdzenieNowegoAdresu extends Notification implements ShouldQueue
+final class PotwierdzenieNowegoAdresu extends Notification implements ShouldBeEncrypted, ShouldQueue
 {
     /*
      * KOLEJKA — ten sam powód co w `PotwierdzenieAdresu` (audyt W3-13):

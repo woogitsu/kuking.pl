@@ -36,6 +36,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $recipe_version_id
  * @property Carbon|null $dzien_gotowania
  * @property float|null $faktyczne_porcje
+ * @property Carbon|null $poprawiono_at
  */
 class CookedEvent extends Model
 {
@@ -71,6 +72,9 @@ class CookedEvent extends Model
             // jako liczba. Poza `$fillable`; zapisuje ją wyłącznie
             // `RecordCookedEvent` i `PoprawPorcjeWykonania`. Widzi ją tylko kucharz.
             'faktyczne_porcje' => 'float',
+            // Ślad korekty uwagi, opisu zmian albo czasu (#2459). Poza
+            // `$fillable`; ustawia go wyłącznie `PoprawWykonanie`.
+            'poprawiono_at' => 'datetime',
             'would_make_again' => 'boolean',
             'actual_minutes' => 'integer',
             // Wspomnienia z własnych wykonań (F6). Poza `$fillable`: zapisuje
@@ -130,6 +134,21 @@ class CookedEvent extends Model
             // Ta sama kolejność co w `Notification::destinationUrls()`.
             ->oldest()
             ->orderBy('id');
+    }
+
+    /**
+     * Odcisk trzech pól, które wolno poprawić (#2459). Formularz korekty niesie
+     * go z chwili otwarcia; `PoprawWykonanie` porównuje go pod zamkiem wiersza
+     * (jak `Comment::wersjaTresci()`): sekundowy znacznik czasu remisuje przy
+     * dwóch szybkich zapisach, treść nie.
+     */
+    public function wersjaPolKorekty(): string
+    {
+        return hash('sha256', json_encode([
+            (string) $this->note,
+            (string) $this->changes_note,
+            $this->actual_minutes === null ? '' : (string) $this->actual_minutes,
+        ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
     }
 
     public function url(): string

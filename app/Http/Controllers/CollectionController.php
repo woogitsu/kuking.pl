@@ -20,8 +20,10 @@ use App\Http\Requests\Collections\WyjecieZZeszytuRequest;
 use App\Http\Requests\Collections\ZapisDoZeszytuRequest;
 use App\Http\Requests\Collections\ZapisZeszytuRequest;
 use App\Models\Collection;
+use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeShare;
 use App\Models\User;
 use App\Support\FrazaWyszukiwania;
 use App\Support\Komunikat;
@@ -51,6 +53,11 @@ class CollectionController extends Controller
      * „Pokaż więcej zeszytów" (AGENTS.md §5: bez infinite scroll).
      */
     public const ZESZYTOW_NA_STRONE = 30;
+
+    /** Kolejność wyników „Szukaj w moich zeszytach” (#2411): domyślna i po ostatnim własnym gotowaniu. */
+    public const KOLEJNOSC_ALFABETYCZNIE = 'alfabetycznie';
+
+    public const KOLEJNOSC_OSTATNIO_UGOTOWANE = 'ostatnio-ugotowane';
 
     public function __construct(
         private readonly SaveRecipeToCollection $save,
@@ -89,6 +96,9 @@ class CollectionController extends Controller
                 ->withQueryString(),
             // Prawa szyna (issue #205) — patrz `ostatnioZapisane()` niżej.
             'ostatnioZapisane' => $this->ostatnioZapisane($user),
+            // „Przepisy udostępnione mi" (#2650) — odnośnik tylko wtedy, gdy
+            // jest do czego prowadzić. Sama lista filtruje dalej przez Policy.
+            'maUdostepnionePrzepisy' => RecipeShare::query()->where('recipient_id', $user->getKey())->exists(),
             // WSPÓLNE ZESZYTY (#1743, D-302) — OSOBNĄ LISTĄ, nie wmieszane
             // w własne: „mój" i „czyjś, do którego mnie wpuszczono" to dwie
             // różne rzeczy (kto może usunąć, kto zmienia nazwę). Ten sam
@@ -147,24 +157,51 @@ class CollectionController extends Controller
      * tytułu. Zeszyty w wyniku i sam zakres szukania to wyłącznie zeszyty
      * zalogowanej osoby (`owner_id`).
      *
-     * @return array{szukaj: string, wynikiSzukania: ?\Illuminate\Support\Collection<int, Recipe>, bladSzukania: ?string, wiecejWynikow: bool}
+     * UGOTOWANE PRZEZE MNIE (#2411, decyzja właściciela z 2.10.2026). Dwa
+     * opcjonalne wybory w tym samym formularzu GET: filtr `ugotowane=1`
+     * (zapisany przepis, przy którym ISTNIEJE własne wykonanie „Ugotowałem”)
+     * i kolejność `kolejnosc=ostatnio-ugotowane` (po najnowszym własnym
+     * `cooked_at`; przepisy bez wykonania idą na koniec, nie znikają). Liczą
+     * się wyłącznie wykonania zalogowanej osoby — cudze nie wpływają na wynik,
+     * a data nie jest nigdzie pokazywana innym. Wybory nie zmieniają
+     * widoczności: bramka `widoczneDla()` i `dostepnyJakoAutor()` stoi pierwsza.
+     * Bez frazy wybór sam daje listę (do `szukaj_limit`).
+     *
+     * @return array{szukaj: string, wynikiSzukania: ?\Illuminate\Support\Collection<int, Recipe>, bladSzukania: ?string, wiecejWynikow: bool, tylkoUgotowane: bool, kolejnoscZapisow: string}
      */
     private function szukajWZapisach(Request $request): array
     {
         $fraza = trim((string) $request->query('szukaj', ''));
-        $pusto = ['szukaj' => $fraza, 'wynikiSzukania' => null, 'bladSzukania' => null, 'wiecejWynikow' => false];
 
-        if ($fraza === '') {
+        // Dwa prywatne wybory (#2411): filtr „Ugotowane przeze mnie” i kolejność
+        // „Ostatnio ugotowane”. Włącza je wyłącznie dokładna wartość; tablica
+        // albo cokolwiek innego to ustawienie domyślne (bez błędu 500).
+        $tylkoUgotowane = $request->query('ugotowane') === '1';
+        $kolejnosc = $request->query('kolejnosc') === self::KOLEJNOSC_OSTATNIO_UGOTOWANE
+            ? self::KOLEJNOSC_OSTATNIO_UGOTOWANE
+            : self::KOLEJNOSC_ALFABETYCZNIE;
+        $wyborAktywny = $tylkoUgotowane || $kolejnosc === self::KOLEJNOSC_OSTATNIO_UGOTOWANE;
+
+        $pusto = [
+            'szukaj' => $fraza,
+            'wynikiSzukania' => null,
+            'bladSzukania' => null,
+            'wiecejWynikow' => false,
+            'tylkoUgotowane' => $tylkoUgotowane,
+            'kolejnoscZapisow' => $kolejnosc,
+        ];
+
+        if ($fraza === '' && ! $wyborAktywny) {
             return $pusto;
         }
 
-        if (mb_strlen($fraza) > SearchQuery::MAX_PHRASE_LENGTH) {
+        if ($fraza !== '' && mb_strlen($fraza) > SearchQuery::MAX_PHRASE_LENGTH) {
             return ['bladSzukania' => 'Skróć tekst w polu „Szukaj w moich zeszytach” do '.SearchQuery::MAX_PHRASE_LENGTH.' znaków i spróbuj ponownie.'] + $pusto;
         }
 
         // Długość PO normalizacji (#1050): fraza z samych emoji znika
         // w `Str::ascii()` i dawałaby `LIKE '%%'`, czyli wszystko.
-        if (mb_strlen(FrazaWyszukiwania::normalizuj($fraza)) < 2) {
+        if ($fraza !== '' && mb_strlen(FrazaWyszukiwania::normalizuj($fraza)) < 2) {
             return ['bladSzukania' => 'Wpisz co najmniej dwie litery z tytułu przepisu albo ze składnika.'] + $pusto;
         }
 
@@ -172,18 +209,49 @@ class CollectionController extends Controller
         $limit = (int) config('kuking.zeszyt.szukaj_limit', 50);
         $wzorzec = '%'.FrazaWyszukiwania::doLike(FrazaWyszukiwania::normalizuj($fraza)).'%';
 
-        $wyniki = Recipe::query()
+        // Własne wykonania tej osoby (#2411): tylko jej `cooked_events`, więc
+        // cudze nie wpływają ani na filtr, ani na kolejność, ani na datę.
+        // `EXISTS` i skorelowane `max()` w jednym zapytaniu — przepis z wieloma
+        // wykonaniami to nadal jeden wiersz, a liczba zapytań nie zależy od
+        // liczby wyników.
+        $mojeWykonania = fn () => CookedEvent::query()
+            ->where('cooked_events.user_id', $user->getKey())
+            ->whereColumn('cooked_events.recipe_id', 'recipes.id');
+
+        $zapytanie = Recipe::query()
             ->widoczneDla($user)
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
             ->whereHas('collections', fn ($zeszyt) => $zeszyt->where('collections.owner_id', $user->getKey()))
             ->select('recipes.*')
-            ->selectRaw('(recipes.title_search LIKE ?) as w_tytule', [$wzorzec])
-            ->where(fn ($q) => $q
-                ->where('recipes.title_search', 'like', $wzorzec)
-                ->orWhereExists(fn ($skladnik) => $skladnik->select(DB::raw('1'))
-                    ->from('recipe_ingredients')
-                    ->whereColumn('recipe_ingredients.recipe_id', 'recipes.id')
-                    ->where('recipe_ingredients.ingredient_text_search', 'like', $wzorzec)))
+            ->addSelect(['ostatnio_ugotowane_at' => $mojeWykonania()->selectRaw('max(cooked_events.cooked_at)')]);
+
+        if ($fraza !== '') {
+            $zapytanie
+                ->selectRaw('(recipes.title_search LIKE ?) as w_tytule', [$wzorzec])
+                ->where(fn ($q) => $q
+                    ->where('recipes.title_search', 'like', $wzorzec)
+                    ->orWhereExists(fn ($skladnik) => $skladnik->select(DB::raw('1'))
+                        ->from('recipe_ingredients')
+                        ->whereColumn('recipe_ingredients.recipe_id', 'recipes.id')
+                        ->where('recipe_ingredients.ingredient_text_search', 'like', $wzorzec)));
+        } else {
+            $zapytanie->selectRaw('true as w_tytule');
+        }
+
+        if ($tylkoUgotowane) {
+            $zapytanie->whereExists(fn ($wykonanie) => $wykonanie->select(DB::raw('1'))
+                ->from('cooked_events')
+                ->where('cooked_events.user_id', $user->getKey())
+                ->whereColumn('cooked_events.recipe_id', 'recipes.id'));
+        }
+
+        if ($kolejnosc === self::KOLEJNOSC_OSTATNIO_UGOTOWANE) {
+            // Przepisy bez Twojego wykonania nie znikają: idą na koniec,
+            // alfabetycznie. Remis daty rozstrzyga tytuł, potem id.
+            $zapytanie->orderByRaw('ostatnio_ugotowane_at DESC NULLS LAST');
+        }
+
+        $wyniki = $zapytanie
             ->with(['collections' => fn ($zeszyt) => $zeszyt->where('collections.owner_id', $user->getKey())->orderBy('collections.name')])
             ->orderBy('recipes.title')
             ->orderBy('recipes.id')

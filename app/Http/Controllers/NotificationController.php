@@ -268,6 +268,12 @@ class NotificationController extends Controller
             return back()->with(Komunikat::blad(self::WPIS_SMAKOWICIE_NIEDOSTEPNY));
         }
 
+        // #2650: pokazany przepis, do którego odbiorca stracił dostęp
+        // (cofnięcie, blokada, kara, usunięcie, ukrycie) — zdanie bez tytułu.
+        if ($cel === null && $powiadomienie->type === Notification::TYPE_RECIPE_SHARED) {
+            return back()->with(Komunikat::blad('Ten przepis nie jest już dla Ciebie dostępny. Jeśli to pomyłka, zapytaj osobę, która go pokazała.'));
+        }
+
         // ODESŁANIE TYLKO W OBRĘBIE SERWISU (issue #733) — patrz `adresWewnetrzny()`.
         $cel = $cel === null ? null : $this->adresWewnetrzny($cel);
 
