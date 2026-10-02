@@ -10,6 +10,7 @@ use App\Domain\Recipes\Alergeny\Alergen;
 use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
 use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
 use App\Domain\Recipes\KosztPrzepisu;
+use App\Domain\Recipes\Porcje\GotoweSztuki;
 use App\Domain\Recipes\StepTimer;
 use App\Domain\Recipes\TekstNaWiersze;
 use App\Exceptions\BladDlaCzlowieka;
@@ -185,6 +186,14 @@ final class ZapisPrzepisuRequest extends FormRequest
             $dane['estimated_cost_pln'] = KosztPrzepisu::normalizuj($dane['estimated_cost_pln']);
         }
 
+        // Gotowe sztuki (#2645): spacje w liczbie znikają, opis sztuk jest przycięty.
+        if (array_key_exists('yield_count', $dane)) {
+            $dane['yield_count'] = GotoweSztuki::normalizujIle($dane['yield_count']);
+        }
+        if (array_key_exists('yield_unit', $dane)) {
+            $dane['yield_unit'] = GotoweSztuki::normalizujCo($dane['yield_unit']);
+        }
+
         return $dane;
     }
 
@@ -216,6 +225,9 @@ final class ZapisPrzepisuRequest extends FormRequest
              * musi się z tym zgadzać, inaczej wraca ten sam błąd na nowo.
              */
             'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999', 'decimal:0,2'],
+            // Ile gotowych sztuk wychodzi z przepisu (#2645) — osobne od porcji.
+            'yield_count' => GotoweSztuki::REGULY_ILE,
+            'yield_unit' => GotoweSztuki::REGULY_CO,
             // Szacunkowy koszt całego przepisu w złotych (D-286).
             'estimated_cost_pln' => KosztPrzepisu::REGULY,
             'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
@@ -331,6 +343,7 @@ final class ZapisPrzepisuRequest extends FormRequest
             'servings.min' => 'Liczba porcji musi być większa od zera. Wpisz na przykład 4.',
             'servings.max' => 'Ta liczba porcji jest nierealna. Wpisz najwyżej 999.',
             'servings.decimal' => 'Liczba porcji może mieć najwyżej dwa miejsca po przecinku (setne). Zamiast 1,255 wpisz 1,25 albo 1,26.',
+            ...GotoweSztuki::KOMUNIKATY,
             ...KosztPrzepisu::KOMUNIKATY,
             'prep_minutes.integer' => 'Czas przygotowania podaj w pełnych minutach, na przykład 20.',
             'prep_minutes.min' => 'Czas przygotowania nie może być ujemny. Wpisz na przykład 20.',
@@ -537,6 +550,13 @@ final class ZapisPrzepisuRequest extends FormRequest
         // dodawania nie). Brak klucza = `PublishRecipe` zostawia dawną kwotę.
         if ($this->exists('estimated_cost_pln')) {
             $przepis['estimated_cost_pln'] = KosztPrzepisu::naLiczbe($data['estimated_cost_pln'] ?? null);
+        }
+
+        // Gotowe sztuki (#2645): jak koszt — brak pola w żądaniu nie czyści
+        // wartości, a puste pole czyści ją jawnie.
+        if ($this->exists('yield_count')) {
+            $przepis['yield_count'] = GotoweSztuki::naLiczbe($data['yield_count'] ?? null);
+            $przepis['yield_unit'] = $przepis['yield_count'] === null ? null : GotoweSztuki::normalizujCo($data['yield_unit'] ?? null);
         }
 
         return [

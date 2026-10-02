@@ -427,6 +427,9 @@ final class CollectUserExportData
             'plik_do_czytania' => 'przepisy/'.ExportFileNames::recipeFile($recipe),
             'krotki_opis' => $recipe->summary,
             'porcje' => $recipe->servings,
+            // Ile gotowych sztuk wychodzi z przepisu (#2645); osobno od porcji, `null` = nie podano.
+            'gotowe_sztuki' => $recipe->yield_count,
+            'gotowe_sztuki_co' => $recipe->yield_unit,
             // Wybór autora musi przetrwać przeniesienie danych; brak pola
             // odróżniałby ukrycie od domyślnej widoczności (D-299, #1993).
             'pokazuj_wartosci_odzywcze' => (bool) $recipe->pokazuj_wartosci_odzywcze,

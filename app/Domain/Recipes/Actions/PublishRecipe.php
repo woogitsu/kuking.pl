@@ -396,6 +396,12 @@ final class PublishRecipe
                 $payload['estimated_cost_pln'] = $attributes['estimated_cost_pln'];
             }
 
+            // Gotowe sztuki (#2645): ta sama zasada co koszt — brak klucza nie czyści.
+            if (array_key_exists('yield_count', $attributes)) {
+                $payload['yield_count'] = $attributes['yield_count'];
+                $payload['yield_unit'] = $payload['yield_count'] === null ? null : ($attributes['yield_unit'] ?? null);
+            }
+
             if ($existing === null) {
                 $payload['author_id'] = $author->getKey();
                 $payload['klucz_wyslania'] = $klucz;

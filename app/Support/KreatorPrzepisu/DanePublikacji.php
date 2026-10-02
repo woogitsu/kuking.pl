@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\KreatorPrzepisu;
 
 use App\Domain\Recipes\KosztPrzepisu;
+use App\Domain\Recipes\Porcje\GotoweSztuki;
 
 /**
  * Mapowanie stanu kreatora przepisu na `attributes` dla `PublishRecipe`
@@ -25,7 +26,7 @@ final class DanePublikacji
 {
     /**
      * @return array{
-     *     title: string, summary: ?string, servings: ?float, estimated_cost_pln: ?float,
+     *     title: string, summary: ?string, servings: ?float, yield_count: ?int, yield_unit: ?string, estimated_cost_pln: ?float,
      *     prep_minutes: ?int, cook_minutes: ?int, difficulty: ?string, visibility: string,
      *     source_type: string, source_person: ?string, source_note: ?string, source_url: ?string,
      *     family_since_year: ?int, hero_media_id: ?string, source_scan_media_id: ?string,
@@ -50,11 +51,15 @@ final class DanePublikacji
         ?string $sourceScanMediaId,
         bool $sprawdzilemOdczyt,
         bool $odczytSprawdzony,
+        string $yieldCount = '',
+        string $yieldUnit = '',
     ): array {
         return [
             'title' => trim($title),
             'summary' => PodgladPrzepisu::tekstLubNull($summary),
             'servings' => PodgladPrzepisu::liczbaLubNull($servings),
+            'yield_count' => GotoweSztuki::naLiczbe($yieldCount),
+            'yield_unit' => GotoweSztuki::naLiczbe($yieldCount) === null ? null : GotoweSztuki::normalizujCo($yieldUnit),
             'estimated_cost_pln' => KosztPrzepisu::naLiczbe($estimatedCostPln),
             'prep_minutes' => PodgladPrzepisu::calkowitaLubNull($prepMinutes),
             'cook_minutes' => PodgladPrzepisu::calkowitaLubNull($cookMinutes),

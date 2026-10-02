@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Jawna liczba gotowych sztuk i przeliczenie „24 pierogi → 36” (#2645, decyzja właściciela z 2.10.2026, D-333) [nowa funkcja]. Autor może opcjonalnie podać, ile gotowych sztuk wychodzi z przepisu (na przykład „24” i „pierogi”) w kreatorze i w „Dopisz szczegóły” — osobno od liczby porcji, bo liczba pierogów nie mówi, ile osób nakarmi przepis (kolumny `recipes.yield_count` i `recipes.yield_unit`, migracja `2026_10_02_200000_add_yield_to_recipes`, `CHECK` 1–9999; `down()` odmawia, gdy ktoś podał liczbę sztuk, `KUKING_ROLLBACK_KASUJE_LICZBE_SZTUK=1` wymusza). Na stronie przepisu jest pole „Na ile sztuk?” (zwykły formularz GET `?sztuki=36`, bez JavaScriptu): 24 → 36 sztuk daje współczynnik 1,5 na tym samym skalerze co porcje (D-284), z tymi samymi zasadami zaokrągleń. Liczy się jedna podstawa: wybór sztuk wygrywa z `?porcje=`, a współczynniki się nie mnożą. Koszt przelicza się proporcjonalnie do sztuk, wartości odżywcze zostają „na porcję”. Zła liczba (litery, zero, ponad 9999) nie znika z pola i dostaje zdanie, co wpisać. Przepisy bez sztuk wyglądają jak dotąd; import nie zgaduje sztuk. Liczba sztuk trafia do historii i porównania wersji, kopii „Moja wersja”, wydruku (w tym kartki dla pomocnika) i paczki danych. Tryb gotowania na razie pokazuje ilości autora.
+
 ## Alfa 0.78 — co zużyć najpierw, lista zakupów i wydruk zeszytu
 
 - Naprawione (#2621): wklejona pusta linia z nierozdzielającą spacją nie dodaje niewidocznego składnika ani nie skleja dwóch kroków przepisu. Spacja wewnątrz wpisanej ilości zostaje bez zmian.

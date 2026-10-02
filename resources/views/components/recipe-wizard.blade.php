@@ -13,6 +13,7 @@ use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\LimitZapisuKreatora;
 use App\Domain\Recipes\KosztPrzepisu;
+use App\Domain\Recipes\Porcje\GotoweSztuki;
 use App\Domain\Recipes\StepTimer;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Livewire\Forms\PrzepisForm;
@@ -285,6 +286,8 @@ new class extends Component
         $this->form->title = (string) $recipe->title;
         $this->form->summary = (string) $recipe->summary;
         $this->form->servings = PodgladPrzepisu::liczbaNaTekst($recipe->servings);
+        $this->form->yield_count = GotoweSztuki::doPola($recipe->yield_count);
+        $this->form->yield_unit = (string) $recipe->yield_unit;
         $this->form->estimated_cost_pln = KosztPrzepisu::doPola($recipe->estimated_cost_pln);
         $this->form->prep_minutes = PodgladPrzepisu::liczbaNaTekst($recipe->prep_minutes);
         $this->form->cook_minutes = PodgladPrzepisu::liczbaNaTekst($recipe->cook_minutes);
@@ -762,6 +765,8 @@ new class extends Component
                 title: $this->form->title,
                 summary: $this->form->summary,
                 servings: $this->form->servings,
+                yieldCount: $this->form->yield_count,
+                yieldUnit: $this->form->yield_unit,
                 estimatedCostPln: $this->form->estimated_cost_pln,
                 prepMinutes: $this->form->prep_minutes,
                 cookMinutes: $this->form->cook_minutes,

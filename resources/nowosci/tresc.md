@@ -32,6 +32,21 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Ile sztuk wychodzi z przepisu
+
+Przy pierogach, bułkach czy ciasteczkach liczy się nie liczba porcji, tylko
+liczba sztuk. Autor może teraz dopisać do przepisu, ile gotowych sztuk
+wychodzi z podanych ilości, na przykład „24 pierogi”. To osobna informacja:
+liczba pierogów nie mówi, ile osób nakarmi przepis, więc porcje zostają
+tak, jak były.
+
+Na stronie przepisu, nad składnikami, wpisujecie, ile sztuk chcecie zrobić,
+na przykład 36, i naciskacie „Przelicz składniki”. Ilości przeliczają się
+jak przy porcjach: 24 na 36 to półtora raza więcej. Działa bez
+JavaScriptu, a link z wybraną liczbą możecie wysłać rodzinie. Wybieracie
+albo porcje, albo sztuki — nigdy oba naraz. Przepisy, w których autor
+nie podał sztuk, wyglądają tak jak dotąd.
+
 ## Alfa 0.78
 
 **Co zużyć najpierw, lista zakupów i wydruk zeszytu.**

@@ -15,6 +15,7 @@ use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
 use App\Domain\Recipes\Porcje\WyborPorcji;
+use App\Domain\Recipes\Porcje\WyborSztuk;
 use App\Domain\Recipes\TypowyCzasPrzepisu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
@@ -514,11 +515,16 @@ class RecipeController extends Controller
             ->selectRaw('count(*) filter (where cooked_events.would_make_again is not null) as ocenilo')
             ->first();
 
+        $wyborSztuk = WyborSztuk::dla($model, $request->query('sztuki'));
+
         return view('pages.recipes.show', [
             'recipe' => $model,
             // Na ile porcji pokazać ilości (D-284). Wybór żyje w adresie
             // (`?porcje=6`), przeliczenie w `App\Domain\Recipes\Porcje`.
-            'wyborPorcji' => WyborPorcji::dla($model, $request->query('porcje')),
+            // Wybór SZTUK (#2645) wygrywa z `?porcje=`: liczy się jedna podstawa,
+            // współczynniki nigdy się nie mnożą.
+            'wyborPorcji' => WyborPorcji::dla($model, $wyborSztuk->przeliczone() ? null : $request->query('porcje')),
+            'wyborSztuk' => $wyborSztuk,
             // Orientacyjny koszt z cen GUS — tylko gdy autor nie podał
             // własnej kwoty; kwota autora zawsze wygrywa (D-286).
             'szacunekKosztu' => $model->estimated_cost_pln === null

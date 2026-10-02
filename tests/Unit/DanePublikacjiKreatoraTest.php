@@ -44,6 +44,8 @@ final class DanePublikacjiKreatoraTest extends TestCase
             'title' => 'Pierogi ruskie',
             'summary' => 'Od babci.',
             'servings' => 4.0,
+            'yield_count' => null,
+            'yield_unit' => null,
             'estimated_cost_pln' => 24.5,
             'prep_minutes' => 20,
             'cook_minutes' => 30,

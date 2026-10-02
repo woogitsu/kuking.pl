@@ -213,6 +213,7 @@ final class MojaWersja
     {
         return [
             'porcje' => $recipe->servings === null ? null : round((float) $recipe->servings, 2),
+            'sztuki' => $recipe->yield_count === null ? null : [$recipe->yield_count, $recipe->yield_unit],
             'przygotowanie' => $recipe->prep_minutes,
             'gotowanie' => $recipe->cook_minutes,
             'skladniki' => $recipe->ingredients()->get()->map(fn ($s): array => [
