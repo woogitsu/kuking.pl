@@ -138,6 +138,10 @@ class SkladnikBezIlosciTest extends TestCase
         $rows = $xpath->query('//ul[@class="ingredient-list"]/li');
         $texts = [];
         foreach ($rows as $row) {
+            // Blok „Przelicz” (#2533) to podpowiedź na żądanie, nie tekst składnika.
+            foreach (iterator_to_array($xpath->query('.//details[@data-przelicz-miare]', $row)) as $blok) {
+                $blok->parentNode?->removeChild($blok);
+            }
             $texts[] = preg_replace('/\s+/u', ' ', trim($row->textContent));
         }
         $this->assertSame([
