@@ -29,6 +29,7 @@ use App\Models\RecipeHint;
 use App\Models\RecipeStep;
 use App\Models\RecipeVersion;
 use App\Models\Report;
+use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use App\Models\Tag;
 use App\Models\TagHighlight;
@@ -1648,6 +1649,18 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('shopping.update', $pozycjaZakupow), ['text' => '2 mleka', 'stan' => hash('sha256', 'mleko')], [$W, $O, $O, $O, $O]);
         $dodaj('shopping.destroy', 'usunięcie pozycji listy zakupów', 'delete',
             route('shopping.destroy', $pozycjaZakupowDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // Nazwane listy (#2528): zmienia nazwę i usuwa wyłącznie właściciel
+        // (`ShoppingListPolicy`), bez wyjątku dla moderatora.
+        $listaZakupowDoNazwy = new ShoppingList(['name' => 'Święta']);
+        $listaZakupowDoNazwy->user_id = $wlasciciel->getKey();
+        $listaZakupowDoNazwy->save();
+        $listaZakupowDoKasacji = new ShoppingList(['name' => 'Przyjęcie']);
+        $listaZakupowDoKasacji->user_id = $wlasciciel->getKey();
+        $listaZakupowDoKasacji->save();
+        $dodaj('shopping.lists.rename', 'zmiana nazwy listy zakupów', 'patch',
+            route('shopping.lists.rename', $listaZakupowDoNazwy), ['nowa_nazwa' => 'Wigilia'], [$W, $O, $O, $O, $O]);
+        $dodaj('shopping.lists.destroy', 'usunięcie listy zakupów', 'delete',
+            route('shopping.lists.destroy', $listaZakupowDoKasacji), ['potwierdzam' => '1', 'widziana_liczba' => '0'], [$W, $O, $O, $O, $O]);
         $dodaj('shopping.recipe.store', 'dodanie składników prywatnego przepisu do listy zakupów', 'post',
             route('shopping.recipe.store', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         // Wybór składników (#2462): ekran i zapis prywatnego przepisu — tylko autor.

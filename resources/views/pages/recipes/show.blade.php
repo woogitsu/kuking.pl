@@ -814,7 +814,8 @@
                     @auth
                         <form class="mt-4" method="POST" action="{{ route('shopping.recipe.store', $recipe->slug) }}">
                             @csrf
-                            <button class="btn btn-secondary" type="submit">Dodaj składniki do listy zakupów</button>
+                            <x-zakupy-wybor-listy wiersz="przepis" />
+                            <button class="btn btn-secondary mt-3" type="submit">Dodaj składniki do listy zakupów</button>
                         </form>
                         {{-- Przeliczone porcje (#2489): osobny, jawny wybór z podglądem; przycisk
                              wyżej dalej kopiuje ilości autora. --}}

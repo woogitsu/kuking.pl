@@ -1305,6 +1305,19 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/lista-zakupow/cofnij', [ListaZakupowController::class, 'undo'])
         ->middleware("throttle:{$limits['zakupy']},zakupy")
         ->name('shopping.undo');
+    // Nazwane listy (#2528): zakładanie, zmiana nazwy i usunięcie (z pytaniem o
+    // pozycje). Lista po UUID, ale decyduje `ShoppingListPolicy`, nie adres.
+    Route::post('/lista-zakupow/listy', [ListaZakupowController::class, 'storeList'])
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.lists.store');
+    Route::patch('/lista-zakupow/listy/{lista}', [ListaZakupowController::class, 'renameList'])
+        ->whereUuid('lista')
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.lists.rename');
+    Route::delete('/lista-zakupow/listy/{lista}', [ListaZakupowController::class, 'destroyList'])
+        ->whereUuid('lista')
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.lists.destroy');
     Route::patch('/lista-zakupow/{pozycja}', [ListaZakupowController::class, 'toggle'])
         ->whereUuid('pozycja')
         ->middleware("throttle:{$limits['zakupy']},zakupy")

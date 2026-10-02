@@ -213,6 +213,7 @@
                                         <form method="POST" action="{{ route('shopping.recipe.store', $pozycja['przepis']->slug) }}">
                                             @csrf
                                             <input type="hidden" name="z_planera" value="1">
+                                            <x-zakupy-wybor-listy :wiersz="'plan-'.$wpis->getKey()" />
                                             <button class="btn btn-secondary" type="submit">Dodaj składniki<span class="visually-hidden"> do listy zakupów: {{ $nazwa }}</span></button>
                                         </form>
                                         {{-- Tylko wybrane linie (#2462). --}}

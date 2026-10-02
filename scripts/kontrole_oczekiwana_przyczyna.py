@@ -37,6 +37,9 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 OCZEKUJ = {
     'Kolaż hero bez podpisu autora przy zdjęciu (#2708)': r'Kafel nie ma podpisu z nazwą dokładnie jednego autora',
     'Rollback udostępnień przepisów kasuje bez pytania (#2650)': r'Rollback skasował udostępnienia bez pytania',
+    'Listy zakupów mieszają pozycje (#2528)': r'LISTY_2528_POZYCJE_NIE_MIESZAJA_SIE',
+    'Cudza lista zakupów otwiera ekran i przyjmuje zapis (#2528)': r'LISTY_2528_CUDZA_LISTA_ODMOWA',
+    'Usunięcie listy ignoruje zmienioną liczbę pozycji (#2528)': r'LISTY_2528_USUNIECIE_NIEAKTUALNA_LICZBA',
     'Lista ostatnio oglądanych sięga do analityki (#2553)': r'OSTATNIO_OGLADANE_2553_PRYWATNA_LISTA_POZA_ZAMKNIETA_LISTA',
     'Lista ostatnio oglądanych pokazuje przepis konta zbanowanego (#2553)': r'OSTATNIO_OGLADANE_2553_TYTUL_NIEDOSTEPNEGO_PRZEPISU',
     'Lista ostatnio oglądanych miesza konta (#2553)': r'OSTATNIO_OGLADANE_2553_KONTO_[AB]_WIDZI_LISTE_[AB]',
