@@ -1269,6 +1269,13 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    # #2546 etap 1: sekundy odpowiadające pełnym minutom i limit całego czasu.
+    ("Sekundy ISO nie doliczają pełnych minut (#2546)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
+     "test_cale_minuty_z_sekund_iso_trafiaja_do_odczytanego_przepisu",
+     lambda s: replace_once(s, "+ $minutyZSekund;", ";")),
+    ("Sekundy ISO omijają limit 10080 minut (#2546)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
+     "test_cale_sekundy_respektuja_limit_czasu_importu",
+     lambda s: replace_once(s, "$minuty > 0 && $minuty <= 10080", "$minuty > 0")),
     # #2524: przeliczony składnik i nieprzeliczona kwota autora to sprzeczna strona.
     ("Koszt autora pozostaje bazowy po zmianie porcji (#2524)", "resources/views/pages/recipes/show.blade.php", "test_koszt_autora_i_skladniki_uzywaja_tego_samego_wyboru_porcji_takze_w_wydruku",
      lambda s: replace_once(s, "{{ $kosztAutora }}</p>", "{{ $recipe->costLabel() }}</p>")),

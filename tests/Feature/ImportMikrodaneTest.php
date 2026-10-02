@@ -64,6 +64,24 @@ final class ImportMikrodaneTest extends TestCase
         $this->assertStringNotContainsString('obcy.example.pl', serialize($przepis), 'Adres zdjęcia nie wychodzi z parsera.');
     }
 
+    public function test_cale_minuty_z_sekund_mikrodanych_sa_odczytywane(): void
+    {
+        $html = $this->strona(<<<'HTML'
+            <article itemscope itemtype="https://schema.org/Recipe">
+              <span itemprop="name">Zupa</span>
+              <meta itemprop="recipeIngredient" content="woda">
+              <meta itemprop="prepTime" content="PT120S">
+              <time itemprop="cookTime" datetime="PT1M60S">2 minuty</time>
+            </article>
+            HTML);
+
+        $przepis = $this->parser()->odczytaj($html);
+
+        $this->assertNotNull($przepis);
+        $this->assertSame(2, $przepis->przygotowanieMinut, 'ISO_SEKUNDY_MIKRODANE');
+        $this->assertSame(2, $przepis->gotowanieMinut, 'ISO_SEKUNDY_MIKRODANE');
+    }
+
     public function test_kroki_howtostep_howtosection_i_stary_zapis_ingredients(): void
     {
         $html = $this->strona(<<<'HTML'

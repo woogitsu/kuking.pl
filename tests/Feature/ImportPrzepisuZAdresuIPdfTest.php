@@ -273,6 +273,30 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         $this->assertSame(0, $autor->posts()->count(), 'Import nie może zapowiadać przepisu w strumieniu.');
     }
 
+    public function test_import_url_zapisuje_calkowitominutowe_sekundy_w_prywatnym_szkicu(): void
+    {
+        $autor = $this->user();
+        $dane = self::JSON_LD;
+        $dane['prepTime'] = 'PT120S';
+        $dane['cookTime'] = 'PT1M60S';
+        $html = '<html><script type="application/ld+json">'.json_encode($dane, JSON_UNESCAPED_UNICODE).'</script></html>';
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
+            'https://przepisy.example.pl/sernik' => Http::response($html, 200, ['Content-Type' => 'text/html; charset=utf-8']),
+        ]);
+
+        $this->actingAs($autor)->post(route('recipes.import.url.store'), [
+            'adres' => 'https://przepisy.example.pl/sernik',
+        ])->assertRedirect();
+
+        $przepis = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
+        $this->assertSame(Recipe::STATUS_DRAFT, $przepis->status);
+        $this->assertSame('private', $przepis->visibility);
+        $this->assertSame(2, $przepis->prep_minutes, 'ISO_SEKUNDY_SZKIC');
+        $this->assertSame(2, $przepis->cook_minutes, 'ISO_SEKUNDY_SZKIC');
+        Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'openai.com'));
+    }
+
     public function test_pusty_json_ld_przed_pelnym_w_grafie_importuje_pelny_bez_modelu(): void
     {
         $autor = $this->user();

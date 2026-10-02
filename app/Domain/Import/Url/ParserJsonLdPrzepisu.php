@@ -300,7 +300,7 @@ final class ParserJsonLdPrzepisu
         return $liczba;
     }
 
-    /** Czas ISO 8601 (`PT1H30M`, `P0DT45M`) w minutach; inny zapis = brak. */
+    /** Czas ISO 8601 w pełnych minutach; wartości bez pełnej minuty nie są zgadywane. */
     public static function minuty(mixed $wartosc): ?int
     {
         if (! is_string($wartosc)) {
@@ -311,7 +311,31 @@ final class ParserJsonLdPrzepisu
             return null;
         }
 
-        $minuty = ((int) ($m[1] ?? 0)) * 1440 + ((int) ($m[2] ?? 0)) * 60 + (int) ($m[3] ?? 0);
+        $dni = (int) ($m[1] ?? 0);
+        $godziny = (int) ($m[2] ?? 0);
+        $minutyCale = (int) ($m[3] ?? 0);
+        $sekundy = $m[4] ?? '';
+
+        // Ograniczenia przed mnożeniem chronią również przed przepełnieniem liczb z obcej strony.
+        if ($dni > 7 || $godziny > 168 || $minutyCale > 10080) {
+            return null;
+        }
+
+        $minutyZSekund = 0;
+        if ($sekundy !== '') {
+            if (preg_match('/^(\d+)(?:\.0+)?$/D', $sekundy, $sekundyCale) !== 1) {
+                return null;
+            }
+
+            $liczbaSekund = (int) $sekundyCale[1];
+            if ($liczbaSekund > 604800 || $liczbaSekund % 60 !== 0) {
+                return null;
+            }
+
+            $minutyZSekund = intdiv($liczbaSekund, 60);
+        }
+
+        $minuty = $dni * 1440 + $godziny * 60 + $minutyCale + $minutyZSekund;
 
         return $minuty > 0 && $minuty <= 10080 ? $minuty : null;
     }

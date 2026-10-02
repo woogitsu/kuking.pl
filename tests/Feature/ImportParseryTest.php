@@ -107,6 +107,42 @@ final class ImportParseryTest extends TestCase
         $this->assertSame(['Utrzyj twaróg z cukrem.', 'Dodaj jajka.', 'Piecz godzinę w 170°C.'], $przepis->kroki);
     }
 
+    public function test_cale_minuty_z_sekund_iso_trafiaja_do_odczytanego_przepisu(): void
+    {
+        $html = $this->stronaZJsonLd([
+            '@type' => 'Recipe',
+            'name' => 'Zupa',
+            'recipeIngredient' => ['woda'],
+            'prepTime' => 'PT120S',
+            'cookTime' => 'PT1M60S',
+        ]);
+
+        $przepis = (new ParserJsonLdPrzepisu)->odczytaj($html);
+
+        $this->assertNotNull($przepis);
+        $this->assertSame(2, $przepis->przygotowanieMinut, 'ISO_SEKUNDY_CALE_MINUTY');
+        $this->assertSame(2, $przepis->gotowanieMinut, 'ISO_SEKUNDY_CALE_MINUTY');
+    }
+
+    public function test_cale_sekundy_respektuja_limit_czasu_importu(): void
+    {
+        $this->assertSame(2, ParserJsonLdPrzepisu::minuty('PT2M'), 'ISO_SEKUNDY_KONTROLA_MINUT');
+        $this->assertSame(2, ParserJsonLdPrzepisu::minuty('PT120.0S'), 'ISO_SEKUNDY_CALE_MINUTY');
+        $this->assertSame(10080, ParserJsonLdPrzepisu::minuty('PT604800S'), 'ISO_SEKUNDY_LIMIT');
+        $this->assertNull(ParserJsonLdPrzepisu::minuty('P7DT60S'), 'ISO_SEKUNDY_LIMIT');
+        $this->assertNull(ParserJsonLdPrzepisu::minuty('PT604860S'), 'ISO_SEKUNDY_LIMIT');
+        $this->assertNull(ParserJsonLdPrzepisu::minuty('PT999999999999999999999999999999S'), 'ISO_SEKUNDY_LIMIT');
+        $this->assertNull(ParserJsonLdPrzepisu::minuty('PT0S'));
+    }
+
+    public function test_niepelne_minuty_iso_nie_sa_po_cichu_skracane(): void
+    {
+        // Etap #2546: widoczny sposób korekty czeka na decyzję właściciela.
+        foreach (['PT90S', 'PT1M30S', 'PT120.5S'] as $czas) {
+            $this->assertNull(ParserJsonLdPrzepisu::minuty($czas), 'ISO_SEKUNDY_NIEPELNE_BEZ_ZGADYWANIA');
+        }
+    }
+
     public function test_json_ld_nie_przenosi_adresu_zdjecia_ani_autora_nigdzie(): void
     {
         $html = $this->stronaZJsonLd([

@@ -35,6 +35,8 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Sekundy ISO nie doliczają pełnych minut (#2546)': r'ISO_SEKUNDY_CALE_MINUTY',
+    'Sekundy ISO omijają limit 10080 minut (#2546)': r'ISO_SEKUNDY_LIMIT',
     'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
     'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',
     "Koszt autora pozostaje bazowy po zmianie porcji (#2524)": r'KOSZT_AUTORA_2524_NIEPRZELICZONY',

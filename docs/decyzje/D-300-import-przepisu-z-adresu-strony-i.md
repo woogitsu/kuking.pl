@@ -79,6 +79,13 @@ na prawnika, dla wszystkich zalogowanych (P-7), w tych granicach:
 `CofniecieMigracjiImportuTest`, `ObrazMaNarzedziaPdfTest` — sieć wyłącznie
 przez `Http::fake`, DNS przez podstawioną mapę nazw.
 
+**Etap techniczny #2546 (2.10.2026; nie rozstrzyga nowej decyzji produktu).**
+Parser JSON-LD i mikrodanych dolicza sekundy ISO tylko wtedy, gdy łączny czas
+jest pełną liczbą minut (`PT120S` i `PT1M60S` dają 2 minuty). Limit 10080 minut
+dotyczy całej sumy. Czas z niepełną minutą nie jest po cichu zaokrąglany w dół;
+sposób jego pokazania i korekty w szkicu pozostaje do decyzji właściciela w
+issue #2546. Ten etap nie spełnia jeszcze całych kryteriów tego issue.
+
 **Uzupełnienie #2293 (30.09.2026, audyt infra IN-01).** Poppler chodzi przez
 Symfony Process, a `docker/php.ini` wyłącza `proc_open`, więc na obrazie
 produkcyjnym odczyt PDF padał zawsze. `php.ini` zostaje bez zmian (WWW dalej
