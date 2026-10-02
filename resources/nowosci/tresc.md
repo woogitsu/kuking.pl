@@ -36,6 +36,16 @@ Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrac
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Zapytaj o ten krok
+
+Coś w kroku przepisu jest niejasne, na przykład „mieszaj aż zgęstnieje”?
+Pod krokiem jest przycisk „Zapytaj o ten krok”. Prowadzi do pola komentarza
+pod przepisem, w którym czeka już początek tego kroku, a Wy dopisujecie pytanie.
+Ten początek możecie poprawić albo usunąć, a nic nie wyśle się samo, dopóki
+nie dotkniecie „Wyślij komentarz”. To zwykły komentarz, więc autor dostaje
+powiadomienie jak zawsze. Gdy autor później zmieni krok, Wasze pytanie zostaje
+takie, jakie wysłaliście.
+
 ### Dzień gotowania przy „Ugotowałem”
 
 Gotowaliście w niedzielę, a zdjęcie i kilka słów dodajecie dopiero we wtorek?
