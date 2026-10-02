@@ -60,6 +60,7 @@ use App\Http\Controllers\MojStolController;
 use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NowosciController;
+use App\Http\Controllers\KopiaPrzepisuController;
 use App\Http\Controllers\OdlozenieSzkicuController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PantryController;
@@ -1116,6 +1117,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereUuid('share')
         ->middleware("throttle:{$limits['udostepnienia']},udostepnienia")
         ->name('recipes.shares.destroy');
+    // Przenośna kopia JEDNEGO własnego przepisu (#2531, V2): ekran z opisem
+    // zawartości (GET) i pobranie ZIP po osobnym kliknięciu (POST). Tylko
+    // autor (`RecipePolicy::exportCopy`); odpowiedź prywatna, bez stałego adresu.
+    Route::get('/przepisy/{recipe}/kopia', [KopiaPrzepisuController::class, 'pokaz'])
+        ->name('recipes.copy.show');
+    Route::post('/przepisy/{recipe}/kopia', [KopiaPrzepisuController::class, 'pobierz'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('recipes.copy.download');
     Route::get('/przepisy/{recipe}/udostepniony', [SharedRecipeController::class, 'show'])
         ->name('recipes.shared.show');
     Route::get('/udostepnione-mi', [SharedRecipeController::class, 'index'])

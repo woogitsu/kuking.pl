@@ -924,6 +924,10 @@
                              to samo pytanie muszą być tą samą odpowiedzią. --}}
                         <a class="btn btn-secondary" href="{{ route('recipes.edit', $recipe->slug) }}">{{ \App\Domain\Recipes\CoMoznaDopisac::jest($recipe) ? 'Dopisz szczegóły' : 'Edytuj przepis' }}</a>
                     @endcan
+                    {{-- Kopia tego jednego przepisu poza serwisem (#2531): tylko autor (`exportCopy`). --}}
+                    @can('exportCopy', $recipe)
+                        <a class="btn btn-secondary" href="{{ route('recipes.copy.show', $recipe->slug) }}" data-kopia-przepisu>Pobierz kopię przepisu</a>
+                    @endcan
                     {{-- Udostępnienie wybranej osobie (#2650): tylko autor, tylko
                          opublikowany przepis, który NIE jest dla wszystkich —
                          albo już ma udostępnienia (żeby dało się je odebrać). --}}

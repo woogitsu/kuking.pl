@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Kopia jednego przepisu do zachowania poza serwisem
+
+Chcecie zachować rodzinną recepturę u siebie, bez zamawiania paczki z całym kontem? Na stronie swojego przepisu jest przycisk „Pobierz kopię przepisu”. Najpierw zobaczycie, co będzie w pliku i czego w nim nie będzie (zdjęć i komentarzy innych osób nie ma), a po kliknięciu pobierzecie mały plik ZIP z przepisem do czytania bez internetu i do wydruku. Ten sam plik można później wczytać z powrotem w Ustawieniach, w „Wczytaj swoją paczkę” — przepis wróci jako prywatny szkic dopiero po Waszym potwierdzeniu.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie
