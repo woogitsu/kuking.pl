@@ -34,6 +34,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Pytaliście pod czyimś przepisem o temperaturę pieczenia i chcecie wrócić, żeby dopisać, że się udało? W zakładce „Moje” (w zeszycie) jest teraz przycisk „Moje rozmowy”. Pokazuje rozmowy, w których sami napisaliście komentarz lub odpowiedź — każdą raz, od tej, w której pisaliście ostatnio. „Wróć do rozmowy” prowadzi prosto do Waszej wypowiedzi, także gdy nikt jeszcze nie odpowiedział. Lista jest prywatna, nikogo nie powiadamia i nie pokazuje rozmów, do których dziś nie macie dostępu.
 
+### Gotowanie zapamiętane na koncie
+
+Jeśli w trybie „Gotuję” włączycie zapamiętywanie postępu na koncie, w „Moje” znajdziecie teraz prywatną listę takich przepisów, więc na telefonie czy tablecie nie trzeba szukać ich od nowa. Przy każdym widać, ile kroków jest odhaczonych, i jest przycisk otwierający tryb gotowania. To lista zapamiętanych stanów, a nie „niedokończonych” potraw: niczego nie zgłasza jako „Ugotowałem”, a samo jej oglądanie nie przedłuża czasu zapamiętania. Widzicie na niej tylko przepisy, które nadal możecie otworzyć.
+
 ### Notatki z zeszytów podczas gotowania
 
 Zapisaliście przy przepisie „następnym razem mniej soli” albo „moja forma ma 24 cm”? W trybie „Gotuję” jest teraz zwijany blok „Moje notatki z zeszytów”. Po rozwinięciu widzicie swoje dopiski z prywatnych zeszytów, każdy z nazwą zeszytu, i nie musicie opuszczać bieżącego kroku: minutnik, porcje i odhaczenia zostają tak, jak były. Notatki są tylko do odczytu (zmienicie je w zeszycie) i widzicie je wyłącznie Wy.
