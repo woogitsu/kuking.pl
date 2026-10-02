@@ -93,7 +93,7 @@
                 </label>
                 <span class="field-help" id="f-zeszyt-ugotowane-help">Pokażemy tylko zapisane przepisy, przy których masz własne wykonanie „Ugotowałem”. Wykonania innych osób się nie liczą.</span>
             </div>
-            <fieldset class="border-0 p-0 mt-4" id="f-zeszyt-kolejnosc">
+            <fieldset class="border-0 p-0 mt-4 min-w-0" id="f-zeszyt-kolejnosc">
                 <legend class="font-bold mb-3">Kolejność wyników</legend>
                 <div class="choice-grid">
                     <label class="choice">
