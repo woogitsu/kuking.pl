@@ -26,6 +26,7 @@
         <a class="btn btn-secondary" href="{{ route('collections.deleted-recipes') }}">Usunięte przepisy</a>
         <a class="btn btn-secondary" href="{{ route('planer.show') }}">Planer tygodnia</a>
         <a class="btn btn-secondary" href="{{ route('shopping.index') }}">Lista zakupów</a>
+        <a class="btn btn-secondary" href="{{ route('collections.deleted') }}">Usunięte zeszyty</a>
     </p>
 
     {{-- Błąd przy polu ORAZ w podsumowaniu (docs/UX_50_PLUS.md). Bez tego

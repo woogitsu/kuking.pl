@@ -33,6 +33,18 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.
+### Odzyskanie usuniętego zeszytu
+
+Usunęliście zeszyt przez pomyłkę? Jeśli był prywatny i nie dzieliliście go
+z nikim, możecie go odzyskać. W Zeszycie jest teraz przycisk „Usunięte
+zeszyty”: zobaczycie na liście nazwę zeszytu, liczbę zapisów, datę usunięcia
+i dokładny termin, do kiedy da się go odzyskać. Przycisk „Odzyskaj zeszyt”
+przywraca go jako prywatny, razem z zapisami, Waszymi dopiskami i datami
+zapisania. Nikt nie dostaje o tym powiadomienia. Jeśli któryś przepis albo
+wpis został w międzyczasie usunięty, nie wróci, a ekran powie, ile zapisów
+brakuje. Zeszytów publicznych i wspólnych nie da się odzyskać, o czym
+informuje komunikat po usunięciu. Po upływie terminu zeszyt jest usuwany na
+stałe, tak samo po usunięciu konta.
 
 ### Przeliczanie miar przy składniku
 

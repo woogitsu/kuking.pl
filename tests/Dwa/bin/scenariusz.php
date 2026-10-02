@@ -26,6 +26,8 @@ use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\Actions\UpdateCollectionItemNote;
 use App\Domain\Collections\KierunekPrzesuniecia;
+use App\Domain\Collections\Odzyskiwanie\OdzyskajUsunietyZeszyt;
+use App\Domain\Collections\Odzyskiwanie\PrzedawnioneUsunieteZeszyty;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\Wspoldzielenie\DostepDoZeszytu;
 use App\Domain\Collections\Wspoldzielenie\OdpowiedzNaZaproszenie;
@@ -607,6 +609,23 @@ try {
 
             return $po === null ? -1 : $po->revision;
         })(),
+
+        // #2567: właściciel odzyskuje własny, usunięty zeszyt. Prawdziwa akcja,
+        // pod blokadą konta i kopii.
+        'odzyskaj-zeszyt-2567' => (function () use ($argumenty): array {
+            $wynik = app(OdzyskajUsunietyZeszyt::class)->handle(
+                User::query()->whereKey($argumenty['konto'])->firstOrFail(),
+                $argumenty['zeszyt'],
+            );
+
+            return ['juz' => $wynik->juzOdzyskany];
+        })(),
+
+        // #2567: nocne sprzątanie kopii usuniętych zeszytów z NIŻSZYM progiem niż
+        // okno odzyskania — symulacja rozjazdu zegarów między serwerem WWW i
+        // workerem, czyli jedyny sposób, w jaki kandydat sprzątania może jeszcze
+        // zostać odzyskany.
+        'sprzataj-zeszyty-2567' => app(PrzedawnioneUsunieteZeszyty::class)->posprzataj((int) $argumenty['dni']),
 
         // Etap 2 (#2016): dwa urządzenia zaznaczają RÓŻNE składniki „przygotowane” naraz.
         'postep-skladnik' => (function () use ($argumenty): int {

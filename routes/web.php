@@ -104,6 +104,7 @@ use App\Http\Controllers\UrodzinyWypiszController;
 use App\Http\Controllers\UsunietePrzepisyController;
 use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WspomnienieController;
+use App\Http\Controllers\ZeszytyUsunieteController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use App\Http\Controllers\ZgodaOdczytuAiController;
 use App\Http\Controllers\ZmianaPolitykiController;
@@ -1247,6 +1248,16 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::delete('/zeszyt/{collection}', [CollectionController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('collections.destroy');
+    // „Usunięte zeszyty” (#2567, D-333): własny, omyłkowo usunięty prywatny
+    // zeszyt wraca do końca retencji. Ścieżka ma stały człon, więc nie
+    // koliduje z `/zeszyt/{collection}` (wzorzec UUID). POST bierze dawny UUID
+    // zeszytu, ale to nie jest autoryzacja: `DeletedCollectionPolicy::odzyskaj()`,
+    // a potem blokada w akcji.
+    Route::get('/zeszyt/usuniete-zeszyty', [ZeszytyUsunieteController::class, 'index'])
+        ->name('collections.deleted');
+    Route::post('/zeszyt/usuniete-zeszyty/{zeszytUsuniety}', [ZeszytyUsunieteController::class, 'odzyskaj'])
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('collections.deleted.recover');
     // Wspólny zeszyt (#1743, D-302). Zaproszenie po nazwie powiadamia
     // drugiego człowieka, więc wszystkie zmiany idą pod własnym kluczem
     // `zaproszenia`, nie pod budżetem prywatnego zapisu `zeszyt`.

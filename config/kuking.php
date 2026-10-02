@@ -484,6 +484,15 @@ return [
         // (małżonek, dwoje dorosłych dzieci, rodzeństwo), a nie grupa
         // społecznościowa, której #1743 świadomie nie buduje.
         'max_members' => 5,
+
+        // ODZYSKANIE USUNIĘTEGO ZESZYTU (#2567, D-333). Okno jest to samo co
+        // dla innych usuniętych treści (`usuniete_tresci.retention_days`).
+        // Kopia odzyskania jest OGRANICZONA: zeszyt z większą liczbą pozycji
+        // albo osoba mająca już tyle kopii w oknie dostaje uczciwy komunikat
+        // przy usuwaniu, że tego zeszytu nie da się odzyskać — nic nie jest
+        // kasowane po cichu, żeby zrobić miejsce.
+        'odzyskanie_max_pozycji' => (int) env('KUKING_ODZYSKANIE_ZESZYTU_MAX_POZYCJI', 1000),
+        'odzyskanie_max_zeszytow' => (int) env('KUKING_ODZYSKANIE_ZESZYTU_MAX_ZESZYTOW', 20),
         // Zaproszenie po nazwie konta czeka dwa tygodnie: ktoś, kto zagląda
         // raz w tygodniu, ma na nie dwie szanse.
         'invitation_days' => 14,

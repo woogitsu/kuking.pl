@@ -17,6 +17,7 @@ use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
 use App\Models\CookingNote;
 use App\Models\CookingProgress;
+use App\Models\DeletedCollection;
 use App\Models\Hide;
 use App\Models\MealPlanEntry;
 use App\Models\Notification;
@@ -190,6 +191,7 @@ final class CollectUserExportData
             'ugotowalem' => $this->cookedEvents($user, $photos),
             'moje_komentarze' => $this->ownComments($user),
             'kolekcje' => $this->collections($user),
+            'usuniete_zeszyty' => $this->usunieteZeszyty($user),
             // Wspólne zeszyty (#1743, D-302) — w granicach RODO art. 15 ust. 4,
             // patrz `sharedCollections()` i `collectionInvitations()` niżej.
             'zeszyty_udostepnione_mi' => $this->sharedCollections($user),
@@ -1246,6 +1248,48 @@ final class CollectUserExportData
                 'ilosc' => $produkt->quantity_note,
                 'mrozone' => (bool) $produkt->frozen,
             ])->all();
+    }
+
+    /**
+     * Usunięte prywatne zeszyty, które czekają w oknie odzyskania (#2567).
+     * Dopiski i daty zapisania to dane osoby, więc idą w całości; tytuł
+     * przepisu tylko wtedy, gdy przepis widać dziś pod jego adresem.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function usunieteZeszyty(User $user): array
+    {
+        $dni = max(1, (int) config('kuking.usuniete_tresci.retention_days'));
+
+        return DeletedCollection::query()
+            ->where('owner_id', $user->getKey())
+            ->where('deleted_at', '>', now()->subDays($dni))
+            ->orderBy('deleted_at')
+            ->get()
+            ->map(function (DeletedCollection $kopia) use ($dni): array {
+                $przepisy = Recipe::query()
+                    ->whereIn('id', array_values(array_filter(array_column($kopia->items, 'recipe_id'))))
+                    ->get()
+                    ->keyBy('id');
+
+                return [
+                    'nazwa' => $kopia->name,
+                    'opis' => $kopia->description,
+                    'zalozono' => $this->date($kopia->collection_created_at),
+                    'usunieto' => $this->date($kopia->deleted_at),
+                    'mozna_odzyskac_do' => $this->date($kopia->deleted_at->addDays($dni)),
+                    'pozycje' => array_map(fn (array $pozycja): array => [
+                        'rodzaj' => $pozycja['recipe_id'] !== null ? 'przepis' : 'wpis',
+                        'tytul' => $pozycja['recipe_id'] === null
+                            ? null
+                            : (($przepis = $przepisy->get($pozycja['recipe_id'])) !== null && $this->granica->widzi($przepis)
+                                ? $przepis->title
+                                : self::TRESC_NIEDOSTEPNA),
+                        'moj_dopisek' => $pozycja['note'],
+                        'zapisano' => $this->date(Carbon::parse($pozycja['created_at'])),
+                    ], $kopia->items),
+                ];
+            })->all();
     }
 
     /**

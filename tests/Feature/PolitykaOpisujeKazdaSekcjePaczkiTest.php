@@ -58,6 +58,7 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         'lista_zakupow' => '| Lista zakupów |',
         'postep_gotowania' => '| Zapamiętany postęp w trybie gotowania |',
         'dopiski_z_gotowania' => '| Prywatny dopisek z gotowania |',
+        'usuniete_zeszyty' => '| Odzyskanie usuniętego zeszytu |',
         'zapamietane_porcje' => '| Zapamiętana liczba porcji przy przepisie |',
         'ukryte' => '| Ukrywanie wpisów i osób',
         'moje_reakcje' => '| Reakcja „Smakowicie wygląda”',
@@ -189,6 +190,13 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
             '/^\| Prywatny dopisek z gotowania .*\*\*'.$godzinDopiskow.' godzin/mu',
             $polityka,
             "Dopisek z gotowania żyje {$godzinDopiskow} godzin, a polityka podaje inny termin.",
+        );
+
+        $dniZeszytow = (int) config('kuking.usuniete_tresci.retention_days');
+        $this->assertMatchesRegularExpression(
+            '/^\| Odzyskanie usuniętego zeszytu .*\*\*'.$dniZeszytow.' dni\*\*/mu',
+            $polityka,
+            "Kopia usuniętego zeszytu żyje {$dniZeszytow} dni, a polityka podaje inny termin.",
         );
 
         $godzinPaczki = (int) config('kuking.import_paczki.przechowanie_godzin');

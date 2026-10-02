@@ -622,3 +622,60 @@ Migracja `2026_10_02_190100_add_ulubiony_zeszyt_to_users`.
   `KUKING_ROLLBACK_KASUJE_SKROT_ZESZYTU=1`; komunikat podaje kopię
   `CREATE TABLE ... AS SELECT` i odtworzenie. Na bazie bez skrótów zdejmuje
   indeks, klucz i kolumnę bez pytania. Test: `tests/Feature/UlubionyZeszytMigracjaTest.php`.
+
+### deleted_collections — kopia odzyskania usuniętego zeszytu (issue #2567, D-333)
+
+Migracja `2026_10_03_160000_create_deleted_collections_table`. Krótka,
+ograniczona KOPIA zeszytu, który jego właściciel usunął; służy wyłącznie do
+odzyskania go przez właściciela w oknie `kuking.usuniete_tresci.retention_days`
+(to samo okno co przepisy, wpisy i komentarze — ADR retencji §5.7). To NIE jest
+miękkie usunięcie: `collections` i `collection_items` nie zmieniają znaczenia,
+więc liczniki, eksport, unikalna nazwa i unikalny zeszyt domyślny nie muszą
+niczego filtrować.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | |
+| `owner_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | właściciel; poza `$fillable` (model ma pusty `$fillable`) |
+| `collection_id` | `uuid NOT NULL UNIQUE` | dawny identyfikator zeszytu, bez klucza obcego (zeszytu już nie ma); odzyskany zeszyt wraca pod nim |
+| `name` | `varchar(120) NOT NULL` | `CHECK` 1–120 znaków (`deleted_collections_name_check`) |
+| `description` | `varchar(500) NULL` | |
+| `collection_created_at` | `timestamptz NOT NULL` | data założenia zeszytu (wraca bez zmian) |
+| `items` | `jsonb NOT NULL DEFAULT '[]'` | pozycje: `{recipe_id, post_id, note, created_at}` — TYLKO identyfikatory, własny dopisek i data zapisania; żadnych tytułów ani tekstów cudzych treści |
+| `items_count` | `integer NOT NULL` | `CHECK jsonb_typeof(items) = 'array' AND jsonb_array_length(items) = items_count` (`deleted_collections_items_check`) |
+| `deleted_at` | `timestamptz NOT NULL DEFAULT now()` | początek okna odzyskania |
+
+Indeksy: `(owner_id, deleted_at)` (ekran „Usunięte zeszyty”), `deleted_at`
+(nocne sprzątanie).
+
+Kiedy powstaje kopia (`UsunZeszyt`, ta sama transakcja co usunięcie, pod
+blokadą `users` → `collections`): konto AKTYWNE, zeszyt PRYWATNY, niedomyślny,
+bez członków i bez oczekujących zaproszeń, bez sprawy moderacyjnej
+(`reports`/`moderation_actions` z `target_type = 'collection'`), nie więcej niż
+`kuking.collections.odzyskanie_max_pozycji` (1000) pozycji, nie więcej niż
+`kuking.collections.odzyskanie_max_zeszytow` (20) kopii osoby w oknie. W innym
+wypadku zeszyt jest usuwany jak dawniej, a komunikat mówi, że nie da się go
+odzyskać (bez nazywania sprawy moderacyjnej).
+
+Odzyskanie (`OdzyskajUsunietyZeszyt`, `FOR NO KEY UPDATE` na koncie, potem
+`FOR UPDATE` na wierszu kopii): konto aktywne, własność, termin, brak sprawy
+moderacyjnej, nazwa niezajęta przez inny zeszyt osoby
+(`collections_owner_name_lower_unique`; kopia zostaje, gdy nazwa jest zajęta).
+Zeszyt wraca jako prywatny, niewspółdzielony, z oryginalną datą założenia;
+pozycje wracają z własnym dopiskiem i datą zapisania, o ile ich przepis albo
+wpis nadal istnieje i nie jest usunięty (skasowany przepis nie jest
+wskrzeszany, a liczba zapisów, które nie wróciły, trafia do komunikatu).
+`added_by_id` = właściciel. Powiadomień nie ma. Skrót w „Moje” nie wraca sam.
+Kopia jest kasowana w tej samej transakcji.
+
+Sprzątanie: `PrzedawnioneUsunieteZeszyty`, wołane przez
+`kuking:sprzataj-usuniete-tresci` (to samo okno), czyta wiersz jeszcze raz pod
+`FOR UPDATE`. Wymazanie konta kasuje kopie jawnie (`EraseAccountData`). Paczka
+danych ma sekcję `usuniete_zeszyty`; wpis w rejestrze czynności: §3.30.
+
+Rollback (D-088): `down()` usuwa tabelę, ale ODMAWIA, gdy jest choć jedna kopia
+w oknie odzyskania. Na pustej tabeli, przy samych przedawnionych kopiach i w CI
+(`migrate:refresh`) przechodzi bez pytania. Wymuszenie po kopii tabeli:
+`KUKING_ROLLBACK_KASUJE_USUNIETE_ZESZYTY=1`. Testy:
+`CofniecieMigracjiNieKasujeUsunietychZeszytowTest`,
+`OdzyskanieUsunietegoZeszytuTest`, `tests/Dwa/OdzyskanieZeszytuKontraSprzatanieTest`.

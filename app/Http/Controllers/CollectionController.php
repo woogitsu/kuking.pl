@@ -10,6 +10,8 @@ use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\Actions\UstawSkrotDoZeszytu;
 use App\Domain\Collections\CollectionSaveContext;
 use App\Domain\Collections\KolejnoscPrzepisow;
+use App\Domain\Collections\Odzyskiwanie\OdzyskajUsunietyZeszyt;
+use App\Domain\Collections\Odzyskiwanie\UsunZeszyt;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\Wspoldzielenie\ZaproszeniaDoZeszytow;
 use App\Domain\Search\SearchQuery;
@@ -1021,12 +1023,29 @@ class CollectionController extends Controller
             ->with(Komunikat::sukces('Skrót usunięty. Zeszyt i jego zapisy zostały bez zmian.'));
     }
 
-    public function destroy(Request $request, Collection $collection): RedirectResponse
+    public function destroy(Request $request, Collection $collection, UsunZeszyt $usun): RedirectResponse
     {
         $this->authorize('delete', $collection);
 
-        $collection->delete();
+        // Prywatny, niewspółdzielony zeszyt zostawia kopię odzyskania (#2567).
+        // Komunikat mówi tylko to, co prawda: czy i do kiedy zeszyt da się odzyskać.
+        $wynik = $usun->handle($request->user(), $collection);
 
-        return redirect()->route('collections.index')->with(Komunikat::sukces('Zeszyt usunięty.'));
+        if ($wynik->juzUsuniety) {
+            return redirect()->route('collections.index')->with(Komunikat::informacja('Ten zeszyt został już usunięty.'));
+        }
+
+        if (! $wynik->mozeWrocic) {
+            return redirect()->route('collections.index')->with(Komunikat::sukces(
+                'Zeszyt „'.$wynik->nazwa.'” usunięty. '.$wynik->powodBrakuOdzyskania,
+            ));
+        }
+
+        $dni = OdzyskajUsunietyZeszyt::dniOkna();
+
+        return redirect()->route('collections.index')->with(Komunikat::sukces(
+            'Zeszyt „'.$wynik->nazwa.'” usunięty. Jeśli to pomyłka, przez '.$dni.' '.Odmiana::rzeczownik($dni, 'dzień', 'dni', 'dni')
+            .' możesz go odzyskać w „Zeszyt”, w „Usunięte zeszyty”.',
+        ));
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Collections\Odzyskiwanie\UsunZeszyt;
 use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
 use App\Domain\UgotujmyRazem\TydzienGotowania;
 use App\Models\Appeal;
@@ -702,6 +703,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'name' => 'Zeszyt na próbę',
             'visibility' => 'private',
         ]);
+        // Omyłkowo usunięty prywatny zeszyt właściciela (#2567) — cel „Odzyskaj zeszyt”.
+        $zeszytUsuniety = Collection::create([
+            'owner_id' => $wlasciciel->getKey(),
+            'name' => 'Zeszyt usunięty przez pomyłkę',
+            'visibility' => 'private',
+        ]);
+        app(UsunZeszyt::class)->handle($wlasciciel, $zeszytUsuniety);
         // Pozycja, przy której właściciel pisze prywatną notatkę (#978).
         $zeszyt->recipes()->attach($przepis->getKey());
 
@@ -1203,6 +1211,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.print', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.destroy', 'usunięcie zeszytu', 'delete',
             route('collections.destroy', $zeszytDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // Odzyskanie własnego, usuniętego zeszytu (#2567): TYLKO właściciel z aktywnym
+        // kontem. Moderator nie ma tu furtki — cudzy „kosz” jest prywatny.
+        $dodaj('collections.deleted.recover', 'odzyskanie usuniętego zeszytu', 'post',
+            route('collections.deleted.recover', $zeszytUsuniety->getKey()), [], [$W, $O, $O, $O, $O]);
 
         // ─── „CO MAM W DOMU” (D-285) ─────────────────────────────────────
         // Lista prywatna: produkt usuwa wyłącznie właściciel — moderator
