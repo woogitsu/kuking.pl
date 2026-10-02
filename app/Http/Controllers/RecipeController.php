@@ -15,6 +15,7 @@ use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
 use App\Domain\Recipes\OdzyskajUsunietyPrzepis;
+use App\Domain\Recipes\OstatnioOgladane;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Domain\Recipes\Porcje\WyborSztuk;
 use App\Domain\Recipes\Porcje\ZapamietanePorcje;
@@ -390,7 +391,7 @@ class RecipeController extends Controller
         } catch (BladDlaCzlowieka $e) {
             // Brak „Sprawdziłem odczytany tekst” przy szkicu z importu (D-300)
             // — błąd przy tym polu, nie przy nazwie przepisu (AGENTS.md §5).
-            $pole = $e->getMessage() === StrazImportu::KOMUNIKAT_SPRAWDZ ? 'sprawdzilem_odczyt' : 'title';
+            $pole = in_array($e->getMessage(), [StrazImportu::KOMUNIKAT_SPRAWDZ, StrazImportu::KOMUNIKAT_SPRAWDZ_NIEPELNY], true) ? 'sprawdzilem_odczyt' : 'title';
 
             return back()->withInput($request->input())->withErrors([$pole => $e->getMessage()]);
         }
@@ -449,6 +450,12 @@ class RecipeController extends Controller
         // zbanowany) otwiera poza autorem tylko moderator (`RecipePolicy::view()`)
         // — wgląd z urzędu zostawia ślad (D-333). To samo w trybie gotowania i API.
         app(DziennikWgladu::class)->przepis($model, $request->user(), $request->ip());
+
+        // Prywatna lista ostatnio oglądanych (#2553): tylko dla zalogowanej
+        // osoby, która ją SAMA włączyła. Zapis idzie po odpowiedzi i nie
+        // dokłada w tym żądaniu żadnego zapytania; gość i wyłączona funkcja
+        // nie robią nic, więc cache publicznej strony gościa zostaje bez zmian.
+        app(OstatnioOgladane::class)->zaplanujZapis($request->user(), $model);
 
         $model->load([
             'author.profile.avatar',

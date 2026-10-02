@@ -31,7 +31,7 @@
                 @if($strona === \App\Models\RecipeVersion::UKRYLA_MODERACJA)
                     <x-field name="reason_code" label="Powód przywrócenia (do rejestru decyzji)" required
                              help="Krótko, np. „autor poprawił przepis” albo „pomyłka moderacji”. Widzi go tylko moderacja." />
-                    <x-field name="user_message" label="Wiadomość do autora" type="textarea" :rows="3"
+                    <x-field name="user_message" label="Wiadomość do autora" type="textarea" :rows="3" dyktowanie
                              help="Nieobowiązkowa. Autor i tak dostanie powiadomienie, że wersja jest znowu widoczna." />
                 @endif
                 <button class="btn btn-primary" type="submit" aria-describedby="skutek-przywrocenia">Tak, przywróć wersję {{ $wersja->version_number }}</button>

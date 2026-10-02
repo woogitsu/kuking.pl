@@ -379,6 +379,13 @@ final class EraseAccountData
             $fresh->cookingNotes()->delete();
 
             /*
+             * PRYWATNA LISTA OSTATNIO OGLĄDANYCH PRZEPISÓW ZNIKA RAZEM Z KONTEM
+             * (#2553) — to dane o zachowaniu osoby, bez wartości po wymazaniu.
+             * Jawnie, a nie kaskadą: konta anonimizujemy (D-022), nie kasujemy.
+             */
+            $fresh->recentRecipeViews()->delete();
+
+            /*
              * ZAPAMIĘTANE LICZBY PORCJI PRZY PRZEPISACH ZNIKAJĄ RAZEM Z KONTEM
              * (#2602). Prywatna preferencja osoby; jawnie, a nie kaskadą, bo
              * konta anonimizujemy (D-022), nie kasujemy.
@@ -657,6 +664,9 @@ final class EraseAccountData
                 // Skrót do zeszytu w „Moje” (#2542): wiersz konta zostaje
                 // (anonimizacja), więc wybór czyścimy jawnie.
                 'ulubiony_zeszyt_id' => null,
+                // Lista ostatnio oglądanych przepisów (#2553): zgoda gaśnie z kontem,
+                // wizyty skasowano wyżej (`recentRecipeViews()->delete()`).
+                'ostatnio_ogladane_wlaczone_at' => null,
                 // Urodziny (issue #1755) — dana osobowa podana przez człowieka.
                 'birthday_day' => null,
                 'birthday_month' => null,

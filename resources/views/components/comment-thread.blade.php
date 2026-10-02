@@ -176,7 +176,7 @@
                                                 {{-- Issue #982: wersja wyrenderowanej treści — druga karta nie nadpisze po cichu nowszej poprawki. --}}
                                                 <input type="hidden" name="wersja" value="{{ $reply->wersjaTresci() }}">
                                                 <x-konflikt-poprawki-komentarza :comment="$reply" :wiersz="'popraw-'.$reply->id" />
-                                                <x-field name="body" :wiersz="'popraw-'.$reply->id" label="Popraw swoją odpowiedź" type="textarea" :rows="3" :value="$reply->body" :licznik-znakow="4000" required />
+                                                <x-field name="body" :wiersz="'popraw-'.$reply->id" label="Popraw swoją odpowiedź" type="textarea" :rows="3" :value="$reply->body" :licznik-znakow="4000" required dyktowanie />
                                                 <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
                                             </form>
                                         </details>
@@ -204,7 +204,7 @@
                                                 @csrf
                                                 @method('DELETE')
                                                 <input type="hidden" name="_wiersz" value="usun-{{ $reply->id }}">
-                                                <x-field name="reason" :wiersz="'usun-'.$reply->id" label="Dlaczego usuwasz tę odpowiedź?" type="textarea" :rows="2"
+                                                <x-field name="reason" :wiersz="'usun-'.$reply->id" label="Dlaczego usuwasz tę odpowiedź?" type="textarea" :rows="2" dyktowanie
                                                          help="Osoba, która to napisała, zobaczy ten powód." required />
                                                 <button class="btn btn-danger" type="submit">Usuń odpowiedź</button>
                                             </form>
@@ -262,7 +262,7 @@
                             @csrf
                             <input type="hidden" name="parent_id" value="{{ $comment->getKey() }}">
                             <input type="hidden" name="_wiersz" value="odpowiedz-{{ $comment->id }}">
-                            <x-field name="body" :wiersz="'odpowiedz-'.$comment->id" label="Twoja odpowiedź" type="textarea" :rows="3" :licznik-znakow="4000" required />
+                            <x-field name="body" :wiersz="'odpowiedz-'.$comment->id" label="Twoja odpowiedź" type="textarea" :rows="3" :licznik-znakow="4000" required dyktowanie />
                             <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
                         </form>
                     </details>
@@ -285,7 +285,7 @@
                                         {{-- Issue #982: wersja wyrenderowanej treści — druga karta nie nadpisze po cichu nowszej poprawki. --}}
                                         <input type="hidden" name="wersja" value="{{ $comment->wersjaTresci() }}">
                                         <x-konflikt-poprawki-komentarza :comment="$comment" :wiersz="'popraw-'.$comment->id" />
-                                        <x-field name="body" :wiersz="'popraw-'.$comment->id" label="Popraw swój komentarz" type="textarea" :rows="4" :value="$comment->body" :licznik-znakow="4000" required />
+                                        <x-field name="body" :wiersz="'popraw-'.$comment->id" label="Popraw swój komentarz" type="textarea" :rows="4" :value="$comment->body" :licznik-znakow="4000" required dyktowanie />
                                         <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
                                     </form>
                                 </details>
@@ -317,7 +317,7 @@
                                         @csrf
                                         @method('DELETE')
                                         <input type="hidden" name="_wiersz" value="usun-{{ $comment->id }}">
-                                        <x-field name="reason" :wiersz="'usun-'.$comment->id" label="Dlaczego usuwasz ten komentarz?" type="textarea" :rows="2"
+                                        <x-field name="reason" :wiersz="'usun-'.$comment->id" label="Dlaczego usuwasz ten komentarz?" type="textarea" :rows="2" dyktowanie
                                                  help="Osoba, która to napisała, zobaczy ten powód." required />
                                         <button class="btn btn-danger" type="submit">Usuń komentarz</button>
                                     </form>
@@ -368,7 +368,7 @@
                  mądrego do powiedzenia o daniu, a chciałby zapytać o zamiennik
                  mąki. Razem mówią „tyle wystarczy", a nie „pisz tak".
                  Uzasadnienie: `docs/brand/GLOS_MARKI.md` §5. --}}
-            <x-field name="body" :wiersz="old('_wiersz') !== null ? 'nowy-komentarz' : null" :label="$answers ? 'Napisz odpowiedź' : 'Napisz komentarz'" type="textarea" :rows="4" :value="$tekstStartowy"
+            <x-field name="body" :wiersz="old('_wiersz') !== null ? 'nowy-komentarz' : null" :label="$answers ? 'Napisz odpowiedź' : 'Napisz komentarz'" type="textarea" :rows="4" dyktowanie :value="$tekstStartowy"
                      :help="$answers ? 'Napisz, co sprawdziło się w Twojej kuchni.' : 'Choćby jedno zdanie. Pytanie do autora też jest w porządku.'"
                      :licznik-znakow="4000"
                      required bez-oznaczenia />

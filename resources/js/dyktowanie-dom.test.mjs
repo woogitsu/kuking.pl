@@ -398,12 +398,20 @@ test('przerwijWszystkie() (pagehide / ukrycie karty) zatrzymuje nasłuch i zosta
 });
 
 test('Etykieta przycisku wstawiania i zdanie można ustawić na hoście (inne pola niż przepis)', () => {
-    const { dok, okno, host, przycisk, rejestr } = swiat();
-    const h = host('f-pole', { wstawNapis: 'Wstaw do komentarza', zdanie: 'Zdanie testowe.' });
+    const { dok, okno, host, przycisk, rejestr, Silnik, pole } = swiat();
+    pole.value = 'Własny początek.';
+    const h = host('f-pole', { wstawNapis: 'Wstaw do pola', zdanie: 'Dźwięk może trafić do dostawcy przeglądarki.' });
     podlacz(h, okno, dok, rejestr);
 
-    assert.ok(przycisk(h, 'Wstaw do komentarza'));
-    assert.match(h.textContent, /Zdanie testowe\./);
+    assert.ok(przycisk(h, 'Wstaw do pola'));
+    assert.match(h.textContent, /dostawcy przeglądarki/);
+
+    przycisk(h, 'Dyktuj').click();
+    Silnik.wszystkie.at(-1).wynik('Dalszy tekst.', true);
+    Silnik.wszystkie.at(-1).onend();
+    assert.equal(pole.value, 'Własny początek.', 'Sam podgląd nie zmienia pola.');
+    przycisk(h, 'Wstaw do pola').click();
+    assert.equal(pole.value, 'Własny początek. Dalszy tekst.');
 });
 
 test('Mutacje wewnątrz .dyktowanie są pomijane, zmiany gdzie indziej nie', () => {

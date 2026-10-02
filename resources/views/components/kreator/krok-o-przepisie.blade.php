@@ -79,7 +79,7 @@
         @endif
     </div>
 
-    <x-field name="form.summary" label="Krótko o przepisie" type="textarea" :rows="3" wire="form.summary"
+    <x-field name="form.summary" label="Krótko o przepisie" type="textarea" :rows="3" wire="form.summary" dyktowanie
              :value="$form->summary"
              help="Jedno-dwa zdania. Na co ten przepis jest dobry, kiedy go robisz." />
 
@@ -210,7 +210,7 @@
              Zdanie zależne od stanu, który chwilami jest nieaktualny,
              zamieniłoby jedną nieprawdę na drugą, trudniejszą do
              złapania. To jest prawdziwe zawsze. --}}
-        <x-field name="form.source_note" label="Historia tego przepisu" type="textarea" :rows="4" wire="form.source_note"
+        <x-field name="form.source_note" label="Historia tego przepisu" type="textarea" :rows="4" wire="form.source_note" dyktowanie
                  :value="$form->source_note"
                  help="Skąd go znasz, kiedy się go gotuje, co Ci się z nim wiąże. Ta historia jest częścią przepisu — zobaczy ją każdy, kto zobaczy przepis." />
 

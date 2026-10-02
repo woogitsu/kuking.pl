@@ -98,6 +98,8 @@ final class MojRok
 
             $przepisy = Recipe::query()
                 ->whereIn('id', $grupy->pluck('recipe_id'))
+                ->widoczneDla($user)
+                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->get(['id', 'title', 'slug'])
                 ->keyBy('id');
 

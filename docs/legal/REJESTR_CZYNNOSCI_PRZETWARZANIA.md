@@ -145,16 +145,22 @@ egzekwuje.
   napisze** — łącznie z danymi, o które serwis nie pyta (dieta, zdrowie,
   osoby trzecie). Polityka prywatności §2 mówi o tym wprost.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
-- **Dyktowanie w kreatorze przepisu (#2377):** przycisk „Dyktuj” korzysta
+- **Dyktowanie dłuższych pól po zalogowaniu (#2377, etap 2):** przycisk „Dyktuj” korzysta
   wyłącznie z Web Speech API **przeglądarki** (`resources/js/dyktowanie.js`).
   Dźwięk może trafić do dostawcy przeglądarki (np. Google, Apple) na jego
   zasadach — to nie jest nasz podmiot przetwarzający i nie dostaje od nas
   żadnych danych. **Kuking nie nagrywa dźwięku, nie ma endpointu na dźwięk
   ani transkrypcję i nie dostaje niczego poza tekstem, który człowiek sam
-  wstawi do pola przepisu** — od tej chwili to zwykła treść przepisu (ten
-  sam cel, podstawa i termin). Mikrofon jest odblokowany w nagłówku
-  `Permissions-Policy` tylko na trasach tworzenia i edycji przepisu
-  (`ApplySecurityHeaders::TRASY_KREATORA_PRZEPISU`).
+  wstawi do pola i wyśle formularzem** — od tej chwili tekst podlega celowi,
+  podstawie i terminowi właściwemu dla danej czynności (przepis, wykonanie,
+  wpis, komentarz, notatka, profil, kontakt, odwołanie lub moderacja). Mikrofon
+  jest odblokowany w nagłówku `Permissions-Policy` tylko dla zalogowanego
+  na udanym ekranie HTML z dłuższym polem
+  (`ApplySecurityHeaders::TRASY_DYKTOWANIA`); gość, błędy, przekierowania,
+  JSON i pozostałe ekrany nie dostają mikrofonu. Wariant zalogowanego jest
+  `private, no-store`, bez nagłówków cache CDN. Nie powstaje osobny zapis
+  dźwięku ani transkrypcji. Przegląd prawny rejestru przed publicznym startem
+  pozostaje w #8.
 - **Odbiorcy:** Railway, OpenAI — tylko treść publiczna (§3.7).
 - **Termin usunięcia:** do usunięcia treści albo konta; **wcześniejsze
   wersje przepisu** krócej — wersja starsza niż 24 miesiące (data w Polsce)
@@ -934,6 +940,32 @@ trafi tam pierwszy rekord.
   zeszytu albo wymazanie konta (`EraseAccountData`).
 - **Eksport:** `usuniete_zeszyty` (nazwa, opis, daty, pozycje z dopiskami;
   tytuł przepisu tylko gdy przepis jest dziś widoczny dla osoby).
+
+### 3.31 Opcjonalna, prywatna lista ostatnio oglądanych przepisów (V2, issue #2553)
+
+- **Cel:** powrót do przepisu, który osoba obejrzała, ale nie zapisała w
+  zeszycie. Wyłącznie ten cel: lista nie służy do polecania treści, układania
+  ekranów, statystyk, moderacji ani powiadomień.
+- **Dane:** identyfikator konta i przepisu oraz czas ostatniej wizyty
+  (`recent_recipe_views`), a w koncie data świadomego włączenia funkcji
+  (`users.ostatnio_ogladane_wlaczone_at`). Bez treści, zdjęć, adresu z
+  parametrami, wyszukiwanych fraz i wyboru alergenów. Tylko dla zalogowanych;
+  goście niczego nie zapisują.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — funkcja, którą osoba włącza na
+  własne życzenie; **domyślnie wyłączona**, bez zapisu wstecz. Weryfikacja
+  przez prawnika zostaje w #8.
+- **Odbiorcy:** Railway. Dane widzi wyłącznie właściciel konta (ekran w
+  ustawieniach, bez identyfikatora w adresie); nic nie jest wysyłane do
+  podmiotów trzecich, nie trafia do adresu, cache przeglądarki ani brzegu,
+  telemetrii ani do autora przepisu.
+- **Termin usunięcia:** `kuking.ostatnio_ogladane.dni` (7) dni od ostatniej
+  wizyty i najwyżej `kuking.ostatnio_ogladane.limit` (10) różnych przepisów
+  (wartości do potwierdzenia przez właściciela, D-333); starsze i nadliczbowe
+  pozycje są niewidoczne już przy odczycie, a `kuking:sprzataj-ostatnio-ogladane`
+  kasuje je co noc o 02:15. Od razu: „Wyczyść listę”, wyłączenie funkcji
+  (kasuje też zgodę) albo wymazanie konta (`EraseAccountData`).
+- **Eksport:** `ostatnio_ogladane` (przepis — tytuł tylko gdy przepis jest dziś
+  widoczny dla osoby — i czas) oraz `konto.ostatnio_ogladane_wlaczone_od`.
 
 ---
 

@@ -69,7 +69,7 @@
             <x-error-summary />
             <form class="panel-formularza" method="POST" action="{{ route('cooked.thank', $event) }}" novalidate>
                 @csrf
-                <x-field name="body" label="Podziękuj" type="textarea" :rows="3"
+                <x-field name="body" label="Podziękuj" type="textarea" :rows="3" dyktowanie
                          :value="$domyslnePodziekowanie"
                          help="Możesz zostawić ten tekst, jaki jest, albo dopisać coś swojego."
                          required />

@@ -88,6 +88,7 @@ final class InwentarzDanychKonta
         'cooking_session_steps.done_by_id' => [self::EKSPORT, 'wspolne_gotowanie'],
         'cooking_session_invitations.accepted_by_id' => [self::EKSPORT, 'wspolne_gotowanie'],
         'cooking_notes.user_id' => [self::EKSPORT, 'dopiski_z_gotowania'],
+        'recent_recipe_views.user_id' => [self::EKSPORT, 'ostatnio_ogladane'],
         'recipe_serving_preferences.user_id' => [self::EKSPORT, 'zapamietane_porcje'],
         'hides.user_id' => [self::EKSPORT, 'ukryte'],
         'post_reactions.user_id' => [self::EKSPORT, 'moje_reakcje'],
@@ -158,6 +159,8 @@ final class InwentarzDanychKonta
         'moj_stol_enabled' => [self::EKSPORT, 'konto'],
         // Skrót do własnego zeszytu w „Moje” (#2542) — w paczce jako nazwa zeszytu.
         'ulubiony_zeszyt_id' => [self::EKSPORT, 'konto'],
+        // Lista ostatnio oglądanych przepisów (#2553) — w paczce jako data włączenia.
+        'ostatnio_ogladane_wlaczone_at' => [self::EKSPORT, 'konto'],
         'age_confirmed_at' => [self::EKSPORT, 'konto'],
         'email_verified_at' => [self::EKSPORT, 'konto'],
         'created_at' => [self::EKSPORT, 'konto'],

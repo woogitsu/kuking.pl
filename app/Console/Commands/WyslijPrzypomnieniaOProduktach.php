@@ -170,7 +170,9 @@ class WyslijPrzypomnieniaOProduktach extends Command
             })
             ->whereExists(function ($q) use ($granica, $dzis): void {
                 $q->selectRaw('1')
-                    ->from('pantry_items as p')
+                    // Opakowania (#2568): pilne drugie opakowanie wystarcza, a mrożone
+                    // jedno nie chowa drugiego — warunek liczy się na każdym osobno.
+                    ->fromRaw(PriorytetZuzycia::OPAKOWANIA_SQL.' as p')
                     ->whereColumn('p.user_id', 'users.id')
                     ->whereNotNull('p.expires_on')
                     ->where('p.expires_on', '<=', $granica)

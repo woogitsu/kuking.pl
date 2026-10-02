@@ -64,6 +64,7 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         'wspolne_gotowanie' => '| Wspólne gotowanie |',
         'dopiski_z_gotowania' => '| Prywatny dopisek z gotowania |',
         'usuniete_zeszyty' => '| Odzyskanie usuniętego zeszytu |',
+        'ostatnio_ogladane' => '| Lista ostatnio oglądanych przepisów',
         'zapamietane_porcje' => '| Zapamiętana liczba porcji przy przepisie |',
         'ukryte' => '| Ukrywanie wpisów i osób',
         'moje_reakcje' => '| Reakcja „Smakowicie wygląda”',
@@ -202,6 +203,16 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
             '/^\| Odzyskanie usuniętego zeszytu .*\*\*'.$dniZeszytow.' dni\*\*/mu',
             $polityka,
             "Kopia usuniętego zeszytu żyje {$dniZeszytow} dni, a polityka podaje inny termin.",
+        );
+
+        // Lista ostatnio oglądanych (#2553): limit i czas życia z konfiguracji.
+        $limitOgladanych = (int) config('kuking.ostatnio_ogladane.limit');
+        $dniOgladanych = (int) config('kuking.ostatnio_ogladane.dni');
+        $this->assertGreaterThan(0, $limitOgladanych, 'Kontrola: brak limitu listy ostatnio oglądanych w konfiguracji.');
+        $this->assertMatchesRegularExpression(
+            '/^\| Lista ostatnio oglądanych przepisów .*Najwyżej \*\*'.$limitOgladanych.'\*\* różnych przepisów z ostatnich \*\*'.$dniOgladanych.' dni\*\*/mu',
+            $polityka,
+            "Lista ostatnio oglądanych trzyma {$limitOgladanych} przepisów z {$dniOgladanych} dni, a polityka podaje inne liczby.",
         );
 
         $godzinPaczki = (int) config('kuking.import_paczki.przechowanie_godzin');

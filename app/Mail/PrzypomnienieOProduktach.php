@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Mail;
 
 use App\Domain\Pantry\OdnosnikWypisaniaZPrzypomnienia;
+use App\Domain\Pantry\Opakowanie;
 use App\Domain\Pantry\PriorytetZuzycia;
 use App\Logging\BezpiecznyBlad;
-use App\Models\PantryItem;
 use App\Models\User;
 use App\Poczta\ListZarezerwowany;
 use Illuminate\Bus\Queueable;
@@ -108,13 +108,16 @@ class PrzypomnienieOProduktach extends Mailable implements ShouldQueue
     {
         $maks = max(1, (int) config('kuking.pantry.przypomnienie.produktow_w_liscie', 10));
         $dzis = PriorytetZuzycia::dzis();
-        /** @var Collection<int, PantryItem> $pilne */
+        /** @var Collection<int, Opakowanie> $pilne */
         $pilne = PriorytetZuzycia::pilneDla($this->odbiorca, $dzis);
 
         $pozycje = $pilne->take($maks)->map(fn ($produkt): array => [
             'nazwa' => (string) $produkt->name,
             'ilosc' => $produkt->quantity_note,
-            'termin' => PriorytetZuzycia::etykietaTerminu($produkt).' '.PriorytetZuzycia::dataSlownie($produkt->expires_on, false),
+            // Produkt z dwoma opakowaniami: lista mówi, o które chodzi (#2568);
+            // jedna pozycja na produkt, z jego najwcześniejszym pilnym opakowaniem.
+            'termin' => ($produkt->maDwa ? $produkt->etykieta().': ' : '')
+                .PriorytetZuzycia::etykietaTerminu($produkt).' '.PriorytetZuzycia::dataSlownie($produkt->expires_on, false),
             'stan' => PriorytetZuzycia::opisStanu($produkt, $dzis),
         ])->values()->all();
 

@@ -180,6 +180,22 @@ ma wartość (jak przy `terms_notice_dismissed_version`). Testy:
 `ZmianaPolitykiTest::test_rollback_odmawia_gdy_ktos_zamknal_pasek` i kontrola
 dodatnia `test_rollback_przechodzi_gdy_nikt_nie_zamknal_paska`.
 
+#### `ostatnio_ogladane_wlaczone_at` — zgoda na prywatną listę ostatnio oglądanych przepisów (#2553)
+
+Migracja `2026_10_03_190000_create_recent_recipe_views`: nullable `timestamptz`
+bez wartości domyślnej (zmiana samego katalogu, AGENTS.md §6). Wartość to chwila
+kliknięcia „Włącz listę” w „Ustawienia → Ostatnio oglądane”; `NULL` — funkcja
+wyłączona, i to jest stan domyślny każdego konta, także istniejących (bez
+backfillu). Kolumna poza `$fillable`; włącza i wyłącza ją wyłącznie
+`App\Domain\Recipes\OstatnioOgladane` (POST `/ustawienia/ostatnio-ogladane/wlacz` i `/ustawienia/ostatnio-ogladane/wylacz`). Wyłączenie
+kasuje w tej samej transakcji wiersze `recent_recipe_views` tej osoby. Opis
+tabeli z wizytami: [`planowanie-v2`](planowanie-v2.md#recent_recipe_views--opcjonalna-prywatna-lista-ostatnio-oglądanych-przepisów-v2-2553).
+Eksport oddaje `konto.ostatnio_ogladane_wlaczone_od`, wymazanie konta zeruje pole.
+
+**Rollback (D-088):** wspólny z tabelą wizyt — `down()` odmawia, gdy w
+`recent_recipe_views` są wiersze; samo zdjęcie kolumny jest bezpieczne w stronę
+prywatności. Test: `CofniecieMigracjiNieKasujeOstatnioOgladanychTest`.
+
 #### `sprzeciw_statystyk_at` — sprzeciw wobec statystyk (RODO art. 21, #2277)
 
 Migracja `2026_09_30_163000_add_sprzeciw_statystyk_at_to_users`: nullable
