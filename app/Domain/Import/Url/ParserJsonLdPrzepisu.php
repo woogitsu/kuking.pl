@@ -271,7 +271,18 @@ final class ParserJsonLdPrzepisu
 
     private static function plainText(string $tekst): string
     {
-        return trim((string) preg_replace('/\s+/u', ' ', strip_tags($tekst)));
+        // `strip_tags()` uznaje także zwykłe „<80” za początek niedomkniętego
+        // znacznika i ucina resztę instrukcji. Chronimy tylko porównanie z
+        // liczbą; prawdziwy markup nadal usuwa ta sama funkcja. Znacznik
+        // wybieramy spoza wejścia, żeby nie zmieniać cudzego tekstu.
+        $znacznik = "\u{E000}";
+        while (str_contains($tekst, $znacznik)) {
+            $znacznik .= "\u{E000}";
+        }
+
+        $tekst = (string) preg_replace('/<(?=\d)/', $znacznik, $tekst);
+
+        return trim((string) preg_replace('/\s+/u', ' ', str_replace($znacznik, '<', strip_tags($tekst))));
     }
 
     /**

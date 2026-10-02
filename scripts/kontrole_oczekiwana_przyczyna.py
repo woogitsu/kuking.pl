@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Literalne porównanie znika z instrukcji JSON-LD (#2580)': r'IMPORT_2580_POROWNANIE_NIE_UCINA',
     'Zakodowane podziały JSON-LD sklejają instrukcje (#2564)': r'IMPORT_2564_(?:KROKI|SKLADNIKI)_BEZ_SKLEJANIA',
     'Odtworzony markup JSON-LD zostaje w zwykłym tekście (#2564)': r'IMPORT_2564_MARKUP_NIE_JEST_TEKSTEM',
     'JSON-LD dekoduje więcej niż dwie warstwy (#2564)': r'IMPORT_2564_TYLKO_DWIE_WARSTWY',

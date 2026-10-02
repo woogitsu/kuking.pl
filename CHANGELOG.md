@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2580): import z adresu zachowuje dosłowne porównanie, np. „<80”, wraz z resztą instrukcji. Podziały kroków i usuwanie prawdziwych znaczników HTML nadal działają.
 - Naprawione (#2564): import z adresu zachowuje podział instrukcji i składników także przy jedno- i dwukrotnie zakodowanych znacznikach HTML. Nie skleja zdań i nie zostawia odtworzonych znaczników w zwykłym tekście.
 - Naprawione (#2480): kartka przypięta do przepisu jest widoczna na jego zwykłej stronie także wtedy, gdy autor nie dodał osoby ani notatki o źródle. Prywatność zdjęcia i wariant dla pomocnika pozostają bez zmian.
 - Naprawione (#2451): porównanie wersji przepisu pokazuje przestawienie składników i grup. Dodanie lub usunięcie składnika nie tworzy pozornej zmiany kolejności pozostałych.

@@ -1269,12 +1269,16 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    ("Literalne porównanie znika z instrukcji JSON-LD (#2580)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
+     "test_porownanie_liczbowe_zostaje_w_calym_kroku_tekstowym_i_howtostep",
+     lambda s: replace_once(s, "$tekst = (string) preg_replace('/<(?=\\d)/', $znacznik, $tekst);",
+                            "$tekst = (string) preg_replace('/<(?=\\d)/', '<', $tekst);")),
     ("Zakodowane podziały JSON-LD sklejają instrukcje (#2564)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
      "test_json_ld_zakodowane_granice_zachowuja_kroki_i_skladniki",
      lambda s: replace_once(s, "        $tekst = self::decodeEntities($tekst);\n", "")),
     ("Odtworzony markup JSON-LD zostaje w zwykłym tekście (#2564)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
      "test_json_ld_dekoduje_tylko_dwie_warstwy_i_usuwanie_markup_zostaje",
-     lambda s: replace_once(s, "' ', strip_tags($tekst)", "' ', $tekst")),
+     lambda s: replace_once(s, "strip_tags($tekst)", "$tekst")),
     ("JSON-LD dekoduje więcej niż dwie warstwy (#2564)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
      "test_json_ld_dekoduje_tylko_dwie_warstwy_i_usuwanie_markup_zostaje",
      lambda s: replace_once(s, "$layer < 2", "$layer < 3")),
