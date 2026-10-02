@@ -1142,6 +1142,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/ugotowane/{cookedEvent}/porcje', [CookedEventController::class, 'zapiszPorcje'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('cooked.porcje.update');
+    // Korekta własnej uwagi, opisu zmian i czasu (#2459) — to samo wykonanie,
+    // bez nowego powiadomienia. Ten sam limit co zapis, bo to także tekst.
+    Route::get('/ugotowane/{cookedEvent}/popraw', [CookedEventController::class, 'edit'])->name('cooked.edit');
+    Route::put('/ugotowane/{cookedEvent}', [CookedEventController::class, 'update'])
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('cooked.update');
     Route::delete('/ugotowane/{cookedEvent}', [CookedEventController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('cooked.destroy');

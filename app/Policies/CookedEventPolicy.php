@@ -159,6 +159,23 @@ class CookedEventPolicy
     }
 
     /**
+     * Korekta własnego wykonania (#2459): uwaga, opis zmian i rzeczywisty czas.
+     *
+     * Dotychczasowy dostęp do własnego wykonania (`view`, także po utracie
+     * dostępu do przepisu) NIE oznacza prawa zapisu. Pisać może wyłącznie
+     * kucharz z AKTYWNYM kontem: zawieszony czyta, ale nie zmienia treści
+     * (jak przy komentarzu i wpisie). Ani autor przepisu, ani moderator —
+     * moderator zdejmuje cudzą treść wyłącznie decyzją w panelu.
+     *
+     * Które pola są w danej chwili dostępne (wskazówka, otwarte zgłoszenie),
+     * rozstrzyga `PolaKorekty`.
+     */
+    public function update(User $user, CookedEvent $event): bool
+    {
+        return $user->isActive() && $user->getKey() === $event->user_id;
+    }
+
+    /**
      * Zwykłe usunięcie (`DELETE` ze strony treści) — wyłącznie autor.
      *
      * Issue #932: moderator NIE usuwa tędy cudzej treści, nawet z 2FA.
