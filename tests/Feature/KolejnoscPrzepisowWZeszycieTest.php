@@ -79,7 +79,13 @@ final class KolejnoscPrzepisowWZeszycieTest extends TestCase
         }
     }
 
-    /** @return list<string> tytuły w kolejności pełnej listy zeszytu */
+    /**
+     * Czyta bazę przy każdym wywołaniu — Larastan nie może zapamiętać wyniku.
+     *
+     * @return list<string> tytuły w kolejności pełnej listy zeszytu
+     *
+     * @phpstan-impure
+     */
     private function kolejnosc(?Collection $zeszyt = null): array
     {
         $tytulPoId = [];

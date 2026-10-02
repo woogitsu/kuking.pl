@@ -28,6 +28,9 @@ use Illuminate\Support\Facades\Schema;
  */
 return new class extends Migration
 {
+    // CHECK na istniejącej tabeli: NOT VALID, potem VALIDATE w osobnej transakcji (AGENTS.md §6).
+    public $withinTransaction = false;
+
     public function up(): void
     {
         Schema::table('meal_plan_entries', function (Blueprint $table): void {
@@ -35,9 +38,11 @@ return new class extends Migration
         });
 
         DB::statement('ALTER TABLE meal_plan_entries ADD CONSTRAINT meal_plan_entries_note_check
-            CHECK (note IS NULL OR char_length(btrim(note)) BETWEEN 1 AND 80)');
+            CHECK (note IS NULL OR char_length(btrim(note)) BETWEEN 1 AND 80) NOT VALID');
         DB::statement('ALTER TABLE meal_plan_entries ADD CONSTRAINT meal_plan_entries_note_nie_przy_wlasnym_check
-            CHECK (note IS NULL OR label IS NULL)');
+            CHECK (note IS NULL OR label IS NULL) NOT VALID');
+        DB::statement('ALTER TABLE meal_plan_entries VALIDATE CONSTRAINT meal_plan_entries_note_check');
+        DB::statement('ALTER TABLE meal_plan_entries VALIDATE CONSTRAINT meal_plan_entries_note_nie_przy_wlasnym_check');
     }
 
     public function down(): void

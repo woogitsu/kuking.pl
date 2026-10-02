@@ -253,6 +253,7 @@ class OdzyskanieUsunietegoPrzepisuTest extends TestCase
         $this->assertSoftDeleted($przepis);
     }
 
+    /** @param 'zawieszone'|'zbanowane'|'do usuniecia' $stan */
     #[DataProvider('kontaBezPrawaDoOdzyskania')]
     public function test_konto_nieaktywne_nie_odzyskuje(string $stan): void
     {

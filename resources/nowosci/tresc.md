@@ -33,6 +33,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.
+
 ### Odzyskanie usuniętego zeszytu
 
 Usunęliście zeszyt przez pomyłkę? Jeśli był prywatny i nie dzieliliście go
@@ -61,6 +62,7 @@ niczego nie podstawiamy za Was. Liczbę zobaczycie przy własnym wykonaniu,
 a na stronie wykonania możecie ją poprawić albo usunąć. Widzicie ją tylko Wy:
 inni, także autor przepisu, jej nie widzą, a przepis i powiadomienie zostają
 takie jak dotąd.
+
 ### Zapytaj o ten krok
 
 Coś w kroku przepisu jest niejasne, na przykład „mieszaj aż zgęstnieje”?
@@ -81,6 +83,7 @@ własnym wykonaniu jako „Gotowane”, obok daty dodania. Widzicie go tylko Wy:
 inni, także autor przepisu, dalej widzą dzień, w którym wykonanie dodano,
 a kolejność wpisów i powiadomienie dla autora przepisu zostają takie jak
 dotąd. Nie można wybrać dnia z przyszłości.
+
 ### Własna kolejność przepisów w zeszycie
 
 W swoim prywatnym zeszycie możecie sami ułożyć przepisy, na przykład niedzielny
@@ -176,9 +179,11 @@ jak przy porcjach: 24 na 36 to półtora raza więcej. Działa bez
 JavaScriptu, a link z wybraną liczbą możecie wysłać rodzinie. Wybieracie
 albo porcje, albo sztuki — nigdy oba naraz. Przepisy, w których autor
 nie podał sztuk, wyglądają tak jak dotąd.
+
 ### Dopisek przy przepisie w Planerze
 
 Przy przepisie w planie możesz dopisać krótką, prywatną uwagę, na przykład „kolacja” albo „na niedzielę z rodziną”. Po powrocie do planu od razu widzisz, które danie było na co, bez osobnego wpisu. Dopisek ma najwyżej 80 znaków, widzisz go tylko Ty i możesz go w każdej chwili zmienić albo usunąć. Nie zmienia przepisu ani planu, a przycisk „Skopiuj poprzedni tydzień” przenosi go razem z pozycją.
+
 ### Etapy przygotowania
 
 Robicie pierogi przez dwa dni? Przy kroku przepisu możecie teraz wpisać nazwę
@@ -189,6 +194,7 @@ wiadomo, gdzie jesteście. Etap trwa do kroku z następną nazwą. Nazwa nie jes
 krokiem do odhaczenia: numery kroków, minutniki i to, co już zrobiliście,
 zostają tak samo jak wcześniej. Przepis bez nazw wygląda jak dotąd — pole jest
 nieobowiązkowe.
+
 ### Odzyskanie własnego przepisu
 
 Usunięty przez pomyłkę przepis można odzyskać. W Zeszycie jest teraz przycisk

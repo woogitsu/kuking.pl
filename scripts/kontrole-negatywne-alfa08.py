@@ -1305,7 +1305,9 @@ def planer_bez_potwierdzenia(source):
     """Przywróć bezpośredni formularz DELETE sprzed #2468."""
     poczatek = '                                <details class="confirm planer-potwierdzenie">'
     koniec = '                                </details>'
-    if source.count(poczatek) != 1 or source.count(koniec) != 1:
+    # Zamknięcie szukamy od początku potwierdzenia: na tym samym wcięciu stoją
+    # też inne `<details>` pozycji (np. dopisek z #2549).
+    if source.count(poczatek) != 1 or koniec not in source[source.find(poczatek):]:
         raise RuntimeError('Nie znaleziono dokładnie jednego potwierdzenia Planera.')
     od = source.index(poczatek)
     do = source.index(koniec, od) + len(koniec)
