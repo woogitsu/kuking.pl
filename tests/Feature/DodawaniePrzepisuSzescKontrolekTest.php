@@ -168,6 +168,34 @@ class DodawaniePrzepisuSzescKontrolekTest extends TestCase
         );
     }
 
+    public function test_wklejony_tekst_z_nierozdzielajaca_spacja_na_pustej_linii_zapisuje_wlasciwe_skladniki_i_kroki(): void
+    {
+        $basia = $this->user('basia');
+
+        $this->actingAs($basia)
+            ->post(route('recipes.store'), [
+                'title' => 'Rosół z odstępami Unicode',
+                'skladniki_tekst' => "1\u{00A0}000 g warzyw\n\u{00A0}\n\t\u{202F} \njajka",
+                'przygotowanie_tekst' => "Wymieszaj.\n\u{00A0}\n\t\u{202F} \nUpiecz.\nPodaj.",
+                'visibility' => 'public',
+                'action' => 'publish',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $recipe = Recipe::where('title', 'Rosół z odstępami Unicode')->firstOrFail();
+
+        $this->assertSame(
+            ["1\u{00A0}000 g warzyw", 'jajka'],
+            $recipe->ingredients->pluck('ingredient_text')->all(),
+            'PUSTE_LINIE_2621_POST_SKLADNIKI: zapis nie może dodać niewidocznego składnika.',
+        );
+        $this->assertSame(
+            ['Wymieszaj.', "Upiecz.\nPodaj."],
+            $recipe->steps->pluck('instruction')->all(),
+            'PUSTE_LINIE_2621_POST_KROKI: zapis ma zachować dwie czynności.',
+        );
+    }
+
     // =================================================================
     // 3. „Dopisz szczegóły" nie gubi tego, co już jest
     // =================================================================
