@@ -37,6 +37,11 @@ use Illuminate\View\View;
  * przepis ze zmienionym adresem (`recipe_slug_redirects`) zostaje pod nowym slugiem;
  * treść przepisu nigdy nie jest kopiowana do kolejki, w przeglądarce
  * jest tylko slug i numer kroku.
+ *
+ * PODGLĄD SKŁADNIKÓW (#2469): relacja `ingredients` jest ładowana jednym
+ * zapytaniem dla całej kolejki (bez zapytania na kartę), a widok rysuje ją
+ * wyłącznie dla przepisu, który przeszedł `RecipePolicy::view` i jest aktywny.
+ * Składniki nigdy nie trafiają do `data-kolejka-dane` ani do przeglądarki.
  */
 class KolejkaGotowaniaController extends Controller
 {
@@ -52,7 +57,7 @@ class KolejkaGotowaniaController extends Controller
         $zadane = array_slice($zadane, 0, self::LIMIT, true);
 
         $osoba = $request->user();
-        $przepisy = Recipe::query()->whereIn('slug', array_keys($zadane))->with(['steps', 'author'])->get()->keyBy('slug');
+        $przepisy = Recipe::query()->whereIn('slug', array_keys($zadane))->with(['steps', 'author', 'ingredients'])->get()->keyBy('slug');
 
         // Przepis, który zmienił adres, zostaje w kolejce pod nowym slugiem
         // (z tym samym krokiem). Stary slug rozwiązujemy dopiero po `view`:
@@ -137,7 +142,7 @@ class KolejkaGotowaniaController extends Controller
         }
 
         $przekierowania = DB::table('recipe_slug_redirects')->whereIn('slug', $nieznane)->pluck('recipe_id', 'slug');
-        $cele = Recipe::query()->whereIn('id', $przekierowania->unique()->all())->with(['steps', 'author'])->get()->keyBy('id');
+        $cele = Recipe::query()->whereIn('id', $przekierowania->unique()->all())->with(['steps', 'author', 'ingredients'])->get()->keyBy('id');
 
         $wynik = [];
         $zmienione = [];
