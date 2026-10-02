@@ -10,6 +10,7 @@ use App\Domain\Import\Url\RobotsTxt;
 use App\Domain\Import\Url\StraznikAdresow;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\MapaNazw;
 use Tests\TestCase;
 
@@ -56,23 +57,33 @@ final class ImportRobotsKodowanieTest extends TestCase
         $this->assertFalse($octets->wolno('/%2Fabc'), 'ROBOTS_2569_DLUGOSC_OKTETOW');
     }
 
-    public function test_pobieracz_odmawia_zakodowanej_strony_przed_zadaniem_takze_po_przekierowaniu(): void
+    /** @return array<string, array{string, int}> */
+    public static function zakazaneWejscia(): array
     {
-        foreach (['/%70rivate', '/start'] as $entry) {
-            Http::preventStrayRequests();
-            Http::fake([
-                'https://przepisy.example.pl/robots.txt' => Http::response("User-agent: *\nDisallow: /private\n", 200),
-                'https://przepisy.example.pl/start' => Http::response('', 302, ['Location' => '/%70rivate']),
-            ]);
-            $fetcher = new PobieraczStron(new StraznikAdresow((new MapaNazw)->ustaw('przepisy.example.pl', '93.184.216.34')));
-            try {
-                $fetcher->pobierz('https://przepisy.example.pl'.$entry);
-                $this->fail('ROBOTS_2569_POBIERACZ_ODMAWIA');
-            } catch (ImportOdrzucony $error) {
-                $this->assertSame(ImportOdrzucony::ROBOTS_ZABRANIA, $error->kod, 'ROBOTS_2569_POBIERACZ_ODMAWIA');
-            }
-            Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), '%70rivate'));
-            Http::assertSentCount($entry === '/start' ? 2 : 1);
+        return [
+            'bezpośrednia zakodowana ścieżka' => ['/%70rivate', 1],
+            'zakodowany cel przekierowania' => ['/start', 2],
+        ];
+    }
+
+    #[DataProvider('zakazaneWejscia')]
+    public function test_pobieracz_odmawia_zakodowanej_strony_przed_zadaniem_takze_po_przekierowaniu(string $entry, int $requests): void
+    {
+        // Osobna instancja aplikacji dla każdego wejścia: odpowiedź fake
+        // robots.txt ma strumień, którego drugi odczyt nie przewija.
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response("User-agent: *\nDisallow: /private\n", 200),
+            'https://przepisy.example.pl/start' => Http::response('', 302, ['Location' => '/%70rivate']),
+        ]);
+        $fetcher = new PobieraczStron(new StraznikAdresow((new MapaNazw)->ustaw('przepisy.example.pl', '93.184.216.34')));
+        try {
+            $fetcher->pobierz('https://przepisy.example.pl'.$entry);
+            $this->fail('ROBOTS_2569_POBIERACZ_ODMAWIA');
+        } catch (ImportOdrzucony $error) {
+            $this->assertSame(ImportOdrzucony::ROBOTS_ZABRANIA, $error->kod, 'ROBOTS_2569_POBIERACZ_ODMAWIA');
         }
+        Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), '%70rivate'));
+        Http::assertSentCount($requests);
     }
 }
