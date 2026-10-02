@@ -9,6 +9,7 @@ use App\Domain\Pantry\CoMamWDomu;
 use App\Domain\Pantry\CoUgotuje;
 use App\Domain\Pantry\PodpowiedziSkladnikow;
 use App\Domain\Pantry\PriorytetZuzycia;
+use App\Domain\Pantry\ZmienNazweProduktu;
 use App\Domain\Pantry\ZmienTerminProduktu;
 use App\Domain\Zgody\PrzestawZgodeNaPrzypomnienieSpizarni;
 use App\Models\PantryItem;
@@ -160,6 +161,68 @@ class PantryController extends Controller
             : "Zapisano: {$nazwa}, bez terminu.";
 
         return redirect()->route('pantry.index')->with(Komunikat::sukces($komunikat));
+    }
+
+    /**
+     * Ekran „Zmień nazwę” (#2448): osobny, wąski formularz — zapisuje tylko
+     * nazwę, więc nie niesie starej kopii ilości, terminu ani „mrożone”.
+     * Ukryte pole niesie nazwę widzianą na tej stronie (konflikt kart).
+     */
+    public function editName(string $pantryItem): View|Response
+    {
+        $produkt = PantryItem::query()->find($pantryItem);
+
+        if ($produkt === null) {
+            return $this->brakProduktu();
+        }
+
+        $this->authorize('update', $produkt);
+
+        return view('pages.pantry.nazwa', [
+            'produkt' => $produkt,
+            'maksZnakow' => CoMamWDomu::MAKS_ZNAKOW,
+        ]);
+    }
+
+    public function updateName(Request $request, string $pantryItem, ZmienNazweProduktu $zmiana): RedirectResponse|Response
+    {
+        $produkt = PantryItem::query()->find($pantryItem);
+
+        if ($produkt === null) {
+            return $this->brakProduktu();
+        }
+
+        $this->authorize('update', $produkt);
+
+        $wracaDoFormularza = route('pantry.name.edit', $produkt);
+
+        try {
+            $dane = $request->validate([
+                'nazwa' => ['required', 'string'],
+                'stara_nazwa' => ['required', 'string', 'max:'.CoMamWDomu::MAKS_ZNAKOW],
+            ], [
+                'nazwa.required' => 'Wpisz nazwę produktu, na przykład „mąka” albo „jajka”.',
+                'nazwa.string' => 'Wpisz nazwę produktu, na przykład „mąka” albo „jajka”.',
+                'stara_nazwa.required' => 'Ta strona jest nieaktualna. Wróć do listy i otwórz zmianę nazwy jeszcze raz.',
+                'stara_nazwa.string' => 'Ta strona jest nieaktualna. Wróć do listy i otwórz zmianę nazwy jeszcze raz.',
+                'stara_nazwa.max' => 'Ta strona jest nieaktualna. Wróć do listy i otwórz zmianę nazwy jeszcze raz.',
+            ]);
+
+            $wynik = $zmiana->handle($request->user(), (string) $produkt->getKey(), $dane['nazwa'], $dane['stara_nazwa']);
+        } catch (ValidationException $e) {
+            throw $e->redirectTo($wracaDoFormularza);
+        }
+
+        return match ($wynik) {
+            ZmienNazweProduktu::ZASTOSOWANO => redirect()->route('pantry.index')
+                ->with(Komunikat::sukces('Nazwa zmieniona. Ilość, termin i oznaczenie „mrożone” zostały bez zmian.')),
+            ZmienNazweProduktu::JUZ_TAK_BYLO => redirect()->route('pantry.index')
+                ->with(Komunikat::informacja('Ten produkt ma już taką nazwę. Nic nie zostało zmienione.')),
+            // Wpisana nazwa wraca do pola, a nad nim stoi aktualna nazwa z listy.
+            ZmienNazweProduktu::KONFLIKT => redirect($wracaDoFormularza)->withInput($request->only('nazwa'))
+                ->with(Komunikat::blad('Nazwa tego produktu zmieniła się w innym oknie, więc nic nie zapisaliśmy. Poniżej widzisz aktualną nazwę, a Twoja poprawka została w polu — jeśli nadal ją chcesz, kliknij „Zapisz nazwę” jeszcze raz.')),
+            default => $this->brakProduktu(),
+        };
     }
 
     public function przypomnienie(Request $request, PrzestawZgodeNaPrzypomnienieSpizarni $zgoda): RedirectResponse
