@@ -84,6 +84,8 @@ OCZEKUJ = {
     'Meta content składnika znika z mikrodanych (#2538)': r'MICRODATA_META_SKLADNIK',
     'Meta content kroku znika z mikrodanych (#2538)': r'MICRODATA_META_KROK',
     'Meta content zagnieżdżonego kroku znika (#2538)': r'MICRODATA_META_KROK',
+    'Alias składnika powiela jeden węzeł (#2626)': r'MICRODATA_2626_SKLADNIK',
+    'Alias kroku powiela jeden węzeł (#2626)': r'MICRODATA_2626_KROK',
     'Tekstowe ułamkowe porcje znikają (#2539)': r'PORCJE_ULAMKOWE_TEKST',
     'Porcje numeryczne poza granicami formularza (#2539)': r'PORCJE_NUMERYCZNE_ZGODNE_Z_FORMULARZEM',
     'Koszt: opis celu kasuje rozpoznaną masę (#2508)': r'KOSZT_2508_OPIS_CELU_NIE_KASUJE_MASY',
