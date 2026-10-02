@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Planer\Actions;
 
+use App\Domain\Planer\AktywneKontoPlanu;
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Planer\ZakresDatPlanu;
 use App\Models\MealPlanEntry;
@@ -34,10 +35,12 @@ final class SkopiujPoprzedniTydzien
      */
     public function handle(User $user, CarbonImmutable $poniedzialek): array
     {
-        $zrodlo = $this->planer->pozycje($user, $poniedzialek->subDays(7), $poniedzialek->subDay());
-
-        return DB::transaction(function () use ($user, $zrodlo): array {
-            User::query()->whereKey($user->getKey())->lockForUpdate()->first();
+        return DB::transaction(function () use ($user, $poniedzialek): array {
+            $swiezy = AktywneKontoPlanu::podBlokada($user);
+            // Materiał źródłowy musi być czytany PO blokadzie i świeżym
+            // sprawdzeniu konta. Inaczej wymazanie może zatwierdzić usunięcie
+            // planu między odczytem a jego ponownym zapisem.
+            $zrodlo = $this->planer->pozycje($swiezy, $poniedzialek->subDays(7), $poniedzialek->subDay());
 
             $wynik = ['skopiowane' => 0, 'juz_byly' => 0, 'pominiete' => 0, 'poza_zakresem' => 0];
             $liczniki = [];

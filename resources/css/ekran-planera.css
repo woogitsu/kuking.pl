@@ -15,16 +15,40 @@
     gap: var(--spacing-3);
   }
 
+  /* Pojedyncze usunięcie zakupów (#2466): pytanie otwiera się bez skryptu.
+     Osobny odstęp od odhaczania i zawijanie przy 320 px / dużym tekście. */
+  .planer-usuwanie {
+    min-width: 0;
+    max-width: calc(100% - var(--spacing-3));
+    margin-inline-start: var(--spacing-3);
+  }
+
+  .planer-usuwanie .confirm-body { max-width: 100%; }
+  .planer-usuwanie:not([open]) .planer-usuwanie-zamknij { display: none; }
+  .planer-usuwanie[open] .planer-usuwanie-otworz { display: none; }
+
   .planer-dni {
     display: grid;
+    /* Otwarte pytanie nie podnosi minimum toru do szerokości napisu.
+       Przy 200% i 320 px tor auto wypychał cały ekran do 416 px (#2468). */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--spacing-4);
   }
+
+  .planer-dni > .card { min-width: 0; }
 
   .planer-dzien-naglowek {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     gap: var(--spacing-2);
+  }
+
+  /* Data jest elementem flex: przy 200% nawet sama nazwa dnia może być
+     szersza niż karta. Pozwól jej zmaleć i zawinąć się wewnątrz słowa. */
+  .planer-dzien-data {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .planer-dzis {
@@ -37,11 +61,16 @@
     margin: 0;
     padding: 0;
     display: grid;
+    /* Wewnętrzny tor `auto` nadal brał min-content otwartego pytania,
+       mimo że zewnętrzny tor dni miał już `minmax(0, 1fr)`. */
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
     gap: var(--spacing-3);
   }
 
   .planer-pozycja {
     display: flex;
+    min-width: 0;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
@@ -53,6 +82,35 @@
   .planer-pozycja-tresc {
     min-width: 0;
     overflow-wrap: anywhere;
+  }
+
+  /* Destrukcja stoi w osobnym wierszu także przy 320 px i powiększeniu. */
+  .planer-potwierdzenie {
+    flex-basis: 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-top: var(--spacing-3);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .planer-potwierdzenie > summary {
+    max-width: 100%;
+  }
+
+  .planer-potwierdzenie .confirm-body form,
+  .planer-potwierdzenie .confirm-body .btn {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .planer-anuluj,
+  .planer-potwierdzenie[open] .planer-usun-napis {
+    display: none;
+  }
+
+  .planer-potwierdzenie[open] .planer-anuluj {
+    display: inline;
   }
 
   .planer-dopisz {
@@ -89,4 +147,15 @@
   .wybor-dnia-opcja { display: flex; align-items: flex-start; gap: var(--spacing-2); min-height: 48px; padding-block: var(--spacing-2); cursor: pointer; }
   .wybor-dnia-opcja input { flex: 0 0 auto; margin-top: .35em; }
   .wybor-dnia-opcja span { min-width: 0; overflow-wrap: anywhere; }
+}
+
+/* `.confirm` i `.confirm-body` są poza warstwami w app.css. Reguła w
+   `@layer components` nie przebiłaby ich nawet większą specyficznością.
+   Otwarte pytanie ma szerokość toru, nie min-content tekstu/przycisku. */
+.confirm.planer-potwierdzenie { display: block; }
+.confirm.planer-potwierdzenie .confirm-body {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }

@@ -1,7 +1,7 @@
 {{--
-    Jedna pozycja listy zakupów. Trzy formularze bez skryptu: odhacz /
-    cofnij odhaczenie oraz usuń. Nazwa pozycji jest w ukrytym dopisku
-    przycisku, żeby czytnik ekranu nie czytał dziesięć razy samego „Usuń”.
+    Jedna pozycja listy zakupów. Odhaczenie to zwykły formularz. Usunięcie
+    wymaga otwarcia pytania przez <details>; dopiero wewnętrzny przycisk
+    wysyła DELETE. Ponowne naciśnięcie <summary> zamyka pytanie bez żądania.
 --}}
 @php
     /** @var \App\Models\ShoppingListItem $pozycja */
@@ -26,15 +26,26 @@
             @endswitch
         </span>
     </span>
-    <span class="planer-nawigacja">
+    <div class="planer-nawigacja">
         <form method="POST" action="{{ route('shopping.toggle', $pozycja) }}">
             @csrf @method('PATCH')
             <input type="hidden" name="odhaczona" value="{{ $odhaczona ? 0 : 1 }}">
             <button class="btn btn-secondary" type="submit">{{ $odhaczona ? 'Cofnij odhaczenie' : 'Odhacz' }}<span class="visually-hidden">: {{ $pozycja->text }}</span></button>
         </form>
-        <form method="POST" action="{{ route('shopping.destroy', $pozycja) }}">
-            @csrf @method('DELETE')
-            <button class="btn btn-secondary" type="submit">Usuń<span class="visually-hidden">: {{ $pozycja->text }}</span></button>
-        </form>
-    </span>
+        <details class="confirm planer-usuwanie">
+            <summary class="btn btn-secondary confirm-summary">
+                <span class="planer-usuwanie-otworz">Usuń</span>
+                <span class="planer-usuwanie-zamknij">Nie usuwaj</span>
+                <span class="visually-hidden"> z listy: {{ $pozycja->text }}</span>
+            </summary>
+            <div class="confirm-body">
+                <p class="confirm-question">Usunąć tę pozycję z listy zakupów?</p>
+                <p class="confirm-question-nazwa"><strong>{{ $pozycja->text }}</strong></p>
+                <form method="POST" action="{{ route('shopping.destroy', $pozycja) }}">
+                    @csrf @method('DELETE')
+                    <button class="btn btn-danger" type="submit">Tak, usuń tę pozycję</button>
+                </form>
+            </div>
+        </details>
+    </div>
 </li>

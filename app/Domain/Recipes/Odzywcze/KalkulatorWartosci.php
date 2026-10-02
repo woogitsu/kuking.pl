@@ -115,7 +115,7 @@ final class KalkulatorWartosci
             $gramy = $this->gramy($odczyt, $ilosc, $jednostka, $pozycja);
 
             if ($gramy === null) {
-                $pomin = ($ilosc === null && $odczyt->gramyZNawiasu === null)
+                $pomin = (! $odczyt->niejednoznacznaIlosc && $ilosc === null && $odczyt->gramyZNawiasu === null)
                     && ($odczyt->bezIlosciZTekstu || ($pozycja !== null && $pozycja->pomijalny));
                 $wiersze[] = new WierszWyliczenia($tekst, $pomin ? WierszWyliczenia::POMINIETY : WierszWyliczenia::BEZ_MASY, $pozycja?->klucz, null);
 
@@ -155,6 +155,12 @@ final class KalkulatorWartosci
      */
     private function gramy(OdczytanySkladnik $odczyt, ?float $ilosc, ?string $jednostka, ?SkladnikOdzywczy $pozycja): ?float
     {
+        // Przy „po … razem” nie zastępujemy sprzecznej masy domyślną
+        // wagą puszki ze słownika — wynik wyglądałby na pewny.
+        if ($odczyt->sprzecznaMasaWNawiasie || $odczyt->niejednoznacznaIlosc) {
+            return null;
+        }
+
         if ($odczyt->gramyZNawiasu !== null) {
             return $odczyt->gramyZNawiasu;
         }

@@ -18,6 +18,8 @@ final class OdczytanySkladnik
      *                                        gdy jednostka mogła być częścią nazwy
      * @param  float|null  $gramyZNawiasu  gramy podane w nawiasie, już przeliczone na cały wiersz
      * @param  bool  $bezIlosciZTekstu  autor napisał „do smaku”, „ile weźmie”, „do podania”…
+     * @param  bool  $sprzecznaMasaWNawiasie  „po … razem” nie daje wiarygodnej masy
+     * @param  bool  $niejednoznacznaIlosc  grupy cyfr są uszkodzone — nie zgadujemy masy
      */
     public function __construct(
         public readonly ?float $ilosc,
@@ -26,5 +28,7 @@ final class OdczytanySkladnik
         public readonly ?string $nazwaZJednostka,
         public readonly ?float $gramyZNawiasu,
         public readonly bool $bezIlosciZTekstu,
+        public readonly bool $sprzecznaMasaWNawiasie = false,
+        public readonly bool $niejednoznacznaIlosc = false,
     ) {}
 }
