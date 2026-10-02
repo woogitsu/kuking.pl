@@ -107,8 +107,15 @@ pośrednik.
    jedynej widocznej treści ani usunięcia obu treści przed banem. Traktuj więc ban
    jako czynność odcinającą **tam, gdzie zdjęcie wisi jeszcze gdzie indziej**,
    i rób go bez zwłoki.
-5. **Zgłoś**: Dyżurnet.pl, oraz/lub **Policja (997 albo 112)**. Przy zagrożeniu
-   suicydalnym **116 123**.
+5. **Zgłoś — najpierw Policja albo prokuratura, bez zbędnej zwłoki** (art. 18 DSA;
+   nie czekaj na zwykłą kolejkę i nie tylko przy zagrożeniu „teraz”). Podaj fakty,
+   adres treści, identyfikatory, czas ze strefą i kontakt do siebie; zapisz numer
+   sprawy. **Dodatkowo** zgłoś lokalizację w Dyżurnet.pl — to kanał uzupełniający,
+   nie zamiennik zawiadomienia. Bezpośrednie zagrożenie życia: **112**. Przy
+   zagrożeniu suicydalnym **116 123**. **Plików nie przesyłaj** (e-mail, Discord,
+   czat, repozytorium, telefon, inny model AI), nie pobieraj ich i nie rób zrzutów;
+   przekazanie tylko drogą uzgodnioną z organem. Źródło: analiza z 2.10.2026,
+   pytanie 17 ([`ODPOWIEDZI_NA_OPINIE_2026-10-02.md`](../prawo/ODPOWIEDZI_NA_OPINIE_2026-10-02.md)).
 6. **Okno dla adresów wydanych przed decyzją NIE jest "co najmniej 5 minut".**
    Podpis zachowuje **pozostały** czas ważności, liczony **od wystawienia**:
    wydany cztery minuty przed banem daje około minuty. Zależy więc od tego, kiedy
