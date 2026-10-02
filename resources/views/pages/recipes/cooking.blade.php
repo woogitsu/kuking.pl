@@ -5,6 +5,12 @@
     $adresGotowania = fn (?int $numer = null): string => route('cooking.show', array_filter([
         'recipe' => $recipe->slug, 'krok' => $numer, 'porcje' => $parametrPorcji,
     ], fn ($wartosc) => $wartosc !== null));
+    // Spis kroków (#2441): ten sam adres co nawigacja, plus znacznik `spis=1`.
+    // Znacznik NIE zmienia kroku ani odhaczeń; jedyne, co robi, to nie dopisanie
+    // podglądu ostatniego kroku do sygnału „Jak wyszło?” (F1) w kontrolerze.
+    $adresZeSpisu = fn (int $numer): string => route('cooking.show', array_filter([
+        'recipe' => $recipe->slug, 'krok' => $numer, 'porcje' => $parametrPorcji, 'spis' => 1,
+    ], fn ($wartosc) => $wartosc !== null));
     $adresPrzepisu = route('recipes.show', array_filter([
         'recipe' => $recipe->slug, 'porcje' => $parametrPorcji,
     ], fn ($wartosc) => $wartosc !== null));
@@ -382,6 +388,32 @@
                 </a>
             @endif
         </nav>
+
+        {{--
+            SPIS KROKÓW (#2441, decyzja właściciela z 2.10.2026). Domyślnie
+            zwinięty `<details>`: działa klawiaturą i bez JavaScriptu, nie
+            wypiera bieżącej instrukcji, dopóki człowiek go nie otworzy. Każda
+            pozycja to zwykły link GET do tego samego widoku jednego kroku
+            (ta sama trasa, te same porcje); wybór kroku niczego nie odhacza,
+            nie rusza minutników ani wykonania. Numer kroku nie jest trwałą
+            tożsamością — spis zawsze pokazuje aktualne kroki przepisu.
+        --}}
+        @if($total > 1)
+            <details class="cook-spis" data-spis-krokow>
+                <summary class="btn btn-secondary">Spis kroków ({{ $total }})</summary>
+                <ol class="cook-spis-lista" aria-label="Wszystkie kroki przepisu">
+                    @foreach($steps as $pozycjaSpisu)
+                        @php($numerSpisu = $loop->iteration)
+                        <li>
+                            <a class="btn btn-secondary cook-spis-link" href="{{ $adresZeSpisu($numerSpisu) }}" @if($numerSpisu === $krok) aria-current="step" @endif>
+                                <span class="cook-spis-numer">Krok {{ $numerSpisu }}@if($numerSpisu === $krok) (bieżący)@endif:</span>
+                                {{ \Illuminate\Support\Str::limit(trim((string) preg_replace('/\s+/u', ' ', (string) $pozycjaSpisu->instruction)), 90) }}
+                            </a>
+                        </li>
+                    @endforeach
+                </ol>
+            </details>
+        @endif
 
         {{-- Gotowanie kilku potraw naraz (#2379): przycisk odkrywa skrypt. --}}
         <x-kolejka-dodaj :recipe="$recipe" />

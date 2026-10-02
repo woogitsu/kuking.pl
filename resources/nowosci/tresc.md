@@ -113,6 +113,10 @@ Zmieniliście kilka proporcji, a po kolejnym gotowaniu chcecie wrócić do poprz
 
 Przypadkiem zastąpiliście długi krok krótkim fragmentem i szkic zdążył się zapisać sam? Gdy otwieracie niedokończony przepis do pisania, zachowujemy jedną kopię jego tekstu sprzed pisania. Jeśli coś się zmieniło, w kreatorze pojawia się odnośnik „Zobacz wcześniejszy tekst”. Ekran pokazuje, czym różni się kopia od tego, co jest teraz, a dopiero przycisk „Przywróć tekst z kopii” coś zmienia. Nic się nie publikuje i nikt nie dostaje powiadomienia; zdjęć kopia nie dotyka, a tekst, który zostanie zastąpiony, zostaje jako kopia, więc można wrócić. Kopia jest tylko Wasza i znika po 14 dniach, po opublikowaniu albo usunięciu szkicu.
 
+### Spis kroków w trybie gotowania
+
+Gotujecie dłuższy przepis i chcecie wrócić do kroku 3, a jesteście w 12.? W trybie gotowania pod przyciskami „Następny krok” i „Poprzedni krok” jest teraz zwinięty „Spis kroków”: numer i początek instrukcji każdego kroku. Wybieracie pozycję i otwiera się ten sam ekran jednego kroku. Wybór niczego nie odhacza i nie zmienia porcji ani odhaczeń; minutniki działają jak dotąd. Ostatni krok otwarty ze spisu jest tylko podglądem, więc nie wywołuje pytania „Jak wyszło?”.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie
