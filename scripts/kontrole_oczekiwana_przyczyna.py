@@ -37,6 +37,7 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 OCZEKUJ = {
     'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
     'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',
+    "Koszt autora pozostaje bazowy po zmianie porcji (#2524)": r'KOSZT_AUTORA_2524_NIEPRZELICZONY',
     'Koszt: opis celu kasuje rozpoznaną masę (#2508)': r'KOSZT_2508_OPIS_CELU_NIE_KASUJE_MASY',
     'Koszt: słowny zakres gubi granice i miarę (#2477)': r'KOSZT_2477_SLOWNY_ZAKRES_ZACHOWUJE_GRANICE_I_MIARE',
     'Koszt: uszkodzony zakres przyjmuje początek (#2477)': r'KOSZT_2477_USZKODZONY_ZAKRES_NIE_LICZY_POCZATKU',

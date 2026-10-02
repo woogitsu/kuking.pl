@@ -1264,6 +1264,9 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    # #2524: przeliczony składnik i nieprzeliczona kwota autora to sprzeczna strona.
+    ("Koszt autora pozostaje bazowy po zmianie porcji (#2524)", "resources/views/pages/recipes/show.blade.php", "test_koszt_autora_i_skladniki_uzywaja_tego_samego_wyboru_porcji_takze_w_wydruku",
+     lambda s: replace_once(s, "{{ $kosztAutora }}</p>", "{{ $recipe->costLabel() }}</p>")),
     ("Koszt: opis celu kasuje rozpoznaną masę (#2508)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "opis_celu_po_produkcie_nie_kasuje_odczytanej_masy",
      lambda s: replace_once(s, r'^\s*(?:do|lub|albo)\s+\d', r'(?:^|\s)(?:do|lub|albo)\s+\d')),
     ("Koszt: słowny zakres gubi granice i miarę (#2477)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "slowne_zakresy_zachowuja_obie_granice_i_miare",

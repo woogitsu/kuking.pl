@@ -104,6 +104,63 @@ final class SkalowaniePorcjiNaStroniePrzepisuTest extends TestCase
         );
     }
 
+    public function test_koszt_autora_i_skladniki_uzywaja_tego_samego_wyboru_porcji_takze_w_wydruku(): void
+    {
+        $przepis = $this->przepis(4, ['estimated_cost_pln' => 24]);
+
+        foreach ([
+            [null, '200 g mąki', 'Szacunkowy koszt: ok. 24 zł (wg autora)'],
+            ['2', '100 g mąki', 'Szacunkowy koszt: ok. 12 zł (przeliczone z kosztu podanego przez autora)'],
+            ['6', '300 g mąki', 'Szacunkowy koszt: ok. 36 zł (przeliczone z kosztu podanego przez autora)'],
+            ['4', '200 g mąki', 'Szacunkowy koszt: ok. 24 zł (wg autora)'],
+            ['abc', '200 g mąki', 'Szacunkowy koszt: ok. 24 zł (wg autora)'],
+        ] as [$porcje, $skladnik, $koszt]) {
+            foreach ([false, true] as $druk) {
+                $parametry = ['recipe' => $przepis->slug];
+                if ($porcje !== null) {
+                    $parametry['porcje'] = $porcje;
+                }
+                if ($druk) {
+                    $parametry['druk'] = 1;
+                }
+
+                $odpowiedz = $this->get(route('recipes.show', $parametry))->assertOk();
+                $this->assertSame($skladnik, $this->skladniki($odpowiedz)[0]);
+                $this->assertSame($koszt, $this->kosztAutora($odpowiedz), 'KOSZT_AUTORA_2524_NIEPRZELICZONY');
+            }
+        }
+
+        $this->assertSame(24.0, $przepis->fresh()->estimated_cost_pln);
+        $this->assertSame('200 g mąki', $przepis->ingredients()->orderBy('position')->firstOrFail()->ingredient_text);
+    }
+
+    public function test_koszt_autora_przy_ulamkowych_porcjach_zero_i_braku_podstawy(): void
+    {
+        $ulamkowy = $this->przepis(4, ['servings' => 2.5, 'estimated_cost_pln' => 24]);
+        $this->assertSame(
+            'Szacunkowy koszt: ok. 48 zł (przeliczone z kosztu podanego przez autora)',
+            $this->kosztAutora($this->get(route('recipes.show', ['recipe' => $ulamkowy->slug, 'porcje' => 5]))->assertOk()),
+        );
+
+        $zero = $this->przepis(4, ['estimated_cost_pln' => 0]);
+        $this->assertSame(
+            'Szacunkowy koszt: ok. 0 zł (przeliczone z kosztu podanego przez autora)',
+            $this->kosztAutora($this->get(route('recipes.show', ['recipe' => $zero->slug, 'porcje' => 6]))->assertOk()),
+        );
+
+        $bezPorcji = $this->przepis(null, ['estimated_cost_pln' => 24]);
+        $this->assertSame(
+            'Szacunkowy koszt: ok. 24 zł (wg autora)',
+            $this->kosztAutora($this->get(route('recipes.show', ['recipe' => $bezPorcji->slug, 'porcje' => 6]))->assertOk()),
+        );
+
+        $bezKosztu = $this->przepis(4);
+        $this->assertSame(
+            '',
+            $this->kosztAutora($this->get(route('recipes.show', ['recipe' => $bezKosztu->slug, 'porcje' => 6]))->assertOk()),
+        );
+    }
+
     public function test_liczba_z_przepisu_w_adresie_to_brak_przeliczenia(): void
     {
         $przepis = $this->przepis(4);
@@ -182,7 +239,7 @@ final class SkalowaniePorcjiNaStroniePrzepisuTest extends TestCase
         $fabryka = $zeZdjeciem ? Recipe::factory()->zeZdjeciem() : Recipe::factory();
 
         $przepis = $fabryka->create([
-            'author_id' => $this->user('autorka_porcji')->getKey(),
+            'author_id' => $this->user()->getKey(),
             'servings' => $porcje,
             ...$atrybuty,
         ]);
@@ -227,5 +284,12 @@ final class SkalowaniePorcjiNaStroniePrzepisuTest extends TestCase
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$odpowiedz->getContent());
 
         return new DOMXPath($dom);
+    }
+
+    private function kosztAutora(TestResponse $odpowiedz): string
+    {
+        $element = $this->xpath($odpowiedz)->query('//p[@data-koszt-autora]')->item(0);
+
+        return trim($element->textContent ?? '');
     }
 }
