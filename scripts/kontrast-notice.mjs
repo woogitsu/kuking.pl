@@ -9,14 +9,44 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
+import { wymagajStanu } from "./lib/stan-ustalony.mjs";
+
+// Fonty i przejścia sprawdzamy osobno: nierozstrzygnięte `fonts.ready` albo
+// `Animation.finished` nie mogą zatrzymać całego joba bez diagnozy.
+export async function ustalStylNotice(page) {
+    await wymagajStanu(page, {
+        opis: "NOTICE_FONTY",
+        limitMs: 10_000,
+        warunek: `() => document.fonts.status === 'loaded'`,
+        pomiar: `() => ({ status: document.fonts.status })`,
+    });
+    await wymagajStanu(page, {
+        opis: "NOTICE_PRZEJSCIA",
+        limitMs: 10_000,
+        warunek: `(_arg, przejscia) => {
+            const notices = [...document.querySelectorAll('.notice')];
+            const inne = document.getAnimations().filter(a => {
+                if (a instanceof CSSTransition || (a.playState !== 'running' && !a.pending)) return false;
+                const cel = a.effect?.target;
+                return cel && notices.some(notice => notice.contains(cel) || cel.contains?.(notice));
+            });
+            return przejscia().length === 0 && inne.length === 0;
+        }`,
+        pomiar: `(_arg, przejscia) => ({
+            przejscia: przejscia(),
+            animacjeNotice: document.getAnimations().filter(a => {
+                if (a instanceof CSSTransition || (a.playState !== 'running' && !a.pending)) return false;
+                const notices = [...document.querySelectorAll('.notice')];
+                const cel = a.effect?.target;
+                return cel && notices.some(notice => notice.contains(cel) || cel.contains?.(notice));
+            }).map(a => ({ stan: a.playState, oczekuje: a.pending, czas: Number.isFinite(a.effect?.getComputedTiming()?.endTime)
+                ? a.effect.getComputedTiming().endTime : null })),
+        })`,
+    });
+}
 /* Pomiar wywoływany po prawdziwym GET i ustaleniu motywu. */
 export async function sprawdzKontrastNotice(page, wymagane = []) {
-    await page.evaluate(async () => {
-        await document.fonts.ready;
-        await Promise.all(
-            document.getAnimations().map((a) => a.finished.catch(() => {})),
-        );
-    });
+    await ustalStylNotice(page);
     const rows = await page.locator(".notice a").evaluateAll((links) => {
         const rgb = (s) => s.match(/[\d.]+/g).map(Number);
         const lum = (c) =>
@@ -91,9 +121,7 @@ export async function sprawdzKontrastNotice(page, wymagane = []) {
 
 /** Pomiar obydwu krawędzi pierścienia po prawdziwym Tab i najechaniu. */
 export async function sprawdzFokusNotice(page, kind) {
-    await page.evaluate(async () => {
-        await Promise.all(document.activeElement.getAnimations().map(a => a.finished));
-    });
+    await ustalStylNotice(page);
     const result = await page.evaluate((kind) => {
         const el = document.activeElement;
         if (!el?.matches('.notice .btn-' + kind) || !el.matches(':focus-visible') || !el.matches(':hover')) {
