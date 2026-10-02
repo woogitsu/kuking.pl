@@ -66,6 +66,10 @@ Ten sam przepis na środę dla dwóch osób i na niedzielę dla sześciu? W Plan
 
 Przepis jest na 4 porcje, a gotujecie dla 2 osób? Po wybraniu liczby porcji na stronie przepisu obok zwykłego przycisku jest „Dodaj składniki na 2 porcje do listy zakupów”. Najpierw zobaczycie podgląd: ilości autora obok przeliczonych, a linie, których nie da się przeliczyć („do smaku”, bez ilości), zostają takie, jak napisał autor — wymagają Waszego sprawdzenia. Dopiero po zatwierdzeniu trafiają na listę, z adnotacją, że ilość jest przeliczona. Zwykły przycisk nadal dodaje ilości autora.
 
+### Kupione prosto do „Co mam w domu”
+
+Wróciliście ze sklepu i odhaczyliście zakupy? Pod odhaczonymi pozycjami na liście zakupów jest przycisk „Dodaj kupione do »Co mam w domu«”. Zaznaczacie tylko to, co chcecie dopisać (papier do pieczenia raczej nie), poprawiacie nazwę produktu — na przykład z „2 szklanki mąki” na „mąka” — i potwierdzacie. Nie zgadujemy ilości ani terminów, produkty, które już macie, zostają bez zmian, a lista zakupów się nie zmienia. Samo odhaczenie niczego w spiżarni nie robi.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.
