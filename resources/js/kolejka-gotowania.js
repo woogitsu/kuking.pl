@@ -149,11 +149,15 @@ export function parametrKolejki(pozycje) {
     return pozycje.map((p) => `${p.slug}:${p.krok}`).join(',');
 }
 
-/** Adres ekranu kolejki dla danej listy (slugi to `[a-z0-9-]`, więc nie wymagają kodowania). */
+/**
+ * Adres ekranu kolejki dla danej listy. Aktywny przepis przychodzi wprost
+ * z pola formularza, więc bez wzorca sluga nie trafia do adresu, a i tak
+ * jest kodowany (CodeQL: tekst z DOM w `location.assign`).
+ */
 export function adresKolejki(bazowy, pozycje, aktywny = null) {
     const czesci = [`p=${parametrKolejki(pozycje)}`];
 
-    if (aktywny) czesci.push(`a=${aktywny}`);
+    if (typeof aktywny === 'string' && WZORZEC_SLUGA.test(aktywny)) czesci.push(`a=${encodeURIComponent(aktywny)}`);
 
     return `${bazowy}?${czesci.join('&')}`;
 }
