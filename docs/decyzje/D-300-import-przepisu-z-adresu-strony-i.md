@@ -145,6 +145,20 @@ zakresy, inne jednostki, wartości poza granicą i większa precyzja
 pozostają puste. Te naprawy #2536/#2538/#2539 nie zmieniają schematu ani
 budżetu modelu. Wycofanie kodu przywraca błędy odczytu, ale nie wymaga migracji.
 
+### Kroki w `ListItem.item` (#2570)
+
+Lokalny parser JSON-LD odczytuje instrukcję `HowToStep` albo sekcję
+`HowToSection` z pola `item` w opakowaniu `ListItem`. Nazwa opakowania nie
+zastępuje tekstu instrukcji. Gdy wszystkie elementy jednej listy mają różne,
+dodatnie pozycje, porządek wyznacza `position`; przy brakujących, błędnych
+lub powtarzających się pozycjach pozostaje kolejność w źródle. Adresów i
+`@id` z `item` nie pobieramy, a limit głębokości nadal obowiązuje. Wynik
+pozostaje prywatnym szkicem, bez zdjęć z obcej strony i bez wywołania modelu.
+Samodzielny obiekt `recipeInstructions: {"@id":"#krok"}` również nie jest
+instrukcją (#2582): nie rozwiązujemy referencji w grafie i nie podstawiamy
+identyfikatora za tekst. Przy obecnych składnikach pozostaje częściowy szkic
+do sprawdzenia przez człowieka.
+
 ### Wycofanie
 `KUKING_IMPORT_URL=false` i/lub `KUKING_IMPORT_PDF=false` zdejmują przyciski
 i trasy (404). Istniejące szkice zostają prywatne i zachowują bramkę

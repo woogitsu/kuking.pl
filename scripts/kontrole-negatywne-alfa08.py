@@ -1269,6 +1269,16 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    ("Identyfikator JSON-LD udaje krok (#2582)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
+     "test_json_ld_id_kroku_nie_staje_sie_instrukcja_ani_nie_pobiera_celu",
+     lambda s: replace_once(s,
+         "if (! array_is_list($wartosc)) {",
+         "if (isset($wartosc['@type']) || isset($wartosc['itemListElement']) || isset($wartosc['text'])) {")),
+    ("ListItem.item nie trafia do szkicu importu (#2570)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
+     "test_import_json_ld_listitem_item_zapisuje_kroki_w_prywatnym_szkicu_bez_modelu",
+     lambda s: replace_once(s,
+         "if (is_array($item) && ($this->jestTypem($item, 'HowToStep') || $this->jestTypem($item, 'HowToSection'))) {",
+         "if (false && is_array($item) && ($this->jestTypem($item, 'HowToStep') || $this->jestTypem($item, 'HowToSection'))) {")),
     # #2524: przeliczony składnik i nieprzeliczona kwota autora to sprzeczna strona.
     ("Koszt autora pozostaje bazowy po zmianie porcji (#2524)", "resources/views/pages/recipes/show.blade.php", "test_koszt_autora_i_skladniki_uzywaja_tego_samego_wyboru_porcji_takze_w_wydruku",
      lambda s: replace_once(s, "{{ $kosztAutora }}</p>", "{{ $recipe->costLabel() }}</p>")),
