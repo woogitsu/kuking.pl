@@ -130,6 +130,9 @@ jak przy porcjach: 24 na 36 to półtora raza więcej. Działa bez
 JavaScriptu, a link z wybraną liczbą możecie wysłać rodzinie. Wybieracie
 albo porcje, albo sztuki — nigdy oba naraz. Przepisy, w których autor
 nie podał sztuk, wyglądają tak jak dotąd.
+### Dopisek przy przepisie w Planerze
+
+Przy przepisie w planie możesz dopisać krótką, prywatną uwagę, na przykład „kolacja” albo „na niedzielę z rodziną”. Po powrocie do planu od razu widzisz, które danie było na co, bez osobnego wpisu. Dopisek ma najwyżej 80 znaków, widzisz go tylko Ty i możesz go w każdej chwili zmienić albo usunąć. Nie zmienia przepisu ani planu, a przycisk „Skopiuj poprzedni tydzień” przenosi go razem z pozycją.
 
 ## Alfa 0.78
 

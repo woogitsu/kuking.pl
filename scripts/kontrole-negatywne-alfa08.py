@@ -2254,6 +2254,19 @@ checks = [
      lambda s: replace_once(s, "                    'label' => $pozycja['wpis']->label,\n", "                    'label' => $pozycja['wpis']->label,\n                    'done_at' => $pozycja['wpis']->done_at,\n")),
     ("Zrobione w Planerze: rollback nie odmawia przy oznaczeniach (#2593)", "database/migrations/2026_10_02_190200_add_done_at_to_meal_plan_entries.php", "PlanerZrobioneTest",
      lambda s: replace_once(s, "        if ($oznaczone > 0) {", "        if (false) {")),
+    # #2549: dopisek przy przepisie w Planerze — własność, konflikt kart, kopia tygodnia, rollback i polityka.
+    ("Dopisek w Planerze: policy wpuszcza cudzą osobę (#2549)", "app/Policies/MealPlanEntryPolicy.php", "test_cudza_pozycja_nie_zmienia_sie_i_nie_ujawnia_dopisku",
+     lambda s: replace_once(s, "    public function editNote(User $user, MealPlanEntry $entry): bool\n    {\n        return $user->getKey() === $entry->user_id;", "    public function editNote(User $user, MealPlanEntry $entry): bool\n    {\n        return true;")),
+    ("Dopisek w Planerze: domena nie sprawdza własności (#2549)", "app/Domain/Planer/Actions/ZapiszDopisekPlanu.php", "test_cudza_pozycja_nie_zmienia_sie_i_nie_ujawnia_dopisku",
+     lambda s: replace_once(s, "                ->where('user_id', $swiezy->getKey())\n", "")),
+    ("Dopisek w Planerze: stara karta nadpisuje nowszy dopisek (#2549)", "app/Domain/Planer/Actions/ZapiszDopisekPlanu.php", "test_stary_znacznik_nie_wyczysci_nowszego_dopisku",
+     lambda s: replace_once(s, "            if (self::znacznik($wpis) !== ($widzianyZnacznik ?? '')) {", "            if (false) {")),
+    ("Dopisek w Planerze: kopia tygodnia gubi dopisek (#2549)", "app/Domain/Planer/Actions/SkopiujPoprzedniTydzien.php", "test_kopia_tygodnia_przenosi_dopisek_i_nie_nadpisuje_istniejacego",
+     lambda s: replace_once(s, "                    'note' => $pozycja['wpis']->note,\n", "")),
+    ("Dopisek w Planerze: rollback nie odmawia przy dopiskach (#2549)", "database/migrations/2026_10_03_130000_add_note_to_meal_plan_entries.php", "test_cofniecie_migracji_odmawia_przy_dopiskach_i_przechodzi_bez_nich",
+     lambda s: replace_once(s, "        if ($zDopiskiem > 0) {", "        if (false) {")),
+    ("Dopisek w Planerze: polityka bez wiersza o dopisku (#2549)", POLITYKA_TEKST, "test_dopisek_w_planie_ma_wiersz_w_polityce_z_limitem_z_kodu",
+     lambda s: replace_once(s, "| Dopisek przy przepisie w planie |", "| Notatka przy planie |")),
     # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
     # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
     ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,

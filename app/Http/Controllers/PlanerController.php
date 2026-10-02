@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Planer\Actions\DodajDoPlanu;
 use App\Domain\Planer\Actions\OznaczPozycjePlanu;
 use App\Domain\Planer\Actions\SkopiujPoprzedniTydzien;
+use App\Domain\Planer\Actions\ZapiszDopisekPlanu;
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Planer\ZakresDatPlanu;
 use App\Domain\Search\SearchQuery;
@@ -238,6 +239,47 @@ class PlanerController extends Controller
 
         return redirect()->route('planer.show', ['tydzien' => $wpis->day->toDateString()])
             ->with($komunikat);
+    }
+
+    /**
+     * Prywatny dopisek przy pozycji z przepisem (#2549). Pusty tekst czyści
+     * dopisek. Błąd wraca do pola TEJ pozycji (`_wiersz`) z wpisanym tekstem.
+     */
+    public function saveNote(Request $request, MealPlanEntry $wpis, ZapiszDopisekPlanu $zapisz): RedirectResponse
+    {
+        $this->authorize('editNote', $wpis);
+
+        $dane = $request->validate([
+            'note' => ['nullable', 'string', 'regex:/^.*$/u', 'max:'.ZapiszDopisekPlanu::MAX_ZNAKOW],
+            'stan' => ['nullable', 'string', 'max:40'],
+        ], [
+            'note.string' => 'Wpisz zwykły tekst, np. „kolacja”.',
+            'note.regex' => 'Wpisz dopisek w jednym wierszu, bez nowych linii, i zapisz jeszcze raz.',
+            'note.max' => 'Dopisek może mieć najwyżej '.ZapiszDopisekPlanu::MAX_ZNAKOW.' znaków. Skróć go i zapisz jeszcze raz.',
+        ]);
+
+        $wynik = $zapisz->handle($request->user(), (string) $wpis->getKey(), $dane['note'] ?? null, $dane['stan'] ?? null);
+        $wyczyszczono = ZapiszDopisekPlanu::normalizuj($dane['note'] ?? null) === null;
+        $wroc = redirect()->route('planer.show', ['tydzien' => $wpis->day->toDateString()]);
+
+        // Błędy, po których człowiek ma poprawić tekst, wracają do pola z jego
+        // wpisem (nic nie znika); reszta to komunikat nad planem.
+        $przyPolu = fn (string $tresc): RedirectResponse => $wroc
+            ->withInput($request->only('note', '_wiersz'))
+            ->withErrors(['note' => $tresc]);
+
+        return match ($wynik) {
+            ZapiszDopisekPlanu::ZASTOSOWANO => $wroc->with(Komunikat::sukces($wyczyszczono
+                ? 'Dopisek usunięty. Pozycja zostaje w planie.'
+                : 'Dopisek zapisany. Widzisz go tylko Ty.')),
+            ZapiszDopisekPlanu::JUZ_TAK_BYLO => $wroc->with(Komunikat::informacja($wyczyszczono
+                ? 'Ta pozycja nie ma dopisku.'
+                : 'Ten dopisek już jest zapisany.')),
+            ZapiszDopisekPlanu::KONFLIKT => $przyPolu('Dopisek tej pozycji zmienił się w innym oknie. Odśwież stronę, sprawdź aktualny dopisek i w razie potrzeby wpisz swój jeszcze raz.'),
+            ZapiszDopisekPlanu::ZA_DLUGI => $przyPolu('Dopisek może mieć najwyżej '.ZapiszDopisekPlanu::MAX_ZNAKOW.' znaków. Skróć go i zapisz jeszcze raz.'),
+            ZapiszDopisekPlanu::NIE_DOTYCZY => $wroc->with(Komunikat::blad('Dopisek dodasz tylko do pozycji z przepisem. Własny wpis możesz usunąć i wpisać od nowa.')),
+            default => $wroc->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),
+        };
     }
 
     public function destroy(Request $request, MealPlanEntry $wpis): RedirectResponse

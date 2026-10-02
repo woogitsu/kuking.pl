@@ -1092,6 +1092,9 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::patch('/planer/{wpis}/zrobione', [PlanerController::class, 'markDone'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.done');
+    Route::patch('/planer/{wpis}/dopisek', [PlanerController::class, 'saveNote'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.note');
     Route::delete('/planer/{wpis}', [PlanerController::class, 'destroy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.destroy');

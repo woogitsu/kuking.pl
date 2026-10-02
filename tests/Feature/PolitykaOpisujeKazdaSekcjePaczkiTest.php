@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Planer\Actions\ZapiszDopisekPlanu;
 use App\Domain\Users\Exports\InwentarzDanychKonta;
 use Tests\TestCase;
 
@@ -147,6 +148,26 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
                 self::FRAZY[$sekcja],
                 $polityka,
                 "Dane z sekcji paczki „{$sekcja}” nie mają opisu w polityce prywatności (szukana fraza: „".self::FRAZY[$sekcja].'”).',
+            );
+        }
+    }
+
+    /**
+     * Dopisek przy przepisie w planie (#2549) wchodzi do paczki w sekcji `planer`,
+     * więc polityka ma na niego osobny wiersz — z limitem z kodu i informacją,
+     * że widzi go tylko właściciel. Archiwum z 30.09 jest identyczne.
+     */
+    public function test_dopisek_w_planie_ma_wiersz_w_polityce_z_limitem_z_kodu(): void
+    {
+        $limit = ZapiszDopisekPlanu::MAX_ZNAKOW;
+        $this->assertSame(80, $limit, 'Kontrola: limit dopisku zmieniony — zaktualizuj politykę i ten test.');
+
+        foreach (['legal/polityka-prywatnosci.md', 'legal/archiwum/polityka-prywatnosci-2026-09-30.md'] as $plik) {
+            $tekst = (string) file_get_contents(resource_path($plik));
+            $this->assertMatchesRegularExpression(
+                '/^\| Dopisek przy przepisie w planie \| krótki tekst \(najwyżej '.$limit.' znaków\).*widzisz go tylko Ty \|$/mu',
+                $tekst,
+                "Polityka ({$plik}) nie opisuje dopisku przy przepisie w planie albo podaje inny limit.",
             );
         }
     }

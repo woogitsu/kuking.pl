@@ -754,7 +754,8 @@ trafi tam pierwszy rekord.
 
 - **Cel:** prywatny plan posiłków jednej osoby.
 - **Dane:** dzień, przepis albo krótka notatka (`meal_plan_entries`: `day`,
-  `recipe_id`, `label` do 120 znaków).
+  `recipe_id`, `label` do 120 znaków; od #2549 także `note` — prywatny dopisek
+  przy pozycji z przepisem, do 80 znaków).
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
 - **Odbiorcy:** Railway. Widzi wyłącznie właściciel.
 - **Termin usunięcia:** do usunięcia pozycji albo konta (`EraseAccountData`
