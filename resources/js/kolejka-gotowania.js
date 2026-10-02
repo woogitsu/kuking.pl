@@ -12,8 +12,8 @@
  * do `localStorage`: przy każdym wejściu serwer sprawdza `RecipePolicy::view`
  * i przepis, którego osoba już nie widzi, wypada z kolejki.
  *
- * MINUTNIKI. Nie ma tu drugiej arytmetyki: stan jednego minutnika to ten sam
- * klucz `kuking.minutnik.{slug}.{krok}` i te same funkcje z `minutnik-krok.js`
+ * MINUTNIKI. Nie ma tu drugiej arytmetyki: stan jednego minutnika ma ten sam
+ * klucz tożsamości kroku i te same funkcje z `minutnik-krok.js`
  * (zegar monotoniczny #751, odtwarzanie po przeładowaniu #740). Dzięki temu
  * minutniki potraw A i B są niezależne z samej konstrukcji klucza.
  *
@@ -31,6 +31,7 @@ import {
     zapiszStan,
     odczytajTermin,
     krokZKlucza,
+    aktualnyKrokMinutnika,
 } from './minutnik-krok.js';
 
 /** Ile przepisów mieści kolejka (decyzja właściciela z 1.10.2026). */
@@ -447,6 +448,7 @@ function podlaczMinutniki(root, s, dane, tytuly, bazowy) {
     const blokKroku = root.querySelector('[data-kolejka-minutnik]');
     const przyciskStart = blokKroku?.querySelector('[data-kolejka-minutnik-start]') ?? null;
     const komunikatKroku = blokKroku?.querySelector('[data-kolejka-minutnik-komunikat]') ?? null;
+    const krokiPrzepisow = new Map(dane.map((przepis) => [przepis.slug, przepis.tozsamoscKrokow ?? []]));
 
     /** @type {Map<string, {slug: string, krok: string, sekundyCalkiem: number, terminMonotoniczny: number, li: HTMLElement|null, tekst: HTMLElement|null}>} */
     const dzialajace = new Map();
@@ -461,7 +463,15 @@ function podlaczMinutniki(root, s, dane, tytuly, bazowy) {
             continue;
         }
 
-        dzialajace.set(klucz, {slug, krok, ...stan, li: null, tekst: null});
+        dzialajace.set(klucz, {
+            slug,
+            krok: stan.krokPierwotny ?? (/^\d+$/.test(krok) ? Number(krok) : 0),
+            aktualny: aktualnyKrokMinutnika(stan, krokiPrzepisow.get(slug)),
+            bezTozsamosci: !stan.stepId || !stan.fingerprint,
+            ...stan,
+            li: null,
+            tekst: null,
+        });
     }
 
     const nazwa = (slug) => tytuly.get(slug) ?? slug;
@@ -469,7 +479,8 @@ function podlaczMinutniki(root, s, dane, tytuly, bazowy) {
     const odswiezPrzycisk = () => {
         if (!blokKroku || !przyciskStart) return;
 
-        const klucz = kluczStanu(blokKroku.dataset.slug, blokKroku.dataset.krok);
+        const klucz = kluczStanu(blokKroku.dataset.slug, blokKroku.dataset.krok,
+            blokKroku.dataset.stepId, blokKroku.dataset.fingerprint);
 
         przyciskStart.hidden = dzialajace.has(klucz);
     };
@@ -497,14 +508,14 @@ function podlaczMinutniki(root, s, dane, tytuly, bazowy) {
         s.zagrajAlarm();
     };
 
-    const pokazAlarm = (slug, krok) => {
+    const pokazAlarm = (slug, krok, bezTozsamosci = false) => {
         const ramka = s.document.createElement('div');
         ramka.className = 'flash-ramka flash-ramka-blad stack';
         ramka.setAttribute('role', 'alert');
 
         const tekst = s.document.createElement('p');
         tekst.className = 'flash m-0';
-        tekst.textContent = `${nazwa(slug)}: czas minął (krok ${krok}).`;
+        tekst.textContent = `${nazwa(slug)}: czas minął (${krok === null ? (bezTozsamosci ? 'nie można potwierdzić kroku' : 'przepis się zmienił') : `krok ${krok}`}).`;
 
         const zamknij = s.document.createElement('button');
         zamknij.type = 'button';
@@ -540,7 +551,7 @@ function podlaczMinutniki(root, s, dane, tytuly, bazowy) {
         const anuluj = s.document.createElement('button');
         anuluj.type = 'button';
         anuluj.className = 'btn btn-secondary';
-        anuluj.textContent = `Anuluj minutnik: ${nazwa(m.slug)}, krok ${m.krok}`;
+        anuluj.textContent = `Anuluj minutnik: ${nazwa(m.slug)}, ${m.aktualny === null ? `wcześniejszy krok ${m.krok}` : `krok ${m.aktualny}`}`;
         anuluj.addEventListener('click', () => {
             usun(s.sessionStorage, klucz);
             dzialajace.delete(klucz);
@@ -548,7 +559,8 @@ function podlaczMinutniki(root, s, dane, tytuly, bazowy) {
             panel.hidden = dzialajace.size === 0;
             odswiezPrzycisk();
 
-            if (komunikatKroku && blokKroku && klucz === kluczStanu(blokKroku.dataset.slug, blokKroku.dataset.krok)) {
+            if (komunikatKroku && blokKroku && klucz === kluczStanu(blokKroku.dataset.slug, blokKroku.dataset.krok,
+                blokKroku.dataset.stepId, blokKroku.dataset.fingerprint)) {
                 komunikatKroku.textContent = 'Minutnik anulowany.';
             }
         });
@@ -570,14 +582,14 @@ function podlaczMinutniki(root, s, dane, tytuly, bazowy) {
                 usun(s.sessionStorage, klucz);
                 dzialajace.delete(klucz);
                 m.li?.remove();
-                pokazAlarm(m.slug, m.krok);
+                pokazAlarm(m.slug, m.aktualny, m.bezTozsamosci);
 
                 continue;
             }
 
             if (!m.li) dodajWiersz(klucz, m);
 
-            m.tekst.textContent = `${nazwa(m.slug)}, krok ${m.krok}: ${formatMinutySekundy(pozostalo)}`;
+            m.tekst.textContent = `${nazwa(m.slug)}, ${m.aktualny === null ? `wcześniejszy krok ${m.krok} — ${m.bezTozsamosci ? 'nie można potwierdzić kroku' : 'przepis się zmienił'}` : `krok ${m.aktualny}`}, uruchomiono na ${formatMinutySekundy(m.sekundyCalkiem)}: ${formatMinutySekundy(pozostalo)}`;
         }
 
         panel.hidden = dzialajace.size === 0;
@@ -592,12 +604,16 @@ function podlaczMinutniki(root, s, dane, tytuly, bazowy) {
             if (!Number.isFinite(sekundy) || sekundy <= 0) return;
 
             const {slug, krok} = blokKroku.dataset;
-            const klucz = kluczStanu(slug, krok);
+            const stepId = blokKroku.dataset.stepId;
+            const fingerprint = blokKroku.dataset.fingerprint;
+            const klucz = kluczStanu(slug, krok, stepId, fingerprint);
 
             // Epoka tylko do zapisu stanu (przetrwanie przeładowania); odliczanie
             // idzie po zegarze monotonicznym.
-            zapisz(s.sessionStorage, klucz, zapiszStan(sekundy, s.teraz() + sekundy * 1000));
-            dzialajace.set(klucz, {slug, krok, sekundyCalkiem: sekundy, terminMonotoniczny: s.zegar.now() + sekundy * 1000, li: null, tekst: null});
+            zapisz(s.sessionStorage, klucz, zapiszStan(sekundy, s.teraz() + sekundy * 1000,
+                {stepId, fingerprint, krokPierwotny: Number(krok)}));
+            dzialajace.set(klucz, {slug, krok: Number(krok), aktualny: Number(krok), sekundyCalkiem: sekundy,
+                terminMonotoniczny: s.zegar.now() + sekundy * 1000, li: null, tekst: null});
 
             if (komunikatKroku) komunikatKroku.textContent = `Minutnik ustawiony na ${blokKroku.dataset.etykieta}.`;
 

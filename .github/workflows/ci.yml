@@ -1882,8 +1882,20 @@ jobs:
       - name: Minutnik — opóźnione wywołania i dostępny czas
         if: matrix.czesc == 2
         run: |
+          node scripts/minutnik-kontrola-ujemna-2589.mjs
           node scripts/minutnik-regresja.mjs
           node scripts/minutnik-fokus.mjs
+
+      - name: Minutnik — rzeczywista edycja przepisu i przejście między trybami (#2589)
+        if: matrix.czesc == 2
+        env:
+          DB_DATABASE: kuking_minutnik_2589
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$DB_PASSWORD"
+          createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -O "$DB_USERNAME" "$DB_DATABASE"
+          APP_BASE_PATH="$PWD" php artisan migrate --force --no-interaction
+          node scripts/minutnik-edycja-http-2589.mjs
 
       - name: Zrzuty portu marki
         if: failure()

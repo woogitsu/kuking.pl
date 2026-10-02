@@ -14,6 +14,7 @@
 - Naprawione (#2600): kartka z przepisem nie drukuje odnośników, których nie da się na niej nacisnąć. Ciemny motyw drukuje białe tło także wokół treści, żeby nie zużywać tuszu na czarną ramę.
 - Naprawione (#2586): po odrzuceniu zdjęcia kartki pole wyboru pliku ma dla czytnika ekranu także opis konkretnego błędu, obok stałej wskazówki o zrobieniu zdjęcia. Podsumowanie błędów nadal prowadzi do pola.
 
+- Naprawione (#2589): jeśli autor przestawi, zmieni albo usunie krok podczas gotowania, działający minutnik zachowuje pierwotny termin i czas. Nie pokazuje nowej czynności jako tej, dla której został uruchomiony; można go anulować, a alarm nadal zabrzmi. Dotyczy pojedynczego gotowania i kolejki w tej samej karcie.
 - Wewnętrzne (#2598): test dwóch połączeń przy zapisie do zeszytu czeka na właściwą barierę transakcji. Wcześniejsza, obca blokada nie daje fałszywej czerwieni; osobny przeplot i kontrola ujemna sprawdzają ten warunek w CI.
 - Wewnętrzne (#2596): lokalny serwer testu checklisty składników przyjmuje tylko dodatnią liczbę porcji. Nie odbija tekstu z adresu w HTML; test HTTP i kontrola ujemna pilnują tego w CI.
 - Naprawione (#2467): usunięcie produktu z „Co mam w domu” najpierw pokazuje pytanie z jego nazwą. „Anuluj” zamyka je bez kasowania ilości lub terminu, także bez JavaScriptu.
