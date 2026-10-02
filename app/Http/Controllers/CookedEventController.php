@@ -7,18 +7,22 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\KomentujWykonanie;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Notifications\Actions\OtworzKomusWyszlo;
+use App\Domain\Recipes\Actions\PoprawWykonanie;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Domain\Recipes\Actions\UsunWykonanie;
 use App\Domain\Recipes\Actions\ZapiszWykonanieZFormularza;
 use App\Domain\Recipes\Actions\ZbierzZdjeciaWykonania;
 use App\Domain\Recipes\Gotowanie\JakWyszlo;
+use App\Domain\Recipes\Gotowanie\PolaKorekty;
 use App\Domain\Recipes\Gotowanie\RoboczyDopisek;
 use App\Domain\Recipes\Gotowanie\WersjaWykonania;
 use App\Domain\Recipes\Historia\MigawkaWersji;
+use App\Domain\Recipes\KonfliktPoprawkiWykonania;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Exceptions\BladZdjecFormularza;
 use App\Http\Requests\Cooked\KomentarzWykonaniaRequest;
 use App\Http\Requests\Cooked\PodziekowanieRequest;
+use App\Http\Requests\Cooked\PoprawkaWykonaniaRequest;
 use App\Http\Requests\Cooked\ZapisWykonaniaRequest;
 use App\Models\Comment;
 use App\Models\CookedEvent;
@@ -67,6 +71,7 @@ class CookedEventController extends Controller
         private readonly KomentujWykonanie $komentuj,
         private readonly OtworzKomusWyszlo $otworzKomusWyszlo,
         private readonly UsunWykonanie $usunWykonanie,
+        private readonly PoprawWykonanie $popraw,
     ) {}
 
     public function create(Request $request, string $recipe): View|RedirectResponse
@@ -422,6 +427,60 @@ class CookedEventController extends Controller
         }
 
         return back()->with(Komunikat::sukces('Komentarz dodany.'));
+    }
+
+    /**
+     * Formularz korekty własnego wykonania (#2459) — uwaga, opis zmian, czas.
+     * Tytuł przepisu dostaje tylko ten, kto go dziś może otworzyć; zablokowane
+     * pola (wskazówka, otwarte zgłoszenie) pokazują zapisany tekst i powód.
+     */
+    public function edit(Request $request, CookedEvent $cookedEvent): View
+    {
+        $this->authorize('update', $cookedEvent);
+
+        $cookedEvent->loadMissing('recipe.author');
+        $przepis = $cookedEvent->recipe !== null && Gate::forUser($request->user())->allows('view', $cookedEvent->recipe)
+            ? $cookedEvent->recipe
+            : null;
+
+        return view('pages.cooked.edit', [
+            'event' => $cookedEvent,
+            'przepis' => $przepis,
+            'zablokowane' => PolaKorekty::zablokowane($cookedEvent),
+            // Zawsze świeży odcisk z bazy (nie z `old()`): po konflikcie
+            // następne wysłanie niesie aktualny, a tekst człowieka zostaje w polach.
+            'wersja' => $cookedEvent->wersjaPolKorekty(),
+        ]);
+    }
+
+    public function update(PoprawkaWykonaniaRequest $request, CookedEvent $cookedEvent): RedirectResponse
+    {
+        $this->authorize('update', $cookedEvent);
+
+        try {
+            $wynik = $this->popraw->handle(
+                $request->user(),
+                $cookedEvent,
+                $request->safe()->only(PolaKorekty::POLA),
+                $request->wersjaFormularza(),
+                $request->ip(),
+            );
+        } catch (KonfliktPoprawkiWykonania $e) {
+            return redirect()->route('cooked.edit', $cookedEvent)->withInput()->withErrors(['wersja' => $e->getMessage()]);
+        } catch (BladDlaCzlowieka $e) {
+            return redirect()->route('cooked.show', $cookedEvent)->with(Komunikat::blad($e->getMessage()));
+        }
+
+        if ($wynik->pominiete !== []) {
+            return redirect()->route('cooked.edit', $cookedEvent)
+                ->withInput()
+                ->withErrors(['wersja' => ($wynik->zmienione === [] ? '' : 'Resztę poprawki zapisaliśmy. ')
+                    .'Nie zapisaliśmy pól, których teraz nie można zmienić. '.implode(' ', array_unique($wynik->pominiete))]);
+        }
+
+        return redirect()->route('cooked.show', $cookedEvent)->with(Komunikat::sukces(
+            $wynik->zmienione === [] ? 'Bez zmian — wykonanie zostaje takie samo.' : 'Poprawka zapisana.',
+        ));
     }
 
     public function destroy(Request $request, CookedEvent $cookedEvent): RedirectResponse

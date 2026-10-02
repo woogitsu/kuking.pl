@@ -19,6 +19,15 @@
                 ugotowane
                 <time datetime="{{ $event->cooked_at->toIso8601String() }}">{{ \App\Support\Czas::data($event->cooked_at, 'j F Y') }}</time>
             </p>
+            {{-- Ślad korekty (#2459): widzą go wszyscy, którzy widzą wykonanie,
+                 żeby poprawiony tekst nie udawał pierwotnego. Bez treści
+                 poprzedniej wersji. --}}
+            @if($event->poprawiono_at !== null)
+                <p class="meta m-0">
+                    Poprawiono
+                    <time datetime="{{ $event->poprawiono_at->toIso8601String() }}">{{ \App\Support\Czas::data($event->poprawiono_at, 'j F Y') }}</time>
+                </p>
+            @endif
             {{-- Prywatny dzień gotowania (#2583): tylko kucharz. Inni, w tym
                  autor przepisu, widzą wyłącznie datę dodania powyżej. --}}
             @if($event->dzien_gotowania !== null && auth()->id() === $event->user_id)

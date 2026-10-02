@@ -36,6 +36,18 @@ Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrac
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Poprawa własnego „Ugotowałem”
+
+Zauważyliście literówkę w uwadze albo wpisaliście 120 minut zamiast 20? Na
+stronie własnego wykonania jest teraz przycisk „Popraw uwagę lub czas”. Pola są
+już wypełnione, więc zmieniacie tylko to, co trzeba — albo czyścicie pole, jeśli
+wolicie nic nie podawać. To nadal to samo wykonanie: zostają zdjęcia, data i
+rozmowa pod nim, a autor przepisu nie dostaje nowego powiadomienia. Przy
+wykonaniu będzie widać napis „Poprawiono” z datą. Uwagi nie zmienicie, dopóki
+jest wskazówką przy przepisie albo czeka na Waszą odpowiedź — ekran powie, co
+zrobić. Jeśli ktoś zgłosił wykonanie do moderacji, teksty poczekają na decyzję;
+czas poprawicie zawsze.
+
 ### Dzień gotowania przy „Ugotowałem”
 
 Gotowaliście w niedzielę, a zdjęcie i kilka słów dodajecie dopiero we wtorek?

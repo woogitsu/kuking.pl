@@ -1297,6 +1297,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // więc to samo wykonanie wystarcza dla wszystkich ról.
         $dodaj('wspomnienia.ukryj-wykonanie', 'ukrycie wspomnienia z wykonania', 'post',
             route('wspomnienia.ukryj-wykonanie', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        // #2459: korekta uwagi, opisu zmian i czasu — wyłącznie aktywny kucharz
+        // (`CookedEventPolicy::update`); autor przepisu i moderator dostają odmowę.
+        $dodaj('cooked.edit', 'formularz korekty wykonania', 'get',
+            route('cooked.edit', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooked.update', 'zapis korekty wykonania', 'put',
+            route('cooked.update', $wykonanie), ['note' => 'Poprawiona uwaga.'], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.destroy', 'usunięcie wykonania', 'delete',
             route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $O, $O]);
         // Wskazówki od gotujących (#2352): prosi wyłącznie autor przepisu

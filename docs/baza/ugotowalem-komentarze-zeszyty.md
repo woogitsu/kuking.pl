@@ -82,6 +82,21 @@ Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
   (D-088 — to deklaracja człowieka, której kolejny `migrate` nie odtworzy, a
   odtworzenie z `cooked_at` byłoby nieprawdą); inaczej zdejmuje CHECK i
   kolumnę. Test: `tests/Feature/PrywatnyDzienGotowaniaTest.php`.
+- **`poprawiono_at timestamptz NULL`** (migracja
+  `2026_10_05_200000_add_poprawiono_at_to_cooked_events`, #2459, decyzja
+  właściciela z 2.10.2026) — ślad korekty własnej uwagi (`note`), opisu zmian
+  (`changes_note`) albo czasu (`actual_minutes`). `NULL` = wykonanie nie było
+  poprawiane (także wszystkie wiersze sprzed migracji, bez backfillu). Tabela
+  nie ma `updated_at`, więc to jedyny nowy ślad; **poprzednia treść nie jest
+  nigdzie przechowywana**. Ustawia go wyłącznie `PoprawWykonanie` (poza
+  `$fillable`), tylko gdy któreś z trzech pól faktycznie się zmieniło. Widać go
+  na karcie jako „Poprawiono <data>”; eksport danych konta: `ugotowalem[].poprawiono`.
+  Konflikt starej karty nie używa tej kolumny, tylko odcisk trzech pól
+  (`CookedEvent::wersjaPolKorekty()`) porównywany pod `FOR NO KEY UPDATE`.
+  Bez CHECK i indeksu (`ADD COLUMN … NULL` zmienia tylko katalog).
+  **Rollback:** `down()` odmawia, gdy choć jedno wykonanie ma ślad korekty
+  (D-088 — po cofnięciu poprawiony tekst wyglądałby jak pierwotny); inaczej
+  zdejmuje kolumnę. Test: `tests/Feature/KorektaWykonaniaTest.php`.
 - **`recipe_version_id uuid NULL` → `recipe_versions (id)` `ON DELETE SET NULL`**
   (#2378, migracja `2026_10_01_100100_add_recipe_version_id_to_cooked_events`) —
   wersja przepisu otwarta przy formularzu „Ugotowałem”. **Wskaźnik, nie kopia:**
