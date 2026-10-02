@@ -1074,6 +1074,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/ugotowane/{cookedEvent}/komentarz', [CookedEventController::class, 'comment'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.comment');
+    // Prywatna liczba faktycznych porcji (#2540): poprawa albo usunięcie przy
+    // istniejącym wykonaniu, tylko kucharz (Policy `poprawPorcje`).
+    Route::get('/ugotowane/{cookedEvent}/porcje', [CookedEventController::class, 'edytujPorcje'])
+        ->name('cooked.porcje.edit');
+    Route::put('/ugotowane/{cookedEvent}/porcje', [CookedEventController::class, 'zapiszPorcje'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('cooked.porcje.update');
     Route::delete('/ugotowane/{cookedEvent}', [CookedEventController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('cooked.destroy');

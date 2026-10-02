@@ -7,11 +7,13 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\KomentujWykonanie;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Notifications\Actions\OtworzKomusWyszlo;
+use App\Domain\Recipes\Actions\PoprawPorcjeWykonania;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Domain\Recipes\Actions\UsunWykonanie;
 use App\Domain\Recipes\Actions\ZapiszWykonanieZFormularza;
 use App\Domain\Recipes\Actions\ZbierzZdjeciaWykonania;
 use App\Domain\Recipes\Gotowanie\JakWyszlo;
+use App\Domain\Recipes\Gotowanie\PorcjeWykonania;
 use App\Domain\Recipes\Gotowanie\RoboczyDopisek;
 use App\Domain\Recipes\Gotowanie\WersjaWykonania;
 use App\Domain\Recipes\Historia\MigawkaWersji;
@@ -66,6 +68,7 @@ class CookedEventController extends Controller
         private readonly KomentujWykonanie $komentuj,
         private readonly OtworzKomusWyszlo $otworzKomusWyszlo,
         private readonly UsunWykonanie $usunWykonanie,
+        private readonly PoprawPorcjeWykonania $poprawPorcje,
     ) {}
 
     public function create(Request $request, string $recipe): View|RedirectResponse
@@ -413,6 +416,38 @@ class CookedEventController extends Controller
         }
 
         return back()->with(Komunikat::sukces('Komentarz dodany.'));
+    }
+
+    /**
+     * Prywatna liczba faktycznych porcji (#2540): ekran poprawy. Obcy dostaje
+     * 403 z Policy — adres z UUID nie jest autoryzacją.
+     */
+    public function edytujPorcje(Request $request, CookedEvent $cookedEvent): View
+    {
+        $this->authorize('poprawPorcje', $cookedEvent);
+
+        return view('pages.cooked.porcje', ['event' => $cookedEvent->loadMissing('recipe')]);
+    }
+
+    public function zapiszPorcje(Request $request, CookedEvent $cookedEvent): RedirectResponse
+    {
+        $this->authorize('poprawPorcje', $cookedEvent);
+
+        $wpisane = $request->input('faktyczne_porcje');
+
+        if ($wpisane !== null && ! is_string($wpisane)) {
+            return back()->withInput()->withErrors(['faktyczne_porcje' => PorcjeWykonania::KOMUNIKAT_NIEZROZUMIALY]);
+        }
+
+        try {
+            $zapisana = $this->poprawPorcje->handle($cookedEvent, $wpisane);
+        } catch (BladDlaCzlowieka $e) {
+            return back()->withInput()->withErrors(['faktyczne_porcje' => $e->getMessage()]);
+        }
+
+        return redirect()->route('cooked.show', $cookedEvent)->with(Komunikat::sukces(
+            $zapisana === null ? 'Usunęliśmy liczbę porcji z tego wykonania.' : 'Zapisaliśmy liczbę porcji: '.PorcjeWykonania::etykieta($zapisana).'.',
+        ));
     }
 
     public function destroy(Request $request, CookedEvent $cookedEvent): RedirectResponse

@@ -579,6 +579,10 @@ final class CollectUserExportData
             // dzień `RRRR-MM-DD`; `null` = nie podano. Osobny od `kiedy`
             // (chwili zgłoszenia).
             'dzien_gotowania_podany_przeze_mnie' => $event->dzien_gotowania?->format('Y-m-d'),
+            // Prywatna liczba faktycznie ugotowanych porcji (#2540), podana
+            // przez samą osobę; `null` = nie podano (to NIE jest liczba porcji
+            // przepisu).
+            'faktyczne_porcje_podane_przeze_mnie' => $event->faktyczne_porcje,
             // Numer wersji przepisu otwartej przy gotowaniu (#2378) — sam numer,
             // bez treści wersji; `null` = nie wiadomo (wykonanie sprzed zmiany
             // albo wersja usunięta retencją).
