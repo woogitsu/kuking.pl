@@ -13,7 +13,8 @@
  *  w całości na pierwszej stronie, biały podkład i czarne moduły, pismo ≥ 16 pt,
  *  jedna strona A4, a przy zoomie 200% na ekranie brak poziomego przewijania.
  *
- *  Warianty: krótki i długi przepis × motyw jasny i ciemny × gość i autor
+ *  Warianty: krótki i długi przepis × motyw jasny i ciemny × gość i autor;
+ *  dodatkowo 2/6/4 porcje przez rzeczywisty odnośnik „Drukuj przepis”
  *  (autor widzi najwięcej przycisków, a dolną belkę ma tylko zalogowany).
  *
  *  URUCHOMIENIE (lokalna baza z DemoSeederem, po `npm run build`):
@@ -213,6 +214,13 @@ async function zmierzCzasKroku(strona, zeszyt = false) {
       if (etykiety(kroki[indeks]).length) bledy.push(`krok ${indeks + 1} z czasem 0/NULL ma fałszywą etykietę`);
     }
     if (kroki.flatMap(etykiety).length !== 1) bledy.push('liczba etykiet czasu na kartce różni się od jednej');
+    for (const element of zakres?.querySelectorAll('.cook-timer, [role="timer"]') ?? []) {
+      const r = element.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && getComputedStyle(element).visibility !== 'hidden') {
+        bledy.push('interaktywny minutnik jest widoczny na papierze');
+        break;
+      }
+    }
     return bledy;
   }, zeszyt);
 }
@@ -226,6 +234,57 @@ async function sprawdzMutacjeCzasu(strona, zeszyt = false) {
       .find(p => p.textContent.trim().startsWith('Czas kroku:'))?.remove();
   }, zeszyt);
   return (await zmierzCzasKroku(strona, zeszyt)).includes('pierwszy krok bez dokładnego czasu 10 minut na kartce');
+}
+
+// #2474: idziemy pod rzeczywisty href z wybranego ekranu, a nie składamy
+// drugiego adresu w teście. Dzięki temu błąd w samym przycisku oblewa pomiar.
+async function adresDrukuWybranychPorcji(strona, ile, sciezka) {
+  const link = await strona.locator('a[data-drukuj-przepis]').getAttribute('href');
+  if (!link) throw new Error(`${sciezka}: brak głównego odnośnika „Drukuj przepis”`);
+  const cel = new URL(link, strona.url());
+  const obecny = new URL(strona.url());
+  const oczekiwanePorcje = ile === 6 ? null : String(ile); // 6 to liczba autora w obu fixture.
+  if (cel.origin !== obecny.origin || cel.pathname !== obecny.pathname
+    || cel.searchParams.get('druk') !== '1'
+    || cel.searchParams.get('porcje') !== oczekiwanePorcje
+    || cel.hash !== '#jak-wydrukowac') {
+    throw new Error(`${sciezka}: link druku nie zachował wyboru ${ile} porcji`);
+  }
+  return cel.href;
+}
+
+async function zmierzWybranePorcjeNaKartce(strona, ile, sciezka) {
+  const bledy = await strona.evaluate(wybrane => {
+    const wynik = [];
+    const wybor = document.querySelector('.porcje-wybor-liczba');
+    const prostokat = wybor?.getBoundingClientRect();
+    if (wybor?.textContent.trim() !== String(wybrane) || !prostokat || prostokat.width <= 0
+      || prostokat.height <= 0 || getComputedStyle(wybor).visibility === 'hidden') {
+      wynik.push('na kartce nie widać wybranej liczby porcji');
+    }
+    const pierwszy = document.querySelector('.ingredient-list li');
+    if (!pierwszy) return [...wynik, 'na kartce nie ma pierwszego składnika'];
+    const przeliczone = document.querySelectorAll('.ingredient-list strong.skladnik-przeliczony').length;
+    if (wybrane === 6 && przeliczone !== 0) wynik.push('liczba porcji autora nie powinna przeliczać składników');
+    if (wybrane !== 6 && przeliczone === 0) wynik.push('wybrane porcje nie przeliczyły żadnego składnika');
+    return wynik;
+  }, ile);
+  if (bledy.length) throw new Error(`${sciezka}: ${bledy.join('; ')}`);
+}
+
+// Kontrola ujemna linku: usunięcie parametru z href musi zostać wykryte.
+async function sprawdzMutacjeLinkuPorcji(strona, sciezka) {
+  await strona.locator('a[data-drukuj-przepis]').evaluate(link => {
+    const cel = new URL(link.href);
+    cel.searchParams.delete('porcje');
+    link.href = cel.href;
+  });
+  try {
+    await adresDrukuWybranychPorcji(strona, 2, sciezka);
+    return false;
+  } catch (blad) {
+    return blad instanceof Error && blad.message.includes('link druku nie zachował wyboru 2 porcji');
+  }
 }
 
 // Pomiar karty z kodem QR w emulacji druku: geometria i kontrast. Samego
@@ -356,6 +415,42 @@ try {
           console.log('✗ kontrola ujemna: usunięty czas kroku nie został wykryty');
         }
         await strona.emulateMedia({ media: 'screen' });
+      }
+    }
+
+    // #2474/#2484: fizyczna nawigacja od wybranych porcji przez główny
+    // odnośnik, potem A4 PDF. Długi przepis sprawdza także czas 10/0/NULL.
+    for (const [dlugosc, sciezka] of [['krotki', przepisy.krotki], ['dlugi', przepisy.dlugi]]) {
+      for (const ile of [2, 6, 4]) {
+        for (const motyw of ['jasny', 'ciemny']) {
+          const wybrane = `${sciezka}${sciezka.includes('?') ? '&' : '?'}porcje=${ile}`;
+          const ekran = await strona.goto(adres + wybrane, { waitUntil: 'load' });
+          if (ekran.status() !== 200) throw new Error(`${wybrane}: HTTP ${ekran.status()}`);
+          const link = await adresDrukuWybranychPorcji(strona, ile, wybrane);
+          if (dlugosc === 'dlugi' && ile === 2 && motyw === 'jasny' && kto === 'gosc'
+            && !await sprawdzMutacjeLinkuPorcji(strona, wybrane)) {
+            bledow++;
+            console.log('✗ kontrola ujemna: brak porcji w linku druku nie został wykryty');
+          }
+          const odp = await strona.goto(link, { waitUntil: 'load' });
+          if (odp.status() !== 200) throw new Error(`${link}: HTTP ${odp.status()}`);
+          await strona.evaluate(m => { if (m === 'ciemny') document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme; }, motyw);
+          await strona.emulateMedia({ media: 'print' });
+          const wynik = await zmierz(strona);
+          try { await zmierzWybranePorcjeNaKartce(strona, ile, link); } catch (blad) { wynik.bledy.push(blad.message); }
+          if (dlugosc === 'dlugi') wynik.bledy.push(...await zmierzCzasKroku(strona));
+          const pdf = await strona.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' } });
+          const plik = `${KATALOG}/${dlugosc}-${ile}-porcje-${motyw}-${kto}.pdf`;
+          writeFileSync(plik, pdf);
+          const opis = `${dlugosc}/${ile} porcji/${motyw}/${kto}: ${stronyPdf(pdf)} str. A4 → ${plik}`;
+          if (wynik.bledy.length) {
+            bledow += wynik.bledy.length;
+            console.log(`✗ ${opis}\n  - ${[...new Set(wynik.bledy)].join('\n  - ')}`);
+          } else {
+            console.log(`✓ ${opis}`);
+          }
+          await strona.emulateMedia({ media: 'screen' });
+        }
       }
     }
 

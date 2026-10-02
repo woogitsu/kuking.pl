@@ -13,7 +13,7 @@ use Tests\TestCase;
  * `success` także po padniętym kroku, więc czerwona kontrola wygląda jak zielona.
  * Test robi trzy rzeczy: (1) job audytu zależności nie ma tej flagi i naprawdę
  * uruchamia bramkę (kontrola dodatnia), (2) `continue-on-error` w `ci.yml` wolno
- * mieć tylko dwóm znanym, opisanym krokom pomocniczym (wysyłka artefaktów),
+ * mieć tylko znanym, opisanym krokom pomocniczym (wysyłka artefaktów),
  * (3) nazwy jobów bezpieczeństwa nie obiecują, że „nie blokują".
  * Job `dwa-polaczenia` ma własny strażnik: `WyscigiDwochPolaczenBlokujaCiTest`.
  */
@@ -26,7 +26,9 @@ class KrytyczneKontroleCiBlokujaTest extends TestCase
      * przy jobie w `ci.yml`) — oraz krok zapisu artefaktu. Przy zdjęciu flagi
      * z joba zmień tu 2 na 1 w tym samym PR-ze.
      */
-    private const DOZWOLONE = ['assets' => 1, 'kaskada' => 2, 'port_panelu' => 1];
+    // `dostepnosc`: wyłącznie wysyłka syntetycznych PDF-ów z pomiaru A4;
+    // brak miejsca na artefakt nie może unieważnić prawdziwej bramki pomiaru.
+    private const DOZWOLONE = ['assets' => 1, 'dostepnosc' => 1, 'kaskada' => 2, 'port_panelu' => 1];
 
     public function test_job_audytu_nie_ma_continue_on_error_i_uruchamia_bramke(): void
     {
