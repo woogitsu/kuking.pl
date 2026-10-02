@@ -57,6 +57,7 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         'lista_zakupow' => '| Lista zakupów |',
         'postep_gotowania' => '| Zapamiętany postęp w trybie gotowania |',
         'dopiski_z_gotowania' => '| Prywatny dopisek z gotowania |',
+        'zapamietane_porcje' => '| Zapamiętana liczba porcji przy przepisie |',
         'ukryte' => '| Ukrywanie wpisów i osób',
         'moje_reakcje' => '| Reakcja „Smakowicie wygląda”',
         'moje_podziekowania' => '| „Dziękuję” pod cudzym komentarzem',

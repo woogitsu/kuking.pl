@@ -450,3 +450,40 @@ pustej tabeli (CI, `migrate:refresh`) przechodzi bez pytania. Wymuszenie po
 kopii tabeli (`pg_dump -t weekly_recipe_picks`):
 `KUKING_ROLLBACK_KASUJE_UGOTUJMY_RAZEM=1`. Przepisy i wykonania zostają
 nietknięte. Test: `CofniecieMigracjiNieKasujeUgotujmyRazemTest`.
+
+## recipe_serving_preferences — zapamiętana liczba porcji przy przepisie (V2, #2602)
+
+Jawna, prywatna preferencja „ten przepis zwykle robię na tyle porcji” (rozszerzenie
+D-284, decyzja właściciela z 2.10.2026 w D-333). Migracja
+`2026_10_02_210000_create_recipe_serving_preferences_table`. Wiersz powstaje
+wyłącznie po przycisku „Zapamiętaj dla mnie” zalogowanej osoby i znika po
+„Zapomnij moje ustawienie”; nic nie zapisuje się samo, nie ma backfillu z adresów,
+postępów gotowania, planera ani wykonań. Gość nie zapisuje niczego.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | właściciel; zawsze z sesji, nigdy z żądania; model ma pusty `$fillable` |
+| `recipe_id` | `uuid NOT NULL` → `recipes` (`ON DELETE CASCADE`) | przepis |
+| `servings` | `numeric(6,2) NOT NULL` | wybrana liczba porcji; `CHECK` 1–100 (`recipe_serving_preferences_servings_check`), jak w `WyborPorcji`; zapisujemy tylko liczbę, nigdy przeliczonych składników |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+Ograniczenia i indeksy:
+- `UNIQUE (user_id, recipe_id)` — stan, nie zdarzenie: zmiana liczby nadpisuje wiersz;
+- indeks po `recipe_id` (klucz obcy);
+- limit `kuking.porcje_zapamietane.limit_na_osobe` (500 przepisów na osobę) pilnuje akcja domenowa, bo `CHECK` nie liczy wierszy.
+
+Reguły użycia (`App\Domain\Recipes\Porcje\ZapamietanePorcje`): `?porcje=N` z adresu
+ma pierwszeństwo przed zapamiętaną liczbą; zapamiętana działa tylko przy adresie
+bez porcji; `?porcje=autor` to jawny powrót do ilości autora (nie kasuje
+preferencji). Odczyt idzie po `RecipePolicy::view`, zapis i usunięcie to
+`POST`/`DELETE /przepisy/{recipe}/moje-porcje` (limit `ustawienia`). Aktywny
+postęp gotowania (`cooking_progress`) nie zmienia się od późniejszej zmiany
+preferencji. Eksport: sekcja `zapamietane_porcje`; `EraseAccountData` kasuje
+wiersze konta jawnie. Test: `ZapamietanaLiczbaPorcjiTest`.
+
+**Rollback.** `down()` usuwa tabelę. Gdy są wiersze, **odmawia** (D-088) — to
+świadome wybory ludzi, których `up()` nie odtworzy; na pustej tabeli (CI,
+`migrate:refresh`) przechodzi bez pytania. Wymuszenie po kopii tabeli:
+`KUKING_ROLLBACK_KASUJE_PORCJE_PRZEPISOW=1`. Test:
+`CofniecieMigracjiNieKasujeZapamietanychPorcjiTest`.

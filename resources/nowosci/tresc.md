@@ -103,6 +103,16 @@ powiadamia. Trzymamy go 24 godziny od ostatniej zmiany albo do zapisania
 wykonania; można go też usunąć przyciskiem. Gdy później zapiszecie „Ugotowałem”,
 formularz tylko zaproponuje wstawienie dopisku do pola „Coś po swojemu?” —
 nic nie wchodzi tam samo, a to, co już wpisaliście, zostaje nietknięte.
+### Własna liczba porcji przy przepisie
+
+Gotujecie zwykle ten sam rodzinny obiad dla dwojga, choć autor napisał go na
+sześć porcji? Wybierzcie „Na ile porcji?” jak dotąd, a potem naciśnijcie
+„Zapamiętaj dla mnie”. Następnym razem ten przepis otworzy się od razu na
+Waszą liczbę, a ekran powie, że to Wasze ustawienie. Zapomnicie je jednym
+przyciskiem, a „Pokaż ilości z przepisu” pokaże ilości autora bez kasowania
+ustawienia. Zapisujemy tylko jedną liczbę przy jednym przepisie, tylko wtedy,
+gdy sami o to poprosicie, i widzicie ją tylko Wy. Liczba z adresu strony
+zawsze wygrywa z zapamiętaną.
 
 ## Alfa 0.78
 

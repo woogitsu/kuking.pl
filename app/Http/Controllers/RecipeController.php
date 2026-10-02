@@ -14,7 +14,7 @@ use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
-use App\Domain\Recipes\Porcje\WyborPorcji;
+use App\Domain\Recipes\Porcje\ZapamietanePorcje;
 use App\Domain\Recipes\TypowyCzasPrzepisu;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
@@ -514,11 +514,16 @@ class RecipeController extends Controller
             ->selectRaw('count(*) filter (where cooked_events.would_make_again is not null) as ocenilo')
             ->first();
 
+        $wyborZapamietanych = app(ZapamietanePorcje::class)->wybor($model, $request->user(), $request->query('porcje'));
+
         return view('pages.recipes.show', [
             'recipe' => $model,
             // Na ile porcji pokazać ilości (D-284). Wybór żyje w adresie
             // (`?porcje=6`), przeliczenie w `App\Domain\Recipes\Porcje`.
-            'wyborPorcji' => WyborPorcji::dla($model, $request->query('porcje')),
+            // Własne, jawnie zapamiętane ustawienie (#2602) działa tylko, gdy
+            // adres nie mówi o porcjach nic.
+            'wyborPorcji' => $wyborZapamietanych->wybor,
+            'zapamietanePorcje' => $wyborZapamietanych,
             // Orientacyjny koszt z cen GUS — tylko gdy autor nie podał
             // własnej kwoty; kwota autora zawsze wygrywa (D-286).
             'szacunekKosztu' => $model->estimated_cost_pln === null

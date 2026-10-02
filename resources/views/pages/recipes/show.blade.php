@@ -18,7 +18,7 @@
         'druk' => 1,
         'dla' => $pomocnik ? 'pomocnika' : null,
         'qr' => $pomocnik && $qr ? 1 : null,
-        'porcje' => $wyborPorcji->przeliczone() ? $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane) : null,
+        'porcje' => $zapamietanePorcje->parametrBiezacego(),
     ], fn ($wartosc) => $wartosc !== null)).'#jak-wydrukowac';
     $parametrPorcjiGotowania = $wyborPorcji->przeliczone()
         ? $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane)
@@ -711,7 +711,8 @@
                 @if($recipe->ingredients->isEmpty())
                     <p class="meta">Autor jeszcze nie dodał składników.</p>
                 @else
-                    @include('pages.recipes._wybor-porcji', ['wyborPorcji' => $wyborPorcji, 'recipe' => $recipe, 'dlaPomocnika' => $dlaPomocnika, 'qrNaKartce' => $qrNaKartce])
+                    @include('pages.recipes._wybor-porcji', ['wyborPorcji' => $wyborPorcji, 'zapamietanePorcje' => $zapamietanePorcje, 'recipe' => $recipe, 'dlaPomocnika' => $dlaPomocnika, 'qrNaKartce' => $qrNaKartce])
+                    @include('pages.recipes._zapamietaj-porcje', ['wyborPorcji' => $wyborPorcji, 'zapamietanePorcje' => $zapamietanePorcje, 'recipe' => $recipe])
                     {{--
                         GRUPY SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
                         (D-033, część pierwsza).

@@ -338,6 +338,13 @@ final class EraseAccountData
             $fresh->cookingNotes()->delete();
 
             /*
+             * ZAPAMIĘTANE LICZBY PORCJI PRZY PRZEPISACH ZNIKAJĄ RAZEM Z KONTEM
+             * (#2602). Prywatna preferencja osoby; jawnie, a nie kaskadą, bo
+             * konta anonimizujemy (D-022), nie kasujemy.
+             */
+            $fresh->servingPreferences()->delete();
+
+            /*
              * PRYWATNE UKRYCIA (`hides`, #1810) ZNIKAJĄ RAZEM Z KONTEM
              * (przegląd #1781). To są decyzje tej osoby o tym, czego nie chce
              * widzieć — dane o niej, bez wartości po wymazaniu. Jawnie, a nie

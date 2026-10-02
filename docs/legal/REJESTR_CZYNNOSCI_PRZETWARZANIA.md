@@ -800,6 +800,23 @@ trafi tam pierwszy rekord.
 - **Eksport:** znacznik jest `NIE_DOTYCZY` w `InwentarzDanychKonta` (sama
   treść jest w paczce).
 
+### 3.29 Zapamiętana liczba porcji przy przepisie (V2, issue #2602)
+
+- **Cel:** wygoda osoby, która zwykle robi dany przepis na inną liczbę porcji
+  niż autor.
+- **Dane:** identyfikator konta i przepisu, jedna liczba porcji (1-100), daty
+  zapisu i zmiany (`recipe_serving_preferences`). Tylko po świadomym przycisku
+  „Zapamiętaj dla mnie”, osobno dla każdego przepisu; bez zapisu automatycznego,
+  bez backfillu, bez wniosków o składzie rodziny. Gość nie zapisuje niczego.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO - funkcja włączana na własne życzenie,
+  jak „Co mam w domu” i postęp gotowania; opis w polityce §2.
+- **Odbiorcy:** Railway. Widzi wyłącznie właściciel; liczba nie wpływa na feed,
+  rankingi ani powiadomienia.
+- **Termin usunięcia:** do przycisku „Zapomnij moje ustawienie” albo do
+  wymazania konta (`EraseAccountData`). Limit 500 przepisów na osobę.
+- **Eksport:** `zapamietane_porcje` (przepis i adres tylko gdy przepis jest dziś
+  widoczny dla osoby, liczba, daty).
+
 ### 3.28 Sieć, CDN i ochrona przed atakami (Cloudflare jako pośrednik, #2282)
 
 - **Cel:** dostarczenie serwisu: zakończenie połączenia HTTPS, podawanie
