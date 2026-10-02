@@ -642,5 +642,5 @@ surowym kodem, żeby nie zniknął z sumy. Okno starsze niż retencja spraw
 i komenda o tym ostrzega.
 
 Czy i kiedy taki raport trzeba publikować, rozstrzyga `docs/legal/COMPLIANCE.md`
-§1 (art. 15 i zwolnienie z art. 19 DSA). Komenda daje liczby, nie przesądza
+§1 (art. 15 ust. 2 ma osobne zwolnienie dla mikro i małych; art. 19 zwalnia z Sekcji 3, nie z art. 15). Komenda daje liczby, nie przesądza
 obowiązku. Pilnuje: `tests/Feature/RaportPrzejrzystosciTest.php`.
