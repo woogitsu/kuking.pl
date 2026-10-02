@@ -179,6 +179,19 @@ class RecipePolicy
     }
 
     /**
+     * Odzyskanie wcześniejszego tekstu własnego szkicu (#2512): wyłącznie autor
+     * z aktywnym kontem i tylko szkic. Kopię widzi tylko on; moderator nie ma
+     * tu furtki.
+     */
+    public function restoreDraftText(User $user, Recipe $recipe): bool
+    {
+        return $user->getKey() === $recipe->author_id
+            && $user->isActive()
+            && $recipe->status === Recipe::STATUS_DRAFT
+            && $recipe->published_at === null;
+    }
+
+    /**
      * Zwykłe usunięcie (`DELETE` ze strony treści) — wyłącznie autor.
      *
      * Issue #932: moderator NIE usuwa tędy cudzej treści, nawet z 2FA.

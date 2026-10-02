@@ -967,6 +967,32 @@ trafi tam pierwszy rekord.
 - **Eksport:** `ostatnio_ogladane` (przepis — tytuł tylko gdy przepis jest dziś
   widoczny dla osoby — i czas) oraz `konto.ostatnio_ogladane_wlaczone_od`.
 
+### 3.32 Kopia tekstu szkicu do odzyskania po pomyłce (V2, issue #2512)
+
+- **Cel:** umożliwienie autorowi powrotu do tekstu własnego, nieopublikowanego
+  szkicu, który przypadkiem zastąpił albo skasował, a który zdążył się
+  zapisać automatycznie.
+- **Dane:** identyfikator konta i szkicu, data zrobienia kopii oraz tekst
+  szkicu sprzed sesji pisania: nazwa, opis, porcje, czasy, trudność, pochodzenie
+  („od kogo”, historia, rok), składniki z grupami, uwagami i zamiennikami, kroki
+  z nazwą etapu i minutnikiem oraz wskazanie zdjęcia przy kroku
+  (`draft_restore_points`). Bez zdjęć, alergenów, widoczności i danych innych
+  osób. Jedna kopia na szkic; powstaje przy otwarciu szkicu do pisania, nie przy
+  każdym autozapisie.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — funkcja, z której osoba świadomie
+  korzysta (ochrona jej własnej pracy). Weryfikacja przez prawnika zostaje w #8.
+- **Odbiorcy:** Railway. Kopię widzi wyłącznie autor szkicu
+  (`RecipePolicy::restoreDraftText`); nie trafia do historii wersji, strony
+  publicznej, SEO, kanału, wspólnego zeszytu, moderatorów, podmiotów trzecich,
+  cache ani telemetrii.
+- **Termin usunięcia:** `kuking.przepisy.szkic_punkt_odzyskania_dni` (14 dni od
+  zrobienia kopii; wartość do potwierdzenia przez właściciela, D-333); co noc
+  kasuje ją `kuking:sprzataj-usuniete-tresci`. Wcześniej: opublikowanie albo
+  usunięcie szkicu (sprzątanie / klucz obcy) i wymazanie konta
+  (`EraseAccountData`).
+- **Eksport:** `kopie_tekstu_szkicow` (tytuł szkicu, daty i tekst kopii bez
+  identyfikatorów zdjęć).
+
 ---
 
 ### 3.29 Wskazówki od gotujących (V2, #2352, D-333)

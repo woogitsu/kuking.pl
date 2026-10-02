@@ -673,3 +673,37 @@ potem `KUKING_ROLLBACK_KASUJE_UDOSTEPNIENIA_PRZEPISOW=1`). Na pustej tabeli
 (CI, `migrate:refresh`) przechodzi bez pytania. Pilnuje
 `tests/Feature/UdostepnieniePrzepisuSchematTest.php` (odmowa, wymuszenie,
 kontrola dodatnia).
+
+### draft_restore_points — kopia tekstu szkicu do odzyskania po pomyłce (issue #2512, D-333)
+
+Migracja `2026_10_07_212512_create_draft_restore_points_table`. JEDEN
+ograniczony punkt odzyskania na szkic: tekst sprzed sesji edycji, robiony
+przy otwarciu istniejącego szkicu w kreatorze (`PunktOdzyskaniaSzkicu::zachowajPrzedEdycja`),
+gdy szkic nie ma jeszcze ważnej kopii. To NIE jest wersja przepisu
+(`recipe_versions` bez zmian; autozapis nadal nie tworzy wersji). Ponowne
+otwarcie nie podmienia kopii; przywrócenie podmienia ją na tekst, który
+zastąpiono.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | |
+| `recipe_id` | `uuid NOT NULL UNIQUE` → `recipes` (`ON DELETE CASCADE`) | jeden punkt na szkic |
+| `user_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | autor szkicu; poza `$fillable` (model ma pusty `$fillable`) |
+| `snapshot` | `jsonb NOT NULL` | `CHECK jsonb_typeof(snapshot) = 'object'`; tekst: tytuł, opis, porcje, sztuki, czasy, trudność, pochodzenie, składniki (grupa, uwaga, zamiennik, „Bez ilości”), kroki (etap, minutnik, `media_id` tylko jako wskazanie); bez zdjęć, alergenów, kosztu, widoczności, rodzaju i adresu źródła |
+| `taken_at` | `timestamptz NOT NULL DEFAULT now()` | początek okna `kuking.przepisy.szkic_punkt_odzyskania_dni` (14) |
+
+Indeksy: `recipe_id` (UNIQUE), `taken_at` (nocne sprzątanie), `user_id`.
+
+Przywrócenie idzie przez `PublishRecipe` (zapis szkicu, `publish: false`), z
+kontrolą rewizji treści i znacznika kopii z podglądu. Odmawia, gdy musiałoby
+odpiąć obecne zdjęcie kroku. Sprzątanie: `PrzedawnionePunktyOdzyskaniaSzkicu`
+(wołane przez `kuking:sprzataj-usuniete-tresci`) kasuje punkty starsze niż okno
+oraz punkty szkiców opublikowanych/usuniętych miękko. Wymazanie konta kasuje
+punkty jawnie (`EraseAccountData`). Paczka danych: sekcja `kopie_tekstu_szkicow`;
+rejestr czynności: §3.32.
+
+Rollback (D-088): `down()` usuwa tabelę, ale ODMAWIA, gdy jest choć jeden punkt
+w oknie odzyskania. Na pustej tabeli, przy samych przedawnionych punktach i w CI
+przechodzi bez pytania. Wymuszenie po kopii tabeli:
+`KUKING_ROLLBACK_KASUJE_PUNKTY_ODZYSKANIA_SZKICU=1`. Testy:
+`tests/Feature/OdzyskanieTekstuSzkicuTest.php`.

@@ -61,6 +61,7 @@ use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NowosciController;
 use App\Http\Controllers\OdlozenieSzkicuController;
+use App\Http\Controllers\OdzyskanieTekstuSzkicuController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PantryController;
 use App\Http\Controllers\PlanerController;
@@ -1050,6 +1051,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereUuid('szkic')
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('recipes.drafts.resume');
+    // Odzyskanie wcześniejszego tekstu własnego szkicu (#2512, V2): podgląd
+    // różnicy (GET) i przywrócenie po potwierdzeniu (POST), bez JavaScriptu.
+    Route::get('/dodaj/szkice/{szkic}/odzyskanie-tekstu', [OdzyskanieTekstuSzkicuController::class, 'pokaz'])
+        ->whereUuid('szkic')
+        ->name('recipes.drafts.restore.show');
+    Route::post('/dodaj/szkice/{szkic}/odzyskanie-tekstu', [OdzyskanieTekstuSzkicuController::class, 'przywroc'])
+        ->whereUuid('szkic')
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('recipes.drafts.restore');
     Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');
     // Import przepisu z adresu strony i z pliku PDF (V2, D-300). Wynik to
     // zawsze prywatny szkic w kreatorze; limit na osobę w `LimitImportu`,

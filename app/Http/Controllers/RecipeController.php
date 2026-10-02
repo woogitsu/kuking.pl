@@ -15,6 +15,7 @@ use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
 use App\Domain\Recipes\OdzyskajUsunietyPrzepis;
+use App\Domain\Recipes\Odzyskiwanie\PunktOdzyskaniaSzkicu;
 use App\Domain\Recipes\OstatnioOgladane;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Domain\Recipes\Porcje\WyborSztuk;
@@ -104,7 +105,13 @@ class RecipeController extends Controller
             $draft = Recipe::where('status', Recipe::STATUS_DRAFT)->findOrFail($draftId);
             $this->authorize('update', $draft);
 
-            return $this->wizard($request, $draft);
+            // Punkt odzyskania tekstu (#2512): tekst sprzed tej sesji edycji,
+            // jeden na szkic; ponowne otwarcie go nie podmienia.
+            $punkty = app(PunktOdzyskaniaSzkicu::class);
+            $punkty->zachowajPrzedEdycja($draft);
+            $odzyskanie = $request->user()->can('restoreDraftText', $draft) && ($punkty->podglad($draft)['rozni'] ?? false);
+
+            return $this->wizard($request, $draft, $odzyskanie);
         }
 
         return view('pages.recipes.create', [
@@ -222,10 +229,11 @@ class RecipeController extends Controller
         ]);
     }
 
-    private function wizard(Request $request, Recipe $recipe): View
+    private function wizard(Request $request, Recipe $recipe, bool $odzyskanieTekstu = false): View
     {
         return view('pages.recipes.wizard', [
             'draft' => $recipe,
+            'odzyskanieTekstu' => $odzyskanieTekstu,
             'drafts' => $request->user()
                 ->recipes()
                 ->where('status', Recipe::STATUS_DRAFT)

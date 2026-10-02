@@ -3592,6 +3592,12 @@ return [
     ],
 
     'przepisy' => [
+        // PUNKT ODZYSKANIA TEKSTU SZKICU (#2512, D-333). Jeden punkt na szkic,
+        // tekst sprzed sesji edycji; po tylu dniach od zrobienia kasuje go
+        // `kuking:sprzataj-usuniete-tresci`. Czternaście dni: tyle, by wrócić
+        // po tygodniowej przerwie i zauważyć pomyłkę, a nie tworzyć archiwum.
+        'szkic_punkt_odzyskania_dni' => (int) env('KUKING_SZKIC_PUNKT_ODZYSKANIA_DNI', 14),
+
         // RETENCJA `recipe_versions` (#2024, D-333 — wartości POTWIERDZONE
         // przez właściciela 30.09.2026). Wersja jest kasowana, gdy jest starsza niż
         // `version_retention_months` (24 — wartość z decyzji właściciela

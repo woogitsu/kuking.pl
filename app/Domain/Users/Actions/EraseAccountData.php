@@ -365,6 +365,15 @@ final class EraseAccountData
             DB::table('deleted_collections')->where('owner_id', $fresh->getKey())->delete();
 
             /*
+             * PUNKTY ODZYSKANIA TEKSTU SZKICÓW ZNIKAJĄ RAZEM Z KONTEM (#2512).
+             *
+             * To kopia prywatnego tekstu szkicu. Po wymazaniu konta nie ma komu
+             * jej oddać. Jawnie, nie kaskadą: kont się nie kasuje, tylko
+             * anonimizuje (D-022).
+             */
+            DB::table('draft_restore_points')->where('user_id', $fresh->getKey())->delete();
+
+            /*
              * ZAPAMIĘTANY POSTĘP GOTOWANIA ZNIKA RAZEM Z KONTEM (#2016).
              *
              * Krótkotrwały (doba), prywatny stan trybu gotowania — po wymazaniu
