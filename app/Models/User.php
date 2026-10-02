@@ -886,6 +886,20 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->two_factor_confirmed_at !== null && $this->two_factor_secret !== null;
     }
 
+    /**
+     * Ile kodów zapasowych zostało (#2575). Zwraca wyłącznie LICZBĘ — skróty
+     * zostają w modelu i nigdy nie trafiają do widoku. Bez potwierdzonej 2FA
+     * (wyłączona albo dopiero konfigurowana) zapasu nie ma, więc 0.
+     */
+    public function pozostaleKodyZapasowe(): int
+    {
+        if (! $this->hasTwoFactorConfirmed()) {
+            return 0;
+        }
+
+        return count($this->two_factor_backup_codes ?? []);
+    }
+
     /** Uprawnienia administratora: rola ORAZ czynne konto — jak `isModerator()` (issue #1336). */
     public function isAdmin(): bool
     {

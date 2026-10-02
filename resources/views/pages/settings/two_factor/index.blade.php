@@ -24,6 +24,23 @@
             <h2 class="mt-0">Włączona</h2>
             <p>Przy logowaniu, oprócz hasła, poprosimy Cię o kod z aplikacji uwierzytelniającej.</p>
 
+            {{-- Licznik kodów zapasowych (#2575): sama liczba, słowami także dla zera. --}}
+            <div class="mt-4">
+                @if($pozostaleKody > 0)
+                    <p>
+                        <strong>{{ \App\Support\Odmiana::rzeczownik($pozostaleKody, 'Został', 'Zostały', 'Zostało') }} {{ $pozostaleKody }} {{ \App\Support\Odmiana::rzeczownik($pozostaleKody, 'kod zapasowy', 'kody zapasowe', 'kodów zapasowych') }}.</strong>
+                        Każdy kod działa tylko raz.
+                    </p>
+                @else
+                    <p>
+                        <strong>Nie zostały Ci żadne kody zapasowe.</strong>
+                        Logowanie kodem z aplikacji działa dalej, ale gdy stracisz telefon, nie będziesz mieć zapasowej drogi do logowania.
+                        Dopóki masz dostęp do konta, użyj niżej przycisku „Wygeneruj nowe kody zapasowe”
+                        i zapisz nowy komplet w bezpiecznym miejscu.
+                    </p>
+                @endif
+            </div>
+
             {{--
                 NOWE KODY ZAPASOWE STOJĄ WYŻEJ NIŻ „WYŁĄCZ" I TO NIE JEST PRZYPADEK.
 
