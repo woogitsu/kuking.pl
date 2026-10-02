@@ -35,6 +35,9 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Mikrodane ListItem zastępują instrukcję etykietą (#2638)': r'MICRODATA_2638_ITEM_PRZED_ETYKIETA',
+    'Mikrodane pusty ListItem zgaduje instrukcję (#2638)': r'MICRODATA_2638_PUSTY_ITEM_BEZ_ZGADYWANIA',
+    'Mikrodane ListItem zapisują etykietę do szkicu (#2638)': r'MICRODATA_2638_HTTP_ITEM',
     'PDF: ilość dziesiętna staje się numerem listy (#2614)': r'PDF_2614_ILOSC_DZIESIETNA_NIE_JEST_NUMEREM_LISTY',
     'Identyfikator JSON-LD udaje krok (#2582)': r'JSONLD_ID_KROKU_NIE_JEST_TEKSTEM',
     'ListItem.item nie trafia do szkicu importu (#2570)': r'JSONLD_LISTITEM_ITEM_ZAPISUJE_KROKI',

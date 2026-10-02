@@ -1312,6 +1312,15 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    ("Mikrodane ListItem zastępują instrukcję etykietą (#2638)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "ImportMikrodaneTest::test_listitem_item_zachowuje_instrukcje_zamiast_nazwy_opakowania",
+     lambda s: replace_once(s, "if ($this->maTyp($el, ['ListItem'])) {", "if (false) {")),
+    ("Mikrodane pusty ListItem zgaduje instrukcję (#2638)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "ImportMikrodaneTest::test_listitem_bez_obslugiwanego_lokalnego_item_nie_zgaduje_instrukcji",
+     lambda s: replace_once(s, "if ($this->maTyp($el, ['ListItem'])) {", "if (false) {")),
+    ("Mikrodane ListItem zapisują etykietę do szkicu (#2638)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "ImportPrzepisuZAdresuIPdfTest::test_listitem_mikrodanych_zapisuje_item_w_prywatnym_szkicu_bez_modelu",
+     lambda s: replace_once(s, "if ($this->maTyp($el, ['ListItem'])) {", "if (false) {")),
     ("PDF: ilość dziesiętna staje się numerem listy (#2614)",
      "app/Domain/Import/ParserTekstuPrzepisu.php",
      "ImportParseryTest::test_tekst_pdf_zachowuje_dziesietne_ilosci_a_usuwa_tylko_jednoznaczna_numeracje",
