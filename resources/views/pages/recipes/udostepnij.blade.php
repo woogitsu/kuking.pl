@@ -67,7 +67,7 @@
                         <span class="meta">{{ '@'.$kandydat->profile->username }}</span>
                     @endif
                 </p>
-                <p>Ta osoba będzie mogła czytać przepis „{{ $recipe->title }}”. Nie dostanie powiadomienia, więc powiedz jej o tym. Przepis znajdzie w „Moje”, w części „Przepisy udostępnione mi”.</p>
+                <p>Ta osoba będzie mogła czytać przepis „{{ $recipe->title }}”. Dostanie o tym powiadomienie w Kuking (bez listu i bez powiadomienia na telefonie). Przepis znajdzie też w „Moje”, w części „Przepisy udostępnione mi”.</p>
                 <form method="POST" action="{{ route('recipes.shares.store', $recipe) }}">
                     @csrf
                     <input type="hidden" name="nazwa" value="{{ $nazwaKandydata }}">

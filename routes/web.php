@@ -1029,7 +1029,7 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('recipes.destroy');
     // Udostępnienie jednego przepisu wskazanej osobie (#2650, D-333) — sam
-    // odczyt, bez linku i bez powiadomienia. Ekran autora: `manageShares`
+    // odczyt, bez linku; powiadomienie tylko w serwisie. Ekran autora: `manageShares`
     // (lista, odebranie), `share` (nowe udostępnienie). Strona czytania
     // odbiorcy: `readShared` przy KAŻDYM żądaniu, bez cache. Rezygnacja
     // odbiorcy: `RecipeSharePolicy::leave`. Zmiany pod limitem `udostepnienia`.

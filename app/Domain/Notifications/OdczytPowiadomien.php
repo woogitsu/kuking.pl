@@ -64,6 +64,8 @@ final class OdczytPowiadomien
         $this->doladujZapisujacych($wiersze, $odbiorca);
         $this->doladujIstnienieWykonan($wiersze);
         $this->doladujSlugiPrzepisow($wiersze);
+        // Pokazane przepisy (#2650): tytuł tylko przy bieżącym `readShared()`.
+        app(CelPowiadomienia::class)->wczytajPrzepisyUdostepnione($wiersze, $odbiorca);
 
         return $strona;
     }

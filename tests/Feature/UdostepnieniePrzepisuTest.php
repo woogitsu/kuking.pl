@@ -130,8 +130,8 @@ class UdostepnieniePrzepisuTest extends TestCase
 
         $this->assertSame($pierwsze->getKey(), $drugie->getKey());
         $this->assertSame(1, RecipeShare::query()->count());
-        $this->assertSame(0, DB::table('notifications')->where('user_id', $this->jurek->getKey())->count(),
-            'Udostępnienie nie wysyła powiadomienia (decyzja „do potwierdzenia" w D-333).');
+        $this->assertSame(1, DB::table('notifications')->where('user_id', $this->jurek->getKey())->count(),
+            'Jedno powiadomienie w serwisie na parę (decyzja właściciela z 2.10.2026, D-333) — drugie udostępnienie go nie powtarza.');
     }
 
     /** @return array<string, array{string}> */

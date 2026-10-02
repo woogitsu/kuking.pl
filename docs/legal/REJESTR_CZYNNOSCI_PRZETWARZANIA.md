@@ -805,8 +805,10 @@ trafi tam pierwszy rekord.
 - **Cel:** autor pozwala JEDNEMU wskazanemu kontu czytać jeden swój
   opublikowany przepis, bez zmiany tego, kto widzi przepis w serwisie.
 - **Dane:** `recipe_shares` — przepis, konto odbiorcy (`recipient_id`), daty.
-  Odbiorcę wskazuje się publiczną nazwą konta, nie e-mailem. Bez
-  powiadomienia, listu i Web Push. Odbiorca widzi nazwę autora i treść
+  Odbiorcę wskazuje się publiczną nazwą konta, nie e-mailem. Jedno
+  powiadomienie w serwisie (`notifications`, typ `recipe.shared`, w `data`
+  sam `recipe_id`; tytuł tylko przy bieżącym prawie odczytu), bez listu
+  i Web Push — decyzja właściciela z 2.10.2026. Odbiorca widzi nazwę autora i treść
   przepisu (bez skanu kartki i historii wersji); autor widzi listę odbiorców.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
 - **Odbiorcy:** Railway.

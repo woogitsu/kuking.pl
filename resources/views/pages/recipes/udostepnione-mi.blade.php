@@ -3,9 +3,9 @@
 
     Lista przepisów, które ktoś pokazał wyłącznie tej osobie. Kontroler
     przepuszcza każdy wiersz przez `RecipePolicy::readShared()`, więc nie ma
-    tu pozycji prowadzącej w odmowę. Udostępnienie nie wysyła powiadomienia
-    — ta lista (i odnośnik w „Moje") jest jedynym miejscem, gdzie przepis
-    na odbiorcę czeka.
+    tu pozycji prowadzącej w odmowę. Udostępnienie daje jedno powiadomienie
+    w serwisie (`recipe.shared`, bez listu i Web Push); ta lista (i odnośnik
+    w „Moje") jest stałym miejscem, gdzie przepis na odbiorcę czeka.
 --}}
 <x-layout title="Przepisy udostępnione mi" :noindex="true">
     <h1>Przepisy udostępnione mi</h1>

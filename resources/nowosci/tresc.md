@@ -38,8 +38,8 @@ osobie”. Wpiszcie nazwę konta tej osoby (jest na jej profilu, po znaku @),
 sprawdźcie, kogo pokazujemy, i potwierdźcie. Ta osoba przeczyta przepis po
 zalogowaniu, w „Moje” → „Przepisy udostępnione mi”. Nikt inny go nie
 zobaczy, a przepis nie pojawi się w wyszukiwarce. Dostęp odbieracie jednym
-przyciskiem — działa od razu. Nie wysyłamy powiadomienia, więc dajcie tej
-osobie znać sami.
+przyciskiem — działa od razu. Ta osoba zobaczy w powiadomieniach w Kuking,
+że pokazujecie jej przepis — bez listu i bez powiadomienia na telefonie.
 
 ### Przeliczanie miar przy składniku
 

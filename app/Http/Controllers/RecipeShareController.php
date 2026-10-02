@@ -95,7 +95,7 @@ class RecipeShareController extends Controller
         $kto = $odbiorca?->displayName() ?? 'Ta osoba';
 
         return $wroc->with($nowe
-            ? Komunikat::sukces("{$kto} może już czytać ten przepis. Nie wysyłamy powiadomienia — daj znać tej osobie, że przepis czeka na nią w „Moje”, w części „Przepisy udostępnione mi”.")
+            ? Komunikat::sukces("{$kto} może już czytać ten przepis. Ta osoba zobaczy powiadomienie w Kuking, a przepis znajdzie w „Moje”, w części „Przepisy udostępnione mi”.")
             : Komunikat::informacja("{$kto} już ma dostęp do tego przepisu. Nic się nie zmieniło."));
     }
 

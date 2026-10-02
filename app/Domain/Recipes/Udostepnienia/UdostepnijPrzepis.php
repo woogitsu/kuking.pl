@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Udostepnienia;
 
+use App\Domain\Notifications\Actions\NotifyUser;
 use App\Domain\Social\ZamekPary;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Models\Notification;
 use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\RecipeShare;
@@ -18,14 +20,16 @@ use Illuminate\Support\Facades\Gate;
  *
  * WZÓR: zaproszenie do wspólnego zeszytu po nazwie konta
  * (`ZaprosDoZeszytu::poNazwie()`), z trzema różnicami — nie ma linku, nie ma
- * oczekiwania na odpowiedź i nie ma powiadomienia:
+ * oczekiwania na odpowiedź, a powiadomienie jest tylko w serwisie:
  *  - BEZ LINKU, bo issue wyklucza „publiczny link okaziciela";
  *  - BEZ ODPOWIEDZI, bo to sam odczyt, nie członkostwo — odbiorca może
  *    z dostępu zrezygnować w każdej chwili („Udostępnione mi");
- *  - BEZ POWIADOMIENIA (decyzja „do potwierdzenia" w D-333): powiadomienie
- *    niesie tytuł prywatnego przepisu do Web Push i listu, a pętla
- *    udostępnij → odbierz budziłaby komuś telefon. Autor mówi bliskiej
- *    osobie sam; przepis czeka na nią w „Moje".
+ *  - POWIADOMIENIE TYLKO W SERWISIE (decyzja właściciela z 2.10.2026,
+ *    D-333): `recipe.shared` bez listu i bez Web Push (`KanalPush::TYPY`
+ *    go nie zna), z samym `recipe_id` — tytuł liczy się przy wyświetlaniu
+ *    i tylko przy bieżącym `readShared()`. Jedno na parę (przepis,
+ *    odbiorca): ponowne udostępnienie, także po cofnięciu, go nie powtarza,
+ *    więc pętla udostępnij → odbierz nie zasypuje nikogo powiadomieniami.
  *
  * ODBIORCA PO NAZWIE KONTA, NIE PO E-MAILU. Nazwa konta jest publiczna
  * (stoi na profilu), więc odpowiedź „taka osoba jest" nie zdradza niczego,
@@ -121,8 +125,44 @@ final class UdostepnijPrzepis
 
             $wiersz = $swiezy->shares()->where('recipient_id', $odbiorca->getKey())->firstOrFail();
 
+            if ($wstawione > 0) {
+                $this->powiadom($swiezyAutor, $odbiorca, $swiezy);
+            }
+
             return [$wiersz, $wstawione > 0];
         });
+    }
+
+    /**
+     * „@nazwa pokazuje Ci przepis" — w serwisie, pod tym samym zamkiem pary
+     * co zapis, więc blokada nie wciśnie się między udostępnienie
+     * a powiadomienie, a dwa równoległe udostępnienia nie dają dwóch wierszy.
+     *
+     * Brak powiadomienia, gdy którekolwiek konto nie jest w tej chwili
+     * AKTYWNE (zawieszone, zbanowane, zamykane) — `moznaPokazac()` i `share`
+     * już to wykluczają, a ten warunek stoi tu jawnie, żeby zmiana tamtych
+     * reguł nie otworzyła powiadomień po cichu. `NotifyUser` dokłada swoje
+     * granice (blokada, własna akcja, konto, które nie może czytać).
+     */
+    private function powiadom(User $autor, User $odbiorca, Recipe $przepis): void
+    {
+        if (! $autor->isActive() || ! $odbiorca->isActive()) {
+            return;
+        }
+
+        $juzBylo = Notification::query()
+            ->where('user_id', $odbiorca->getKey())
+            ->where('type', Notification::TYPE_RECIPE_SHARED)
+            ->where('data->recipe_id', (string) $przepis->getKey())
+            ->exists();
+
+        if ($juzBylo) {
+            return;
+        }
+
+        app(NotifyUser::class)->handle($odbiorca, Notification::TYPE_RECIPE_SHARED, $autor, [
+            'recipe_id' => (string) $przepis->getKey(),
+        ]);
     }
 
     /**
