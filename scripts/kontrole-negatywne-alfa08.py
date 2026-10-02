@@ -1311,7 +1311,28 @@ def planer_bez_potwierdzenia(source):
     return source[:od] + dawny + source[do:]
 
 
+def skladniki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
+    old = "return preg_match('/\\A[ \\t\\n\\x{00A0}\\x{202F}]*\\z/u', $wiersz) === 1;"
+    new = "return preg_match('/\\A[ \\t\\n]*\\z/u', $wiersz) === 1;"
+
+    return replace_once(source, old, new)
+
+
+def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
+    old = next((line for line in source.splitlines() if '$bloki = preg_split(' in line), None)
+    if old is None or old.count('\\\\x{00A0}\\\\x{202F}') != 2:
+        raise RuntimeError('Nie znaleziono obu kotwic granicy kroków Unicode (#2621).')
+
+    return replace_once(source, old, old.replace('\\\\x{00A0}\\\\x{202F}', ''))
+
+
 checks = [
+    ("Pusta linia Unicode tworzy składnik (#2621)", "app/Domain/Recipes/TekstNaWiersze.php",
+     "test_niewidoczne_spacje_na_pustych_liniach_nie_tworza_skladnika_i_rozdzielaja_kroki",
+     skladniki_nie_rozpoznaja_nierozdzielajacej_spacji),
+    ("Pusta linia Unicode skleja kroki po POST (#2621)", "app/Domain/Recipes/TekstNaWiersze.php",
+     "test_wklejony_tekst_z_nierozdzielajaca_spacja_na_pustej_linii_zapisuje_wlasciwe_skladniki_i_kroki",
+     kroki_nie_rozpoznaja_nierozdzielajacej_spacji),
     ("PDF: ilość dziesiętna staje się numerem listy (#2614)",
      "app/Domain/Import/ParserTekstuPrzepisu.php",
      "ImportParseryTest::test_tekst_pdf_zachowuje_dziesietne_ilosci_a_usuwa_tylko_jednoznaczna_numeracje",

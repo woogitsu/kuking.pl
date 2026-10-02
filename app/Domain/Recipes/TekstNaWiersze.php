@@ -44,7 +44,7 @@ final class TekstNaWiersze
         foreach (explode("\n", self::znormalizuj($tekst)) as $wiersz) {
             $wiersz = trim($wiersz);
 
-            if ($wiersz === '') {
+            if (self::pustyWiersz($wiersz)) {
                 continue;
             }
 
@@ -68,16 +68,16 @@ final class TekstNaWiersze
 
         // Linia „pusta" to także linia z samymi spacjami albo tabulatorami —
         // tego człowiek na ekranie nie odróżni, więc nie może to zmieniać
-        // wyniku. `preg_split` z `+` skleja też kilka pustych linii pod rząd
-        // w jedną granicę, zamiast robić z nich puste kroki.
-        $bloki = preg_split("/\n[ \t]*\n(?:[ \t]*\n)*/", $tekst) ?: [];
+        // wyniku. Dotyczy też spacji nierozdzielających z wklejonego tekstu.
+        // Nie zmieniamy ich wewnątrz niepustej linii, np. w „1 000 g".
+        $bloki = preg_split("/\n[ \t\\x{00A0}\\x{202F}]*\n(?:[ \t\\x{00A0}\\x{202F}]*\n)*/u", $tekst) ?: [];
 
         $wiersze = [];
 
         foreach ($bloki as $blok) {
             $blok = trim($blok);
 
-            if ($blok === '') {
+            if (self::pustyWiersz($blok)) {
                 continue;
             }
 
@@ -97,5 +97,11 @@ final class TekstNaWiersze
     private static function znormalizuj(?string $tekst): string
     {
         return str_replace(["\r\n", "\r"], "\n", (string) $tekst);
+    }
+
+    /** Wyłącznie całkiem pusta linia; nie ruszamy spacji wewnątrz treści. */
+    private static function pustyWiersz(string $wiersz): bool
+    {
+        return preg_match('/\A[ \t\n\x{00A0}\x{202F}]*\z/u', $wiersz) === 1;
     }
 }
