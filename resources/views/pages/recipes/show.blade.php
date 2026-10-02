@@ -759,8 +759,10 @@
                                          składnikiem — tekstem ≥ 18 px, nie drobnym dopiskiem. --}}
                                     @if($ingredient->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $ingredient->substitutes }}</span>@endif
                                     {{-- Równoważniki miar na żądanie (#2533): tylko masa↔masa i
-                                         objętość↔objętość, z ilości po wybranych porcjach. --}}
-                                    @unless($ingredient->no_amount)
+                                         objętość↔objętość, z ilości po wybranych porcjach.
+                                         Nie na kartce do druku (`?druk=1`): papier nie rozwija
+                                         bloku, a zamknięte „Przelicz” wlazłoby w tekst składnika. --}}
+                                    @unless($ingredient->no_amount || request()->boolean('druk'))
                                         @php($rownowazniki = \App\Domain\Recipes\Porcje\PrzeliczMiare::dla($przeliczony->tekst()))
                                         @if($rownowazniki !== [])
                                             <details class="skladnik-przelicz" data-przelicz-miare>

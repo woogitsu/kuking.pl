@@ -58,6 +58,18 @@ final class PrzeliczMiareNaStroniePrzepisuTest extends TestCase
         $this->assertStringNotContainsString('data-przelicz-miare', $html);
     }
 
+    public function test_kartka_do_druku_nie_ma_bloku_przelicz(): void
+    {
+        $przepis = $this->przepis(2, ['25 dag mąki']);
+
+        foreach ([['druk' => 1], ['druk' => 1, 'dla' => 'pomocnika']] as $parametry) {
+            $html = (string) $this->get(route('recipes.show', [$przepis->slug, ...$parametry]))->assertOk()->getContent();
+
+            $this->assertStringNotContainsString('data-przelicz-miare', $html);
+            $this->assertStringNotContainsString('<summary>Przelicz</summary>', $html);
+        }
+    }
+
     /** @param list<string> $skladniki */
     private function przepis(int $porcje, array $skladniki): Recipe
     {
