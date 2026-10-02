@@ -137,7 +137,7 @@ final class PotwierdzenieZgloszeniaNielegalnejTresci extends Notification implem
             ->line('Sprawdzimy to i odpiszemy Ci z decyzją. Napiszemy także wtedy, gdy '
                 .'uznamy, że treść zostaje — razem z powodem i z informacją, co możesz '
                 .'zrobić dalej, jeśli się z nami nie zgadzasz.')
-            ->line('Ten list jest potwierdzeniem odbioru. Nie musisz na niego odpisywać.')
+            ->line('Ten list potwierdza odbiór zgłoszenia i nie przesądza jego wyniku. Nie musisz na niego odpisywać.')
             ->salutation('Zespół Kuking.pl');
     }
 }
