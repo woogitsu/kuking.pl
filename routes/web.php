@@ -109,6 +109,7 @@ use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WskazowkaController;
 use App\Http\Controllers\WspolneGotowanieController;
 use App\Http\Controllers\WspomnienieController;
+use App\Http\Controllers\ZeszytDoPlaneraController;
 use App\Http\Controllers\ZeszytyUsunieteController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use App\Http\Controllers\ZgodaOdczytuAiController;
@@ -1328,6 +1329,20 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereUuid('pozycja')
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.recipes.move');
+    // „Zaplanuj wybrane przepisy” (#2483): wybór -> podgląd -> zatwierdzenie,
+    // na jeden dzień własnego planera. Policy `planuj` (tylko właściciel).
+    // Podgląd niczego nie zapisuje (budżet `zeszyt`), zapis ma budżet planera.
+    Route::get('/zeszyt/{collection}/do-planera', [ZeszytDoPlaneraController::class, 'form'])
+        ->whereUuid('collection')
+        ->name('collections.planer');
+    Route::post('/zeszyt/{collection}/do-planera/podglad', [ZeszytDoPlaneraController::class, 'podglad'])
+        ->whereUuid('collection')
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
+        ->name('collections.planer.podglad');
+    Route::post('/zeszyt/{collection}/do-planera', [ZeszytDoPlaneraController::class, 'store'])
+        ->whereUuid('collection')
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('collections.planer.store');
     Route::post('/zeszyt/{collection}/kolejnosc/zapis', [CollectionRecipeOrderController::class, 'przywroc'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.recipes.order-reset');

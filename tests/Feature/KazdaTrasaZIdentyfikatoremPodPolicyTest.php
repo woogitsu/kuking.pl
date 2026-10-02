@@ -1448,6 +1448,14 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('collections.recipes.order-reset', 'powrót do kolejności zapisu', 'post',
             route('collections.recipes.order-reset', $zeszyt), [], [$W, $O, $O, $O, $O]);
         // Skrót do własnego zeszytu w „Moje” (#2542) — wyłącznie właściciel.
+        // #2483: planowanie z zeszytu — tylko właściciel zeszytu (`CollectionPolicy::planuj`),
+        // także na krokach podglądu i zapisu (obcy dostaje odmowę, zanim cokolwiek się policzy).
+        $dodaj('collections.planer', 'formularz planowania przepisów z zeszytu', 'get',
+            route('collections.planer', $zeszyt), [], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.planer.podglad', 'podgląd planowania przepisów z zeszytu', 'post',
+            route('collections.planer.podglad', $zeszyt), [], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.planer.store', 'zapis planowania przepisów z zeszytu', 'post',
+            route('collections.planer.store', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.shortcut.store', 'ustawienie skrótu do zeszytu', 'post',
             route('collections.shortcut.store', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.shortcut.destroy', 'usunięcie skrótu do zeszytu', 'delete',

@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Zaplanuj wybrane przepisy z zeszytu
+
+Zebraliście w zeszycie zupę, pieczeń i deser na niedzielny obiad? Na stronie własnego zeszytu jest przycisk „Zaplanuj wybrane przepisy”. Zaznaczacie przepisy, wybieracie jeden dzień w Planerze i widzicie podgląd: co dodamy, a co już tam jest. Dopiero po zatwierdzeniu przepisy trafiają do planu na ten dzień. Nic się nie dzieje bez Waszego kliknięcia, a notatki z zeszytu zostają w zeszycie.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.
