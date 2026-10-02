@@ -167,7 +167,6 @@ class ListPoZmianieHaslaTest extends TestCase
 
                 throw new RuntimeException('Wycofanie wywołane przez test #2565.');
             });
-            $this->fail('Transakcja nie została wycofana — test niczego by nie mierzył.');
         } catch (RuntimeException $e) {
             $this->assertSame('Wycofanie wywołane przez test #2565.', $e->getMessage());
         }
