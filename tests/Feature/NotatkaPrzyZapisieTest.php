@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Collections\Actions\UpdateCollectionItemNote;
+use App\Domain\Collections\Wspoldzielenie\OdpowiedzNaZaproszenie;
+use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
 use App\Models\Collection;
@@ -40,7 +42,7 @@ final class NotatkaPrzyZapisieTest extends TestCase
         $this->assertNull(DB::table('collection_items')->where('collection_id', $obiady->id)->value('note'));
 
         $this->actingAs($wlasciciel)->from(route('collections.show', $obiady))
-            ->patch($this->adres($obiady, 'przepis', $przepis->id), ['note' => '  Na urodziny taty — mniej soli.  '])
+            ->patch($this->adres($obiady, 'przepis', $przepis->id), $this->pola($obiady, 'przepis', $przepis->id, '  Na urodziny taty — mniej soli.  '))
             ->assertRedirect(route('collections.show', $obiady))
             ->assertSessionHas('status', 'Notatka zapisana. Widzisz ją tylko Ty.');
 
@@ -67,7 +69,7 @@ final class NotatkaPrzyZapisieTest extends TestCase
         $this->assertSame('Stara notatka', $this->eksport($wlasciciel)['wpisy'][0]['moja_notatka']);
 
         $this->actingAs($wlasciciel)
-            ->patch($this->adres($zeszyt, 'wpis', $wpis->id), ['note' => "   \n  "])
+            ->patch($this->adres($zeszyt, 'wpis', $wpis->id), $this->pola($zeszyt, 'wpis', $wpis->id, "   \n  "))
             ->assertSessionHas('status', 'Notatka usunięta. Zapis został w zeszycie.');
 
         $this->assertDatabaseHas('collection_items', ['collection_id' => $zeszyt->id, 'post_id' => $wpis->id, 'note' => null]);
@@ -84,8 +86,7 @@ final class NotatkaPrzyZapisieTest extends TestCase
 
         $zaDluga = str_repeat('ż', 501);
         $html = (string) $this->actingAs($wlasciciel)->from(route('collections.show', $zeszyt))->followingRedirects()
-            ->patch($this->adres($zeszyt, 'przepis', $przepis->id), [
-                'note' => $zaDluga,
+            ->patch($this->adres($zeszyt, 'przepis', $przepis->id), $this->pola($zeszyt, 'przepis', $przepis->id, $zaDluga) + [
                 '_wiersz' => 'notatka-przepis-'.$przepis->id,
             ])->assertOk()->getContent();
 
@@ -99,7 +100,7 @@ final class NotatkaPrzyZapisieTest extends TestCase
 
         // Granica: dokładnie 500 znaków (polskich) przechodzi.
         $this->actingAs($wlasciciel)
-            ->patch($this->adres($zeszyt, 'przepis', $przepis->id), ['note' => str_repeat('ż', 500)])
+            ->patch($this->adres($zeszyt, 'przepis', $przepis->id), $this->pola($zeszyt, 'przepis', $przepis->id, str_repeat('ż', 500)))
             ->assertSessionHasNoErrors();
         $this->assertSame(str_repeat('ż', 500), DB::table('collection_items')->where('collection_id', $zeszyt->id)->value('note'));
     }
@@ -112,7 +113,7 @@ final class NotatkaPrzyZapisieTest extends TestCase
         $zeszyt->recipes()->attach($przepis->id, ['note' => 'Poprzednia']);
 
         try {
-            app(UpdateCollectionItemNote::class)->handle($wlasciciel, $zeszyt, 'przepis', $przepis->id, str_repeat('a', 503));
+            app(UpdateCollectionItemNote::class)->handle($wlasciciel, $zeszyt, 'przepis', $przepis->id, str_repeat('a', 503), null);
             $this->fail('Za długa notatka przeszła przez akcję domenową.');
         } catch (\Throwable $e) {
             // Konkretny błąd domenowy, nie dowolny wyjątek (np. z limitu kolumny w bazie).
@@ -197,9 +198,129 @@ final class NotatkaPrzyZapisieTest extends TestCase
         $this->assertDatabaseMissing('collection_items', ['recipe_id' => $niezapisany->id]);
     }
 
+    public function test_stara_karta_nie_nadpisuje_nowszej_notatki_a_tekst_wraca_do_formularza(): void
+    {
+        [$wlasciciel, $autor] = [$this->user('wlasciciel'), $this->user('autor')];
+        $zeszyt = $this->zeszyt($wlasciciel, 'Obiady');
+        $przepis = Recipe::factory()->create(['author_id' => $autor->getKey(), 'visibility' => 'public']);
+        $zeszyt->recipes()->attach($przepis->id, ['note' => 'A']);
+
+        // Dwie karty otwarte na notatce „A": obie niosą jej odcisk.
+        $karta1 = $this->pola($zeszyt, 'przepis', $przepis->id, 'B');
+        $karta2 = $this->pola($zeszyt, 'przepis', $przepis->id, 'C');
+
+        $this->actingAs($wlasciciel)->patch($this->adres($zeszyt, 'przepis', $przepis->id), $karta1)
+            ->assertSessionHas('status');
+        $this->assertSame('B', $this->notatka($zeszyt));
+
+        $html = (string) $this->actingAs($wlasciciel)->from(route('collections.show', $zeszyt))->followingRedirects()
+            ->patch($this->adres($zeszyt, 'przepis', $przepis->id), $karta2 + ['_wiersz' => 'notatka-przepis-'.$przepis->id])
+            ->assertOk()->getContent();
+
+        $this->assertSame('B', $this->notatka($zeszyt), 'Stara karta nie może nadpisać notatki B.');
+        $this->assertStringContainsString('została zmieniona, zanim ją zapisałeś', $html);
+        $this->assertStringContainsString('Aktualna notatka brzmi: „B”', $html);
+        $this->assertMatchesRegularExpression('/<textarea[^>]*>\s*C\s*<\/textarea>/', $html, 'Tekst C zostaje w polu.');
+        $this->assertMatchesRegularExpression('/<details class="mt-2"\s+open\s*>/', $html);
+        // Formularz po konflikcie niesie odcisk AKTUALNEJ notatki „B".
+        $this->assertStringContainsString('name="notatka_przed" value="'.UpdateCollectionItemNote::odcisk('B').'"', $html);
+
+        // Świadome zastąpienie: ponowne „Zapisz" z nowym odciskiem przechodzi.
+        $this->actingAs($wlasciciel)->patch($this->adres($zeszyt, 'przepis', $przepis->id), $this->pola($zeszyt, 'przepis', $przepis->id, 'C'))
+            ->assertSessionHas('status');
+        $this->assertSame('C', $this->notatka($zeszyt));
+    }
+
+    public function test_zapis_z_aktualnym_odciskiem_przechodzi_takze_dla_pustej_notatki(): void
+    {
+        [$wlasciciel, $autor] = [$this->user('wlasciciel'), $this->user('autor')];
+        $zeszyt = $this->zeszyt($wlasciciel, 'Obiady');
+        $przepis = Recipe::factory()->create(['author_id' => $autor->getKey(), 'visibility' => 'public']);
+        $zeszyt->recipes()->attach($przepis->id);
+
+        // Pusta notatka też ma odcisk.
+        $this->actingAs($wlasciciel)->patch($this->adres($zeszyt, 'przepis', $przepis->id), $this->pola($zeszyt, 'przepis', $przepis->id, 'Pierwsza'))
+            ->assertSessionHas('status');
+        $this->assertSame('Pierwsza', $this->notatka($zeszyt));
+
+        // Wyczyszczenie ze starej karty, gdy notatka już się zmieniła, jest konfliktem.
+        $stara = $this->pola($zeszyt, 'przepis', $przepis->id, '');
+        DB::table('collection_items')->where('collection_id', $zeszyt->id)->update(['note' => 'Nowsza']);
+        $this->actingAs($wlasciciel)->patch($this->adres($zeszyt, 'przepis', $przepis->id), $stara)
+            ->assertSessionHasErrors('note', null, UpdateCollectionItemNote::WOREK_BLEDOW);
+        $this->assertSame('Nowsza', $this->notatka($zeszyt));
+
+        // Notatka usunięta w drugiej karcie, a ta próbuje zapisać tekst: konflikt, pusta zostaje.
+        $zTekstem = $this->pola($zeszyt, 'przepis', $przepis->id, 'Moja');
+        DB::table('collection_items')->where('collection_id', $zeszyt->id)->update(['note' => null]);
+        $this->actingAs($wlasciciel)->patch($this->adres($zeszyt, 'przepis', $przepis->id), $zTekstem)
+            ->assertSessionHasErrors('note', null, UpdateCollectionItemNote::WOREK_BLEDOW);
+        $this->assertNull($this->notatka($zeszyt));
+    }
+
+    public function test_brak_odcisku_w_formularzu_jest_konfliktem_a_nie_cichym_zapisem(): void
+    {
+        [$wlasciciel, $autor] = [$this->user('wlasciciel'), $this->user('autor')];
+        $zeszyt = $this->zeszyt($wlasciciel, 'Obiady');
+        $przepis = Recipe::factory()->create(['author_id' => $autor->getKey(), 'visibility' => 'public']);
+        $zeszyt->recipes()->attach($przepis->id, ['note' => 'Cudza']);
+
+        $this->actingAs($wlasciciel)->patch($this->adres($zeszyt, 'przepis', $przepis->id), ['note' => 'Z dawnego formularza'])
+            ->assertSessionHasErrors('note', null, UpdateCollectionItemNote::WOREK_BLEDOW)
+            ->assertSessionHasInput('note', 'Z dawnego formularza');
+        $this->assertSame('Cudza', $this->notatka($zeszyt));
+    }
+
+    public function test_wspoltworca_wspolnego_zeszytu_ma_ta_sama_regule(): void
+    {
+        [$wlasciciel, $gosc, $autor] = [$this->user('wlasciciel'), $this->user('gosc'), $this->user('autor')];
+        $zeszyt = $this->zeszyt($wlasciciel, 'Obiady');
+        app(OdpowiedzNaZaproszenie::class)->przyjmij(
+            $gosc,
+            app(ZaprosDoZeszytu::class)->poNazwie($wlasciciel, $zeszyt, (string) $gosc->profile->username),
+        );
+        $przepis = Recipe::factory()->create(['author_id' => $autor->getKey(), 'visibility' => 'public']);
+        $zeszyt->recipes()->attach($przepis->id, ['note' => 'A']);
+
+        $kartaGoscia = $this->pola($zeszyt, 'przepis', $przepis->id, 'Gość');
+        $this->actingAs($wlasciciel)->patch($this->adres($zeszyt, 'przepis', $przepis->id), $this->pola($zeszyt, 'przepis', $przepis->id, 'Właściciel'))
+            ->assertSessionHas('status');
+
+        $this->actingAs($gosc)->patch($this->adres($zeszyt, 'przepis', $przepis->id), $kartaGoscia)
+            ->assertSessionHasErrors('note', null, UpdateCollectionItemNote::WOREK_BLEDOW);
+        $this->assertSame('Właściciel', $this->notatka($zeszyt));
+
+        // I w drugą stronę: gość zapisuje z aktualnym odciskiem, stara karta właściciela odpada.
+        $kartaWlasciciela = $this->pola($zeszyt, 'przepis', $przepis->id, 'Znowu właściciel');
+        $this->actingAs($gosc)->patch($this->adres($zeszyt, 'przepis', $przepis->id), $this->pola($zeszyt, 'przepis', $przepis->id, 'Gość'))
+            ->assertSessionHas('status');
+        $this->actingAs($wlasciciel)->patch($this->adres($zeszyt, 'przepis', $przepis->id), $kartaWlasciciela)
+            ->assertSessionHasErrors('note', null, UpdateCollectionItemNote::WOREK_BLEDOW);
+        $this->assertSame('Gość', $this->notatka($zeszyt));
+    }
+
     private function zeszyt(User $wlasciciel, string $nazwa, string $widocznosc = 'private'): Collection
     {
         return Collection::create(['owner_id' => $wlasciciel->getKey(), 'name' => $nazwa, 'visibility' => $widocznosc]);
+    }
+
+    /**
+     * Pola formularza tak, jak wyśle je przeglądarka: tekst + odcisk notatki
+     * widzianej w chwili renderowania (czyli TERAZ w bazie).
+     *
+     * @return array<string, string>
+     */
+    private function pola(Collection $zeszyt, string $typ, string $id, string $tekst): array
+    {
+        return [
+            'note' => $tekst,
+            UpdateCollectionItemNote::POLE_ODCISKU => UpdateCollectionItemNote::odcisk($this->notatka($zeszyt)),
+        ];
+    }
+
+    private function notatka(Collection $zeszyt): ?string
+    {
+        return DB::table('collection_items')->where('collection_id', $zeszyt->id)->value('note');
     }
 
     private function adres(Collection $zeszyt, string $typ, string $id): string
