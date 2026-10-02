@@ -312,11 +312,18 @@ egzekwuje.
 - **Odbiorcy:** Railway.
 - **Termin usunięcia:** **12 miesięcy**
   (`config/kuking.php` → `audit_log.retention_months`), egzekwuje
-  `kuking:sprzataj-audyt`. **Wyjątek trwały:** wpisy dokumentujące złożenie,
-  cofnięcie albo wykonanie żądania usunięcia konta zostają na stałe — są
-  dowodem, że usunięcie się odbyło. Skrót IP (`ip_hash`) zeruje w nich ta sama
-  komenda po tych samych 12 miesiącach (audyt B5 pkt 10) — dowodem jest
-  rodzaj zdarzenia i data, nie sieć.
+  `kuking:sprzataj-audyt`. **Wpisy `account.*`** (złożenie, cofnięcie, wykonanie żądania usunięcia
+  konta) nie są już bezterminowe (#2708, D-333 → D-233): podlegają tej samej
+  retencji, ale `kuking:sprzataj-audyt` kasuje je dopiero po przeniesieniu do
+  `potwierdzenia_zadan_rodo` (`kuking:przenies-potwierdzenia-rodo`) i nigdy dla
+  konta z zabezpieczonym dowodem. Dowód obsługi żądania: `potwierdzenia_zadan_rodo`
+  (numer sprawy, daty, wynik, zakres, wersja procedury, wyjątki, `konto_id`).
+  **`konto_id` jest daną osobową** (wskaźnik na zanonimizowane konto i jego
+  treści); termin: **36 miesięcy od zamknięcia sprawy**, kasowanie automatyczne
+  (`kuking:sprzataj-potwierdzenia-rodo`, 02:15), pominięte tylko wiersze ze
+  `wstrzymanie_do` w przyszłości (udokumentowane postępowanie) i konta z
+  zabezpieczonym dowodem. Bez IP w całym okresie. Dziennik wykonanych wymazań
+  poza bazą (niżej) żyje 120 dni.
 
 ### 3.10a Sesja logowania (tabela `sessions`)
 

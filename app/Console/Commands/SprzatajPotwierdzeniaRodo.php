@@ -17,22 +17,20 @@ use Illuminate\Console\Command;
  * `App\Domain\Compliance\PrzedawnionePotwierdzeniaRodo`.
  *
  * ────────────────────────────────────────────────────────────────────────
- *  KASOWANIE JEST DZIŚ WYŁĄCZONE — DECYZJA WŁAŚCICIELA (D-233)
+ *  WŁĄCZONE DECYZJĄ WŁAŚCICIELA Z 2.10.2026 (#2708, odsyła do D-233)
  * ────────────────────────────────────────────────────────────────────────
  *
- * Komenda ISTNIEJE i jest w pełni przetestowana, ale bez
- * `kuking.potwierdzenia_rodo.retencja_wlaczona` NIE KASUJE NICZEGO i mówi
- * o tym wprost. Powód i droga włączenia stoją przy kluczu w
- * `config/kuking.php`; nie powtarzamy ich tutaj, żeby nie rozjechały się
- * z oryginałem.
+ * Do 2.10.2026 kasowanie było wyłączone (D-233: okresu nie potwierdził
+ * prawnik). Właściciel uznał analizę z 2.10.2026 (pytanie 7) za potwierdzenie
+ * okresu: 36 miesięcy od zamknięcia sprawy. Komenda jest w
+ * `routes/console.php` (02:15). `kuking.potwierdzenia_rodo.retencja_wlaczona`
+ * zostaje wyłącznikiem awaryjnym: po jego wyłączeniu komenda nic nie kasuje
+ * i mówi o tym wprost; `--na-sucho` działa zawsze.
  *
- * `--na-sucho` DZIAŁA MIMO WYŁĄCZENIA i to jest celowe: właśnie tym
- * właściciel ma przygotować dane historyczne, zanim prawnik potwierdzi
- * okres. Dry-run nie wykonuje żadnego `DELETE`.
- *
- * Nie ma tej komendy w `routes/console.php` — też celowo. Zadanie nieobecne
- * w harmonogramie nie wystartuje nawet przy przypadkowo ustawionej zmiennej,
- * więc wyłączenie ma dwie niezależne bariery, nie jedną.
+ * Pominięte są wiersze z `wstrzymanie_do` w przyszłości oraz konta
+ * z zabezpieczonym dowodem (ścieżka CSAM). Wpisy `audit_log` `account.*` nie
+ * są tu ruszane — dla nich bramką jest backfill
+ * (`kuking:przenies-potwierdzenia-rodo`).
  */
 class SprzatajPotwierdzeniaRodo extends Command
 {
@@ -40,7 +38,7 @@ class SprzatajPotwierdzeniaRodo extends Command
                             {--miesiace= : Ile miesięcy trzymać potwierdzenie od zakończenia obsługi (domyślnie z konfiguracji)}
                             {--na-sucho : Policz, ale niczego nie kasuj — działa także przy wyłączonej retencji}';
 
-    protected $description = 'Kasuje potwierdzenia obsługi żądań RODO starsze niż okres retencji, poza wstrzymanymi udokumentowaną sprawą. Kasowanie jest domyślnie WYŁĄCZONE (D-233).';
+    protected $description = 'Kasuje potwierdzenia obsługi żądań RODO starsze niż okres retencji, poza wstrzymanymi udokumentowaną sprawą. Wyłącznik awaryjny: kuking.potwierdzenia_rodo.retencja_wlaczona.';
 
     public function handle(PrzedawnionePotwierdzeniaRodo $sprzataj): int
     {
@@ -58,7 +56,7 @@ class SprzatajPotwierdzeniaRodo extends Command
 
         if ($miesiace === null) {
             $this->error('Okres retencji nie jest ustalony.');
-            $this->line('Nie zgadujemy go: `kuking.potwierdzenia_rodo.retention_months` jest puste, dopóki prawnik nie potwierdzi okresu (D-233).');
+            $this->line('Nie zgadujemy go: `kuking.potwierdzenia_rodo.retention_months` jest puste (domyślnie 36, decyzja z 2.10.2026).');
             $this->line('Do policzenia danych historycznych podaj próg wprost, np.: --na-sucho --miesiace=36');
 
             return self::FAILURE;
@@ -69,10 +67,9 @@ class SprzatajPotwierdzeniaRodo extends Command
             // wszystko wpiąłby komendę w harmonogram, czujka kolejki
             // zgłaszałaby co noc awarię, której nie ma. Wyłączona retencja
             // to stan zamierzony, nie usterka.
-            $this->warn('Retencja potwierdzeń RODO jest WYŁĄCZONA (decyzja właściciela, D-233). Nic nie skasowano.');
-            $this->line('Kasowanie jest twardym DELETE, nieodwracalnym, a okres nie został jeszcze potwierdzony przez prawnika.');
+            $this->warn('Retencja potwierdzeń RODO jest WYŁĄCZONA wyłącznikiem awaryjnym. Nic nie skasowano.');
+            $this->line('Kasowanie jest twardym DELETE, nieodwracalnym; włącz je, usuwając KUKING_POTWIERDZENIA_RODO_RETENCJA_WLACZONA=false.');
             $this->line("Żeby policzyć bez kasowania: kuking:sprzataj-potwierdzenia-rodo --na-sucho --miesiace={$miesiace}");
-            $this->line('Żeby włączyć na stałe: patrz `config/kuking.php`, klucz `potwierdzenia_rodo`.');
 
             return self::SUCCESS;
         }
@@ -80,7 +77,7 @@ class SprzatajPotwierdzeniaRodo extends Command
         $wynik = $sprzataj->posprzataj($miesiace, $naSucho);
 
         if ($naSucho && ! $wlaczona) {
-            $this->warn('Retencja jest wyłączona (D-233) — to jest wyłącznie policzenie, żaden wiersz nie został skasowany.');
+            $this->warn('Retencja jest wyłączona wyłącznikiem awaryjnym — to jest wyłącznie policzenie, żaden wiersz nie został skasowany.');
         }
 
         $this->info($naSucho
