@@ -48,6 +48,12 @@ class KosztZCenGusTest extends TestCase
             'ułamek znakiem' => ['½ łyżeczki soli', ['ilosc' => 0.5, 'miara' => 'lyzeczka']],
             'ułamek mieszany' => ['1 1/2 szklanki mleka', ['ilosc' => 1.5, 'miara' => 'szklanka']],
             'przedział' => ['2-3 łyżki oleju', ['ilosc' => 2.5, 'miara' => 'lyzka']],
+            'przedział do w gramach' => ['200 do 300 g mąki', ['ilosc' => 250.0, 'miara' => 'g']],
+            'przedział lub w sztukach' => ['2 lub 3 jajka', ['ilosc' => 2.5, 'miara' => 'sztuka']],
+            'przedział albo z ułamkami' => ['1/2 albo 3/4 l mleka', ['ilosc' => 625.0, 'miara' => 'ml']],
+            'przedział z przecinkami' => ['1,5 do 2,5 kg mąki', ['ilosc' => 2000.0, 'miara' => 'g']],
+            'do jako cel, nie przedział' => ['2 łyżki do smażenia', ['ilosc' => 2.0, 'miara' => 'lyzka']],
+            'uszkodzony przedział' => ['200 do dużo g mąki', null],
             'pół słownie' => ['pół szklanki cukru', ['ilosc' => 0.5, 'miara' => 'szklanka']],
             'ilość po nazwie' => ['mąka pszenna — 2 szklanki', ['ilosc' => 2.0, 'miara' => 'szklanka']],
             'procent to nie ilość' => ['śmietana 18%', null],
@@ -67,6 +73,74 @@ class KosztZCenGusTest extends TestCase
     public function ilosc_z_tekstu(string $tekst, ?array $oczekiwane): void
     {
         $this->assertEquals($oczekiwane, IloscZTekstu::rozbierz($tekst));
+    }
+
+    #[Test]
+    public function slowne_zakresy_zachowuja_obie_granice_i_miare(): void
+    {
+        foreach (['do', 'lub', 'albo'] as $spojnik) {
+            $this->assertSame(
+                ['ilosc' => 250.0, 'miara' => 'g'],
+                IloscZTekstu::rozbierz("200 {$spojnik} 300 g mąki"),
+                'KOSZT_2477_SLOWNY_ZAKRES_ZACHOWUJE_GRANICE_I_MIARE',
+            );
+        }
+    }
+
+    #[Test]
+    public function uszkodzony_zakres_nie_liczy_poprawnego_poczatku(): void
+    {
+        foreach (['200 do 300- g mąki', '200 do 300.5.5 g mąki', '200 do 300 g do 400 g mąki'] as $tekst) {
+            $this->assertNull(
+                IloscZTekstu::rozbierz($tekst),
+                'KOSZT_2477_USZKODZONY_ZAKRES_NIE_LICZY_POCZATKU',
+            );
+        }
+
+        $this->assertSame(['ilosc' => 2.0, 'miara' => 'lyzka'], IloscZTekstu::rozbierz('2 łyżki do smażenia'));
+        $this->assertSame(['ilosc' => 250.0, 'miara' => 'g'], IloscZTekstu::rozbierz('200-300 g mąki'));
+    }
+
+    #[Test]
+    public function uszkodzony_ogon_jednej_liczby_nie_udaje_poprawnej_ilosci(): void
+    {
+        foreach (['300- g mąki', '300.5.5 g mąki', '300 g do 400 g mąki'] as $tekst) {
+            $this->assertNull(
+                IloscZTekstu::rozbierz($tekst),
+                'KOSZT_2477_USZKODZONA_JEDNA_LICZBA_NIE_DAJE_WYCENY',
+            );
+        }
+
+        $this->assertSame(['ilosc' => 2.0, 'miara' => 'lyzka'], IloscZTekstu::rozbierz('2 łyżki do smażenia'));
+        $this->assertSame(['ilosc' => 300.0, 'miara' => 'g'], IloscZTekstu::rozbierz('300 g mąki'));
+    }
+
+    #[Test]
+    public function opis_celu_po_produkcie_nie_kasuje_odczytanej_masy(): void
+    {
+        foreach (['300 g maki do 2 porcji', '300 g mąki do 2 porcji', '300 g maki do 2 ciast', '300 g maki (do 2 ciast)'] as $tekst) {
+            $this->assertSame(
+                ['ilosc' => 300.0, 'miara' => 'g'],
+                IloscZTekstu::rozbierz($tekst),
+                'KOSZT_2508_OPIS_CELU_NIE_KASUJE_MASY',
+            );
+        }
+        $this->assertNull(IloscZTekstu::rozbierz('300 g do 400 g mąki'));
+        $this->assertNull(IloscZTekstu::rozbierz('300.5.5 g mąki'));
+    }
+
+    #[Test]
+    public function opis_celu_zachowuje_kwote_i_pokrycie_pelnej_wyceny(): void
+    {
+        $this->cennik();
+        $bezDopisku = app(SzacunekKosztuZCen::class)->dla($this->przepis(['300 g mąki']));
+        $this->assertNotNull($bezDopisku);
+        $this->assertTrue($bezDopisku->jestPrzedzial());
+        foreach (['300 g mąki do 2 porcji', '300 g mąki do 2 ciast', '300 g mąki (do 2 ciast)'] as $tekst) {
+            $zDopiskiem = app(SzacunekKosztuZCen::class)->dla($this->przepis([$tekst]));
+            $this->assertNotNull($zDopiskiem, 'KOSZT_2508_PELNA_WYCENA_OPISU_CELU');
+            $this->assertEquals($bezDopisku, $zDopiskiem, 'KOSZT_2508_PELNA_WYCENA_OPISU_CELU');
+        }
     }
 
     // ------------------------------------------------------------------
@@ -92,6 +166,53 @@ class KosztZCenGusTest extends TestCase
     // ------------------------------------------------------------------
     // Szacunek
     // ------------------------------------------------------------------
+
+    #[Test]
+    public function slowne_zakresy_daja_taki_sam_koszt_jak_rownorzedne_zapisy_liczbowe(): void
+    {
+        $this->cennik();
+
+        foreach ([
+            ['200 do 300 g mąki', '250 g mąki'],
+            ['2 lub 3 jajka', '2,5 jajka'],
+            ['1/2 albo 3/4 l mleka', '625 ml mleka'],
+        ] as [$slownie, $liczbowo]) {
+            $zapisSlowny = app(SzacunekKosztuZCen::class)->dla($this->przepis([$slownie]));
+            $zapisLiczbowy = app(SzacunekKosztuZCen::class)->dla($this->przepis([$liczbowo]));
+
+            $this->assertNotNull($zapisSlowny, 'KOSZT_2477_PELNA_WYCENA_ZAKRESU');
+            $this->assertTrue($zapisSlowny->jestPrzedzial(), 'KOSZT_2477_PELNA_WYCENA_ZAKRESU');
+            $this->assertEquals($zapisLiczbowy, $zapisSlowny, 'KOSZT_2477_PELNA_WYCENA_ZAKRESU');
+        }
+    }
+
+    #[Test]
+    public function uszkodzony_zakres_nie_udaje_sztuk_a_woda_i_no_amount_nie_podbijaja_pokrycia(): void
+    {
+        $this->cennik();
+
+        $bledny = app(SzacunekKosztuZCen::class)->dla($this->przepis(['200 do dużo g mąki', '2 jajka']));
+        $this->assertNotNull($bledny);
+        $this->assertFalse($bledny->jestPrzedzial());
+        $this->assertStringContainsString('200 do dużo g mąki', $bledny->zdanie());
+
+        $uszkodzony = app(SzacunekKosztuZCen::class)->dla($this->przepis(['200 do 300- g mąki', '2 jajka']));
+        $this->assertNotNull($uszkodzony);
+        $this->assertFalse($uszkodzony->jestPrzedzial());
+        $this->assertStringContainsString('200 do 300- g mąki', $uszkodzony->zdanie());
+
+        $podstawa = app(SzacunekKosztuZCen::class)->dla($this->przepis(['200 do 300 g mąki']));
+        $zWoda = $this->przepis(['200 do 300 g mąki', '3 l wody', '5 kg warzyw']);
+        $bezFlagi = app(SzacunekKosztuZCen::class)->dla($zWoda);
+        $this->assertNotNull($bezFlagi);
+        $this->assertFalse($bezFlagi->jestPrzedzial(), 'Nieznana masa bez no_amount musi zatrzymać szacunek.');
+        $zWoda->ingredients()->where('ingredient_text', '5 kg warzyw')->update(['no_amount' => true]);
+        $wynik = app(SzacunekKosztuZCen::class)->dla($zWoda->fresh());
+
+        $this->assertNotNull($podstawa);
+        $this->assertTrue($podstawa->jestPrzedzial());
+        $this->assertEquals($podstawa, $wynik);
+    }
 
     #[Test]
     public function nalesniki_dostaja_przedzial_policzony_recznie(): void

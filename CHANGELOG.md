@@ -3,6 +3,7 @@
 ## Nieopublikowane
 
 - Naprawione (#2502): po zmianie liczby porcji składnik nie pozostaje automatycznie oznaczony jako „Przygotowane” przy nowej ilości, także gdy wrócisz do poprzedniej liczby. Ekran prosi o sprawdzenie i ponowne zaznaczenie składników; odhaczenia kroków i minutniki zostają. Stary formularz z drugiego urządzenia nie przywróci dawnych składników po takim powrocie.
+- Naprawione (#2477, #2508): koszt zachowuje obie granice słownego zakresu ilości. Dopisek celu, np. „300 g mąki do 2 porcji”, zachowuje rozpoznaną masę; nie zmieniamy tekstu autora.
 
 - Naprawione (#2476, #2478, #2479): osobista paczka danych zachowuje sam rok rodzinny w HTML, odróżnia przepis ukryty od szkicu i zapisuje jawny wybór „Bez ilości” w bieżących składnikach JSON.
 - Wewnętrzne (pomiar dostępności): lokalne dane wspomnienia obejmują także następny dzień, żeby audyt przechodzący przez północ w Polsce nadal oglądał właściwy, niepusty ekran. Zasada pokazywania wspomnień w serwisie pozostaje taka sama.
