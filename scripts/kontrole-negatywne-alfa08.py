@@ -1312,6 +1312,9 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    ("Co ugotuję: ostatnia strona wraca do siebie (#2599)", "resources/views/pages/pantry/co-ugotuje.blade.php",
+     "CoUgotujeGranicaPaginacjiTest::test_ostatnia_dostepna_strona_nie_odsyla_do_siebie_w_obu_trybach",
+     lambda s: replace_once(s, "@if($jest_wiecej && ! $granicaPrzegladania)", "@if($jest_wiecej)")),
     ("Spiżarnia usuwa bez pytania (#2467)", "resources/views/pages/pantry/_produkty.blade.php",
      "test_pierwszy_klik_w_spizarni_rozwija_pytanie_zamiast_kasowac_produkt", spizarnia_bez_potwierdzenia),
     ("Planer usuwa bez pytania (#2468)", "resources/views/pages/planer/show.blade.php",
