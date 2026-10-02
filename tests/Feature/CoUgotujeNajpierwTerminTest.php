@@ -130,7 +130,8 @@ class CoUgotujeNajpierwTerminTest extends TestCase
 
         $this->assertSame([], $wynik['przepisy']->pluck('title')->all());
         $this->actingAs($ja)->get(route('pantry.cook'))->assertOk()
-            ->assertSee('Nie znaleźliśmy przepisu z tymi produktami')
+            ->assertSee('Wszystkie Twoje produkty są po terminie')
+            ->assertDontSee('Nie znaleźliśmy przepisu z tymi produktami')
             ->assertDontSee($przepis->title)
             ->assertDontSee('Najpierw wpisz, co masz w domu');
     }
