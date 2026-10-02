@@ -12,6 +12,12 @@
     przewijaniem (AGENTS.md §5).
 --}}
 <x-layout title="Co ugotuję z tego, co mam" :noindex="true">
+    @php
+        // Wybór trybu i zakresu zostaje przy „Pokaż więcej” i przy przełączaniu
+        // drugiego z nich; zmiana zakresu lub trybu wraca na początek wyników.
+        $parametrTermin = $najpierwTermin ? 'termin' : null;
+        $parametrZakres = $zZeszytow ? 'zeszyty' : null;
+    @endphp
     <h1>{{ $najpierwTermin ? 'Przepisy na produkty z krótkim terminem' : 'Co ugotuję z tego, co mam?' }}</h1>
 
     @if($produktow === 0)
@@ -27,9 +33,27 @@
              odnośnik; widok domyślny się nie zmienia. --}}
         <p>
             @if($najpierwTermin)
-                <a class="btn btn-secondary" href="{{ route('pantry.cook') }}">Pokaż wszystkie propozycje</a>
+                <a class="btn btn-secondary" href="{{ route('pantry.cook', array_filter(['zakres' => $parametrZakres])) }}">Pokaż wszystkie propozycje</a>
             @else
-                <a class="btn btn-secondary" href="{{ route('pantry.cook', ['najpierw' => 'termin']) }}">Najpierw to, co się psuje</a>
+                <a class="btn btn-secondary" href="{{ route('pantry.cook', array_filter(['najpierw' => 'termin', 'zakres' => $parametrZakres])) }}">Najpierw to, co się psuje</a>
+            @endif
+        </p>
+
+        {{-- Zakres (#2591): opcjonalny, jawnie podpisany, bez zapamiętywania.
+             „Własny zeszyt” = taki, którego właścicielem jest ta osoba (także
+             wspólny); samo uczestnictwo w cudzym zeszycie nie liczy się. --}}
+        <p data-zakres-doboru>
+            <strong>Zakres:</strong>
+            {{ $zZeszytow ? 'tylko przepisy z moich zeszytów' : 'wszystkie dostępne przepisy' }}.
+            @if($zZeszytow)
+                Liczą się przepisy zapisane w zeszytach, których jesteś właścicielem, także wspólnych.
+            @endif
+        </p>
+        <p>
+            @if($zZeszytow)
+                <a class="btn btn-secondary" href="{{ route('pantry.cook', array_filter(['najpierw' => $parametrTermin])) }}">Pokaż przepisy nie tylko z moich zeszytów</a>
+            @else
+                <a class="btn btn-secondary" href="{{ route('pantry.cook', array_filter(['najpierw' => $parametrTermin, 'zakres' => 'zeszyty'])) }}">Z moich zeszytów</a>
             @endif
         </p>
 
@@ -42,16 +66,23 @@
         @if($przepisy->isEmpty())
             @if($od > 0)
                 <p>To już wszystkie przepisy, w których jest coś z Twojej listy.</p>
-                <p><a class="btn btn-secondary" href="{{ route('pantry.cook', array_filter(['najpierw' => $najpierwTermin ? 'termin' : null])) }}">Wróć na początek</a></p>
-            @elseif($najpierwTermin)
-                <x-empty-state title="Żaden przepis nie pasuje do produktów z krótkim terminem" action="Zobacz wszystkie propozycje" :href="route('pantry.cook')">
-                    Żaden przepis nie pasuje do produktów z krótkim terminem. Dopisz terminy do produktów
-                    na liście „Co mam w domu” albo zobacz wszystkie propozycje.
-                </x-empty-state>
+                <p><a class="btn btn-secondary" href="{{ route('pantry.cook', array_filter(['najpierw' => $parametrTermin, 'zakres' => $parametrZakres])) }}">Wróć na początek</a></p>
             @elseif($wszystkie_po_terminie ?? false)
                 <x-empty-state title="Wszystkie Twoje produkty są po terminie" action="Sprawdź listę „Co mam w domu”" :href="route('pantry.index')">
                     Produkty po terminie „Należy zużyć do” pomijamy przy doborze przepisów, a na Twojej liście
                     są teraz tylko takie. Popraw datę albo usuń produkt na liście „Co mam w domu”.
+                </x-empty-state>
+            @elseif($zZeszytow)
+                {{-- Osobny stan (#2591): to nie znaczy, że lista produktów jest pusta
+                     ani że nigdzie nie ma pasującego przepisu — tylko że w Twoich zeszytach go nie ma. --}}
+                <x-empty-state title="W Twoich zeszytach nie ma przepisu z tymi produktami" action="Pokaż przepisy nie tylko z moich zeszytów" :href="route('pantry.cook', array_filter(['najpierw' => $parametrTermin]))">
+                    Wśród przepisów zapisanych w Twoich zeszytach żaden nie pasuje do produktów z Twojej listy.
+                    Możesz zobaczyć propozycje ze wszystkich dostępnych przepisów.
+                </x-empty-state>
+            @elseif($najpierwTermin)
+                <x-empty-state title="Żaden przepis nie pasuje do produktów z krótkim terminem" action="Zobacz wszystkie propozycje" :href="route('pantry.cook')">
+                    Żaden przepis nie pasuje do produktów z krótkim terminem. Dopisz terminy do produktów
+                    na liście „Co mam w domu” albo zobacz wszystkie propozycje.
                 </x-empty-state>
             @else
                 <x-empty-state title="Nie znaleźliśmy przepisu z tymi produktami" action="Dopisz więcej produktów" :href="route('pantry.index')">
@@ -91,7 +122,7 @@
 
             @if($jest_wiecej && ! $granicaPrzegladania)
                 <p class="text-center mt-6">
-                    <a class="btn btn-secondary" href="{{ route('pantry.cook', array_filter(['od' => $nastepne, 'najpierw' => $najpierwTermin ? 'termin' : null])) }}">Pokaż więcej przepisów</a>
+                    <a class="btn btn-secondary" href="{{ route('pantry.cook', array_filter(['od' => $nastepne, 'najpierw' => $parametrTermin, 'zakres' => $parametrZakres])) }}">Pokaż więcej przepisów</a>
                 </p>
             @elseif($granicaPrzegladania)
                 <p class="text-center mt-6">To koniec dostępnego przeglądania tej listy.@if($jest_wiecej) Mogą być jeszcze inne pasujące przepisy. Zmień produkty na swojej liście, aby zobaczyć inne propozycje.@endif</p>

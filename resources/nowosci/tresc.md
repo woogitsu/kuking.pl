@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### „Co ugotuję” tylko z moich zeszytów
+
+Na ekranie „Co ugotuję z tego, co mam?” możecie wybrać zakres „Z moich zeszytów”. Wtedy porównujemy Wasze produkty tylko z przepisami, które macie zapisane w zeszytach, których jesteście właścicielami (także wspólnych). Kolejność jest ta sama co zawsze i nie zależy od cudzych reakcji. Wybór jest jednorazowy i niczego nie zapamiętujemy; „Pokaż przepisy nie tylko z moich zeszytów” wraca do pełnej listy.
+
 ### Notatki z zeszytów podczas gotowania
 
 Zapisaliście przy przepisie „następnym razem mniej soli” albo „moja forma ma 24 cm”? W trybie „Gotuję” jest teraz zwijany blok „Moje notatki z zeszytów”. Po rozwinięciu widzicie swoje dopiski z prywatnych zeszytów, każdy z nazwą zeszytu, i nie musicie opuszczać bieżącego kroku: minutnik, porcje i odhaczenia zostają tak, jak były. Notatki są tylko do odczytu (zmienicie je w zeszycie) i widzicie je wyłącznie Wy.
