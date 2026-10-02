@@ -165,7 +165,7 @@ final class MigawkaWersji
     }
 
     /**
-     * @return list<array{instruction: string, timer_seconds: ?int}>
+     * @return list<array{instruction: string, timer_seconds: ?int, section_name: ?string}>
      */
     public function kroki(): array
     {
@@ -184,6 +184,8 @@ final class MigawkaWersji
                 'timer_seconds' => isset($wiersz['timer_seconds']) && is_numeric($wiersz['timer_seconds'])
                     ? (int) $wiersz['timer_seconds']
                     : null,
+                // Nazwa etapu (#2652); migawki sprzed tej funkcji nie mają klucza.
+                'section_name' => self::tekst($wiersz['section_name'] ?? null),
             ];
         }
 

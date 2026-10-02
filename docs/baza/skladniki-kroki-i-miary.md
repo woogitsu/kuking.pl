@@ -356,3 +356,27 @@ tożsamości kroku, dzięki czemu wyczyszczenie albo przestawienie wiersza nie
 przenosi zdjęcia na sąsiedni krok. Mapa tożsamości jest budowana wyłącznie
 z kroków tego przepisu i **przed** `delete()` — to jest cała autoryzacja tego
 identyfikatora.
+
+**`section_name varchar(120) NULL`** — opcjonalna nazwa etapu przygotowania
+(#2652, decyzja właściciela z 2.10.2026; migracja
+`2026_10_03_110000_add_section_name_to_recipe_steps`). Nagłówek etapu **nie jest
+osobnym wierszem**, tylko polem kroku, od którego etap się zaczyna (jak
+`recipe_ingredients.group_name`); etap trwa do następnego kroku z nazwą, a kroki
+przed pierwszą nazwą zostają bez nagłówka. Dzięki temu nazwanie lub zmiana nazwy
+etapu nie zmienia UUID kroków (a z nimi `timerFingerprint()` i odhaczeń w
+`cooking_progress`), a numer i liczba kroków dalej liczą instrukcje. `NULL` =
+brak nagłówka, nigdy pusty tekst: CHECK `recipe_steps_section_name_check`
+(`btrim(section_name) <> ''`, dodany `NOT VALID` + `VALIDATE`) i
+`PublishRecipe::nazwaEtapu()` (obcina spacje, zwija białe znaki, limit 120 przez
+`LimityTekstuPrzepisu`). Pole to treść autora, więc jest w `$fillable`
+(nie jest polem sterującym). Nazwa wpisana przy kroku bez treści przechodzi na
+następny krok bez własnej nazwy — usunięcie treści nie kasuje nagłówka.
+Migawka wersji (`recipe_versions.snapshot.steps[].section_name`), `TrescPrzepisu`
+(odcisk treści), „Zrób swoją wersję”, eksport danych konta (`kroki[].etap`) i
+wczytanie własnej paczki niosą nazwę; starsze migawki i paczki jej nie mają i
+znaczą „bez etapu”.
+
+**Rollback odmawia (D-088)**, gdy któryś krok ma zapisaną nazwę etapu: to treść
+autora, której `up()` nie odtworzy. Komunikat podaje ręczne obejście
+(`UPDATE recipe_steps SET section_name = NULL`, potem ponowny rollback). Bez
+zapisanych nazw cofnięcie przechodzi (`SekcjePrzygotowaniaTest`).

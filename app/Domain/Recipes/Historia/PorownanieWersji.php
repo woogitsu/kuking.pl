@@ -242,8 +242,8 @@ final class PorownanieWersji
     }
 
     /**
-     * @param  list<array{instruction: string, timer_seconds: ?int}>  $stare
-     * @param  list<array{instruction: string, timer_seconds: ?int}>  $nowe
+     * @param  list<array{instruction: string, timer_seconds: ?int, section_name: ?string}>  $stare
+     * @param  list<array{instruction: string, timer_seconds: ?int, section_name: ?string}>  $nowe
      * @return list<array{rodzaj: string, numer: int, przed: ?string, po: ?string}>
      */
     private static function kroki(array $stare, array $nowe): array
@@ -275,12 +275,15 @@ final class PorownanieWersji
                 $lukaStare = [];
                 $lukaNowe = [];
 
-                if ($stare[$i]['timer_seconds'] !== $nowe[$j]['timer_seconds']) {
+                if ($stare[$i]['timer_seconds'] !== $nowe[$j]['timer_seconds']
+                    || $stare[$i]['section_name'] !== $nowe[$j]['section_name']) {
+                    $etapZmieniony = $stare[$i]['section_name'] !== $nowe[$j]['section_name'];
+                    $zMinutnikiem = $stare[$i]['timer_seconds'] !== null || $nowe[$j]['timer_seconds'] !== null;
                     $wynik[] = [
                         'rodzaj' => self::ZMIENIONO,
                         'numer' => $j + 1,
-                        'przed' => $stare[$i]['instruction'].self::opisMinutnika($stare[$i]['timer_seconds']),
-                        'po' => $nowe[$j]['instruction'].self::opisMinutnika($nowe[$j]['timer_seconds']),
+                        'przed' => self::opisPary($stare[$i], $zMinutnikiem, $etapZmieniony),
+                        'po' => self::opisPary($nowe[$j], $zMinutnikiem, $etapZmieniony),
                     ];
                 }
                 $i++;
@@ -307,8 +310,8 @@ final class PorownanieWersji
      *
      * @param  list<int>  $lukaStare  indeksy w starszej wersji
      * @param  list<int>  $lukaNowe  indeksy w nowszej wersji
-     * @param  list<array{instruction: string, timer_seconds: ?int}>  $stare
-     * @param  list<array{instruction: string, timer_seconds: ?int}>  $nowe
+     * @param  list<array{instruction: string, timer_seconds: ?int, section_name: ?string}>  $stare
+     * @param  list<array{instruction: string, timer_seconds: ?int, section_name: ?string}>  $nowe
      * @return list<array{rodzaj: string, numer: int, przed: ?string, po: ?string}>
      */
     private static function luka(array $lukaStare, array $lukaNowe, array $stare, array $nowe): array
@@ -325,8 +328,8 @@ final class PorownanieWersji
             $wynik[] = [
                 'rodzaj' => self::ZMIENIONO,
                 'numer' => $lukaNowe[$p] + 1,
-                'przed' => $staryKrok['instruction'].($zMinutnikiem ? self::opisMinutnika($staryKrok['timer_seconds']) : ''),
-                'po' => $nowyKrok['instruction'].($zMinutnikiem ? self::opisMinutnika($nowyKrok['timer_seconds']) : ''),
+                'przed' => self::opisPary($staryKrok, $zMinutnikiem, false),
+                'po' => self::opisPary($nowyKrok, $zMinutnikiem, false),
             ];
         }
         foreach (array_slice($lukaStare, $pary) as $i) {
@@ -342,11 +345,28 @@ final class PorownanieWersji
     /**
      * Krok dodany albo usunięty: czas tylko wtedy, gdy migawka go zapisała.
      *
-     * @param  array{instruction: string, timer_seconds: ?int}  $krok
+     * @param  array{instruction: string, timer_seconds: ?int, section_name: ?string}  $krok
      */
     private static function opisKroku(array $krok): string
     {
-        return $krok['instruction'].($krok['timer_seconds'] !== null ? self::opisMinutnika($krok['timer_seconds']) : '');
+        return self::opisPary($krok, $krok['timer_seconds'] !== null, false);
+    }
+
+    /**
+     * Treść kroku z nazwą etapu (#2652) i, jeśli trzeba, minutnikiem. Krok
+     * parowany po treści opisujemy zawsze z etapem, żeby zmiana samej nazwy
+     * etapu była widoczna po obu stronach; w pozostałych przypadkach etap
+     * dopisujemy tylko tam, gdzie krok go ma.
+     *
+     * @param  array{instruction: string, timer_seconds: ?int, section_name: ?string}  $krok
+     */
+    private static function opisPary(array $krok, bool $zMinutnikiem, bool $zawszeEtap): string
+    {
+        $etap = $krok['section_name'] !== null
+            ? '[Etap: '.$krok['section_name'].'] '
+            : ($zawszeEtap ? '[Bez etapu] ' : '');
+
+        return $etap.$krok['instruction'].($zMinutnikiem ? self::opisMinutnika($krok['timer_seconds']) : '');
     }
 
     private static function opisMinutnika(?int $sekundy): string

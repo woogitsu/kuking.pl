@@ -310,6 +310,9 @@
     font-size: calc(14pt * var(--druk-skala));
     font-weight: 700;
     margin: 8pt 0 2pt;
+    /* Nazwa etapu (#2652) nie zostaje sama na dole kartki bez swoich kroków. */
+    break-after: avoid;
+    page-break-after: avoid;
   }
 
   /* Krok czyta się w całości: nie łamiemy go między stronami. */

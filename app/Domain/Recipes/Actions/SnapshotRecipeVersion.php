@@ -149,6 +149,8 @@ final class SnapshotRecipeVersion
                 'position' => $s->position,
                 'instruction' => $s->instruction,
                 'timer_seconds' => $s->timer_seconds,
+                // Nazwa etapu (#2652); starsze migawki jej nie mają = brak nagłówka.
+                'section_name' => $s->section_name,
             ])->all(),
         ];
     }

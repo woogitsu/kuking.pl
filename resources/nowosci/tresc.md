@@ -60,6 +60,17 @@ piekarnik, i zawsze opisany jako „około”. Tekst przepisu zostaje taki, jak
 napisał go autor, a samo „180 stopni” bez jednostki nie jest przeliczane.
 Rozwijanie działa bez żadnych ustawień i niczego nie zapisuje.
 
+### Etapy przygotowania
+
+Robicie pierogi przez dwa dni? Przy kroku przepisu możecie teraz wpisać nazwę
+etapu, na przykład „Dzień 1: farsz” albo „Dzień 2: lepienie”. Nazwa pojawia się
+nad kolejnymi krokami na stronie przepisu i na wydruku, a w trybie gotowania
+nad bieżącym krokiem stoi „Etap: Dzień 2: lepienie”, więc po przerwie od razu
+wiadomo, gdzie jesteście. Etap trwa do kroku z następną nazwą. Nazwa nie jest
+krokiem do odhaczenia: numery kroków, minutniki i to, co już zrobiliście,
+zostają tak samo jak wcześniej. Przepis bez nazw wygląda jak dotąd — pole jest
+nieobowiązkowe.
+
 ## Alfa 0.78
 
 **Co zużyć najpierw, lista zakupów i wydruk zeszytu.**

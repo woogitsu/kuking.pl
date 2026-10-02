@@ -493,6 +493,8 @@ final class CollectUserExportData
                 // kroki tak, jak czyta je człowiek: od jedynki.
                 'numer' => $step->position + 1,
                 'opis' => $step->instruction,
+                // Nazwa etapu, od którego zaczyna się ten krok (#2652); null = brak nagłówka.
+                'etap' => $step->section_name,
                 'minutnik_sekundy' => $step->timer_seconds,
                 'zdjecie' => $photos->pathFor($step->media_id),
             ])->all(),

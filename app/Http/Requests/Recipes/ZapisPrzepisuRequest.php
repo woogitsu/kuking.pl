@@ -263,6 +263,8 @@ final class ZapisPrzepisuRequest extends FormRequest
             // kroków tego przepisu, więc cudzy identyfikator nic nie daje.
             'steps.*.id' => ['nullable', 'uuid'],
             'steps.*.instruction' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['steps.*.instruction']],
+            // Nazwa etapu nad krokiem (#2652) — zwykły tekst, nieobowiązkowy.
+            'steps.*.section_name' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['steps.*.section_name']],
             // Człowiek wpisuje MINUTY, bo tak myśli o gotowaniu. Sekundy
             // (`recipe_steps.timer_seconds`, `data-timer-sekundy` w trybie
             // gotowania) liczy `StepTimer` w warstwie domenowej — tu stoi
@@ -367,6 +369,8 @@ final class ZapisPrzepisuRequest extends FormRequest
             // wartość odrzucona przez formularz i przez akcję domenową musi
             // mówić to samo zdanie — inaczej człowiek widzi dwa różne
             // tłumaczenia jednej reguły, zależnie od tego, którą drogą szedł.
+            'steps.*.section_name.max' => 'Nazwa etapu jest za długa. Zostaw najwyżej 120 znaków, na przykład „Dzień 1: farsz”.',
+            'steps.*.section_name.string' => 'Nazwa etapu musi być zwykłym tekstem, na przykład „Dzień 1: farsz”.',
             'steps.*.timer_minutes.integer' => StepTimer::KOMUNIKAT_NIE_LICZBA,
             'steps.*.timer_minutes.min' => StepTimer::KOMUNIKAT_UJEMNY,
             'steps.*.timer_minutes.max' => StepTimer::KOMUNIKAT_ZA_DUZO,
@@ -456,6 +460,7 @@ final class ZapisPrzepisuRequest extends FormRequest
                     'id' => null,
                     'instruction' => $row['instruction'],
                     'timer_minutes' => null,
+                    'section_name' => null,
                     'media_id' => null,
                     'remove_media' => false,
                 ],
@@ -500,6 +505,7 @@ final class ZapisPrzepisuRequest extends FormRequest
                     'id' => $row['id'] ?? null,
                     'instruction' => $row['instruction'] ?? '',
                     'timer_minutes' => $row['timer_minutes'] ?? null,
+                    'section_name' => $row['section_name'] ?? null,
                     // ZAWSZE null: identyfikator zdjęcia NIE JEST polem tego
                     // formularza i nie ma go w regułach walidacji wyżej.
                     // Wypełnia go wyłącznie `ZapiszPrzepisZFormularza` — z pliku,

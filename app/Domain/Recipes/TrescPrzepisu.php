@@ -42,7 +42,7 @@ final class TrescPrzepisu
         'note', 'substitutes', 'no_amount',
     ];
 
-    private const KOLUMNY_KROKU = ['position', 'instruction', 'timer_seconds', 'media_id'];
+    private const KOLUMNY_KROKU = ['position', 'instruction', 'timer_seconds', 'media_id', 'section_name'];
 
     /** @return array<string, mixed> */
     public static function odcisk(string $recipeId): array
