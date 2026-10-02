@@ -244,6 +244,57 @@ final class PlanerTygodniaTest extends TestCase
         $this->assertModelMissing($moja);
     }
 
+    public function test_usuniecie_z_planera_wymaga_potwierdzenia_przy_wlasciwym_dniu_i_pozycji(): void
+    {
+        $ja = $this->user('planujaca');
+        $autorka = $this->user('kucharka');
+        $dostepny = $this->przepis($autorka, ['title' => 'Zupa pomidorowa']);
+        $niedostepny = $this->przepis($autorka, ['title' => 'Sekretny bigos']);
+        $wlasnyWpis = $this->pozycja($ja, '2026-09-30', tekst: 'Obiad u mamy');
+        $wpisPrzepisu = $this->pozycja($ja, '2026-10-01', $dostepny);
+        $wpisNiedostepny = $this->pozycja($ja, '2026-10-02', $niedostepny);
+        $niedostepny->forceFill(['visibility' => 'private'])->save();
+
+        $html = (string) $this->actingAs($ja)->get(route('planer.show'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('Sekretny bigos', $html);
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new \DOMXPath($dom);
+
+        foreach ([
+            [$wlasnyWpis, 'Obiad u mamy', 'środę, 30 września'],
+            [$wpisPrzepisu, 'Zupa pomidorowa', 'czwartek, 1 października'],
+            [$wpisNiedostepny, 'przepis niedostępny', 'piątek, 2 października'],
+        ] as [$wpis, $nazwa, $dzien]) {
+            $formularze = $xpath->query('//form[@action="'.route('planer.destroy', $wpis).'"]');
+            $this->assertCount(1, $formularze);
+            $formularz = $formularze->item(0);
+            $potwierdzenie = $xpath->query('ancestor::details', $formularz)->item(0);
+            $this->assertInstanceOf(\DOMElement::class, $potwierdzenie, 'PLANER_2468_PIERWSZY_KLIK_BEZ_DELETE');
+            $this->assertSame('confirm planer-potwierdzenie', $potwierdzenie->getAttribute('class'));
+            $this->assertCount(1, $xpath->query('./summary', $potwierdzenie));
+            $this->assertCount(0, $xpath->query('./summary/ancestor::form', $potwierdzenie));
+            $this->assertCount(1, $xpath->query('./summary/span[@class="planer-anuluj" and contains(text(), "Anuluj")]', $potwierdzenie));
+            $this->assertCount(1, $xpath->query('.//input[@name="_method" and @value="DELETE"]', $formularz));
+            $this->assertCount(1, $xpath->query('.//button[@type="submit"]', $formularz));
+            $this->assertStringContainsString($nazwa, $potwierdzenie->textContent);
+            $this->assertStringContainsString($dzien, $potwierdzenie->textContent);
+            $this->assertStringContainsString('Tej operacji nie da się cofnąć.', $potwierdzenie->textContent);
+        }
+
+        // Otwarcie i zamknięcie <details> nie wysyła żądania: plan pozostaje.
+        $this->actingAs($ja)->get(route('planer.show'))->assertOk();
+        foreach ([$wlasnyWpis, $wpisPrzepisu, $wpisNiedostepny] as $wpis) {
+            $this->assertModelExists($wpis);
+        }
+
+        $this->actingAs($ja)->delete(route('planer.destroy', $wlasnyWpis))
+            ->assertRedirect(route('planer.show', ['tydzien' => '2026-09-30']));
+        $this->assertModelMissing($wlasnyWpis);
+        $this->assertModelExists($wpisPrzepisu);
+        $this->assertModelExists($wpisNiedostepny);
+    }
+
     public function test_kopia_poprzedniego_tygodnia_dopisuje_bez_powtorzen_i_bez_niedostepnych(): void
     {
         $ja = $this->user('planujaca');

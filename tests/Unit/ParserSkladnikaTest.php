@@ -26,6 +26,15 @@ final class ParserSkladnikaTest extends TestCase
         yield 'liczba i szklanka' => ['2 szklanki mąki pszennej', 2.0, 'szklanka', 'maki pszennej'];
         yield 'ilość po myślniku' => ['mąka pszenna – 500 g', 500.0, 'g', 'maka pszenna'];
         yield 'gramy bez spacji' => ['500g mąki', 500.0, 'g', 'maki'];
+        yield 'tysiące na początku' => ['1 500 g mąki', 1500.0, 'g', 'maki'];
+        yield 'tysiące po myślniku' => ['mąka – 1 500 g', 1500.0, 'g', 'maka'];
+        yield 'tysiące wewnątrz' => ['mąka 1 500 g', 1500.0, 'g', 'maka'];
+        yield 'kilka grup tysięcy' => ['1 234 567 g mąki', 1234567.0, 'g', 'maki'];
+        yield 'nierozdzielone tysiące' => ['1500 g mąki', 1500.0, 'g', 'maki'];
+        yield 'tysiące z przecinkiem dziesiętnym' => ['1 500,5 g mąki', 1500.5, 'g', 'maki'];
+        yield 'tysiące z twardą spacją' => ["1\u{00A0}500 g mąki", 1500.0, 'g', 'maki'];
+        yield 'tysiące z wąską twardą spacją' => ["1\u{202F}500 g mąki", 1500.0, 'g', 'maki'];
+        yield 'zakres grupowanych mas' => ['1 500–2 000 g mąki', 1750.0, 'g', 'maki'];
         yield 'ułamek z klawiatury' => ['½ szklanki mleka', 0.5, 'szklanka', 'mleka'];
         yield 'liczba mieszana ze znakiem' => ['1½ szklanki mleka', 1.5, 'szklanka', 'mleka'];
         yield 'liczba mieszana z ukośnikiem' => ['1 1/2 szklanki cukru', 1.5, 'szklanka', 'cukru'];
@@ -77,6 +86,61 @@ final class ParserSkladnikaTest extends TestCase
         $this->assertSame(800.0, $parser->odczytaj('2 puszki pomidorów (400 g)')->gramyZNawiasu, 'Waga przy puszce jest na jedną puszkę.');
         $this->assertSame(200.0, $parser->odczytaj('kostka masła (200 g)')->gramyZNawiasu);
         $this->assertSame(150.0, $parser->odczytaj('3 jajka (150 g)')->gramyZNawiasu, 'Przy sztukach bez „po” nawias to masa całości.');
+        $this->assertSame(1500.0, $parser->odczytaj('mąka (1 500 g)')->gramyZNawiasu, 'ODZYWCZE_2560_GRUPOWANA_MASA');
+        $this->assertSame(3000.0, $parser->odczytaj('2 puszki pomidorów (po 1 500 g)')->gramyZNawiasu, 'ODZYWCZE_2560_GRUPOWANA_MASA');
+        $this->assertSame(1500.0, $parser->odczytaj('2 puszki pomidorów (razem 1 500 g)')->gramyZNawiasu, 'ODZYWCZE_2560_GRUPOWANA_MASA');
+    }
+
+    #[Test]
+    public function test_uszkodzone_grupy_cyfr_nie_daja_czesciowej_ilosci(): void
+    {
+        $parser = new ParserSkladnika;
+
+        foreach (['mąka (1 50 g)', '1 50 g mąki', 'mąka – 1 50 g', 'mąka 1 50 g',
+            'mąka (1,5 500 g)', 'mąka (12 34 567 g)'] as $tekst) {
+            $odczyt = $parser->odczytaj($tekst);
+            $this->assertTrue($odczyt->niejednoznacznaIlosc, 'ODZYWCZE_2560_BLAD_GRUPOWANIA_ODMAWIA');
+            $this->assertNull($odczyt->ilosc, 'ODZYWCZE_2560_BLAD_GRUPOWANIA_ODMAWIA');
+            $this->assertNull($odczyt->gramyZNawiasu, 'ODZYWCZE_2560_BLAD_GRUPOWANIA_ODMAWIA');
+        }
+
+        $pojemniki = $parser->odczytaj('2 puszki pomidorów (1 50 g)');
+        $this->assertSame(2.0, $pojemniki->ilosc);
+        $this->assertSame('puszka', $pojemniki->jednostka);
+        $this->assertSame('pomidorow', $pojemniki->nazwa);
+        $this->assertTrue($pojemniki->niejednoznacznaIlosc, 'ODZYWCZE_2560_BLAD_GRUPOWANIA_ODMAWIA');
+        $this->assertNull($pojemniki->gramyZNawiasu, 'ODZYWCZE_2560_BLAD_GRUPOWANIA_ODMAWIA');
+
+        $this->assertSame(1.5, $parser->odczytaj('1 1/2 kg mąki')->ilosc, 'Liczba mieszana to nie błąd grupowania.');
+    }
+
+    #[Test]
+    public function test_jawnie_laczna_masa_nie_jest_mnozona_przez_liczbe_opakowan(): void
+    {
+        $parser = new ParserSkladnika;
+
+        foreach (['800 g razem', 'razem 800 g', '800 g łącznie', 'łącznie 800 g', '800 g lacznie', 'lacznie 800 g'] as $nawias) {
+            $odczyt = $parser->odczytaj("2 puszki pomidorów ({$nawias})");
+            $this->assertSame(800.0, $odczyt->gramyZNawiasu, 'ODZYWCZE_2487_LACZNA_MASA_BEZ_MNOZENIA');
+            $this->assertFalse($odczyt->sprzecznaMasaWNawiasie);
+        }
+
+        $this->assertSame(800.0, $parser->odczytaj('1 puszka pomidorów (800 g razem)')->gramyZNawiasu);
+        $this->assertSame(800.0, $parser->odczytaj('2 puszki pomidorów (po 400 g)')->gramyZNawiasu);
+        $this->assertSame(800.0, $parser->odczytaj('2 puszki pomidorów (400 g)')->gramyZNawiasu);
+        $this->assertSame(150.0, $parser->odczytaj('3 jajka (150 g razem)')->gramyZNawiasu);
+    }
+
+    #[Test]
+    public function test_sprzeczne_po_i_razem_nie_daja_wiarygodnej_masy(): void
+    {
+        $parser = new ParserSkladnika;
+
+        foreach (['po 400 g razem', 'razem po 400 g', 'po 400 g łącznie'] as $nawias) {
+            $odczyt = $parser->odczytaj("2 puszki pomidorów ({$nawias})");
+            $this->assertNull($odczyt->gramyZNawiasu);
+            $this->assertTrue($odczyt->sprzecznaMasaWNawiasie, 'ODZYWCZE_2487_SPRZECZNY_NAWIAS_ODMAWIA');
+        }
     }
 
     #[Test]

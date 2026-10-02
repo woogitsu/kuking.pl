@@ -101,10 +101,13 @@
         --}}
         @php($skladnikiNaKoncie = $synchronizacja['wlaczona'])
         @php($przygotowane = $synchronizacja['przygotowane'])
-        <details class="cook-ingredients" @unless($skladnikiNaKoncie) data-przygotowanie="{{ $recipe->getKey() }}" @endunless @if($skladnikiNaKoncie && session('skladniki_otwarte')) open @endif>
+        <details class="cook-ingredients" @unless($skladnikiNaKoncie) data-przygotowanie="{{ $recipe->getKey() }}" data-przygotowanie-porcje="{{ $wyborPorcji->wybrane ?? 'brak' }}" @endunless @if($skladnikiNaKoncie && session('skladniki_otwarte')) open @endif>
             <summary>Składniki ({{ $recipe->ingredients->count() }})<span class="cook-przygotowanie-skrot" data-przygotowanie-podsumowanie hidden></span></summary>
             @if($wyborPorcji->przeliczone())
                 <p class="meta">Przeliczone {{ \App\Domain\Recipes\Porcje\WyborPorcji::naIle($wyborPorcji->wybrane) }}. Autor podał ilości {{ \App\Domain\Recipes\Porcje\WyborPorcji::naIle($wyborPorcji->zPrzepisu) }}.</p>
+            @endif
+            @if($skladnikiNaKoncie && $synchronizacja['inne_porcje'])
+                <p class="cook-przygotowanie-wstep" role="status">Te ilości różnią się od zapisanych na koncie. Sprawdź je i zaznacz ponownie składniki, które masz już odmierzone.</p>
             @endif
             @if($recipe->ingredients->isEmpty())
                 <p class="meta">Autor jeszcze nie dodał składników.</p>
@@ -114,6 +117,10 @@
                     <form method="POST" action="{{ route('cooking.sync.skladniki', $recipe->slug) }}" class="stack">
                         @csrf
                         @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
+                        <input type="hidden" name="kontekst_porcji" value="{{ $parametrPorcji ?? 'przepis' }}">
+                        <input type="hidden" name="porcje_z_konta" value="{{ $synchronizacja['porcje_z_konta'] ?? 'przepis' }}">
+                        <input type="hidden" name="rewizja_porcji" value="{{ $synchronizacja['rewizja_porcji'] }}">
+                        <input type="hidden" name="id_postepu" value="{{ $synchronizacja['id_postepu'] }}">
                         <input type="hidden" name="krok" value="{{ $krok }}">
                         <input type="hidden" name="rewizja" value="{{ $synchronizacja['rewizja'] }}">
                         @foreach($przygotowane as $idPrzygotowanego)<input type="hidden" name="bylo[]" value="{{ $idPrzygotowanego }}">@endforeach

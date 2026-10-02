@@ -114,6 +114,35 @@ koordynator przeglądał tylko 30 najnowszych sesji.
   nie scalasz niczego, co nie jest zielone; nie zamykasz PR-ów bez dowodu;
   nie używasz `--force`, `--no-verify` ani `reset --hard`.
 
+### Zakończenie integracji z oczekującymi PR-ami (#2555)
+
+Przed finalnym merge do `main` odczytaj aktualne ustawienie
+`delete_branch_on_merge` i pełną listę otwartych PR-ów, których podstawą jest
+kończona integracja. Zapisz dokładny SHA integracji oraz head i podstawę każdego
+zależnego PR-a. Przy automatycznym usuwaniu gałęzi GitHub może przestawić ich
+podstawę na `main`: zielony wynik na dawnej integracji nie zatwierdza tego ruchu.
+
+Jeżeli zostały zależne PR-y, przed finalnym merge przygotuj następną
+niedeployowaną gałąź `codex/integracja-*` od dokładnego commita kończonej
+integracji. Przenieś do niej tylko sprawdzone PR-y, zachowując zależności.
+Przed ich scalaniem zsynchronizuj źródła z nową podstawą i wymagaj pełnego
+świeżego CI zgodnie z #2075. Nie zmieniaj ustawienia repo przy tej operacji.
+
+Po finalnym merge sprawdź ponownie podstawy wszystkich zapisanych PR-ów,
+terminalne CI push `main`, udane wdrożenie oraz dokładny SHA `/wydanie`.
+Po ukończeniu tej bramki włącz wdrożony `main` do następnej integracji zwykłym
+merge; odczekaj terminalne CI bieżącego źródła przed następnym pushem, aby
+uniknąć wzajemnego anulowania przebiegów.
+
+Przykład awarii: po #2523 automatycznie usunięto integrację z SHA
+`48c028e7cb6ab8668d8f396e3a66fabae7d70f20` i przeniesiono trzynaście PR-ów
+na `main`. Koordynator odtworzył ref wskazujący dokładnie ten commit i przywrócił
+ich wcześniejsze podstawy. Żaden z tych PR-ów nie został wtedy scalony do
+`main`. Odtworzenie refu uruchomiło dodatkowe CI push, które także musi skończyć
+się przed kolejną zmianą integracji. Przy takim zdarzeniu najpierw potwierdź
+stan zdalny i dokładny SHA, potem odtwórz ref oraz podstawy; nie powtarzaj merge
+finalnego PR-a, nie używaj force i nie uznawaj starego CI za wynik nowej podstawy.
+
 ## 6. Cogodzinna kontrola (treść rutyny)
 
 1. Czy działa monitor czuwania — jeśli nie, uruchom go (§1).

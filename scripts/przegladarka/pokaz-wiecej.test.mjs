@@ -22,6 +22,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { chromium } from 'playwright';
 
 const MODUL = process.env.POKAZ_WIECEJ_MODUL
@@ -289,6 +290,64 @@ test('błąd pobrania zostawia listę, mówi co zrobić i pozwala ponowić', asy
         assert.deepEqual(await klucze(page), oczekiwane('wpis', 10));
     });
 });
+
+for (const pusta of [false, true]) {
+    test(`stara strona po przekierowaniu ${pusta ? 'do pustej' : 'do znanej'} listy nie kasuje ani nie dubluje kart (#2473)`, async () => {
+        await zPrzegladarka(async (context) => {
+            const zrodlo = await readFile(MODUL, 'utf8');
+            const zadania = [];
+            let zmieniona = false;
+            let przekierowania = 0;
+            // Playwright nie przechwytuje przekierowanego żądania po route.fulfill(302).
+            // Lokalny serwer pozwala przeglądarce naprawdę wykonać 302 i kolejne GET.
+            const serwer = createServer((req, res) => {
+                const url = new URL(req.url, 'http://127.0.0.1');
+                if (url.pathname === '/pokaz-wiecej.js') {
+                    res.writeHead(200, {'Content-Type': 'text/javascript; charset=utf-8'});
+                    res.end(zrodlo);
+
+                    return;
+                }
+                if (req.method !== 'GET' || url.pathname !== '/zeszyt/moje-wpisy') {
+                    res.writeHead(404);
+                    res.end();
+
+                    return;
+                }
+                zadania.push(url.pathname + url.search);
+                if (url.searchParams.has('page')) {
+                    przekierowania++;
+                    res.writeHead(302, {Location: '/zeszyt/moje-wpisy'});
+                    res.end();
+
+                    return;
+                }
+                const karty = zmieniona && pusta ? '' : elementy('wpis', 1, 5);
+                const dalej = zmieniona ? '' : blokWiecej({klucz: 'page', czego: 'wpisów', lista: 'lista-wpisow', nastepny: '/zeszyt/moje-wpisy?page=2'});
+                res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
+                res.end(strona(`<div id="lista-wpisow">${karty}</div>${dalej}`));
+            });
+            await new Promise((resolve) => serwer.listen(0, '127.0.0.1', resolve));
+            try {
+                const adres = `http://127.0.0.1:${serwer.address().port}`;
+                const page = await context.newPage();
+                await page.goto(`${adres}/zeszyt/moje-wpisy`);
+                const przycisk = page.getByRole('button', {name: 'Pokaż więcej wpisów'});
+                await przycisk.waitFor();
+                zmieniona = true;
+                await przycisk.click();
+                await page.waitForFunction(() => document.querySelector('[data-pokaz-wiecej-ogloszenie]')?.textContent.includes('To już koniec listy.'));
+                assert.deepEqual(await klucze(page), oczekiwane('wpis', 5), 'Wcześniejsze karty zostają dokładnie raz.');
+                assert.equal(await przycisk.count(), 0);
+                assert.equal(await page.getByRole('alert').isHidden(), true);
+                assert.equal(przekierowania, 1, 'Odpowiedź na drugą stronę musi być rzeczywistym HTTP 302.');
+                assert.deepEqual(zadania, ['/zeszyt/moje-wpisy', '/zeszyt/moje-wpisy?page=2', '/zeszyt/moje-wpisy']);
+            } finally {
+                await new Promise((resolve) => serwer.close(resolve));
+            }
+        });
+    });
+}
 
 test('strona bez listy w odpowiedzi (np. logowanie) to błąd, nie „koniec listy”', async () => {
     await zPrzegladarka(async (context) => {
