@@ -46,6 +46,7 @@ OCZEKUJ = {
     'Mikrodane ListItem zapisują etykietę do szkicu (#2638)': r'MICRODATA_2638_HTTP_ITEM',
     'Import URL: regex zostawia potomka komentarzy (#2640)': r'IMPORT_2640_CALE_PODDRZEWO',
     'Import URL HTTP: regex wysyła komentarz do fragmentów (#2640)': r'IMPORT_2640_HTTP_BEZ_KOMENTARZY',
+    'OCR: miesięczny limit obiecuje jutro (#2648)': r'OCR_2648_MIESIAC_NIE_OBIECUJE_JUTRA',
     'PDF: ilość dziesiętna staje się numerem listy (#2614)': r'PDF_2614_ILOSC_DZIESIETNA_NIE_JEST_NUMEREM_LISTY',
     'Identyfikator JSON-LD udaje krok (#2582)': r'JSONLD_ID_KROKU_NIE_JEST_TEKSTEM',
     'ListItem.item nie trafia do szkicu importu (#2570)': r'JSONLD_LISTITEM_ITEM_ZAPISUJE_KROKI',

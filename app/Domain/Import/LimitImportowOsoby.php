@@ -97,6 +97,26 @@ final class LimitImportowOsoby
         return null;
     }
 
+    /**
+     * Obecna przeszkoda do ponowienia zapisanego odczytu. To opis stanu
+     * dzisiejszego, nie historyczny powód odmowy ani bramka rezerwacji.
+     * Miesiąc ma pierwszeństwo, gdy wyczerpały się oba okresy.
+     */
+    public function obecnaBlokada(User $osoba): ?string
+    {
+        $teraz = Czas::lokalnie(now());
+
+        if ($this->zlecen($osoba, $teraz->copy()->startOfMonth()->utc()) >= max(0, (int) config('kuking.import.limity.na_osobe_miesiac'))) {
+            return self::MIESIAC;
+        }
+
+        if ($this->zlecen($osoba, $teraz->copy()->startOfDay()->utc()) >= max(0, (int) config('kuking.import.limity.na_osobe_dzien'))) {
+            return self::DZIEN;
+        }
+
+        return null;
+    }
+
     private function zlecen(User $osoba, \DateTimeInterface $od): int
     {
         $proby = DB::table('proby_importu')->where('user_id', $osoba->getKey())
