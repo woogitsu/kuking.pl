@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2563): szacunek wartości odżywczych nie traktuje ugotowanego ryżu lub makaronu jak surowego tylko dlatego, że słownik zna krótszą nazwę. Gdy brakuje zgodnej pozycji, składnik pozostaje nieznany; pełne aliasy produktów gotowanych i neutralne opisy nadal działają.
 - Naprawione (#2480): kartka przypięta do przepisu jest widoczna na jego zwykłej stronie także wtedy, gdy autor nie dodał osoby ani notatki o źródle. Prywatność zdjęcia i wariant dla pomocnika pozostają bez zmian.
 - Naprawione (#2451): porównanie wersji przepisu pokazuje przestawienie składników i grup. Dodanie lub usunięcie składnika nie tworzy pozornej zmiany kolejności pozostałych.
 - Naprawione (#2524): po wybraniu innej liczby porcji szacunkowy koszt całego przepisu podany przez autora zmienia się razem z ilościami składników. Podpis mówi, że kwota jest przeliczona z szacunku autora; powrót do jego porcji przywraca oryginalne zdanie. Dotyczy też wydruku tej strony, bez zmiany zapisanego kosztu i przedziału z cennika.

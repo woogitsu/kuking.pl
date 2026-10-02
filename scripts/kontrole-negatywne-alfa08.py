@@ -1269,6 +1269,13 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    ("Odżywcze: stan przed nazwą znika (#2563)", "app/Domain/Recipes/Odzywcze/SlownikSkladnikow.php",
+     "test_stan_przed_nazwa_nie_pozwala_dopasowac_surowego_produktu",
+     lambda s: replace_once(s, "if (self::stanProduktu($slowo)) {", "if (false && self::stanProduktu($slowo)) {")),
+    ("Odżywcze: stan po nazwie znika (#2563)", "app/Domain/Recipes/Odzywcze/SlownikSkladnikow.php",
+     "test_stan_po_nazwie_nie_pozwala_dopasowac_surowego_produktu",
+     lambda s: replace_once(s, "if (self::stanProduktu($slowo) || preg_match(self::ZMIENIA_PRODUKT, $slowo) === 1) {",
+                            "if (preg_match(self::ZMIENIA_PRODUKT, $slowo) === 1) {")),
     # #2524: przeliczony składnik i nieprzeliczona kwota autora to sprzeczna strona.
     ("Koszt autora pozostaje bazowy po zmianie porcji (#2524)", "resources/views/pages/recipes/show.blade.php", "test_koszt_autora_i_skladniki_uzywaja_tego_samego_wyboru_porcji_takze_w_wydruku",
      lambda s: replace_once(s, "{{ $kosztAutora }}</p>", "{{ $recipe->costLabel() }}</p>")),
