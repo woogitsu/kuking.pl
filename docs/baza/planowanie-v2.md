@@ -157,6 +157,59 @@ prywatna lista jednej osoby, nikomu innemu niepotrzebna. **Paczka RODO**
 wydaje ją w sekcji `lista_zakupow` (`InwentarzDanychKonta`), z tytułem
 przepisu tylko przy przepisie widocznym dla osoby.
 
+### shopping_lists — nazwane listy zakupów (#2528, V2, paczka E)
+
+Migracje `2026_10_07_110000_create_shopping_lists_table` (tabela) i
+`2026_10_07_110100_add_list_id_to_shopping_list_items` (kolumna
+`shopping_list_items.list_id`). Decyzja właściciela z 2.10.2026 (D-333, wiersz
+„Paczka E V2”). Jeden wiersz to **dodatkowa, nazwana** prywatna lista jednej
+osoby („Święta”). **Lista domyślna („Na co dzień”) nie ma wiersza**: to pozycje
+z `list_id IS NULL`, czyli wszystko, co ludzie mieli przed tą funkcją — bez
+backfillu, bez przepisywania `shopping_list_items`, z zachowanym tekstem,
+kolejnością, odhaczeniem i pochodzeniem.
+
+| kolumna | typ | uwagi |
+|---|---|---|
+| `id` | `uuid` | `DEFAULT gen_random_uuid()` |
+| `user_id` | `uuid` | → `users(id)` `ON DELETE CASCADE` (pas bezpieczeństwa; konta się anonimizuje, listy kasuje `EraseAccountData`) |
+| `name` | `varchar(60)` | nazwa — wolny tekst osoby (**dana osobowa**: paczka RODO, polityka, wymazanie) |
+| `created_at` / `updated_at` | `timestamptz` | |
+
+Ograniczenia (nowa tabela — razem z `CREATE TABLE`): `shopping_lists_name_check`
+(nazwa po obcięciu białych znaków ma 1–60 znaków) oraz indeks unikalny
+`shopping_lists_user_name_lower_unique (user_id, lower(name))` — dwie listy tej
+samej osoby nie mogą nazywać się tak samo (domena dodatkowo porównuje bez
+względu na wielkość polskich liter i odrzuca „Na co dzień”).
+
+`shopping_list_items.list_id uuid NULL` → `shopping_lists(id)` **`ON DELETE
+CASCADE`** (klucz `NOT VALID` + `VALIDATE`, indeks częściowy
+`shopping_list_items_list_idx WHERE list_id IS NOT NULL` przez `CREATE INDEX
+CONCURRENTLY`, AGENTS.md §6). Usunięcie listy kasuje jej pozycje — wyłącznie po
+potwierdzeniu, które niesie liczbę pozycji widzianą na ekranie (gdy w międzyczasie
+się zmieniła, nic nie jest kasowane).
+
+**Reguły (`ListaZakupow`, `ShoppingListPolicy`).** Najwyżej `kuking.zakupy.list_max`
+(5) list razem z domyślną; limit pozycji `pozycji_max` (300) liczy się dla
+**całego konta**, pod blokadą wiersza użytkownika, jak dotąd. Lista docelowa jest
+zawsze jawna (ukryte pole `lista` / `<select>` „Na którą listę zakupów?”; pusta
+wartość = domyślna). Odhaczanie, usuwanie, „Wyczyść odhaczone” i ostrzeżenie o
+ponownym dodaniu przepisu dotyczą jednej listy. Identyfikator cudzej listy daje
+odmowę, listy usuniętej w innej karcie — komunikat po polsku. „Cofnij usunięcie”
+(`shopping_list_undos.items[].list_id`) przywraca pozycję na jej listę, a gdy tej
+listy już nie ma — na listę domyślną.
+
+**Paczka RODO:** sekcja `listy_zakupow` (nazwa, data założenia — także puste listy)
+oraz pole `lista` przy każdej pozycji w `lista_zakupow`. **Wymazanie konta**
+kasuje listy bezwarunkowo (`EraseAccountData`). Polityka prywatności: wiersz „Lista
+zakupów” (drobna poprawka wersji z 30.09.2026, bez nowej daty).
+
+**Rollback (D-088).** `down()` drugiej migracji ODMAWIA, gdy choć jedna pozycja ma
+`list_id` (wpadłaby po cichu na listę domyślną; wymuszenie po kopii:
+`KUKING_ROLLBACK_SCALA_LISTY_ZAKUPOW=1`); `down()` pierwszej ODMAWIA, gdy istnieje
+choć jedna lista (`KUKING_ROLLBACK_KASUJE_LISTY_ZAKUPOW=1`). Bez nazwanych list —
+świeża baza, CI, `migrate:refresh` — przechodzą bez pytania. Test:
+`tests/Feature/NazwaneListyZakupowTest.php`.
+
 ### shopping_list_undos
 
 „Cofnij usunięcie” z listy zakupów (#2630, rozszerzenie **D-333**, decyzja
@@ -170,7 +223,7 @@ nie ma archiwum, kosza ani historii zakupów.
 | `id` | `uuid` | `DEFAULT gen_random_uuid()` |
 | `user_id` | `uuid` UNIQUE | → `users(id)` `ON DELETE CASCADE` (pas bezpieczeństwa; konta się anonimizuje, wiersz kasuje `EraseAccountData`). UNIQUE = najwyżej jedna migawka na osobę, także przy dwóch równoległych usunięciach |
 | `scope` | `varchar(10)` | `single` (jedna pozycja) albo `checked` („Wyczyść odhaczone”); od tego zależy komunikat „wróciły jako odhaczone” |
-| `items` | `jsonb` | tablica usuniętych pozycji: `id`, `text`, `source`, `recipe_id`, `position`, `checked_at`, `created_at`. **Bez kluczy obcych** i bez tytułu, linku czy zdjęcia przepisu — przy cofnięciu `recipe_id` zostaje tylko dla przepisu, który wciąż istnieje (inaczej sam tekst, jak przy `ON DELETE SET NULL`) |
+| `items` | `jsonb` | tablica usuniętych pozycji: `id`, `text`, `source`, `recipe_id`, `list_id` (od #2528; brak = lista domyślna), `position`, `checked_at`, `created_at`. **Bez kluczy obcych** i bez tytułu, linku czy zdjęcia przepisu — przy cofnięciu `recipe_id` zostaje tylko dla przepisu, który wciąż istnieje (inaczej sam tekst, jak przy `ON DELETE SET NULL`) |
 | `items_count` | `smallint` | liczba pozycji w migawce; limit konta (`kuking.zakupy.pozycji_max`) sprawdza się przy cofnięciu |
 | `expires_at` | `timestamptz` | koniec okna cofnięcia: `created_at` + `kuking.zakupy.cofniecie_minut` (15) |
 | `created_at` | `timestamptz` | |

@@ -7,6 +7,7 @@
     /** @var \App\Models\ShoppingListItem $pozycja */
     $pozycja = $wiersz['pozycja'];
 @endphp
+{{-- Odhaczanie i usuwanie dotyczy samej pozycji — lista wynika z pozycji (#2528). --}}
 <li class="planer-pozycja" id="pozycja-{{ $pozycja->getKey() }}">
     <span class="planer-pozycja-tresc">
         {{ $pozycja->text }}<br>

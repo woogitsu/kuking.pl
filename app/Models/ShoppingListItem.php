@@ -16,6 +16,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * przepis (`recipe_id`), właściciel (`user_id`), kolejność i stan odhaczenia
  * ustawia akcja domenowa (`ListaZakupow`) jawnym przypisaniem, nigdy żądanie
  * (AGENTS.md §7: pola sterujące i klucze właściciela poza `$fillable`).
+ *
+ * `list_id` (#2528): nazwana lista pozycji; `NULL` = lista domyślna. Kolumna
+ * dochodzi surowym DDL-em (AGENTS.md §6), więc Larastan nie wyczyta jej z migracji.
+ *
+ * @property string|null $list_id
  */
 class ShoppingListItem extends Model
 {
@@ -40,6 +45,16 @@ class ShoppingListItem extends Model
     public function jestOdhaczona(): bool
     {
         return $this->checked_at !== null;
+    }
+
+    /**
+     * Nazwana lista pozycji; `list_id = NULL` to lista domyślna („Na co dzień”).
+     *
+     * @return BelongsTo<ShoppingList, $this>
+     */
+    public function list(): BelongsTo
+    {
+        return $this->belongsTo(ShoppingList::class, 'list_id');
     }
 
     public function user(): BelongsTo

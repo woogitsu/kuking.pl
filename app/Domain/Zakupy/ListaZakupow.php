@@ -8,14 +8,18 @@ use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
+use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use App\Models\ShoppingListUndo;
 use App\Models\User;
 use App\Policies\RecipePolicy;
+use App\Policies\ShoppingListPolicy;
 use App\Support\Czas;
+use App\Support\Odmiana;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -43,6 +47,23 @@ use Illuminate\Validation\ValidationException;
  * pozycje z powrotem (z tekstem, pochodzeniem, przepisem, odhaczeniem i datą
  * dopisania), NIE ruszając pozycji dodanych w międzyczasie. Potwierdzenia
  * obecnych akcji zostają. To nie jest kosz ani historia zakupów.
+ *
+ * NAZWANE LISTY (#2528, V2, D-333 — paczka E): oprócz listy domyślnej
+ * („Na co dzień”, pozycje z `list_id = NULL`, czyli wszystko, co było przed tą
+ * funkcją) osoba może założyć nazwane listy na okazje („Święta”). Reguły:
+ *  - najwyżej `kuking.zakupy.list_max` list razem z domyślną;
+ *  - lista docelowa jest zawsze JAWNA: formularz niesie wybraną listę, a brak
+ *    wyboru znaczy domyślna — żadnego cichego wyboru według zachowania;
+ *  - odhaczanie, usuwanie, „Wyczyść odhaczone” i ostrzeżenie o ponownym
+ *    dodaniu przepisu dotyczą jednej listy; ten sam przepis na innej liście
+ *    nie jest duplikatem;
+ *  - limit pozycji (`pozycji_max`) liczy się dla CAŁEGO konta, pod blokadą
+ *    wiersza osoby, jak dotąd;
+ *  - lista należy do osoby: identyfikator cudzej listy niczego nie otwiera
+ *    (`ShoppingListPolicy`), a lista usunięta w innej karcie daje komunikat
+ *    po polsku, nie błąd;
+ *  - usunięcie listy z pozycjami wymaga potwierdzenia z liczbą pozycji,
+ *    którą człowiek widział; gdy liczba się zmieniła, nic nie jest kasowane.
  *
  * POZA ZAKRESEM: lista wspólna, offline, grupowanie po działach sklepu.
  *
@@ -95,10 +116,9 @@ final class ListaZakupow
      *
      * @return list<array{pozycja: ShoppingListItem, stan: string, przepis: ?Recipe}>
      */
-    public function pozycje(User $user): array
+    public function pozycje(User $user, ?ShoppingList $lista = null): array
     {
-        $pozycje = ShoppingListItem::query()
-            ->where('user_id', $user->getKey())
+        $pozycje = self::naLiscie(ShoppingListItem::query()->where('user_id', $user->getKey()), $lista)
             ->orderBy('position')
             ->orderBy('created_at')
             ->orderBy('id')
@@ -129,7 +149,7 @@ final class ListaZakupow
     }
 
     /** Ręcznie dopisana pozycja („mleko”, „papier toaletowy”). */
-    public function dodajReczna(User $user, string $tekst): ShoppingListItem
+    public function dodajReczna(User $user, string $tekst, ?ShoppingList $lista = null): ShoppingListItem
     {
         $tekst = self::oczysc($tekst);
 
@@ -145,11 +165,12 @@ final class ListaZakupow
             ]);
         }
 
-        return DB::transaction(function () use ($user, $tekst): ShoppingListItem {
+        return DB::transaction(function () use ($user, $tekst, $lista): ShoppingListItem {
             $this->zablokujListe($user);
+            $lista = $this->swiezaLista($user, $lista);
             $this->upewnijSieZeSaMiejsca($user, 1);
 
-            return $this->zapisz($user, $tekst, ShoppingListItem::SOURCE_MANUAL, null, $this->nastepnaPozycja($user));
+            return $this->zapisz($user, $tekst, ShoppingListItem::SOURCE_MANUAL, null, $this->nastepnaPozycja($user), $lista);
         });
     }
 
@@ -165,7 +186,7 @@ final class ListaZakupow
      *
      * @return array{wynik: string, dodano: int, wczesniej: ?CarbonInterface}
      */
-    public function dodajSkladniki(User $user, Recipe $przepis, bool $potwierdzone = false): array
+    public function dodajSkladniki(User $user, Recipe $przepis, bool $potwierdzone = false, ?ShoppingList $lista = null): array
     {
         if (! $this->przepisy->view($user, $przepis)) {
             throw new AuthorizationException;
@@ -177,11 +198,13 @@ final class ListaZakupow
             return ['wynik' => self::WYNIK_BRAK_SKLADNIKOW, 'dodano' => 0, 'wczesniej' => null];
         }
 
-        return DB::transaction(function () use ($user, $przepis, $linie, $potwierdzone): array {
+        return DB::transaction(function () use ($user, $przepis, $linie, $potwierdzone, $lista): array {
             $this->zablokujListe($user);
+            $lista = $this->swiezaLista($user, $lista);
 
-            $wczesniej = ShoppingListItem::query()
-                ->where('user_id', $user->getKey())
+            // Duplikat to ten sam przepis na TEJ SAMEJ liście; na innej liście
+            // składniki wolno dopisać bez pytania (#2528).
+            $wczesniej = self::naLiscie(ShoppingListItem::query()->where('user_id', $user->getKey()), $lista)
                 ->where('recipe_id', $przepis->getKey())
                 ->min('created_at');
 
@@ -197,7 +220,7 @@ final class ListaZakupow
 
             $pozycja = $this->nastepnaPozycja($user);
             foreach ($linie as $linia) {
-                $this->zapisz($user, $linia, ShoppingListItem::SOURCE_RECIPE, $przepis, $pozycja++);
+                $this->zapisz($user, $linia, ShoppingListItem::SOURCE_RECIPE, $przepis, $pozycja++, $lista);
             }
 
             return ['wynik' => self::WYNIK_DODANO, 'dodano' => count($linie), 'wczesniej' => null];
@@ -216,17 +239,18 @@ final class ListaZakupow
     }
 
     /**
-     * „Wyczyść odhaczone” — tylko pozycje tej osoby, tylko odhaczone. Przed
+     * „Wyczyść odhaczone” — tylko pozycje tej osoby z WYBRANEJ listy (#2528),
+     * tylko odhaczone. Przed
      * skasowaniem zapamiętuje je do krótkiego cofnięcia (zastępuje poprzednią
      * migawkę). Gdy nie ma odhaczonych, niczego nie zmienia — także migawki.
      */
-    public function wyczyscOdhaczone(User $user): int
+    public function wyczyscOdhaczone(User $user, ?ShoppingList $lista = null): int
     {
-        return DB::transaction(function () use ($user): int {
+        return DB::transaction(function () use ($user, $lista): int {
             $this->zablokujListe($user);
+            $lista = $this->swiezaLista($user, $lista);
 
-            $odhaczone = ShoppingListItem::query()
-                ->where('user_id', $user->getKey())
+            $odhaczone = self::naLiscie(ShoppingListItem::query()->where('user_id', $user->getKey()), $lista)
                 ->whereNotNull('checked_at')
                 ->orderBy('position')
                 ->orderBy('created_at')
@@ -300,7 +324,10 @@ final class ListaZakupow
      *    zostaje `recipe`); tytuł, link ani zdjęcie przepisu nie są
      *    odtwarzane — ekran pyta o widoczność przepisu jak zawsze.
      *
-     * @return array{wynik: string, przywrocono: int, zakres: ?string}
+     * `lista_id` w wyniku to lista pierwszej przywróconej pozycji (do której ekran wraca);
+     * `null` = lista domyślna.
+     *
+     * @return array{wynik: string, przywrocono: int, zakres: ?string, lista_id: ?string}
      */
     public function cofnijUsuniecie(User $user): array
     {
@@ -313,13 +340,13 @@ final class ListaZakupow
                 ->first();
 
             if ($migawka === null) {
-                return ['wynik' => self::COFNIECIE_BRAK, 'przywrocono' => 0, 'zakres' => null];
+                return ['wynik' => self::COFNIECIE_BRAK, 'przywrocono' => 0, 'zakres' => null, 'lista_id' => null];
             }
 
             if ($migawka->wygasla()) {
                 $migawka->delete();
 
-                return ['wynik' => self::COFNIECIE_BRAK, 'przywrocono' => 0, 'zakres' => null];
+                return ['wynik' => self::COFNIECIE_BRAK, 'przywrocono' => 0, 'zakres' => null, 'lista_id' => null];
             }
 
             $this->upewnijSieZeSaMiejscaNaPrzywrocenie($user, $migawka);
@@ -331,17 +358,29 @@ final class ListaZakupow
                 ? []
                 : DB::table('recipes')->whereIn('id', $idPrzepisow)->pluck('id')->all();
 
+            // Lista, z której pozycja zniknęła, mogła być w międzyczasie usunięta —
+            // wtedy pozycja wraca na listę domyślną (nie ginie).
+            $idList = array_values(array_filter(array_column($pozycje, 'list_id')));
+            $istniejaceListy = $idList === []
+                ? []
+                : ShoppingList::query()->where('user_id', $user->getKey())->whereIn('id', $idList)->pluck('id')->all();
+
             usort($pozycje, fn (array $a, array $b): int => [(int) $a['position'], (string) $a['created_at']]
                 <=> [(int) $b['position'], (string) $b['created_at']]);
 
             $przywrocono = 0;
-            foreach ($pozycje as $p) {
+            $listaId = null;
+            foreach ($pozycje as $i => $p) {
+                if ($i === 0) {
+                    $listaId = in_array($p['list_id'] ?? null, $istniejaceListy, true) ? $p['list_id'] : null;
+                }
                 $przywrocono += DB::table('shopping_list_items')->insertOrIgnore([
                     'id' => $p['id'],
                     'user_id' => $user->getKey(),
                     'text' => $p['text'],
                     'source' => $p['source'],
                     'recipe_id' => in_array($p['recipe_id'], $istniejace, true) ? $p['recipe_id'] : null,
+                    'list_id' => in_array($p['list_id'] ?? null, $istniejaceListy, true) ? $p['list_id'] : null,
                     'position' => (int) $p['position'],
                     'checked_at' => $p['checked_at'],
                     'created_at' => $p['created_at'],
@@ -352,7 +391,7 @@ final class ListaZakupow
             $zakres = $migawka->scope;
             $migawka->delete();
 
-            return ['wynik' => self::COFNIECIE_PRZYWROCONO, 'przywrocono' => $przywrocono, 'zakres' => $zakres];
+            return ['wynik' => self::COFNIECIE_PRZYWROCONO, 'przywrocono' => $przywrocono, 'zakres' => $zakres, 'lista_id' => $listaId];
         });
     }
 
@@ -380,6 +419,7 @@ final class ListaZakupow
             'text' => $p->text,
             'source' => $p->source,
             'recipe_id' => $p->recipe_id,
+            'list_id' => $p->list_id,
             'position' => $p->position,
             'checked_at' => $p->checked_at?->toIso8601String(),
             'created_at' => $p->created_at?->toIso8601String(),
@@ -438,6 +478,248 @@ final class ListaZakupow
         return $linie;
     }
 
+    // ------------------------------------------------------------------
+    // Nazwane listy (#2528)
+    // ------------------------------------------------------------------
+
+    public static function maksList(): int
+    {
+        return max(1, (int) config('kuking.zakupy.list_max'));
+    }
+
+    public static function maksZnakowNazwy(): int
+    {
+        return (int) config('kuking.zakupy.nazwa_listy_znakow_max');
+    }
+
+    /**
+     * Nazwane listy osoby w kolejności zakładania (domyślnej tu nie ma —
+     * to pozycje bez `list_id`).
+     *
+     * @return Collection<int, ShoppingList>
+     */
+    public function listy(User $user): Collection
+    {
+        return ShoppingList::query()
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Zakładki list z liczbą pozycji: najpierw domyślna, potem nazwane.
+     * Jedno zapytanie o liczby niezależnie od liczby list.
+     *
+     * @return list<array{lista: ?ShoppingList, nazwa: string, ile: int, do_kupienia: int}>
+     */
+    public function podsumowanie(User $user): array
+    {
+        $liczby = ShoppingListItem::query()
+            ->where('user_id', $user->getKey())
+            ->selectRaw('list_id, count(*) as ile, count(*) filter (where checked_at is null) as do_kupienia')
+            ->groupBy('list_id')
+            ->get()
+            ->keyBy(fn (ShoppingListItem $w): string => (string) $w->getAttribute('list_id'));
+
+        $wiersz = function (?ShoppingList $lista, string $nazwa) use ($liczby): array {
+            $liczba = $liczby->get($lista === null ? '' : (string) $lista->getKey());
+
+            return [
+                'lista' => $lista,
+                'nazwa' => $nazwa,
+                'ile' => (int) ($liczba?->getAttribute('ile') ?? 0),
+                'do_kupienia' => (int) ($liczba?->getAttribute('do_kupienia') ?? 0),
+            ];
+        };
+
+        $wynik = [$wiersz(null, ShoppingList::NAZWA_DOMYSLNEJ)];
+        foreach ($this->listy($user) as $lista) {
+            $wynik[] = $wiersz($lista, $lista->name);
+        }
+
+        return $wynik;
+    }
+
+    /**
+     * Lista wskazana w żądaniu: pusty identyfikator = domyślna (`null`).
+     * Cudza lista — odmowa (UUID nie jest autoryzacją); lista, której nie ma
+     * (usunięta w innej karcie) — komunikat po polsku przy polu `$pole`, bez
+     * gubienia tego, co człowiek wpisał.
+     */
+    public function znajdzListe(User $user, ?string $id, string $pole = 'lista'): ?ShoppingList
+    {
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        $lista = Str::isUuid($id) ? ShoppingList::query()->find($id) : null;
+
+        if ($lista === null) {
+            throw ValidationException::withMessages([
+                $pole => 'Tej listy zakupów już nie ma. Wybierz listę jeszcze raz.',
+            ]);
+        }
+
+        if (! (new ShoppingListPolicy)->view($user, $lista)) {
+            throw new AuthorizationException;
+        }
+
+        return $lista;
+    }
+
+    /** Zakłada nazwaną listę; pod blokadą konta, więc dwa kliknięcia nie przekroczą limitu. */
+    public function utworzListe(User $user, string $nazwa): ShoppingList
+    {
+        $nazwa = $this->sprawdzNazwe($nazwa, 'nazwa');
+
+        return DB::transaction(function () use ($user, $nazwa): ShoppingList {
+            $this->zablokujListe($user);
+
+            $mam = ShoppingList::query()->where('user_id', $user->getKey())->count();
+            if ($mam + 1 >= self::maksList()) {
+                throw ValidationException::withMessages([
+                    'nazwa' => 'Możesz mieć najwyżej '.self::maksList().' '.Odmiana::rzeczownik(self::maksList(), 'listę', 'listy', 'list')
+                        .' zakupów, razem z „'.ShoppingList::NAZWA_DOMYSLNEJ.'”. Usuń listę, której już nie potrzebujesz, i spróbuj jeszcze raz.',
+                ]);
+            }
+
+            $this->upewnijSieZeNazwaWolna($user, $nazwa, null, 'nazwa');
+
+            $lista = new ShoppingList(['name' => $nazwa]);
+            $lista->user_id = $user->getKey();
+            $lista->save();
+
+            return $lista;
+        });
+    }
+
+    /** Zmienia samą nazwę; pozycje, ich kolejność i odhaczenia zostają. */
+    public function zmienNazweListy(User $user, ShoppingList $lista, string $nazwa): ShoppingList
+    {
+        $nazwa = $this->sprawdzNazwe($nazwa, 'nowa_nazwa');
+
+        return DB::transaction(function () use ($user, $lista, $nazwa): ShoppingList {
+            $this->zablokujListe($user);
+            $swieza = $this->swiezaLista($user, $lista);
+            $this->upewnijSieZeNazwaWolna($user, $nazwa, $swieza?->getKey(), 'nowa_nazwa');
+
+            $swieza?->update(['name' => $nazwa]);
+
+            return $swieza ?? $lista;
+        });
+    }
+
+    /**
+     * Usuwa nazwaną listę RAZEM z jej pozycjami — wyłącznie po potwierdzeniu,
+     * które niesie liczbę pozycji widzianą na ekranie. Gdy w międzyczasie
+     * (np. w drugiej karcie) liczba się zmieniła, NIC nie jest kasowane:
+     * człowiek potwierdzał co innego, niż jest teraz na liście.
+     *
+     * @return int ile pozycji usunięto razem z listą; -1 gdy listy już nie było (powtórzone żądanie)
+     */
+    public function usunListe(User $user, ShoppingList $lista, bool $potwierdzone, ?int $widzianaLiczba): int
+    {
+        return DB::transaction(function () use ($user, $lista, $potwierdzone, $widzianaLiczba): int {
+            $this->zablokujListe($user);
+
+            $swieza = ShoppingList::query()->where('user_id', $user->getKey())->whereKey($lista->getKey())->first();
+            if ($swieza === null) {
+                return -1;
+            }
+
+            $ile = ShoppingListItem::query()->where('user_id', $user->getKey())->where('list_id', $swieza->getKey())->count();
+
+            if ($ile > 0 && ! $potwierdzone) {
+                throw ValidationException::withMessages([
+                    'potwierdzam' => 'Lista „'.$swieza->name.'” ma pozycje ('.$ile.'). Otwórz „Usuń listę”, przeczytaj, co zniknie, i potwierdź.',
+                ]);
+            }
+
+            if ($ile > 0 && $widzianaLiczba !== $ile) {
+                throw ValidationException::withMessages([
+                    'potwierdzam' => 'Na liście „'.$swieza->name.'” zmieniły się pozycje: jest ich teraz '.$ile
+                        .'. Nic nie usunęliśmy. Sprawdź listę i potwierdź usunięcie jeszcze raz.',
+                ]);
+            }
+
+            $swieza->delete(); // klucz obcy kasuje pozycje tej listy
+
+            return $ile;
+        });
+    }
+
+    /** Lista odczytana jeszcze raz pod blokadą konta (mogła zniknąć w drugiej karcie). */
+    private function swiezaLista(User $user, ?ShoppingList $lista): ?ShoppingList
+    {
+        if ($lista === null) {
+            return null;
+        }
+
+        $swieza = ShoppingList::query()->where('user_id', $user->getKey())->whereKey($lista->getKey())->first();
+
+        if ($swieza === null) {
+            throw ValidationException::withMessages([
+                'lista' => 'Tej listy zakupów już nie ma. Nic nie zapisaliśmy — wybierz listę jeszcze raz.',
+            ]);
+        }
+
+        return $swieza;
+    }
+
+    /**
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  Builder<TModel>  $zapytanie
+     * @return Builder<TModel>
+     */
+    private static function naLiscie(Builder $zapytanie, ?ShoppingList $lista): Builder
+    {
+        return $lista === null
+            ? $zapytanie->whereNull('list_id')
+            : $zapytanie->where('list_id', $lista->getKey());
+    }
+
+    private function sprawdzNazwe(string $nazwa, string $pole): string
+    {
+        $nazwa = self::oczysc($nazwa);
+
+        if ($nazwa === null) {
+            throw ValidationException::withMessages([
+                $pole => 'Wpisz nazwę listy, np. „Święta” albo „Przyjęcie u Kasi”.',
+            ]);
+        }
+
+        if (mb_strlen($nazwa) > self::maksZnakowNazwy()) {
+            throw ValidationException::withMessages([
+                $pole => 'Skróć nazwę listy do '.self::maksZnakowNazwy().' znaków i spróbuj jeszcze raz.',
+            ]);
+        }
+
+        return $nazwa;
+    }
+
+    private function upewnijSieZeNazwaWolna(User $user, string $nazwa, ?string $pomijana, string $pole): void
+    {
+        if (mb_strtolower($nazwa) === mb_strtolower(ShoppingList::NAZWA_DOMYSLNEJ)) {
+            throw ValidationException::withMessages([
+                $pole => '„'.ShoppingList::NAZWA_DOMYSLNEJ.'” to Twoja podstawowa lista, która już jest. Wybierz inną nazwę.',
+            ]);
+        }
+
+        $zajeta = ShoppingList::query()
+            ->where('user_id', $user->getKey())
+            ->when($pomijana !== null, fn ($q) => $q->where('id', '!=', $pomijana))
+            ->get(['name'])
+            ->contains(fn (ShoppingList $l): bool => mb_strtolower($l->name) === mb_strtolower($nazwa));
+
+        if ($zajeta) {
+            throw ValidationException::withMessages([
+                $pole => 'Masz już listę o nazwie „'.$nazwa.'”. Wybierz inną nazwę.',
+            ]);
+        }
+    }
+
     private static function oczysc(string $tekst): ?string
     {
         $tekst = trim(preg_replace('/\s+/u', ' ', $tekst) ?? '');
@@ -477,13 +759,14 @@ final class ListaZakupow
         return $max === null ? 0 : ((int) $max) + 1;
     }
 
-    private function zapisz(User $user, string $tekst, string $zrodlo, ?Recipe $przepis, int $pozycja): ShoppingListItem
+    private function zapisz(User $user, string $tekst, string $zrodlo, ?Recipe $przepis, int $pozycja, ?ShoppingList $lista = null): ShoppingListItem
     {
         $wpis = new ShoppingListItem(['text' => $tekst]);
         $wpis->user_id = $user->getKey();
         $wpis->source = $zrodlo;
         $wpis->recipe_id = $przepis?->getKey();
         $wpis->position = $pozycja;
+        $wpis->list_id = $lista?->getKey();
         $wpis->save();
 
         return $wpis;

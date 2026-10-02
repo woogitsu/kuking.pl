@@ -31,6 +31,7 @@ use App\Models\Recipe;
 use App\Models\RecipeHint;
 use App\Models\RecipeServingPreference;
 use App\Models\RecipeVersion;
+use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -255,6 +256,8 @@ final class CollectUserExportData
             'planer' => $this->mealPlan($user),
             // Lista zakupów (#27, etap 2, D-333).
             'lista_zakupow' => $this->shoppingList($user),
+            // Nazwane listy zakupów (#2528) — nazwa to wolny tekst osoby.
+            'listy_zakupow' => $this->shoppingLists($user),
             'importy_przepisow' => $this->recipeImportOrigins($user),
             'odczyty_przepisow' => $this->recipeImports($user),
             'proby_importu' => $this->recipeImportAttempts($user),
@@ -1198,7 +1201,7 @@ final class CollectUserExportData
         // moduł Zakupy zależy od Recipes, a Recipes (pośrednio) od Users,
         // więc import stąd zamykałby cykl modułów (GrafModulowDomenyBezCykliTest).
         // Reguła widoczności jest ta sama — `PlanerTygodnia::widocznePrzepisy()`.
-        $pozycje = $user->shoppingListItems()->orderBy('position')->orderBy('id')->get();
+        $pozycje = $user->shoppingListItems()->with('list:id,name')->orderBy('position')->orderBy('id')->get();
         $idPrzepisow = $pozycje->pluck('recipe_id')->filter()->unique()->values();
         $widoczne = $idPrzepisow->isEmpty()
             ? collect()
@@ -1209,6 +1212,7 @@ final class CollectUserExportData
 
             return [
                 'pozycja' => $pozycja->text,
+                'lista' => $pozycja->list->name ?? ShoppingList::NAZWA_DOMYSLNEJ,
                 'pochodzenie' => $pozycja->source === ShoppingListItem::SOURCE_RECIPE ? 'z_przepisu' : 'reczna',
                 'przepis' => $przepis?->title,
                 'adres_przepisu' => $przepis !== null ? route('recipes.show', $przepis->slug) : null,
@@ -1217,6 +1221,22 @@ final class CollectUserExportData
                 'dodano' => $this->date($pozycja->created_at),
             ];
         })->values()->all();
+    }
+
+    /**
+     * Nazwane listy zakupów (#2528): same nazwy i daty założenia, także puste
+     * listy (pozycje stoją w `lista_zakupow` z polem `lista`). Lista domyślna
+     * („Na co dzień”) nie ma wiersza w bazie, więc tu jej nie ma.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function shoppingLists(User $user): array
+    {
+        return $user->shoppingLists()->orderBy('created_at')->orderBy('id')->get()
+            ->map(fn (ShoppingList $lista): array => [
+                'nazwa' => $lista->name,
+                'zalozona' => $this->date($lista->created_at),
+            ])->values()->all();
     }
 
     /**

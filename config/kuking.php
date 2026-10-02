@@ -57,6 +57,11 @@ return [
         // „Wyczyść odhaczone” wolno je cofnąć. Po tym czasie migawka jest
         // kasowana. Limit pozycji migawki = `pozycji_max`.
         'cofniecie_minut' => 15,
+        // Nazwane listy (#2528): ile list najwyżej ma osoba, WLICZAJĄC domyślną
+        // („Na co dzień”), i ile znaków ma nazwa. Limit pozycji (`pozycji_max`)
+        // dotyczy całego konta, nie jednej listy.
+        'list_max' => 5,
+        'nazwa_listy_znakow_max' => 60,
     ],
 
     /*

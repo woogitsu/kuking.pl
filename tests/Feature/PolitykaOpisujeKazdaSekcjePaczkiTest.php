@@ -59,6 +59,8 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         'co_mam_w_domu' => '| Lista „Co mam w domu” |',
         // Paczka J (#27) dopisuje tę sekcję i wiersz polityki — fraza czeka tu na scalenie.
         'lista_zakupow' => '| Lista zakupów |',
+        // Nazwane listy zakupów (#2528): nazwa to wolny tekst osoby, opisana w tym samym wierszu.
+        'listy_zakupow' => 'nazwy dodatkowych list zakupów',
         'postep_gotowania' => '| Zapamiętany postęp w trybie gotowania |',
         'wspolne_gotowanie' => '| Wspólne gotowanie |',
         'dopiski_z_gotowania' => '| Prywatny dopisek z gotowania |',

@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Osobne listy zakupów na okazje
+
+Szykujecie święta albo przyjęcie i chcecie dopisywać zakupy wcześniej, bez mieszania ich z listą na dzisiejszy obiad? W „Liście zakupów” jest teraz „Osobna lista na okazję”: zakładacie listę, np. „Święta”, i nadajecie jej nazwę. Lista „Na co dzień” zostaje taka, jak była, z wszystkimi dotychczasowymi pozycjami. Otwartą listę podpisujemy na górze, a przy „Dodaj składniki” na stronie przepisu i w planerze sami wybieracie, na którą listę dopisać — nic nie wybiera się za Was. Odhaczanie, usuwanie i „Wyczyść odhaczone” dotyczą tylko tej listy, na której jesteście. Listę można przemianować, a usunięcie listy z pozycjami wymaga potwierdzenia i mówi, ile pozycji zniknie. Nazwy list widzicie tylko Wy.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.

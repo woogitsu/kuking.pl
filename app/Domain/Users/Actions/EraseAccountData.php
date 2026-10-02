@@ -312,6 +312,11 @@ final class EraseAccountData
              */
             $fresh->shoppingListItems()->delete();
 
+            // Nazwane listy (#2528): nazwa to wolny tekst osoby (dana osobowa),
+            // więc znika razem z pozycjami — po pozycjach, żeby kasowanie
+            // listy nie robiło pracy dwa razy.
+            $fresh->shoppingLists()->delete();
+
             // Migawka ostatniego usunięcia z listy (#2630) to kopia tych samych
             // pozycji — wymazanie konta kasuje ją razem z listą, żeby nic już
             // nie dało się „cofnąć” po wymazaniu.

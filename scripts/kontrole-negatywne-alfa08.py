@@ -1345,6 +1345,15 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Listy zakupów mieszają pozycje (#2528)", "app/Domain/Zakupy/ListaZakupow.php",
+     "test_dotychczasowe_pozycje_sa_na_liscie_domyslnej_a_nazwana_ich_nie_miesza",
+     lambda s: replace_once(s, ": $zapytanie->where('list_id', $lista->getKey());", ": $zapytanie;").replace("? $zapytanie->whereNull('list_id')", "? $zapytanie")),
+    ("Cudza lista zakupów otwiera ekran i przyjmuje zapis (#2528)", "app/Domain/Zakupy/ListaZakupow.php",
+     "test_cudza_lista_nie_otwiera_sie_i_nie_przyjmuje_zapisow",
+     lambda s: replace_once(s, "if (! (new ShoppingListPolicy)->view($user, $lista)) {", "if (false) {")),
+    ("Usunięcie listy ignoruje zmienioną liczbę pozycji (#2528)", "app/Domain/Zakupy/ListaZakupow.php",
+     "test_usuniecie_listy_z_pozycjami_wymaga_potwierdzenia_z_liczba_i_nie_rusza_innych_list",
+     lambda s: replace_once(s, "if ($ile > 0 && $widzianaLiczba !== $ile) {", "if (false) {")),
     ("Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
      lambda s: replace_once(s, "return $request->user() !== null", "return false")),
     ("Dyktowanie daje mikrofon gościowi (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
