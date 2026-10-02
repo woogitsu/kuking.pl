@@ -757,6 +757,18 @@
                                     {{-- Zamiennik od autora (D-284), osobną linią pod
                                          składnikiem — tekstem ≥ 18 px, nie drobnym dopiskiem. --}}
                                     @if($ingredient->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $ingredient->substitutes }}</span>@endif
+                                    {{-- Równoważniki miar na żądanie (#2533): tylko masa↔masa i
+                                         objętość↔objętość, z ilości po wybranych porcjach. --}}
+                                    @unless($ingredient->no_amount)
+                                        @php($rownowazniki = \App\Domain\Recipes\Porcje\PrzeliczMiare::dla($przeliczony->tekst()))
+                                        @if($rownowazniki !== [])
+                                            <details class="skladnik-przelicz" data-przelicz-miare>
+                                                <summary>Przelicz</summary>
+                                                <p>{{ implode(' = ', $rownowazniki) }}</p>
+                                                <p class="meta">To podpowiedź przy ilości, którą widzisz powyżej. Tekst przepisu zostaje bez zmian.</p>
+                                            </details>
+                                        @endif
+                                    @endunless
                                 </li>
                             @endforeach
                         </ul>

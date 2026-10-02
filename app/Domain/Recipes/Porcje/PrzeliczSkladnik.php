@@ -116,6 +116,37 @@ final class PrzeliczSkladnik
     }
 
     /**
+     * Odczytuje ilość z tekstu PO ewentualnym przeliczeniu porcji — ten sam
+     * parser, który skaluje wiersz, więc „przelicz miarę” (#2533) widzi
+     * dokładnie to, co widz ma na ekranie. Nic nie zapisuje. `null`, gdy
+     * brak liczby ze znaną jednostką albo wiersz jest „do smaku”.
+     *
+     * @return array{od: float, do: ?float, jednostka: JednostkaKuchenna}|null
+     */
+    public static function odczytaj(string $tekst): ?array
+    {
+        if (preg_match(self::BEZ_PRZELICZANIA, $tekst) === 1) {
+            return null;
+        }
+
+        $trafienie = self::znajdzIlosc($tekst);
+
+        if ($trafienie === null || $trafienie['jednostka'] === '') {
+            return null;
+        }
+
+        $od = self::liczba($trafienie['od']);
+        $do = $trafienie['do'] !== '' ? self::liczba($trafienie['do']) : null;
+        $jednostka = JednostkaKuchenna::zFormy($trafienie['jednostka']);
+
+        if ($od === null || $jednostka === null || ($trafienie['do'] !== '' && $do === null)) {
+            return null;
+        }
+
+        return ['od' => $od, 'do' => $do, 'jednostka' => $jednostka];
+    }
+
+    /**
      * @return array{przed: string, calosc: string, od: string, separator: string, do: string, spacja: string, jednostka: string}|null
      */
     private static function znajdzIlosc(string $tekst): ?array

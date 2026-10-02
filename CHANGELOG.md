@@ -6,6 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Nowe (#2533): przy składniku w gramach, dekagramach, kilogramach, mililitrach, litrach, szklankach, łyżkach lub łyżeczkach strona przepisu ma rozwijany blok „Przelicz” z równoważnikami (np. 25 dag = 250 g, 1 kg = 1000 g, ½ szklanki = ok. 125 ml). Przelicza tylko masę na masę i objętość na objętość; masy nie zamienia na objętość. Pokazuje ilości po wybranej liczbie porcji, działa bez JavaScriptu i niczego nie zapisuje — tekst przepisu zostaje bez zmian [nowa funkcja].
 ## Alfa 0.78 — co zużyć najpierw, lista zakupów i wydruk zeszytu
 
 - Naprawione (#2621): wklejona pusta linia z nierozdzielającą spacją nie dodaje niewidocznego składnika ani nie skleja dwóch kroków przepisu. Spacja wewnątrz wpisanej ilości zostaje bez zmian.
