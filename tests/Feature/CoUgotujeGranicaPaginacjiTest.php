@@ -67,7 +67,8 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
             // Dalszych wyników nie ma (#2659): ani pętli, ani zdania, że „mogą
             // być jeszcze inne” przepisy — to byłaby obietnica bez pokrycia.
             $ostatnia->assertDontSee('Mogą być jeszcze inne pasujące przepisy.')
-                ->assertDontSee('To koniec dostępnego przeglądania tej listy.')
+                ->assertSee('To koniec dostępnego przeglądania tej listy.')
+                ->assertSee(route('pantry.index'), false)
                 ->assertDontSee('Prywatna granica 2599');
         }
 
