@@ -1319,6 +1319,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // ŚWIADOMY WYJĄTEK — jak przy `collections.unsave-post` wyżej.
         $dodaj('collections.unsave', 'wyjęcie przepisu z własnego zeszytu', 'delete',
             route('collections.unsave', $przepisPrywatny), [], [$W, $W, $W, $W, $O]);
+        // Przenośna kopia jednego przepisu (#2531): tylko autor (`RecipePolicy::exportCopy`);
+        // moderator też dostaje odmowę — to wydanie własnych danych autora.
+        $dodaj('recipes.copy.show', 'ekran kopii przenośnej własnego przepisu', 'get',
+            route('recipes.copy.show', $przepisPrywatny->slug), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.copy.download', 'pobranie kopii przenośnej własnego przepisu', 'post',
+            route('recipes.copy.download', $przepisPrywatny->slug), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.destroy', 'usunięcie przepisu', 'delete',
             route('recipes.destroy', $przepisDoKasacji), [], [$W, $O, $O, $O, $O]);
         // „Odłóż na później” własnego szkicu (#2550): tylko autor; szkic jest

@@ -13,10 +13,14 @@
     <title>{{ $recipe->title }} — mój przepis z Kuking</title>
     @include('exports.styles')
 </head>
+@php($kopiaJednego ??= false)
 <body>
 <div class="strona">
 
-    <p class="powrot"><a href="../index.html">&larr; Wróć do spisu treści</a></p>
+    {{-- Kopia jednego przepisu (#2531) nie ma spisu treści, do którego dałoby się wrócić. --}}
+    @unless($kopiaJednego)
+        <p class="powrot"><a href="../index.html">&larr; Wróć do spisu treści</a></p>
+    @endunless
 
     <div class="naglowek">
         <h1>{{ $recipe->title }}</h1>
@@ -154,8 +158,12 @@
     @endif
 
     <p class="stopka">
-        Ten przepis pochodzi z Twojej paczki z danymi z Kuking.pl.
-        Wróć do <a href="../index.html">spisu treści</a>.
+        @if($kopiaJednego)
+            To jest kopia jednego Twojego przepisu z Kuking.pl, sam tekst — bez zdjęć i komentarzy innych osób.
+        @else
+            Ten przepis pochodzi z Twojej paczki z danymi z Kuking.pl.
+            Wróć do <a href="../index.html">spisu treści</a>.
+        @endif
     </p>
 </div>
 </body>

@@ -121,6 +121,10 @@ Gotujecie dłuższy przepis i chcecie wrócić do kroku 3, a jesteście w 12.? W
 
 Plakietka pokazuje, że czeka nieprzeczytane powiadomienie, ale po kilku nowszych, już przeczytanych, trudno je było znaleźć? Nad listą powiadomień są teraz dwa linki: „Wszystkie” i „Nieprzeczytane”. Drugi pokazuje tylko te, których jeszcze nie otworzyliście, w tej samej kolejności, a pierwszy wraca do całej historii. Samo wejście na listę, przełączenie i przejście na następną stronę niczego nie oznaczają jako przeczytane; „Oznacz wszystkie jako przeczytane” działa jak dotąd.
 
+### Kopia jednego przepisu do zachowania poza serwisem
+
+Chcecie zachować rodzinną recepturę u siebie, bez zamawiania paczki z całym kontem? Na stronie swojego przepisu jest przycisk „Pobierz kopię przepisu”. Najpierw zobaczycie, co będzie w pliku i czego w nim nie będzie (zdjęć i komentarzy innych osób nie ma), a po kliknięciu pobierzecie mały plik ZIP z przepisem do czytania bez internetu i do wydruku. Ten sam plik można później wczytać z powrotem w Ustawieniach, w „Wczytaj swoją paczkę” — przepis wróci jako prywatny szkic dopiero po Waszym potwierdzeniu.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

@@ -128,6 +128,16 @@ class RecipePolicy
     }
 
     /**
+     * Przenośna kopia JEDNEGO własnego przepisu (#2531): wyłącznie autor, w
+     * każdym stanie przepisu i konta — to wydanie własnych danych, nie
+     * rozszerzenie dostępu. UUID ani adres cudzego przepisu nie dają prawa.
+     */
+    public function exportCopy(User $user, Recipe $recipe): bool
+    {
+        return $user->getKey() === $recipe->author_id;
+    }
+
+    /**
      * Ekran „Komu pokazuję ten przepis" i odbieranie dostępu — wyłącznie
      * autor, w każdym stanie konta i przepisu: zawężanie dostępu wolno zawsze.
      */
