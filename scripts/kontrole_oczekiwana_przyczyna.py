@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Pomiar panelu tylko w części 2 (#2446)': r'PANEL_2446_POMIAR_KAZDA_CZESC',
     'Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)': r'DICTATION_AUTH_HEADER',
     'Dyktowanie daje mikrofon gościowi (#2377 etap 2)': r'DICTATION_GUEST_HEADER',
     'Dyktowanie daje mikrofon błędowi i JSON (#2377 etap 2)': r'DICTATION_NON_FORM_RESPONSE',
