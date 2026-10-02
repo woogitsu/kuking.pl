@@ -727,6 +727,20 @@ paczki danych (`InwentarzDanychKonta`: to te same pozycje, co w sekcji
 `lista_zakupow`, trzymane najwyżej 15 minut). Liczbę potwierdził właściciel
 2.10.2026.
 
+### 5.10 Kopia odzyskania usuniętego zeszytu (`deleted_collections`) — dopisane 2.10.2026 (#2567, D-333)
+
+Usunięcie PRYWATNEGO zeszytu bez członków i zaproszeń zostawia krótką kopię
+(nazwa, opis, data założenia, pozycje z własnymi dopiskami i datami zapisania —
+same identyfikatory cudzych treści). Okno to samo co w §5.7
+(`kuking.usuniete_tresci.retention_days`, 30 dni od usunięcia), a kopię kasuje
+to samo zadanie co inne usunięte treści (`kuking:sprzataj-usuniete-tresci`),
+czytając wiersz jeszcze raz pod blokadą. Wcześniej kopia znika po odzyskaniu
+zeszytu i przy wymazaniu konta. Zeszyty publiczne i wspólne oraz objęte sprawą
+moderacyjną kopii nie dostają. Nie wydłuża to żadnego okresu i nie tworzy
+historii: jedna kopia na zeszyt, najwyżej 20 na osobę i 1000 pozycji na
+zeszyt. Paczka danych ma sekcję `usuniete_zeszyty`. Zakres potwierdza właściciel
+w D-333.
+
 ## 6. Decyzje właściciela — zbiorczo
 
 **Zaktualizowane w drugiej turze (§10) — poniższe są DECYZJAMI, nie

@@ -50,6 +50,7 @@ final class ParametryUuidTras
         'wpis',
         'wybor',
         'wyroznienie',
+        'zeszytUsuniety',
     ];
 
     /** @return array<string, string> nazwa parametru => wzorzec */

@@ -858,6 +858,26 @@ trafi tam pierwszy rekord.
 - **Eksport:** `dopiski_z_gotowania` (tytuł przepisu tylko gdy przepis jest
   dziś widoczny dla osoby, treść dopisku, daty).
 
+### 3.30 Kopia odzyskania usuniętego prywatnego zeszytu (V2, issue #2567)
+
+- **Cel:** umożliwienie osobie odzyskania prywatnego zeszytu, który usunęła
+  przez pomyłkę, razem z jej własnymi dopiskami i datami zapisania.
+- **Dane:** identyfikator konta i dawnego zeszytu, nazwa i opis zeszytu, data
+  założenia, a dla każdej pozycji: identyfikator przepisu albo wpisu, własny
+  dopisek osoby i data zapisania (`deleted_collections`). Bez tytułów i tekstów
+  cudzych treści. Tylko dla zeszytów prywatnych, bez członków i zaproszeń.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — funkcja, z której osoba świadomie
+  korzysta (ochrona jej własnej pracy). Weryfikacja przez prawnika zostaje w #8.
+- **Odbiorcy:** Railway. Kopię widzi wyłącznie właściciel
+  (`DeletedCollectionPolicy`); nic nie trafia do podmiotów trzecich,
+  moderatorów, adresu, cache ani telemetrii.
+- **Termin usunięcia:** `kuking.usuniete_tresci.retention_days` (30 dni) od
+  usunięcia zeszytu (to samo okno co inne treści usunięte przez autora); co
+  noc kasuje je `kuking:sprzataj-usuniete-tresci`. Wcześniej: odzyskanie
+  zeszytu albo wymazanie konta (`EraseAccountData`).
+- **Eksport:** `usuniete_zeszyty` (nazwa, opis, daty, pozycje z dopiskami;
+  tytuł przepisu tylko gdy przepis jest dziś widoczny dla osoby).
+
 ---
 
 ## 4. Kategorie odbiorców (art. 30 ust. 1 lit. d)

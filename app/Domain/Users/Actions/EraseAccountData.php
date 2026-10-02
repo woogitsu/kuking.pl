@@ -324,6 +324,17 @@ final class EraseAccountData
             $fresh->pantryItems()->delete();
 
             /*
+             * KOPIE ODZYSKANIA USUNIĘTYCH ZESZYTÓW ZNIKAJĄ RAZEM Z KONTEM (#2567).
+             *
+             * To dopiski i nazwy z prywatnych zeszytów, które osoba usunęła, a
+             * które czekają w oknie odzyskania. Po wymazaniu konta nie ma komu
+             * ich oddać, a spóźnione odzyskanie nie może ich odtworzyć. Jawnie,
+             * nie kaskadą: kont się nie kasuje, tylko anonimizuje (D-022).
+             * Wiersze kluczem `owner_id` tego jednego konta.
+             */
+            DB::table('deleted_collections')->where('owner_id', $fresh->getKey())->delete();
+
+            /*
              * ZAPAMIĘTANY POSTĘP GOTOWANIA ZNIKA RAZEM Z KONTEM (#2016).
              *
              * Krótkotrwały (doba), prywatny stan trybu gotowania — po wymazaniu

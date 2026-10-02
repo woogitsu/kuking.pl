@@ -30,6 +30,19 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Odzyskanie usuniętego zeszytu
+
+Usunęliście zeszyt przez pomyłkę? Jeśli był prywatny i nie dzieliliście go
+z nikim, możecie go odzyskać. W Zeszycie jest teraz przycisk „Usunięte
+zeszyty”: zobaczycie na liście nazwę zeszytu, liczbę zapisów, datę usunięcia
+i dokładny termin, do kiedy da się go odzyskać. Przycisk „Odzyskaj zeszyt”
+przywraca go jako prywatny, razem z zapisami, Waszymi dopiskami i datami
+zapisania. Nikt nie dostaje o tym powiadomienia. Jeśli któryś przepis albo
+wpis został w międzyczasie usunięty, nie wróci, a ekran powie, ile zapisów
+brakuje. Zeszytów publicznych i wspólnych nie da się odzyskać, o czym
+informuje komunikat po usunięciu. Po upływie terminu zeszyt jest usuwany na
+stałe, tak samo po usunięciu konta.
+
 ### Przeliczanie miar przy składniku
 
 Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrach, szklankach, łyżkach albo łyżeczkach znajdziecie rozwijany napis „Przelicz”. Po dotknięciu pokazuje to samo w innej jednostce, na przykład 25 dag to 250 g, a pół szklanki to około 125 ml. Przeliczamy tylko wagę na wagę i objętość na objętość — gramów nie zamieniamy na szklanki, bo zależy to od produktu. Przelicznik bierze ilość z wybranej liczby porcji, a tekst przepisu zostaje taki, jak napisał autor.
