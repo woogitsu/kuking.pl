@@ -1285,6 +1285,9 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $pozycjaPlanu = new MealPlanEntry(['day' => '2026-11-18', 'label' => 'Obiad u mamy']);
         $pozycjaPlanu->user_id = $wlasciciel->getKey();
         $pozycjaPlanu->save();
+        // Prywatne „Zrobione” (#2593): tylko właściciel pozycji.
+        $dodaj('planer.done', 'oznaczenie „Zrobione” pozycji planera', 'patch',
+            route('planer.done', $pozycjaPlanu), ['zrobione' => '1', 'stan' => ''], [$W, $O, $O, $O, $O]);
         $dodaj('planer.destroy', 'pozycja planera tygodnia', 'delete',
             route('planer.destroy', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
 

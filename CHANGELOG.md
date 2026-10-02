@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Prywatne „Zrobione” przy pozycji Planera (#2593, decyzja właściciela z 2.10.2026, D-333) [nowa funkcja]. Przy każdej pozycji planu (przepis albo własny wpis) jest przycisk „Oznacz jako zrobione”, a po oznaczeniu — napis „Zrobione” i przycisk „Cofnij oznaczenie”. To zwykły formularz, bez skryptu i bez przeciągania. Oznaczenie widzisz tylko Ty, nie zmienia dnia ani kolejności, nie publikuje „Ugotowałem”, nie powiadamia autora i nie liczy się jako ugotowanie. Ponowione wysłanie nie odwraca oznaczenia, a stara karta przeglądarki nie cofnie nowszej decyzji — pokaże komunikat. „Skopiuj poprzedni tydzień” tworzy pozycje nieoznaczone. Stan jest w paczce własnych danych i znika razem z planem. Nowa kolumna `meal_plan_entries.done_at`; cofnięcie migracji odmawia, gdy są oznaczone pozycje (D-088).
+
 ## Alfa 0.78 — co zużyć najpierw, lista zakupów i wydruk zeszytu
 
 - Naprawione (#2621): wklejona pusta linia z nierozdzielającą spacją nie dodaje niewidocznego składnika ani nie skleja dwóch kroków przepisu. Spacja wewnątrz wpisanej ilości zostaje bez zmian.

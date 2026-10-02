@@ -15,6 +15,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * `user_id` celowo poza `$fillable` (AGENTS.md §7): właściciela ustawia
  * akcja domenowa jawnym przypisaniem, nie żądanie.
  *
+ * `done_at` (#2593) to prywatne „Zrobione” — także poza `$fillable`: stan
+ * ustawia wyłącznie akcja `OznaczPozycjePlanu`, nie żądanie.
+ *
  * Pozycja bez przepisu i bez tekstu jest możliwa — zostaje po TWARDYM
  * usunięciu przepisu (`ON DELETE SET NULL`), patrz migracja.
  */
@@ -32,6 +35,7 @@ class MealPlanEntry extends Model
     {
         return [
             'day' => 'date',
+            'done_at' => 'datetime',
         ];
     }
 

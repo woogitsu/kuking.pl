@@ -32,6 +32,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Zrobione w Planerze
+
+Przy każdej pozycji planu możesz oznaczyć, że jest już zrobiona, i cofnąć to jednym przyciskiem. Dzięki temu po przygotowaniu części potraw widzisz, co jeszcze zostało, a cały plan zostaje na swoim miejscu. Oznaczenie jest prywatne: nie publikuje „Ugotowałem”, nie powiadamia autora przepisu i nie zmienia nic poza Twoim planem.
+
 ## Alfa 0.78
 
 **Co zużyć najpierw, lista zakupów i wydruk zeszytu.**

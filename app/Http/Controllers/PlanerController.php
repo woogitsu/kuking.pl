@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Planer\Actions\DodajDoPlanu;
+use App\Domain\Planer\Actions\OznaczPozycjePlanu;
 use App\Domain\Planer\Actions\SkopiujPoprzedniTydzien;
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Planer\ZakresDatPlanu;
@@ -176,6 +177,41 @@ class PlanerController extends Controller
 
         return redirect()->route('planer.show', ['tydzien' => $poniedzialek->toDateString()])
             ->with($rodzaj);
+    }
+
+    /**
+     * Prywatne „Zrobione” (#2593). Ustawia żądany stan (`zrobione` = 1 albo 0),
+     * nie przełącza; formularz niesie znacznik stanu, który człowiek widział,
+     * żeby stara karta nie odwróciła nowszej decyzji.
+     */
+    public function markDone(Request $request, MealPlanEntry $wpis, OznaczPozycjePlanu $oznacz): RedirectResponse
+    {
+        $this->authorize('markDone', $wpis);
+
+        $dane = $request->validate([
+            'zrobione' => ['required', 'in:0,1'],
+            'stan' => ['nullable', 'string', 'max:40'],
+        ], [
+            'zrobione.required' => 'Nie wiemy, co zrobić z tą pozycją. Odśwież stronę i spróbuj jeszcze raz.',
+            'zrobione.in' => 'Nie wiemy, co zrobić z tą pozycją. Odśwież stronę i spróbuj jeszcze raz.',
+        ]);
+
+        $zrobione = $dane['zrobione'] === '1';
+        $wynik = $oznacz->handle($request->user(), (string) $wpis->getKey(), $zrobione, $dane['stan'] ?? null);
+
+        $komunikat = match ($wynik) {
+            OznaczPozycjePlanu::ZASTOSOWANO => Komunikat::sukces($zrobione
+                ? 'Pozycja jest oznaczona jako zrobiona. Widzisz to tylko Ty.'
+                : 'Oznaczenie cofnięte. Pozycja znów czeka w planie.'),
+            OznaczPozycjePlanu::JUZ_TAK_BYLO => Komunikat::informacja($zrobione
+                ? 'Ta pozycja już jest oznaczona jako zrobiona.'
+                : 'Ta pozycja nie jest oznaczona jako zrobiona.'),
+            OznaczPozycjePlanu::KONFLIKT => Komunikat::blad('Oznaczenie tej pozycji zmieniło się w innym oknie. Sprawdź jej aktualny stan poniżej i w razie potrzeby kliknij jeszcze raz.'),
+            default => Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.'),
+        };
+
+        return redirect()->route('planer.show', ['tydzien' => $wpis->day->toDateString()])
+            ->with($komunikat);
     }
 
     public function destroy(Request $request, MealPlanEntry $wpis): RedirectResponse
