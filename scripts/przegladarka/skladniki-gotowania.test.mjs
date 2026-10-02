@@ -25,8 +25,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import http from 'node:http';
 import { chromium } from 'playwright';
+import { utworzSerwer } from './skladniki-gotowania-server.mjs';
 
 const MODUL = process.env.SKLADNIKI_MODUL
     ?? new URL('../../resources/js/skladniki-gotowania.js', import.meta.url).pathname;
@@ -86,30 +86,7 @@ function strona(skladniki, krok, porcje) {
 
 let skladnikiSerwera = SKLADNIKI;
 const zadaniaPost = [];
-const serwer = http.createServer((req, res) => {
-    const url = new URL(req.url, 'http://x');
-    if (req.method !== 'GET') {
-        zadaniaPost.push(url.pathname);
-        res.writeHead(303, { Location: '/?krok=1' });
-        res.end();
-
-        return;
-    }
-    if (url.pathname === '/skladniki-gotowania.js') {
-        res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' });
-        res.end(readFileSync(MODUL, 'utf8'));
-
-        return;
-    }
-    if (url.pathname === '/app.css') {
-        res.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8' });
-        res.end(CSS);
-
-        return;
-    }
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(strona(skladnikiSerwera, Number(url.searchParams.get('krok') ?? 1), url.searchParams.get('porcje') ?? '4'));
-});
+const serwer = utworzSerwer({ strona, skladniki: () => skladnikiSerwera, modul: MODUL, css: CSS, zadaniaPost });
 await new Promise((r) => serwer.listen(0, '127.0.0.1', r));
 const ADRES = `http://127.0.0.1:${serwer.address().port}`;
 
