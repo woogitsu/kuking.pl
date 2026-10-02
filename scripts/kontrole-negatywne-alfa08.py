@@ -1345,6 +1345,13 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    # Właściciel zatwierdził 3.10.2026 izolowaną kontrolę #2784.
+    # Mechanizm zapisuje mutant tylko na czas testu i przywraca źródło.
+    ("Moje rozmowy pomijają Policy wpisu (#2432)", "app/Domain/Comments/MojeRozmowy.php",
+     "test_tresc_niedostepna_dla_osoby_znika_bez_tytulu_fragmentu_i_adresu",
+     lambda s: replace_once(s,
+         "if ($wpis !== null && $bramka->allows('view', $wpis)) {",
+         "if ($wpis !== null) {")),
     ("Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
      lambda s: replace_once(s, "return $request->user() !== null", "return false")),
     ("Dyktowanie daje mikrofon gościowi (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",

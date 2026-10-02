@@ -204,7 +204,7 @@ class MojeRozmowyTest extends TestCase
         $przepis->forceFill(['visibility' => 'private'])->save();
 
         $po = $this->lista($ja)->assertOk();
-        $this->assertCount(1, $po->viewData('rozmowy')->items());
+        $this->assertCount(1, $po->viewData('rozmowy')->items(), 'ROZMOWY_2432_POLICY_TRESCI: prywatne cele nie mogą trafić na listę.');
         $po->assertSee('Fragment pod publicznym')
             ->assertDontSee('Fragment pod prywatnym')
             ->assertDontSee('Fragment pod pytaniem')
