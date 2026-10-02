@@ -31,6 +31,16 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Przeliczenie stopni w trybie gotowania
+
+Gdy krok przepisu podaje temperaturę wprost — na przykład „350°F” albo
+„180°C” — pod jego tekstem pojawia się rozwijana pozycja „Przelicz
+temperaturę”. Po jej otwarciu zobaczycie, ile to w drugiej skali, na przykład
+„350°F to około 175°C”. Wynik jest zaokrąglony do 5 stopni, bo tak ustawia się
+piekarnik, i zawsze opisany jako „około”. Tekst przepisu zostaje taki, jak
+napisał go autor, a samo „180 stopni” bez jednostki nie jest przeliczane.
+Rozwijanie działa bez żadnych ustawień i niczego nie zapisuje.
+
 ### Co zużyć w pierwszej kolejności
 
 Przy produktach na liście „Co mam w domu” możecie teraz wpisać termin

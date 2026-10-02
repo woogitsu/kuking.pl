@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Nowe (#2585): w trybie gotowania pod krokiem, który podaje temperaturę wprost (na przykład „350°F”, „180°C” albo „180 stopni Celsjusza”), jest rozwijana pozycja „Przelicz temperaturę” z odpowiednikiem w drugiej skali, na przykład „350°F to około 175°C”. Wynik jest zaokrąglony do 5 stopni i zawsze z „około”; tekst kroku zostaje bez zmian, samo „180 stopni” bez jednostki nie jest przeliczane. Działa bez JavaScriptu, nic nie zapisuje [nowa funkcja]
 - Naprawione (#2621): wklejona pusta linia z nierozdzielającą spacją nie dodaje niewidocznego składnika ani nie skleja dwóch kroków przepisu. Spacja wewnątrz wpisanej ilości zostaje bez zmian.
 - Naprawione (#2599): „Pokaż więcej” w „Co ugotuję” kończy się na ostatniej dostępnej stronie zamiast pokazywać ją w pętli. Ekran wyjaśnia ograniczenie przeglądania i prowadzi do zmiany listy produktów.
 - Naprawione (#2611): nadmiernie rozbudowana paczka własnych danych jest odrzucana z instrukcją przed wyczerpaniem pamięci przy podglądzie. Poprawne duże paczki nadal można wczytać; nic nie zapisujemy przed pokazaniem podglądu.
