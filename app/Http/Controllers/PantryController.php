@@ -328,7 +328,8 @@ class PantryController extends Controller
         $maksOd = 10_000;
         $od = max(0, min($maksOd, (int) $request->query('od', '0')));
         $najpierwTermin = $request->query('najpierw') === 'termin';
-        $wynik = $dobor->dla($user, $od, CoUgotuje::NA_STRONE, $najpierwTermin);
+        $zZeszytow = $request->query('zakres') === 'zeszyty';
+        $wynik = $dobor->dla($user, $od, CoUgotuje::NA_STRONE, $najpierwTermin, $zZeszytow);
 
         if ($najpierwTermin && $od === 0 && ! $request->session()->has(self::SESJA_DOBOR_PRIORYTET_WIDZIANY)) {
             // Pomiar (#1903): ktoś otworzył przepisy w trybie „najpierw to, co się psuje”.
@@ -344,6 +345,7 @@ class PantryController extends Controller
             'nastepne' => $od + CoUgotuje::NA_STRONE,
             'granicaPrzegladania' => $od >= $maksOd,
             'najpierwTermin' => $najpierwTermin,
+            'zZeszytow' => $zZeszytow,
             'regula' => $najpierwTermin ? CoUgotuje::REGULA_NAJPIERW_TERMIN : CoUgotuje::REGULA,
         ]);
     }

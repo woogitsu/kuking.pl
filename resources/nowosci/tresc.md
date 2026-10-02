@@ -38,6 +38,10 @@ Pytaliście pod czyimś przepisem o temperaturę pieczenia i chcecie wrócić, �
 
 Jeśli w trybie „Gotuję” włączycie zapamiętywanie postępu na koncie, w „Moje” znajdziecie teraz prywatną listę takich przepisów, więc na telefonie czy tablecie nie trzeba szukać ich od nowa. Przy każdym widać, ile kroków jest odhaczonych, i jest przycisk otwierający tryb gotowania. To lista zapamiętanych stanów, a nie „niedokończonych” potraw: niczego nie zgłasza jako „Ugotowałem”, a samo jej oglądanie nie przedłuża czasu zapamiętania. Widzicie na niej tylko przepisy, które nadal możecie otworzyć.
 
+### „Co ugotuję” tylko z moich zeszytów
+
+Na ekranie „Co ugotuję z tego, co mam?” możecie wybrać zakres „Z moich zeszytów”. Wtedy porównujemy Wasze produkty tylko z przepisami, które macie zapisane w zeszytach, których jesteście właścicielami (także wspólnych). Kolejność jest ta sama co zawsze i nie zależy od cudzych reakcji. Wybór jest jednorazowy i niczego nie zapamiętujemy; „Pokaż przepisy nie tylko z moich zeszytów” wraca do pełnej listy.
+
 ### Notatki z zeszytów podczas gotowania
 
 Zapisaliście przy przepisie „następnym razem mniej soli” albo „moja forma ma 24 cm”? W trybie „Gotuję” jest teraz zwijany blok „Moje notatki z zeszytów”. Po rozwinięciu widzicie swoje dopiski z prywatnych zeszytów, każdy z nazwą zeszytu, i nie musicie opuszczać bieżącego kroku: minutnik, porcje i odhaczenia zostają tak, jak były. Notatki są tylko do odczytu (zmienicie je w zeszycie) i widzicie je wyłącznie Wy.
