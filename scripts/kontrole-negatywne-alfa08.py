@@ -1312,6 +1312,9 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    ("Porcje: Mniej od autora prowadzi do odrzucanej liczby (#2624)", "app/Domain/Recipes/Porcje/WyborPorcji.php",
+     "SkalowaniePorcjiNaStroniePrzepisuTest::test_mniej_z_duzej_liczby_autora_prowadzi_do_przyjetych_stu_porcji",
+     lambda s: replace_once(s, "return $kandydat >= self::NAJMNIEJ ? min($kandydat, self::NAJWIECEJ) : null;", "return $kandydat >= self::NAJMNIEJ ? $kandydat : null;")),
     ("Spiżarnia usuwa bez pytania (#2467)", "resources/views/pages/pantry/_produkty.blade.php",
      "test_pierwszy_klik_w_spizarni_rozwija_pytanie_zamiast_kasowac_produkt", spizarnia_bez_potwierdzenia),
     ("Planer usuwa bez pytania (#2468)", "resources/views/pages/planer/show.blade.php",
