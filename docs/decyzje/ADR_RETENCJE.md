@@ -762,6 +762,23 @@ który zastąpiono (jedno miejsce, bez historii). Zdjęć kopia nie niesie i nie
 odpina. Paczka danych ma sekcję `kopie_tekstu_szkicow`. Zakres i 14 dni
 potwierdza właściciel w D-333 (wiersz dopisuje koordynator).
 
+### 5.12 PDF czekający na wybór stron (poczekalnia, bez tabeli) — dopisane 2.10.2026 (#2535, D-333)
+
+Gdy osoba wybierze przy imporcie PDF drogę „Najpierw wybiorę strony”, plik
+czeka na decyzję w prywatnym katalogu osoby na dysku importu
+(`kuking.import.pdf.katalog_wyboru/<id osoby>/<token>/`): `plik.pdf`, małe
+miniatury stron (JPEG ok. 360 px) i krótki opis (liczba stron, 90 znaków tekstu
+każdej strony). Bez tabeli w bazie. Podgląd robi lokalnie Poppler w zadaniu
+kolejki — bez AI i bez zgody. Retencja: zatwierdzenie, odrzucenie i wymazanie
+konta kasują katalog od razu; porzucony znika najpóźniej po
+`kuking.import.pdf.wybor_stron_godziny` (2 godziny) w nocnym
+`kuking:odzyskaj-importy`; najwyżej `wybor_stron_max_oczekujacych` (3) pozycje
+na osobę, najstarsza ustępuje nowej. Miniatury nie mają publicznego adresu
+(kontroler, tylko właściciel, `no-store`). Po zatwierdzeniu plik przechodzi na
+dotychczasową ścieżkę (`plik_tymczasowy`, `retencja_godzin`), a do modelu idą
+wyłącznie wybrane strony, po osobnej zgodzie. Zakres i 2 godziny potwierdza
+właściciel w D-333 (wiersz dopisuje koordynator).
+
 ## 6. Decyzje właściciela — zbiorczo
 
 **Zaktualizowane w drugiej turze (§10) — poniższe są DECYZJAMI, nie

@@ -125,6 +125,10 @@ Plakietka pokazuje, że czeka nieprzeczytane powiadomienie, ale po kilku nowszyc
 
 Chcecie zachować rodzinną recepturę u siebie, bez zamawiania paczki z całym kontem? Na stronie swojego przepisu jest przycisk „Pobierz kopię przepisu”. Najpierw zobaczycie, co będzie w pliku i czego w nim nie będzie (zdjęć i komentarzy innych osób nie ma), a po kliknięciu pobierzecie mały plik ZIP z przepisem do czytania bez internetu i do wydruku. Ten sam plik można później wczytać z powrotem w Ustawieniach, w „Wczytaj swoją paczkę” — przepis wróci jako prywatny szkic dopiero po Waszym potwierdzeniu.
 
+### Wybór stron z przepisem w pliku PDF
+
+Rodzinny PDF ma kilka stron, a przepis jest tylko na jednej z nich? Przy dodawaniu przepisu z pliku PDF jest teraz drugi przycisk: „Najpierw wybiorę strony z przepisem”. Zobaczycie miniatury i początek tekstu każdej strony, zaznaczycie te, na których jest przepis, i dopiero wtedy ruszy odczyt — tylko z zaznaczonych stron. Zgodę na ewentualne wysłanie skanu do odczytu zaznaczacie osobno, przy wyborze stron. Plik, który zostawicie bez decyzji, usuwamy po dwóch godzinach.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

@@ -120,6 +120,7 @@ use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WskazowkaController;
 use App\Http\Controllers\WspolneGotowanieController;
 use App\Http\Controllers\WspomnienieController;
+use App\Http\Controllers\WyborStronPdfController;
 use App\Http\Controllers\ZakupyDoSpizarniController;
 use App\Http\Controllers\ZeszytDoPlaneraController;
 use App\Http\Controllers\ZeszytyUsunieteController;
@@ -1105,6 +1106,26 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/dodaj/przepis/z-pdf', [ImportPrzepisuController::class, 'pdf'])
         ->middleware("throttle:{$limits['import']},import")
         ->name('recipes.import.pdf.store');
+    // Wybór stron krótkiego PDF-a przed odczytem (#2535, V2): plik czeka w prywatnej
+    // poczekalni osoby (`PoczekalniaPdf`), podgląd robi zadanie bez AI, a odczyt
+    // rusza po osobnym zatwierdzeniu z jawną zgodą. Token nie jest autoryzacją.
+    Route::post('/dodaj/przepis/z-pdf/wybor', [WyborStronPdfController::class, 'przyjmij'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('recipes.import.pdf.wybor.przyjmij');
+    Route::get('/dodaj/przepis/z-pdf/wybor/{token}', [WyborStronPdfController::class, 'pokaz'])
+        ->whereUuid('token')
+        ->name('recipes.import.pdf.wybor');
+    Route::get('/dodaj/przepis/z-pdf/wybor/{token}/strona/{numer}', [WyborStronPdfController::class, 'miniatura'])
+        ->whereUuid('token')
+        ->whereNumber('numer')
+        ->name('recipes.import.pdf.miniatura');
+    Route::post('/dodaj/przepis/z-pdf/wybor/{token}', [WyborStronPdfController::class, 'zatwierdz'])
+        ->whereUuid('token')
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('recipes.import.pdf.wybor.store');
+    Route::delete('/dodaj/przepis/z-pdf/wybor/{token}', [WyborStronPdfController::class, 'odrzuc'])
+        ->whereUuid('token')
+        ->name('recipes.import.pdf.wybor.destroy');
     // „Dopisz przepis” z własnego wpisu ze zdjęciem (#1334): ten sam
     // formularz sześciu rzeczy, ze zdjęciem wpisu zamiast nowego pliku.
     Route::get('/wpisy/{post}/dopisz-przepis', [RecipeController::class, 'createFromPost'])->name('recipes.create.from-post');
