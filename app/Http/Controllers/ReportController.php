@@ -17,6 +17,7 @@ use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
@@ -314,6 +315,8 @@ class ReportController extends Controller
             $target instanceof Collection => route('collections.show', $target),
             // Ekran zgłaszanej wersji (#2390); przepis ładuje `resolveTarget()`.
             $target instanceof RecipeVersion => route('recipes.history.version', [$target->recipe->slug, $target->version_number]),
+            // Sekcja wskazówek stoi na stronie przepisu (#2352); przepis ładuje `resolveTarget()`.
+            $target instanceof RecipeHint => route('recipes.show', $target->recipe).'#wskazowki-gotujacych',
             $target instanceof Comment => $this->wracajDoRodzicaKomentarza($target),
             // `user` — cel zgłoszenia to profil.
             $target instanceof User && $target->profile !== null => route('profile.show', $target->profile->username),
@@ -371,6 +374,11 @@ class ReportController extends Controller
             // co człowiek widział. Przepis ładujemy od razu — potrzebuje go
             // Policy i adres „Wróć”.
             'recipe_version' => Str::isUuid($id) ? RecipeVersion::with('recipe')->findOrFail($id) : abort(404),
+            // Wskazówka od gotujących (#2352). Po UUID wskazówki, przed zapytaniem.
+            // Relacje ładujemy od razu: Policy pyta o przepis, kucharza i wykonanie
+            // (tryb ścisły nie przepuszcza leniwego ładowania), a formularz cytuje
+            // uwagę z wykonania.
+            'recipe_hint' => Str::isUuid($id) ? RecipeHint::with(['recipe', 'cook', 'cookedEvent.recipe'])->findOrFail($id) : abort(404),
             // Konto po UUID — stabilnym identyfikatorze, który nie przechodzi
             // na nikogo innego (issue #1599). Nazwa zostaje tylko jako wejście
             // ze starych odnośników do formularza; `store()` jej nie przyjmuje.

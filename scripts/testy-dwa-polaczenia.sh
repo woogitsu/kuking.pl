@@ -88,6 +88,12 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna kolejności blokad #2165 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        # #2404: UnfollowUser bez ZamekPary musi oblać test kolejki
+        # obserwuj/przestań/blokada, a przywrócony kod przejść.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2404.py; then
+            printf "${CZERWONY}Kontrola ujemna zamka pary #2404 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2402.py; then
             printf "${CZERWONY}Kontrola ujemna atomowości importów #2402 nie przeszła.${RESET}\n" >&2
             exit 1
@@ -98,6 +104,21 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
         fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2598.py; then
             printf "${CZERWONY}Kontrola ujemna właściwej bariery zeszytu #2598 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        # #2403: usunięcie retry slugu musi ujawnić 23505/recipes_slug_unique.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2403.py; then
+            printf "${CZERWONY}Kontrola ujemna kolizji slugu #2403 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        # #2427: CSAM musi brać zdjęcie przed kontem; odwrotnie występuje 40P01.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2427.py; then
+            printf "${CZERWONY}Kontrola ujemna kolejności CSAM #2427 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        # #2437: afterCommit nie może oddzielić trwałej decyzji CSAM od joba.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2437.py; then
+            printf "${CZERWONY}Kontrola ujemna atomowości CSAM #2437 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
     fi

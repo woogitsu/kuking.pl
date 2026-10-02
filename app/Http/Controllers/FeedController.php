@@ -13,6 +13,7 @@ use App\Domain\Pantry\PriorytetZuzycia;
 use App\Domain\Pwa\InstallPrompt;
 use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Recipes\Gotowanie\JakWyszlo;
+use App\Domain\Recipes\Gotowanie\Wspolne\SesjaWspolnegoGotowania;
 use App\Domain\Rocznice\RocznicaDolaczenia;
 use App\Domain\Rocznice\Urodziny;
 use App\Domain\UgotujmyRazem\UgotujmyRazem;
@@ -227,6 +228,10 @@ class FeedController extends Controller
             // „Jak wyszło?” (F1, D-333) — jedno zdanie po trybie gotowania bez
             // „Ugotowałem” albo `null`. Tylko na pierwszej stronie Startu.
             'jakWyszlo' => $maKursor ? null : app(JakWyszlo::class)->doPokazania($request->session(), $user),
+            // „Gotujesz razem” (#2385) — droga powrotna do trwających sesji
+            // (pomocnik, który zamknął kartę, nie musi szukać linku). Tylko na
+            // pierwszej stronie Startu.
+            'wspolneGotowania' => $maKursor ? collect() : app(SesjaWspolnegoGotowania::class)->aktywneDla($user),
             'board' => $this->dailyBoard->forViewer($user),
             // „Mój stół" (#1749, D-304): liczony TYLKO u osoby, która go
             // włączyła. Wyłączony = zero zapytań o propozycje.

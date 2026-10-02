@@ -130,7 +130,10 @@ zachowują postęp. Inne przepisy oraz historia wykonań pozostają bez zmian (#
 - zamienniki — **od autora wdrożone (D-284)**: tekst przy składniku,
   „Zamiast tego: …” na stronie przepisu; podpowiedzi AI — jeszcze nie;
 - skalowanie porcji — **wdrożone (D-284)**: „Na ile porcji?” na stronie
-  przepisu, ilości przeliczane z tekstu składnika, zaokrąglenie kuchenne;
+  przepisu, ilości przeliczane z tekstu składnika, zaokrąglenie kuchenne.
+  Liczby grupowane co trzy cyfry zwykłą spacją, NBSP lub wąską NBSP są
+  odczytywane w całości (#2455); błędne albo niejednoznaczne grupowanie
+  pozostaje tekstem autora, bez częściowego przeliczenia;
 - wartości odżywcze — szacunek na porcję z tabel CIQUAL/USDA, wdrożone (D-299); bez filtrów dietetycznych i bez profilu diety;
 - koszt;
 - native apps, jeśli PWA potwierdzi retencję.
@@ -172,6 +175,17 @@ z 30 września 2026):
   30 wpisów, z `ETag`/`Last-Modified`. To kanał **wychodzący**: import
   cudzych kanałów RSS zostaje na liście „Nie wcześnie” (D-300).
 
+**Dopisane do planu i zbudowane** (D-333, wiersz „#2352”, decyzja właściciela
+z 1 października 2026; karta F5 z researchu nowych funkcji):
+
+- „Wskazówki od gotujących” (#2352) — autor przepisu proponuje, żeby uwagę
+  z czyjegoś wykonania („Ugotowałem” z notatką) stała przy jego przepisie;
+  kucharz klika „Zgadzam się” albo „Nie” (**zgoda na wniosek, brak odpowiedzi
+  to brak publikacji**) i może zgodę wycofać w każdej chwili. Kolejność po
+  dacie zgody, bez rankingu; moderacja jak wykonanie; eksport obu stron;
+  wymazanie konta kucharza usuwa wskazówkę. Bez AI (to ludzka wersja tego, co
+  chciało #1999, które zostaje na liście niżej).
+
 **Zdjęte z listy „V2, ale nie teraz” i zbudowane** (D-333, wiersze „#1903”,
 decyzja właściciela z 30 września 2026):
 
@@ -205,6 +219,13 @@ z 1 października 2026; włączone od razu, bez flagi):
   osób).” Mediana czasów z „Ugotowałem” (na osobę), zaokrąglona do 5 minut,
   dopiero od 5 różnych osób; tylko czasy > 0 i ≤ 24 h; tylko wykonania
   widoczne dla widza (blokady, status konta); bez zakresu, bez ikon.
+
+**Zbudowane** (D-333, wiersz „#2343”, założenia wykonawcy do potwierdzenia, 1 października 2026):
+
+- wyjaśnienia terminów kulinarnych w trybie gotowania (#2343) — wyłącznie
+  statyczny słownik w repozytorium i rozwijane „Wyjaśnij to” pod krokiem,
+  bez AI, bez zapisu i bez śledzenia; wariant z modelem AI zostaje zablokowany
+  przez „AI — nic nowego” (D-333).
 
 **V2, ale nie teraz** (decyzja właściciela z 26 września 2026). Propozycje
 z audytu zapisane na później. Nie budować bez nowej decyzji, mimo D-282

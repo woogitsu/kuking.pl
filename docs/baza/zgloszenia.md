@@ -251,6 +251,17 @@ wersji — to sprawy moderacyjne z decyzjami i odwołaniami; bez takich wierszy
 przywraca poprzednią listę wartości. Test:
 `ZgloszenieWersjiPrzepisuTest::test_rollback_odmawia_gdy_jest_zgloszenie_wersji_a_bez_niego_przechodzi`.
 
+#### `target_type = 'recipe_hint'` — wskazówka od gotujących jako cel zgłoszenia (#2352)
+
+Migracja `2026_10_01_200000_wskazowka_jako_cel_zgloszenia` dopisuje do
+`reports_target_type_check` wartość **`recipe_hint`** (decyzja właściciela z
+1.10.2026, D-333: osobne ukrycie samej wskazówki przez moderację) i dodaje
+`recipe_hints.moderation_hidden_at` (sekcja `recipe_hints`). `target_id` to
+`recipe_hints.id` (bez klucza obcego, jak przy `moderation_actions`). Zasady
+zgłaszania, decyzje i odwołanie — w sekcji `recipe_hints`, „Zgłoszenie wskazówki”.
+DDL jak w AGENTS.md §6 (`DROP` + `ADD … NOT VALID` jednym `ALTER TABLE`, osobno
+`VALIDATE`, poza transakcją); rollback odmawia przy zgłoszeniu albo ukrytej wskazówce.
+
 #### `target_type = 'unknown'` i puste `target_id`
 
 Adres bywa nierozpoznawalny: ktoś wkleja link z pamięci albo ze zrzutu
@@ -258,7 +269,7 @@ ekranu, treść mogła już zniknąć, adres bywa z innego serwisu. **Zgłoszeni
 i tak musi zostać przyjęte** — odmowa byłaby odmówieniem mechanizmu, który
 przepis nakazuje udostępnić. Dlatego:
 
-- `reports_target_type_check` dopuszcza typ `unknown` (jedna z dziewięciu wartości po dodaniu `media`, `collection` i `recipe_version`);
+- `reports_target_type_check` dopuszcza typ `unknown` (jedna z dziesięciu wartości po dodaniu `media`, `collection`, `recipe_version` i `recipe_hint`);
 - `target_id` w `reports` **i** w `moderation_actions` jest teraz `NULL`-owalne.
 
 `NULL`, a nie UUID z samych zer: identyfikator, który wygląda jak

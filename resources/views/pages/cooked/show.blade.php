@@ -14,6 +14,8 @@
 <x-layout :title="$tytulStrony" :noindex="true">
     <x-cooked-card :event="$event" :showRecipe="true" :przepisZaBlokada="$przepisZaBlokada" />
 
+    {{-- Wskazówki od gotujących (#2352): prośba o zgodę dla kucharza, „Poproś o zgodę" dla autora przepisu. --}}
+    <x-wskazowka-przy-wykonaniu :event="$event" :wskazowka="$wskazowka" :przepisZaBlokada="$przepisZaBlokada" />
     {{-- Wersja przepisu z tego gotowania (#2378) — wyłącznie dla kucharza.
          Publiczna karta wyżej nic o niej nie mówi. --}}
     @if(($maPrzypietaWersje ?? false))
@@ -33,7 +35,7 @@
             <x-confirm-button
                 :action="route('cooked.destroy', $event)"
                 label="Usuń to wykonanie"
-                question="Na pewno usunąć? Zniknie także zdjęcie." />
+                :question="'Na pewno usunąć? Zniknie także zdjęcie.'.($wskazowka?->jestPrzyjeta() ? ' Zniknie też wskazówka przy przepisie, na którą się zgodzono.' : '')" />
         </div>
     @endif
 

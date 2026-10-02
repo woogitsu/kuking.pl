@@ -94,6 +94,85 @@ a to, co dopisaliście w międzyczasie, zostaje. Pamiętamy tylko ostatnie
 usunięcie, a po 15 minutach kopia znika. Pytanie przed usunięciem zostaje
 jak było.
 
+### Wskazówki od osób, które ugotowały przepis
+
+Gdy przy czyimś wykonaniu Waszego przepisu stoi pożyteczna uwaga —
+na przykład „chrzan do wywaru, wyszło lepiej” — możecie poprosić tę osobę,
+żeby jej uwaga stanęła przy przepisie jako wskazówka. Na stronie takiego
+wykonania jest przycisk „Poproś o zgodę”. Osoba, która ugotowała, dostaje
+powiadomienie, a na stronie swojego wykonania widzi dokładnie ten tekst i dwa
+przyciski: „Zgadzam się” albo „Nie”. **Bez jej odpowiedzi nic się nie
+pokaże.** Jeśli odpowie „Nie”, nie dostaniecie o tym wiadomości, a prośby nie
+można ponowić.
+
+Kto się zgodził, może zgodę wycofać w każdej chwili przyciskiem „Wycofaj
+zgodę” — wskazówka od razu znika z przepisu, a uwaga zostaje pod jego
+wykonaniem. Na stronie przepisu wskazówki stoją w sekcji „Wskazówki od
+gotujących”, w kolejności, w jakiej ludzie się zgodzili, każda z nazwą osoby
+i dniem ugotowania. Nic ich nie układa według popularności. Pod każdą wskazówką
+jest przycisk „Zgłoś”. Moderacja może ukryć samą wskazówkę — wtedy znika
+z przepisu, a wykonanie i uwaga pod nim zostają. Osoba, która ją napisała,
+dostaje wiadomość z uzasadnieniem i może się odwołać.
+
+Prośba, na którą nikt nie odpowie, wygasa po 30 dniach — wtedy nic się nie
+dzieje, a ta osoba nie dostaje przypomnienia ani drugiej prośby o to samo
+wykonanie. Jeśli wyślecie prośbę przez pomyłkę, możecie ją anulować
+przyciskiem „Anuluj prośbę” na stronie tego wykonania, dopóki nikt nie
+odpowiedział. A gdy ktoś się zgodzi, dostaniecie o tym powiadomienie — o
+odmowie, wycofaniu zgody ani wygaśnięciu prośby nie dostaniecie żadnej
+wiadomości.
+
+### Gotujemy razem z innymi
+
+W trybie gotowania jest przycisk „Gotuj z kimś”. Zakłada wspólną sesję jednego
+przepisu: wysyłacie link, a każda zaproszona osoba — po zalogowaniu
+i potwierdzeniu — widzi ten sam przepis i te same odhaczone kroki co Wy.
+W sesji może być gospodarz i do trzech pomocników; zapraszacie jednym linkiem,
+który wpuści do trzech osób. Każdy, kto dostanie ten link, może dołączyć, więc
+wysyłajcie go tylko tym, których zapraszacie. Przy każdym kroku jest duży przycisk „Zrobione”
+(i „Cofnij”), a obok widać, kto go odhaczył i o której. Wszyscy w sesji widzą
+nawzajem swoje nazwy. Osoby, z których któraś zablokowała drugą, nie trafią do
+jednej sesji. Pomocników zaprasza i usuwa oraz sesję kończy tylko gospodarz;
+pomocnik może w każdej chwili wyjść. Link działa przez dobę, a gospodarz może
+go odwołać. Nie otworzy przepisu nikomu, kto nie mógłby go zobaczyć w Kuking
+(na przykład przepisu prywatnego). Nie ma tu wiadomości ani publikowania —
+tylko wspólna lista kroków. Gdy ktoś z sesji coś zmieni, wystarczy kliknąć
+„Odśwież”. Sesja trwa najwyżej 24 godziny i znika razem z odhaczeniami;
+działa przy połączeniu z internetem. Minutniki zostają osobne dla każdej osoby.
+
+### Wyjaśnienia słów kulinarnych przy gotowaniu
+
+Gdy w kroku trybu „Gotuję” trafi się słowo, którego nie znacie — na przykład
+„zasmażka”, „zahartuj”, „zredukuj” albo „szumowiny” — pod tekstem kroku
+zobaczycie przycisk „Wyjaśnij to”. Dotknijcie go, a rozwinie się krótkie
+objaśnienie po polsku. Nic się przy tym nie zapisuje i nie zmienia: przepis
+zostaje taki, jak napisał autor, a krok bez trudnych słów nie ma przycisku.
+Objaśnienia napisali ludzie, nie sztuczna inteligencja.
+
+### Mój rok w kuchni
+
+W zakładce „Moje” jest przycisk „Mój rok w kuchni”. Prowadzi do spokojnej
+strony tylko dla Was: ile dań opublikowaliście w danym roku, ile razy
+zaznaczyliście „Ugotowałem” i które przepisy gotowaliście najczęściej.
+Można przełączyć się na wcześniejsze lata. Nie ma tu porównań z innymi
+osobami, rankingów, odznak ani udostępniania — nikt poza Wami tej strony
+nie otworzy. Przepis, który usuniecie albo który przestanie być dla Was
+dostępny, znika z podsumowania od razu. Jeśli w ustawieniach prywatności
+wyłączycie wspomnienia, wyłączy się też ta strona; nic się wtedy nie
+kasuje.
+
+### Dyktowanie składników i kroków
+
+W kreatorze przepisu, przy polach składników i kroków, możecie teraz dyktować
+zamiast pisać. Naciśnijcie „Dyktuj” i powiedzcie, co dopisać. Podyktowany tekst
+pojawia się najpierw w osobnym polu pod spodem — do przepisu trafia dopiero po
+„Wstaw do przepisu”, a „Anuluj” go wyrzuca. Tekst, który już wpisaliście,
+zostaje nietknięty: dyktowanie dopisuje na końcu. Przycisk widzicie tylko wtedy,
+gdy Wasza przeglądarka umie rozpoznawać mowę, a mikrofon włącza dopiero po
+Waszym pozwoleniu. Mowę rozpoznaje przeglądarka i może wysyłać dźwięk do swojego
+dostawcy (na przykład Google albo Apple). Kuking nie nagrywa dźwięku i go nie
+dostaje — dostajemy tylko tekst, który sami wstawicie.
+
 ### Prywatny dopisek podczas gotowania
 
 W trybie gotowania jest teraz zwijany obszar „Prywatny dopisek z gotowania

@@ -34,6 +34,13 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis, bezZdj
         return { x: b.x, y: b.y, right: b.right, bottom: b.bottom, width: b.width, height: b.height, background: getComputedStyle(el).backgroundColor, shadow: getComputedStyle(el).boxShadow };
       };
       return {
+        wordmark: (() => {
+          const napis = document.querySelector('.topbar .wordmark > span[aria-hidden]');
+          const znak = document.querySelector('.topbar .wordmark .kuking-mark');
+          if (!napis || !znak) return null;
+          const n = napis.getBoundingClientRect(), z = znak.getBoundingClientRect();
+          return { display: getComputedStyle(napis).display, width: n.width, left: n.left, right: n.right, top: n.top, markBottom: z.bottom, kolumna: matchMedia('(max-width: 12rem)').matches || (matchMedia('(max-width: 16rem)').matches && ['125', '140'].includes(document.documentElement.dataset.textScale)) };
+        })(),
         width: innerWidth, scroll: document.documentElement.scrollWidth,
         rootFont: parseFloat(getComputedStyle(document.documentElement).fontSize),
         bodyFont: parseFloat(getComputedStyle(document.body).fontSize),
@@ -61,6 +68,14 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis, bezZdj
       if (r.bodyColor !== (wariant.dark ? 'rgb(244, 245, 241)' : 'rgb(21, 23, 20)')) throw new Error('K509_MOTYW ' + JSON.stringify({ wariant, color: r.bodyColor }));
     }
     if (r.scroll > r.width + 1) throw new Error('K509_OVERFLOW ' + path + ' ' + JSON.stringify(r));
+    if (wariant && String(wariant.scale).startsWith('font-200')) {
+      // Decyzja właściciela z 1.10.2026: przy czcionce 200% napis „KuKing.pl"
+      // jest WIDOCZNY (pod garnkiem), nie znika i mieści się w oknie.
+      const w = r.wordmark;
+      if (!w || w.display === 'none' || w.width <= 0) throw new Error('K509_LOGO_NAPIS napis logotypu niewidoczny ' + path + ' ' + JSON.stringify({ wariant, w }));
+      if (w.left < -1 || w.right > r.width + 1) throw new Error('K509_LOGO_NAPIS napis poza oknem ' + path + ' ' + JSON.stringify({ wariant, w, width: r.width }));
+      if (w.kolumna && w.top < w.markBottom - 1) throw new Error('K509_LOGO_NAPIS napis nie stoi pod garnkiem ' + path + ' ' + JSON.stringify({ wariant, w }));
+    }
     if (path === '/login' || path === '/register') {
       if (!r.auth || !r.brand || !r.form) throw new Error('K509_WEJSCIE brak kompozycji');
       if (r.desktop && (r.form.x < r.brand.right || r.form.width < 480)) throw new Error('K509_WEJSCIE_KOLUMNY kolumny ' + JSON.stringify(r));
@@ -133,11 +148,11 @@ export async function sprawdzKompozycje({ browser, adres, sesja, przepis, bezZdj
     ['marka-profil.css', '.marka-profil-kompozycja { max-width: 720px !important; }', '/@ania', 'K509_PROFIL_PAS', true],
     ['marka-profil.css', '.marka-profil-statystyki .profil-liczby-karta { grid-template-columns: 1fr !important; }', '/@ania', 'K509_PROFIL_PAS', true],
     ['marka-przepis.css', '.marka-przepis .przepis-akcje .btn { width: 100% !important; }', przepis, 'K509_PRZEPIS_AKCJE', true],
-    // Napis logotypu ma dwa zabezpieczenia przed wypchnięciem strony: ukryty
-    // fragment przy skali 125/140 i rozmiar `min(…, 10vw)` (tekst 200% przy
-    // 320 px). Mutacja zdejmuje oba naraz — samo pokazanie fragmentu przy
-    // `10vw` już się mieści, więc nie dowodziłoby niczego.
-    ['marka-rama.css', '[data-marka] .wordmark > span[aria-hidden] { display: inline !important; } [data-marka] .wordmark { font-size: calc(1.75rem * var(--user-text-scale, 1)) !important; }', '/login', 'K509_OVERFLOW', false, 390, 'font-200+140'],
+    // Napis logotypu przy czcionce 200% schodzi pod garnek (układ kolumnowy),
+    // a rozmiar `min(…, 10vw)` pilnuje szerokości. Mutacja przywraca układ
+    // w rzędzie i zdejmuje limit rozmiaru — napis wypycha pasek poza okno.
+    ['marka-rama.css', '[data-marka] .wordmark { flex-direction: row !important; font-size: calc(1.75rem * var(--user-text-scale, 1)) !important; }', '/login', 'K509_OVERFLOW', false, 390, 'font-200+140'],
+    ['marka-rama.css', '[data-marka] .wordmark > span[aria-hidden] { display: none !important; }', '/login', 'K509_LOGO_NAPIS', false, 320, 'font-200'],
   ]) {
     const wariant = { dark: false, scale, zalogowany: logged };
     const newPage = async context => {

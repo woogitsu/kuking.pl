@@ -368,6 +368,18 @@ class UzasadnienieDecyzjiTest extends TestCase
             // sprawdzaną na świeżym aktorze pod blokadą, a po odwołaniu —
             // za `resolveAppeals` w `ResolveAppeal`; `moderator_id` to ta osoba.
             'app/Domain/Recipes/Historia/DecyzjaOWersjiPrzepisu.php',
+            // SIÓDME (#2352, D-333): „Przywróć wskazówkę” w panelu moderacji.
+            // Stoi za `moderate` + `RecipeHintPolicy::restore` sprawdzanymi na
+            // świeżym aktorze pod blokadą; `moderator_id` to zalogowana osoba.
+            'app/Domain/Moderation/Actions/PrzywrocWskazowke.php',
+            // ÓSME (#2352): uznane odwołanie od ukrycia wskazówki zdejmuje
+            // ukrycie decyzją `unhide`. Za bramką `resolveAppeals`
+            // (administrator) w tej samej akcji; `moderator_id` to ta osoba.
+            'app/Domain/Moderation/Actions/ResolveAppeal.php',
+            // DZIEWIĄTE (D-333, 1.10.2026): „CSAM — natychmiast ukryj i zabezpiecz”.
+            // Stoi za `secureCsam` (moderacja z 2FA) sprawdzanym na świeżym
+            // aktorze pod blokadą; `moderator_id` to ta osoba.
+            'app/Domain/Moderation/Actions/ZabezpieczDowodCsam.php',
         ];
 
         $znalezione = [];
@@ -433,7 +445,7 @@ class UzasadnienieDecyzjiTest extends TestCase
 
         $oczekiwane = [
             // Kara na koncie — wyłącznie z panelu moderacji.
-            '->ban()' => ['app/Domain/Moderation/Actions/RozstrzygnijZgloszenie.php', $poOdwolaniu],
+            '->ban()' => ['app/Domain/Moderation/Actions/RozstrzygnijZgloszenie.php', 'app/Domain/Moderation/Actions/ZabezpieczDowodCsam.php', $poOdwolaniu],
             '->suspend(' => ['app/Domain/Moderation/Actions/RozstrzygnijZgloszenie.php', $poOdwolaniu],
             // Ustawienie statusu „ukryte" — panel plus słownik statusów,
             // który tę wartość tylko definiuje i czyta. Szukamy `UKRYTY[`

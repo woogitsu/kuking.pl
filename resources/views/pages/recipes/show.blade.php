@@ -942,6 +942,9 @@
             </section>
         @endcan
 
+        {{-- WSKAZÓWKI OD GOTUJĄCYCH (#2352, D-333): tylko przyjęte, nic przy braku. --}}
+        <x-wskazowki-przepisu :wskazowki="$wskazowki" :najnowszaWersja="$najnowszaWersja" />
+
         {{--
             WERSJE INNYCH OSÓB — wyróżnienie autora oryginału, nie ranking.
             Bez liczby wszystkich wersji (AGENTS.md §12), chronologicznie,

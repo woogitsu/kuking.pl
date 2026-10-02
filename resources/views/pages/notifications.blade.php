@@ -77,6 +77,10 @@
                 // „Moja wersja" (issue #23, D-301) — zwykłe zdarzenie od
                 // jednej osoby, dołożone świadomie, nie z automatu.
                 \App\Models\Notification::TYPE_FORKED,
+                // Prośba o zgodę na wskazówkę (#2352) — zdarzenie od jednej osoby.
+                \App\Models\Notification::TYPE_HINT_PROPOSED,
+                // Zgoda kucharza na wskazówkę (#2352) — zdarzenie od jednej osoby.
+                \App\Models\Notification::TYPE_HINT_ACCEPTED,
             ], true);
 
             /*
@@ -264,6 +268,35 @@
                                 @else
                                     Ta wersja nie jest już dostępna.
                                 @endif
+                                @break
+                            @case(\App\Models\Notification::TYPE_HINT_PROPOSED)
+                                {{-- PROŚBA O ZGODĘ NA WSKAZÓWKĘ (#2352, D-333). Do kucharza.
+                                     Jedno zdanie o tym, czego autor prosi, i drugie o tym,
+                                     że bez odpowiedzi nic się nie stanie. Odpowiedź jest na
+                                     stronie wykonania („Zobacz"), nie tutaj. Karta zostaje na
+                                     liście po odpowiedzi, anulowaniu i wygaśnięciu, a stan
+                                     prośby może się zmienić w każdej chwili — więc mówi tylko to,
+                                     co jest prawdą w KAŻDYM z tych stanów (bez zgody uwaga nie
+                                     staje przy przepisie) i odsyła po aktualny stan. --}}
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} prosi o zgodę na wskazówkę</strong>
+                                przy przepisie „{{ $data['recipe_title'] ?? 'przepis' }}”.
+                                @if($notification->wykonanieUsuniete())
+                                    To wykonanie zostało usunięte.
+                                @else
+                                    Bez Twojej zgody uwaga nie pojawi się przy przepisie. Aktualny stan prośby sprawdzisz na stronie wykonania.
+                                @endif
+                                @break
+                            @case(\App\Models\Notification::TYPE_HINT_ACCEPTED)
+                                {{-- ZGODA NA WSKAZÓWKĘ (#2352). Do autora przepisu, tylko przy
+                                     „Zgadzam się" — „Nie" i wycofanie nie dają żadnej wiadomości.
+                                     Treści uwagi tu nie cytujemy (to tekst kucharza; widać go
+                                     przy przepisie, jeśli zgoda trwa). Karta NIE twierdzi, że
+                                     wskazówka stoi „teraz": kucharz mógł zgodę wycofać, a autor
+                                     nie dostaje o tym wiadomości i karta nie może jej zastąpić
+                                     (ani zdradzić wycofania, ani kłamać o stanie). --}}
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }}: zgoda na wskazówkę</strong>
+                                przy przepisie „{{ $data['recipe_title'] ?? 'przepis' }}”.
+                                Zgoda została udzielona. Uwaga pojawia się na stronie Twojego przepisu, dopóki zgoda trwa.
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora

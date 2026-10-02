@@ -42,9 +42,14 @@
 [data-marka] .wordmark { font-size: min(calc(1.75rem * var(--user-text-scale, 1)), 10vw); letter-spacing: -.055em; }
 [data-marka] .wordmark .kuking-mark { width: 48px; height: 48px; }
 /* Łączne powiększenie fontu przeglądarki i tekstu konta: poszerzamy
-   istniejący wariant samego garnka, zachowując nazwę dostępną odnośnika. */
+   układ kolumnowy znaku (garnek nad napisem, napis nadal widoczny —
+   decyzja właściciela z 1.10.2026). */
 @media (max-width: 16rem) {
-  html:is([data-text-scale="125"], [data-text-scale="140"]) [data-marka] .wordmark > span[aria-hidden] { display: none; }
+  html:is([data-text-scale="125"], [data-text-scale="140"]) [data-marka] .wordmark {
+    flex-direction: column;
+    gap: 0;
+    text-align: center;
+  }
 }
 [data-marka] .topbar-actions { margin-left: auto; flex-wrap: wrap; gap: calc(8px * var(--user-layout-scale, 1)); }
 [data-marka] .topbar-actions .topbar-desktop-only { display: none; }
@@ -324,6 +329,19 @@
 @media (max-width: 15rem), (max-width: 30rem) and (max-height: 40rem) {
   /* Zostaje tylko miejsce na pierścień fokusu, nie wysokość przewiniętego nagłówka. */
   :root:has(body[data-marka]) { --rezerwa-nad-belka: .5rem; }
+}
+/* Pas 15–16rem (240–256 px) przy tekście konta 125% i 140%: to dokładnie
+   ten zakres, w którym znak jest już w układzie kolumnowym (reguła
+   `max-width: 16rem` wyżej), a pasek ma jeszcze 15rem do odpięcia. Zmierzone
+   w Chromium 153, 241–256 × 900 px, zalogowany: pasek ma 238–274 px (+8 px
+   marginesu), a rezerwa `9rem + 6rem × skala` to 264 px (125%) i 278 px
+   (140%) — fokus po Tab mógł zajechać o kilka pikseli pod przypięty pasek
+   (WCAG 2.4.11). Ten sam próg co układ kolumnowy odpina pasek i zeruje
+   rezerwę, tak jak niżej 15rem. Ten sam wybór skali co przy znaku, żeby oba
+   progi nie rozjechały się po cichu (`PasekPrzyKolumnowymZnakuTest`). */
+@media (max-width: 16rem) {
+  html:is([data-text-scale="125"], [data-text-scale="140"]) [data-marka] .marka-topbar { position: relative; top: 0; }
+  :root:is([data-text-scale="125"], [data-text-scale="140"]):has(body[data-marka]) { --rezerwa-nad-belka: .5rem; }
 }
 /* W niskim widoku i przy dużej czcionce także dolna nawigacja przewija się ze stroną. */
 @media (max-width: 15rem), (max-width: 30rem) and (max-height: 40rem) {

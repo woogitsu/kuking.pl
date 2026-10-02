@@ -229,3 +229,60 @@ opisuje ją zdaniami, a `SchematBazyTrzymaSieDokumentuTest` pilnuje, żeby żadn
 tabela nie została w nim pominięta ani nie została opisana po skasowaniu.
 
 ---
+
+### Kontrakt czasu: `timestamptz`, UTC, casty modeli (#2407)
+
+Wszystkie nowe kolumny czasu to `timestamptz`, `app.timezone` = `UTC`, a
+strefa **wyświetlania** to `kuking.strefa` (`Europe/Warsaw`) i stosuje ją
+widok, nigdy model ani zapytanie. Model oddaje kolumnę czasu jako Carbon w UTC
+dzięki jawnemu `datetime` w `casts()`; bez niego pole jest napisem zależnym od
+strefy sesji PostgreSQL, a porównanie w PHP robi się na tekście.
+
+Domknięte w #2407 (bez migracji — typ kolumn jest już poprawny, brakowało
+castów): `comments.body_removed_at`, `contact_message_replies.sending_started_at`
+i `contact_message_replies.audit_recorded_at`. Pilnuje tego
+`ZnacznikiCzasuKomentarzaIOdpowiedziMajaCastyUtcTest` (serializacja do
+ISO 8601 z `Z`, porównania, chwile przy przejściach DST 29.03 i 25.10.2026).
+Rollback: usunięcie castów przywraca stare zachowanie (napis z bazy); danych
+nie dotyka.
+
+**Inwentaryzacja castów czasu (schemat bazy testowej po wszystkich migracjach).**
+181 kolumn typu `timestamp`/`timestamptz`/`date` w tabelach bazowych; stan po #2407:
+
+| Grupa | Kolumn | Stan |
+|---|---|---|
+| `created_at`/`updated_at` w modelach z `$timestamps` | 74 | Eloquent sam rzutuje na Carbon — cast zbędny |
+| Kolumny modeli z jawnym castem (`datetime`, `immutable_datetime`, `date`, `immutable_date`) | 75 | OK; w tym trzy dopisane w #2407 |
+| Kolumny modeli **świadomie bez castu** | 2 | wyjątki poniżej |
+| Tabele bez modelu Eloquent (17 tabel, 30 kolumn) | 30 | poza zakresem strażnika, patrz niżej |
+
+Świadomie bez castu (wyjątki w `KolumnyCzasuMajaCastTest::WYJATKI`):
+
+| Kolumna | Powód |
+|---|---|
+| `users.terms_notice_dismissed_version` | to **etykieta wersji** regulaminu (data zapisana i porównywana jako napis ISO `Y-m-d` z configiem, D-306), nie chwila w czasie; `date` zrobiłby z niej Carbon i zepsuł porównanie napisów oraz eksport RODO |
+| `users.policy_notice_dismissed_version` | jak wyżej, dla wersji polityki prywatności (`ZmianaPolityki`) |
+
+Tabele bez modelu (czytane i pisane przez `DB::table()`/SQL, a nie przez
+Eloquent, więc cast nie ma gdzie działać): `ai_budzet_dzienny`,
+`ai_rezerwacje`, `collection_items`, `collection_members`, `failed_jobs`,
+`follows`, `human_urgent_alarm_attempts`, `password_reset_tokens`,
+`proby_importu`, `profile_username_redirects`, `przypomnienia_dobowe`,
+`recipe_slug_redirects`, `tag_follows`, `wdrozenia`, `wdrozenia_funkcje`,
+`weekly_digest_sends`, `zalegle_czyszczenia_cdn`. Gdy któraś dostanie model,
+strażnik wymusi cast od razu. Strażnik: `KolumnyCzasuMajaCastTest` — każda
+kolumna czasu tabeli modelu z `app/Models` ma cast albo wpis w `WYJATKI` z
+powodem (drugi test pilnuje, żeby wyjątek nie przeżył własnej przyczyny).
+Rollback: strażnik to sam test, danych nie dotyka.
+
+**Otwarte, świadomie niezrobione: `failed_jobs.failed_at`.** Tabela pochodzi
+ze schematu Laravela i ma `timestamp` bez strefy. Zmiana na `timestamptz`
+wymaga osobnej, kompatybilnej migracji, **dopiero po sprawdzeniu danych**:
+`SELECT min(failed_at), max(failed_at), count(*) FROM failed_jobs` oraz
+`SHOW timezone` na bazie produkcyjnej, bo wartość bez strefy trzeba
+zinterpretować (zapisywał ją Laravel w `app.timezone`, czyli UTC, więc
+`ALTER COLUMN failed_at TYPE timestamptz USING failed_at AT TIME ZONE 'UTC'`).
+Przepisanie tabeli jest tu tanie (mało wierszy), ale `down()` ma ODMAWIAĆ, gdy
+w tabeli są wiersze (D-088) — cofnięcie `timestamptz` → `timestamp` zależy od
+strefy sesji. Do czasu tej migracji nic w kodzie nie powinno porównywać
+`failed_at` z kolumnami `timestamptz` bez jawnego `AT TIME ZONE 'UTC'`.
