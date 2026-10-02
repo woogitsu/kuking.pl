@@ -13,6 +13,7 @@ use App\Domain\Planer\Actions\UstawPorcjePlanu;
 use App\Domain\Planer\Actions\ZapiszDopisekPlanu;
 use App\Domain\Planer\Actions\ZmienTekstPozycjiPlanu;
 use App\Domain\Planer\PlanerTygodnia;
+use App\Domain\Planer\PlikKalendarza;
 use App\Domain\Planer\ZakresDatPlanu;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Domain\Search\SearchQuery;
@@ -24,6 +25,7 @@ use App\Support\Odmiana;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\MessageBag;
@@ -216,6 +218,78 @@ class PlanerController extends Controller
         }
 
         return redirect()->route('planer.show', ['tydzien' => $dzien->toDateString()])->with($rodzaj);
+    }
+
+    /**
+     * Wybór pozycji tygodnia do pliku kalendarza (#2529). Zwykły GET: nic nie
+     * jest generowane ani zapisywane, dopóki osoba nie kliknie „Pobierz plik”.
+     * Lista pokazuje dokładnie te nazwy i daty, które trafią do pliku.
+     */
+    public function calendar(Request $request, PlanerTygodnia $planer): View
+    {
+        $poniedzialek = PlanerTygodnia::poniedzialek($request->query('tydzien'));
+
+        return view('pages.planer.kalendarz', [
+            'poniedzialek' => $poniedzialek,
+            'pozycje' => $planer->pozycje($request->user(), $poniedzialek, $poniedzialek->addDays(6)),
+        ]);
+    }
+
+    /**
+     * Pobranie pliku `.ics` z wybranych pozycji JEDNEGO tygodnia (#2529).
+     * Prywatna odpowiedź (bez cache), bez stałego adresu. Widoczność przepisu
+     * liczona od nowa w chwili generowania; cudzy identyfikator = odmowa.
+     */
+    public function calendarDownload(Request $request, PlanerTygodnia $planer): Response
+    {
+        $dane = $request->validate([
+            'tydzien' => ['required', 'date_format:Y-m-d'],
+            'wpisy' => ['required', 'array', 'min:1', 'max:70'],
+            'wpisy.*' => ['required', 'uuid'],
+        ], [
+            'tydzien.required' => 'Wybierz tydzień i zaznacz pozycje jeszcze raz.',
+            'tydzien.date_format' => 'Wybierz tydzień i zaznacz pozycje jeszcze raz.',
+            'wpisy.required' => 'Zaznacz co najmniej jedną pozycję, którą chcesz zapisać w pliku kalendarza.',
+            'wpisy.min' => 'Zaznacz co najmniej jedną pozycję, którą chcesz zapisać w pliku kalendarza.',
+            'wpisy.array' => 'Zaznacz pozycje na liście i pobierz plik jeszcze raz.',
+            'wpisy.max' => 'Zaznaczono za dużo pozycji. Wybierz najwyżej 70.',
+            'wpisy.*.uuid' => 'Zaznacz pozycje na liście i pobierz plik jeszcze raz.',
+        ]);
+
+        $user = $request->user();
+        $poniedzialek = PlanerTygodnia::poniedzialek($dane['tydzien']);
+        $ids = array_values(array_unique($dane['wpisy']));
+
+        // Identyfikator z żądania nie jest autoryzacją (AGENTS.md §7): każda
+        // zaznaczona pozycja musi należeć do zalogowanej osoby.
+        $wlasne = $user->mealPlanEntries()->whereIn('id', $ids)->pluck('id')->all();
+        abort_if(count($wlasne) !== count($ids), 403);
+
+        $wTygodniu = $planer->pozycje($user, $poniedzialek, $poniedzialek->addDays(6));
+        $wybrane = array_values(array_filter($wTygodniu, fn (array $p): bool => in_array((string) $p['wpis']->getKey(), $ids, true)));
+
+        if (count($wybrane) !== count($ids)) {
+            throw ValidationException::withMessages([
+                'wpisy' => 'Część zaznaczonych pozycji nie jest już w tym tygodniu. Odśwież listę i zaznacz pozycje jeszcze raz.',
+            ]);
+        }
+
+        foreach ($wybrane as $pozycja) {
+            if (PlikKalendarza::nazwaPozycji($pozycja) === null) {
+                throw ValidationException::withMessages([
+                    'wpisy' => 'Przepis z jednej zaznaczonej pozycji jest już niedostępny, więc nie trafi do pliku. Odznacz ją i pobierz plik jeszcze raz.',
+                ]);
+            }
+        }
+
+        $tresc = PlikKalendarza::zbuduj($wybrane, now());
+
+        return response($tresc, 200, [
+            'Content-Type' => 'text/calendar; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="kuking-plan-'.$poniedzialek->toDateString().'.ics"',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     public function copy(Request $request, SkopiujPoprzedniTydzien $kopiuj): RedirectResponse
