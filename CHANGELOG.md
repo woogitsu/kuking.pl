@@ -7,6 +7,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 ## Nieopublikowane
 
 - Poprawione (#2633): formularze dodawania i edycji wpisu pokazują pod polem opisu zdanie „Najwyżej 4000 znaków.” oraz licznik na żywo. Limit jest widoczny przed wysłaniem, a wklejony tekst nie jest obcinany.
+- Nowe (#2572): import przepisu z adresu zachowuje czas łączny podany przez źródło (`totalTime`) i pokazuje go na stronie przepisu jako „Źródło podaje łącznie: około 1 godz. 30 min”. Nie jest wpisywany jako przygotowanie ani gotowanie, nie dzieli się go i nie sprawdza sumy; zdanie znika, gdy autor sam podał oba czasy. Wartość trafia też do eksportu danych.
 
 ## Alfa 0.78 — co zużyć najpierw, lista zakupów i wydruk zeszytu
 

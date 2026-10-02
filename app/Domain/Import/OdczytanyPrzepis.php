@@ -44,6 +44,8 @@ final class OdczytanyPrzepis
         public readonly ?int $gotowanieMinut = null,
         array $skladniki = [],
         array $kroki = [],
+        /** `totalTime` ze źródła — zachowany osobno, nigdy dzielony na prep/cook (#2572). */
+        public readonly ?int $lacznieMinut = null,
     ) {
         $this->tytul = self::przytnij(trim($tytul), LimityTekstuPrzepisu::POLA['title']);
         $opis = $opis === null ? null : trim($opis);
