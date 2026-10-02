@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Notatki z zeszytów podczas gotowania
+
+Zapisaliście przy przepisie „następnym razem mniej soli” albo „moja forma ma 24 cm”? W trybie „Gotuję” jest teraz zwijany blok „Moje notatki z zeszytów”. Po rozwinięciu widzicie swoje dopiski z prywatnych zeszytów, każdy z nazwą zeszytu, i nie musicie opuszczać bieżącego kroku: minutnik, porcje i odhaczenia zostają tak, jak były. Notatki są tylko do odczytu (zmienicie je w zeszycie) i widzicie je wyłącznie Wy.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.

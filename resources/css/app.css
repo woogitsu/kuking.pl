@@ -5065,6 +5065,12 @@
     font-size: var(--text-body);
 }
 
+.cook-notatka-tresc {
+    /* Własny dopisek (#2433): zachowaj akapity, długie słowo nie wypycha ekranu. */
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
 .cook-temperatura {
     background-color: var(--color-surface-raised);
     border: 2px solid var(--color-border);
