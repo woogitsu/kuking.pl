@@ -354,6 +354,27 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(CookingProgress::class);
     }
 
+    /**
+     * Prywatne, robocze dopiski z gotowania (#2587) — po jednym na przepis.
+     *
+     * @return HasMany<CookingNote, $this>
+     */
+    public function cookingNotes(): HasMany
+    {
+        return $this->hasMany(CookingNote::class);
+    }
+
+    /**
+     * Jawnie zapamiętane liczby porcji przy przepisach (#2602) — po jednym
+     * wierszu na przepis, wyłącznie po świadomym przycisku tej osoby.
+     *
+     * @return HasMany<RecipeServingPreference, $this>
+     */
+    public function servingPreferences(): HasMany
+    {
+        return $this->hasMany(RecipeServingPreference::class);
+    }
+
     public function isFollowingTag(Tag $tag): bool
     {
         return $this->followedTags()->whereKey($tag->getKey())->exists();

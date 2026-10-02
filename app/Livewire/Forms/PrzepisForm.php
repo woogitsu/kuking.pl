@@ -36,6 +36,8 @@ final class PrzepisForm extends Form
         'title',
         'summary',
         'servings',
+        'yield_count',
+        'yield_unit',
         'estimated_cost_pln',
         'prep_minutes',
         'cook_minutes',
@@ -53,6 +55,12 @@ final class PrzepisForm extends Form
     public string $summary = '';
 
     public string $servings = '';
+
+    /** Ile gotowych sztuk wychodzi z przepisu (#2645) — osobno od porcji. */
+    public string $yield_count = '';
+
+    /** Co to za sztuki, np. „pierogi”. */
+    public string $yield_unit = '';
 
     /** Koszt całego przepisu w złotych, tak jak go wpisano („24,50") — D-286. */
     public string $estimated_cost_pln = '';
@@ -87,6 +95,8 @@ final class PrzepisForm extends Form
             'title' => $this->title,
             'summary' => $this->summary,
             'servings' => $this->servings,
+            'yield_count' => $this->yield_count,
+            'yield_unit' => $this->yield_unit,
             'estimated_cost_pln' => $this->estimated_cost_pln,
             'prep_minutes' => $this->prep_minutes,
             'cook_minutes' => $this->cook_minutes,

@@ -198,7 +198,7 @@
   body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) :is(
     .skip-link, .topbar, .side-nav, .bottom-nav, .app-rail, .site-footer,
     .szybki-wyglad, .szybki-wyglad-podpowiedz, .pwa-install, .okruchy,
-    .przepis-akcje, .podziel-sie, .danger-zone, .druk-podpowiedz, .zglos-goscia,
+    .przepis-akcje, .podziel-sie, .danger-zone, .druk-podpowiedz, .zglos-goscia, .porcje-zapamietane,
     [aria-labelledby="komu-wyszlo"], [aria-labelledby="komentarze"]
   ),
   body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) main :is(.btn, button, form) {

@@ -118,8 +118,13 @@ final class PrzepisFormTest extends TestCase
         $form->source_note = str_repeat('a', 2001);
         $form->source_url = 'ftp://example.invalid/przepis';
         $form->family_since_year = '1200';
+        // Gotowe sztuki (#2645) to też pola formularza — każde dostaje komunikat.
+        $form->yield_count = 'dwadzieścia';
+        $form->yield_unit = str_repeat('a', 41);
 
         $bledy = KrokOPrzepisie::walidator($form->pola(), null)->errors()->messages();
+        $this->assertSame('Liczbę gotowych sztuk wpisz pełną liczbą, na przykład 24.', $bledy['yield_count'][0]);
+        $this->assertSame('Opis sztuk jest za długi. Zostaw najwyżej 40 znaków, na przykład „pierogi”.', $bledy['yield_unit'][0]);
 
         $this->assertEqualsCanonicalizing(PrzepisForm::POLA, array_keys($bledy));
         $this->assertSame('Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.', $bledy['title'][0]);

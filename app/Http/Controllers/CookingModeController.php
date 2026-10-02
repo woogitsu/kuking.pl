@@ -8,7 +8,9 @@ use App\Domain\Moderation\DziennikWgladu;
 use App\Domain\Recipes\Gotowanie\JakWyszlo;
 use App\Domain\Recipes\Gotowanie\NieaktualnePorcjeSkladnikow;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
+use App\Domain\Recipes\Gotowanie\RoboczyDopisek;
 use App\Domain\Recipes\Porcje\WyborPorcji;
+use App\Models\CookingNote;
 use App\Models\CookingProgress;
 use App\Models\Recipe;
 use App\Models\User;
@@ -174,7 +176,18 @@ class CookingModeController extends Controller
             ? $this->postep->zrobione($postepKonta, $steps->pluck('id')->map(fn ($id): string => (string) $id)->all())
             : $request->session()->get($this->sessionKey($model), []);
 
+        // Prywatny roboczy dopisek (#2587): tylko dla zalogowanej osoby; goście
+        // nie mają konta, na którym dałoby się go trzymać, więc sekcji nie widzą.
+        $dopisekKonta = $osoba !== null ? app(RoboczyDopisek::class)->aktywny($osoba, $model) : null;
+
         return view('pages.recipes.cooking', [
+            'dopisek' => [
+                'dostepny' => $osoba !== null && $osoba->can('create', CookingNote::class),
+                'tresc' => $dopisekKonta?->body,
+                'rewizja' => $dopisekKonta->revision ?? 0,
+                'godziny' => (int) config('kuking.cooking_note.retention_hours', 24),
+                'maks' => RoboczyDopisek::MAKS_ZNAKOW,
+            ],
             'synchronizacja' => [
                 'wlaczona' => $postepKonta !== null,
                 'mozna_wlaczyc' => $postepKonta === null && $osoba !== null && $osoba->can('create', CookingProgress::class),
