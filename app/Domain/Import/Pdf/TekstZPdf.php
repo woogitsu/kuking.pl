@@ -60,9 +60,60 @@ final class TekstZPdf
     }
 
     /**
+     * Sprawdzenia przed pokazaniem stron do wyboru (#2535): rozmiar, sygnatura,
+     * narzędzia, szyfrowanie i LICZBA WSZYSTKICH STRON w limicie. Ten sam limit
+     * co przy odczycie — plik ponad limit jest odrzucany także wtedy, gdy człowiek
+     * chciałby wybrać z niego jedną stronę.
+     *
+     * @return int liczba stron całego pliku (1..limit)
+     *
      * @throws ImportOdrzucony
      */
-    public function odczytaj(string $sciezka): string
+    public function sprawdzDoWyboru(string $sciezka): int
+    {
+        $this->sprawdzWstepnie($sciezka);
+        self::wymagajUruchamianiaProcesow();
+
+        $strony = $this->liczbaStron($sciezka);
+
+        if ($strony > $this->maksStron()) {
+            throw new ImportOdrzucony(ImportOdrzucony::PDF_ZA_DUZO_STRON, ['strony' => $this->maksStron()]);
+        }
+
+        return $strony;
+    }
+
+    /**
+     * Tekst jednej strony (do podpisu w wyborze stron); pusty tekst to `''`.
+     * Błąd narzędzia nie przerywa podglądu — strona dostaje po prostu etykietę
+     * bez fragmentu.
+     */
+    public function tekstStrony(string $sciezka, int $strona): string
+    {
+        try {
+            $wynik = Process::timeout($this->limitCzasu())->run([
+                'pdftotext', '-enc', 'UTF-8', '-f', (string) $strona, '-l', (string) $strona, '-q', $sciezka, '-',
+            ]);
+        } catch (ProcessTimedOutException) {
+            return '';
+        }
+
+        if (! $wynik->successful()) {
+            return '';
+        }
+
+        $tekst = $wynik->output();
+
+        return mb_check_encoding($tekst, 'UTF-8') ? $tekst : (string) mb_convert_encoding($tekst, 'UTF-8', 'UTF-8');
+    }
+
+    /**
+     * @param  list<int>|null  $wybraneStrony  tylko te strony (numery od 1, rosnąco, bez powtórzeń);
+     *                                         `null` = wszystkie strony w limicie, jak dotąd
+     *
+     * @throws ImportOdrzucony
+     */
+    public function odczytaj(string $sciezka, ?array $wybraneStrony = null): string
     {
         $this->sprawdzWstepnie($sciezka);
         self::wymagajUruchamianiaProcesow();
@@ -72,6 +123,10 @@ final class TekstZPdf
 
         if ($strony > $maksStron) {
             throw new ImportOdrzucony(ImportOdrzucony::PDF_ZA_DUZO_STRON, ['strony' => $maksStron]);
+        }
+
+        if ($wybraneStrony !== null) {
+            return $this->odczytajWybrane($sciezka, $wybraneStrony, $strony);
         }
 
         try {
@@ -103,6 +158,77 @@ final class TekstZPdf
         }
 
         return $tekst;
+    }
+
+    /**
+     * Tekst WYŁĄCZNIE wybranych stron (#2535), w oryginalnej kolejności. Każda
+     * strona osobnym wywołaniem `pdftotext -f N -l N`, więc tekst niewybranych
+     * stron nie jest czytany do pamięci, a tym bardziej nigdzie wysyłany.
+     *
+     * @param  list<int>  $wybraneStrony
+     *
+     * @throws ImportOdrzucony
+     */
+    private function odczytajWybrane(string $sciezka, array $wybraneStrony, int $liczbaStron): string
+    {
+        $strony = self::normalizujWybor($wybraneStrony, $liczbaStron);
+
+        if ($strony === []) {
+            throw new ImportOdrzucony(ImportOdrzucony::PDF_USZKODZONY);
+        }
+
+        $czesci = [];
+
+        foreach ($strony as $numer) {
+            try {
+                $wynik = Process::timeout($this->limitCzasu())->run([
+                    'pdftotext', '-enc', 'UTF-8', '-f', (string) $numer, '-l', (string) $numer, '-q', $sciezka, '-',
+                ]);
+            } catch (ProcessTimedOutException) {
+                throw new ImportOdrzucony(ImportOdrzucony::PDF_USZKODZONY);
+            }
+
+            if ($this->brakNarzedzia($wynik->exitCode())) {
+                throw new ImportOdrzucony(ImportOdrzucony::NARZEDZIE_PDF_NIEDOSTEPNE);
+            }
+
+            if (! $wynik->successful()) {
+                throw new ImportOdrzucony(ImportOdrzucony::PDF_USZKODZONY);
+            }
+
+            $czesci[] = $wynik->output();
+        }
+
+        $tekst = implode("\n", $czesci);
+
+        if (! mb_check_encoding($tekst, 'UTF-8')) {
+            $tekst = (string) mb_convert_encoding($tekst, 'UTF-8', 'UTF-8');
+        }
+
+        if (mb_strlen((string) preg_replace('/\s+/u', '', $tekst)) < self::MIN_ZNAKOW_TEKSTU) {
+            throw new ImportOdrzucony(ImportOdrzucony::PDF_BEZ_TEKSTU);
+        }
+
+        return $tekst;
+    }
+
+    /**
+     * Wybór stron sprowadzony do rosnącej listy unikalnych numerów w zakresie
+     * 1..liczba stron pliku; numer spoza zakresu odpada. Jedno miejsce tej reguły
+     * dla odczytu tekstu, skanu i walidacji w kontrolerze.
+     *
+     * @param  list<int>  $wybor
+     * @return list<int>
+     */
+    public static function normalizujWybor(array $wybor, int $liczbaStron): array
+    {
+        $numery = array_values(array_unique(array_filter(
+            array_map('intval', $wybor),
+            static fn (int $n): bool => $n >= 1 && $n <= $liczbaStron,
+        )));
+        sort($numery);
+
+        return $numery;
     }
 
     /**

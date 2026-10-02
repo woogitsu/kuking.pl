@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Wybór stron z przepisem w pliku PDF
+
+Rodzinny PDF ma kilka stron, a przepis jest tylko na jednej z nich? Przy dodawaniu przepisu z pliku PDF jest teraz drugi przycisk: „Najpierw wybiorę strony z przepisem”. Zobaczycie miniatury i początek tekstu każdej strony, zaznaczycie te, na których jest przepis, i dopiero wtedy ruszy odczyt — tylko z zaznaczonych stron. Zgodę na ewentualne wysłanie skanu do odczytu zaznaczacie osobno, przy wyborze stron. Plik, który zostawicie bez decyzji, usuwamy po dwóch godzinach.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

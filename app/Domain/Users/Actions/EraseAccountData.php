@@ -33,6 +33,7 @@ use App\Models\RecipeHint;
 use App\Models\User;
 use App\Models\WpisZgody;
 use App\Support\Storage\PlikTymczasowyImportu;
+use App\Support\Storage\PoczekalniaPdf;
 use App\Support\ZabezpieczoneDowody;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\QueryException;
@@ -556,6 +557,13 @@ final class EraseAccountData
              */
             DB::table('wczytane_z_paczki')->where('user_id', $fresh->getKey())->delete();
             app(MagazynPaczek::class)->zapomnijWszystkie($fresh);
+
+            /*
+             * PLIKI PDF CZEKAJĄCE NA WYBÓR STRON (#2535). Plik, miniatury stron
+             * i podpisy leżą w prywatnej poczekalni osoby do dwóch godzin; po
+             * wymazaniu konta nie zostaje z nich nic.
+             */
+            app(PoczekalniaPdf::class)->zapomnijWszystkie($fresh);
 
             /*
              * REZERWACJA TYGODNIA PODSUMOWANIA ZNIKA RAZEM Z KONTEM (#2280).

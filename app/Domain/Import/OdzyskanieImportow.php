@@ -6,6 +6,7 @@ namespace App\Domain\Import;
 
 use App\Models\ImportPrzepisu;
 use App\Support\Storage\PlikTymczasowyImportu;
+use App\Support\Storage\PoczekalniaPdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -144,6 +145,9 @@ final class OdzyskanieImportow
         }
 
         $potrzebne = ImportPrzepisu::query()->whereNotNull('plik_tymczasowy')->pluck('plik_tymczasowy')->all();
+
+        // Pliki czekające na WYBÓR STRON (#2535) mają własną, krótszą retencję.
+        $skasowano += app(PoczekalniaPdf::class)->sprzatnijPrzeterminowane();
 
         return $skasowano + $this->pliki->skasujOsierocone($retencjaSekund, array_values($potrzebne));
     }
