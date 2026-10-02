@@ -64,7 +64,10 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
             $ostatnia = $this->actingAs($widz)->get($adresOstatniej)->assertOk();
             $this->assertSame(20, substr_count((string) $ostatnia->getContent(), 'data-dopasowanie'));
             $this->assertStringNotContainsString('Pokaż więcej przepisów', (string) $ostatnia->getContent(), 'PAGINACJA_2599_BEZ_PETLI');
-            $ostatnia->assertSee('To koniec dostępnego przeglądania tej listy.')
+            // Dalszych wyników nie ma (#2659): ani pętli, ani zdania, że „mogą
+            // być jeszcze inne” przepisy — to byłaby obietnica bez pokrycia.
+            $ostatnia->assertDontSee('Mogą być jeszcze inne pasujące przepisy.')
+                ->assertSee('To koniec dostępnego przeglądania tej listy.')
                 ->assertSee(route('pantry.index'), false)
                 ->assertDontSee('Prywatna granica 2599');
         }
@@ -83,7 +86,9 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
 
             foreach ([$ostatnia, $zaLimitem] as $odpowiedz) {
                 $this->assertStringNotContainsString('Pokaż więcej przepisów', (string) $odpowiedz->getContent(), 'PAGINACJA_2599_BEZ_PETLI');
-                $odpowiedz->assertSee('Mogą być jeszcze inne pasujące przepisy.')
+                $odpowiedz->assertSee('To koniec dostępnego przeglądania tej listy.')
+                    ->assertSee('Mogą być jeszcze inne pasujące przepisy.')
+                    ->assertSee(route('pantry.index'), false)
                     ->assertDontSee('Dalszy przepis 2599')
                     ->assertDontSee('Prywatna granica 2599');
             }
