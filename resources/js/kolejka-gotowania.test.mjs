@@ -8,6 +8,7 @@ import {
     odczytajKolejke,
     zapiszKolejke,
     dodajDoKolejki,
+    dodajZestawDoKolejki,
     usunZKolejki,
     parametrKolejki,
     adresKolejki,
@@ -363,4 +364,109 @@ test('uzupełnianie adresu mieści się w limicie i się kończy', () => {
 
     // Po odtworzeniu adresu zapamiętane = adres, więc drugi raz nic nie wraca.
     assert.equal(uzupelnijOZapamietane(lokalne, wynik, []), null);
+});
+
+// --- Zestaw dnia z Planera (#2450) ---------------------------------------------------
+
+test('zestaw dodaje nowe na koniec w kolejności wyboru i zachowuje kroki obecnych', () => {
+    const wynik = dodajZestawDoKolejki([{slug: 'zupa', krok: 3}], ['sos', 'zupa', 'salatka']);
+
+    assert.equal(wynik.wynik, 'dodano');
+    assert.deepEqual(wynik.pozycje, [{slug: 'zupa', krok: 3}, {slug: 'sos', krok: 1}, {slug: 'salatka', krok: 1}]);
+});
+
+test('zestaw przekraczający wolne miejsca nie zmienia kolejki i nie ucina', () => {
+    const przed = [{slug: 'a', krok: 2}, {slug: 'b', krok: 1}, {slug: 'c', krok: 1}];
+    const wynik = dodajZestawDoKolejki(przed, ['d', 'e']);
+
+    assert.equal(wynik.wynik, 'za_duzo');
+    assert.equal(wynik.wolne, 1);
+    assert.deepEqual(wynik.pozycje, przed, 'ZESTAW_2450_ZA_DUZO_NIC_NIE_ZMIENIA');
+});
+
+test('zestaw: powtórzenie, pusty wybór i śmieci', () => {
+    const przed = [{slug: 'zupa', krok: 2}];
+
+    assert.equal(dodajZestawDoKolejki(przed, ['zupa', 'zupa']).wynik, 'juz');
+    assert.deepEqual(dodajZestawDoKolejki(przed, ['zupa']).pozycje, przed);
+    assert.equal(dodajZestawDoKolejki(przed, []).wynik, 'pusty');
+    assert.equal(dodajZestawDoKolejki(przed, ['../x', 'A B']).wynik, 'pusty');
+    assert.equal(dodajZestawDoKolejki([], ['a', 'a', 'b']).pozycje.length, 2);
+});
+
+/** Formularz dnia z Planera: dwa pola i komunikat, bez prawdziwego DOM-u. */
+function formularzPlanera(slugi, zaznaczone, localStorage, teraz) {
+    const przejscia = [];
+    const nasluch = {};
+    const bezJs = {hidden: false};
+    const komunikat = {textContent: ''};
+    const pola = slugi.map((slug) => ({value: slug, checked: zaznaczone.includes(slug), addEventListener() {}}));
+    const formularz = {
+        hidden: true,
+        dataset: {kolejkaAdres: '/gotuj-kilka'},
+        parentElement: {querySelector: () => bezJs},
+        querySelector: () => komunikat,
+        querySelectorAll: () => pola,
+        addEventListener(nazwa, f) { nasluch[nazwa] = f; },
+    };
+
+    podlaczKolejke({
+        document: {
+            querySelectorAll: (selektor) => (selektor === '[data-planer-kolejka]' ? [formularz] : []),
+            querySelector: () => null,
+        },
+        localStorage,
+        sessionStorage: new FalszywyStorage(),
+        location: {assign(adres) { przejscia.push(adres); }},
+        teraz: () => teraz,
+        zegar: {now: () => teraz},
+        ustawInterwal() { return 1; },
+    });
+
+    return {formularz, bezJs, komunikat, przejscia, wyslij: () => nasluch.submit({preventDefault() {}})};
+}
+
+test('formularz Planera dodaje zestaw do istniejącej kolejki i otwiera ekran kolejki', () => {
+    const ls = new FalszywyStorage();
+    ls.setItem(KLUCZ_KOLEJKI, zapiszKolejke([{slug: 'zupa', krok: 2}], T0));
+    const f = formularzPlanera(['sos', 'salatka'], ['sos', 'salatka'], ls, T0 + 1000);
+
+    assert.equal(f.formularz.hidden, false);
+    assert.equal(f.bezJs.hidden, true);
+
+    f.wyslij();
+
+    assert.deepEqual(f.przejscia, ['/gotuj-kilka?p=zupa:2,sos:1,salatka:1&a=sos']);
+    assert.deepEqual(odczytajKolejke(ls.getItem(KLUCZ_KOLEJKI), T0 + 2000).pozycje.map((p) => p.slug), ['zupa', 'sos', 'salatka']);
+});
+
+test('formularz Planera przy braku miejsca nic nie zapisuje i nie przechodzi dalej', () => {
+    const ls = new FalszywyStorage();
+    const trzy = [{slug: 'a', krok: 1}, {slug: 'b', krok: 1}, {slug: 'c', krok: 1}];
+    ls.setItem(KLUCZ_KOLEJKI, zapiszKolejke(trzy, T0));
+    const przed = ls.getItem(KLUCZ_KOLEJKI);
+    const f = formularzPlanera(['d', 'e'], ['d', 'e'], ls, T0 + 1000);
+
+    f.wyslij();
+
+    assert.deepEqual(f.przejscia, []);
+    assert.equal(ls.getItem(KLUCZ_KOLEJKI), przed);
+    assert.match(f.komunikat.textContent, /nie mieszczą się/);
+    assert.match(f.komunikat.textContent, /Kolejka nie została zmieniona/);
+});
+
+test('formularz Planera przy zablokowanym magazynie zostaje ukryty (zostają linki)', () => {
+    const f = formularzPlanera(['a'], ['a'], ZLY_STORAGE, T0);
+
+    assert.equal(f.formularz.hidden, true);
+    assert.equal(f.bezJs.hidden, false);
+});
+
+test('formularz Planera bez zaznaczenia podpowiada, co zrobić', () => {
+    const f = formularzPlanera(['a'], [], new FalszywyStorage(), T0);
+
+    f.wyslij();
+
+    assert.deepEqual(f.przejscia, []);
+    assert.match(f.komunikat.textContent, /Zaznacz co najmniej jedną potrawę/);
 });

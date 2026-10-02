@@ -116,6 +116,30 @@ export function dodajDoKolejki(pozycje, slug) {
     return {pozycje: [...pozycje, {slug, krok: 1}], wynik: 'dodano'};
 }
 
+/**
+ * Dodanie zestawu przepisów naraz (#2450, Planer). Wszystko albo nic: gdy nowe
+ * przepisy nie mieszczą się w limicie, kolejka zostaje bez zmian (nie ucinamy
+ * do pierwszych czterech). Przepisy już obecne zachowują krok i miejsce; nowe
+ * idą na koniec w kolejności wyboru.
+ *
+ * @param {Pozycja[]} pozycje
+ * @param {string[]} slugi wybrane przepisy, w kolejności z ekranu
+ * @returns {{pozycje: Pozycja[], wynik: 'dodano'|'juz'|'za_duzo'|'pusty', nowe: string[], wolne: number}}
+ */
+export function dodajZestawDoKolejki(pozycje, slugi) {
+    const wolne = Math.max(0, LIMIT - pozycje.length);
+    const wybrane = [...new Set(slugi.filter((slug) => typeof slug === 'string' && WZORZEC_SLUGA.test(slug)))];
+
+    if (wybrane.length === 0) return {pozycje, wynik: 'pusty', nowe: [], wolne};
+
+    const nowe = wybrane.filter((slug) => !pozycje.some((p) => p.slug === slug));
+
+    if (nowe.length === 0) return {pozycje, wynik: 'juz', nowe, wolne};
+    if (nowe.length > wolne) return {pozycje, wynik: 'za_duzo', nowe, wolne};
+
+    return {pozycje: [...pozycje, ...nowe.map((slug) => ({slug, krok: 1}))], wynik: 'dodano', nowe, wolne};
+}
+
 export function usunZKolejki(pozycje, slug) {
     return pozycje.filter((p) => p.slug !== slug);
 }
@@ -316,6 +340,74 @@ function podlaczDodawanie(blok, s) {
     });
 
     blok.hidden = false;
+}
+
+// --- Zestaw dnia z Planera (#2450) ----------------------------------------------
+
+function podlaczZestawPlanera(formularz, s) {
+    if (formularz.dataset.kolejkaGotowe) return;
+
+    // Bez możliwości zapamiętania kolejki formularz byłby martwy — zostają linki.
+    if (!storageDziala(s.localStorage)) return;
+
+    formularz.dataset.kolejkaGotowe = '1';
+
+    const bazowy = formularz.dataset.kolejkaAdres;
+    const komunikat = formularz.querySelector('[data-planer-kolejka-komunikat]');
+    const pola = Array.from(formularz.querySelectorAll('[data-planer-kolejka-pole]'));
+    const bezJs = formularz.parentElement?.querySelector('[data-planer-kolejka-bez-js]') ?? null;
+
+    const odczyt = () => {
+        const o = odczytajKolejke(czytaj(s.localStorage, KLUCZ_KOLEJKI), s.teraz());
+
+        if (o.stan === 'wygasla') usun(s.localStorage, KLUCZ_KOLEJKI);
+
+        return o.pozycje;
+    };
+
+    const wybrane = () => pola.filter((p) => p.checked).map((p) => p.value);
+
+    const podsumowanie = () => {
+        const pozycje = odczyt();
+        const {nowe} = dodajZestawDoKolejki(pozycje, wybrane());
+
+        komunikat.textContent = `W kolejce jest ${pozycje.length} z ${LIMIT} przepisów, wolnych miejsc: ${Math.max(0, LIMIT - pozycje.length)}.`
+            + (nowe.length > 0 ? ` Zaznaczone nowe potrawy: ${nowe.length}.` : '');
+    };
+
+    pola.forEach((pole) => pole.addEventListener('change', podsumowanie));
+
+    formularz.addEventListener('submit', (zdarzenie) => {
+        zdarzenie.preventDefault();
+
+        // Świeży odczyt tuż przed zapisem: przepis dodany w innej karcie jest uwzględniony.
+        const {pozycje, wynik, nowe, wolne} = dodajZestawDoKolejki(odczyt(), wybrane());
+        const zaznaczone = wybrane();
+
+        if (wynik === 'pusty') {
+            komunikat.textContent = 'Zaznacz co najmniej jedną potrawę, którą chcesz dodać do kolejki.';
+
+            return;
+        }
+
+        if (wynik === 'za_duzo') {
+            komunikat.textContent = `Zaznaczone nowe potrawy (${nowe.length}) nie mieszczą się w kolejce: wolnych miejsc jest ${wolne} z ${LIMIT}. Odznacz część potraw albo otwórz kolejkę i usuń z niej któryś przepis. Kolejka nie została zmieniona.`;
+
+            return;
+        }
+
+        if (wynik === 'dodano' && !zapiszPozycje(s.localStorage, pozycje, s.teraz())) {
+            komunikat.textContent = 'Ta przeglądarka nie pozwala zapamiętać kolejki (może to okno prywatne). Gotuj każdy przepis osobno.';
+
+            return;
+        }
+
+        s.location.assign(adresKolejki(bazowy, pozycje, zaznaczone[0]));
+    });
+
+    formularz.hidden = false;
+    if (bezJs) bezJs.hidden = true;
+    podsumowanie();
 }
 
 // --- Ekran kolejki ------------------------------------------------------------
@@ -668,6 +760,7 @@ export function podlaczKolejke(srodowisko = {}) {
     };
 
     dok.querySelectorAll('[data-kolejka-dodaj]').forEach((blok) => podlaczDodawanie(blok, s));
+    dok.querySelectorAll('[data-planer-kolejka]').forEach((formularz) => podlaczZestawPlanera(formularz, s));
 
     const ekran = dok.querySelector('[data-kolejka-ekran]');
 

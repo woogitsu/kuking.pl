@@ -225,6 +225,43 @@
                             </li>
                         @endforeach
                     </ul>
+                    @php
+                        // Do kolejki gotowania (#2450) trafiają tylko przepisy z krokami; wpisy własne,
+                        // niedostępne i usunięte nie mają tu ani tytułu, ani pola wyboru.
+                        $doKolejki = collect($dzien['pozycje'])
+                            ->filter(fn (array $p): bool => $p['stan'] === PlanerTygodnia::STAN_PRZEPIS && isset($zKrokami[(string) $p['przepis']->getKey()]))
+                            ->map(fn (array $p) => $p['przepis'])
+                            ->unique(fn ($r) => $r->getKey())
+                            ->values();
+                    @endphp
+                    @if($doKolejki->isNotEmpty())
+                        {{-- Zestaw dnia do kolejki gotowania (#2450). Kolejka żyje w przeglądarce, więc
+                             formularz odkrywa dopiero skrypt (D-053); bez niego zostają zwykłe linki. --}}
+                        <form class="stack mt-4" data-planer-kolejka data-kolejka-adres="{{ route('kolejka-gotowania') }}" novalidate hidden>
+                            <fieldset class="stack">
+                                <legend><strong>Dodaj do kolejki gotowania</strong></legend>
+                                <p class="meta meta-samodzielne m-0">Zaznacz potrawy, które chcesz gotować razem. Kolejka mieści najwyżej {{ \App\Http\Controllers\KolejkaGotowaniaController::LIMIT }} przepisy; to, co już w niej jest, zostaje.</p>
+                                <div class="choice-grid">
+                                    @foreach($doKolejki as $przepisDoKolejki)
+                                        <label class="choice">
+                                            <input type="checkbox" value="{{ $przepisDoKolejki->slug }}" data-planer-kolejka-pole>
+                                            <span class="choice-label">{{ $przepisDoKolejki->title }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </fieldset>
+                            <p class="m-0" role="status" aria-live="polite" data-planer-kolejka-komunikat></p>
+                            <button type="submit" class="btn btn-secondary">Dodaj zaznaczone do kolejki<span class="visually-hidden"> ({{ \App\Domain\Planer\PlanerTygodnia::nazwaDnia($dzien['dzien']) }})</span></button>
+                        </form>
+                        <div class="stack mt-4" data-planer-kolejka-bez-js>
+                            <p class="meta meta-samodzielne m-0">Kolejka gotowania potrzebuje włączonego JavaScriptu i pamięci przeglądarki. Bez nich gotuj każdy przepis osobno:</p>
+                            <ul class="list-none p-0 m-0 stack-tight">
+                                @foreach($doKolejki as $przepisDoKolejki)
+                                    <li><a class="btn btn-secondary" href="{{ route('cooking.show', $przepisDoKolejki->slug) }}">Gotuj: {{ $przepisDoKolejki->title }}</a></li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                 @endif
 
                 @if(count($dzien['pozycje']) < $wpisowNaDzien)

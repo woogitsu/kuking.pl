@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Zestaw dnia z Planera do kolejki gotowania
+
+Zupa i drugie danie zaplanowane na niedzielę? Przy dniu w Planerze zaznaczcie potrawy i naciśnijcie „Dodaj zaznaczone do kolejki”, a przejdziecie od razu do ekranu „Gotuję kilka potraw naraz”. To, co było już w kolejce, zostaje z bieżącym krokiem. Jeśli zaznaczone potrawy nie mieszczą się w czterech miejscach, nic się nie zmienia, a komunikat podpowiada, co odznaczyć.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.
