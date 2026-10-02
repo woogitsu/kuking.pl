@@ -314,6 +314,23 @@ final class ImportParseryTest extends TestCase
         $this->assertSame(['Utrzyj twaróg.', 'Dodaj jajka i wymieszaj.', 'Piecz godzinę.'], $przepis->kroki);
     }
 
+    public function test_tekst_pdf_zachowuje_dziesietne_ilosci_a_usuwa_tylko_jednoznaczna_numeracje(): void
+    {
+        $przepis = (new ParserTekstuPrzepisu)->odczytaj(
+            "Placek\nSkładniki\n1.5 kg mąki\n0.5 l mleka\n12.5 g soli\n1.5\u{00A0}kg cukru\n1,5 kg jabłek\n"
+            ."1. 500 g masła\n2) 1.5 kg gruszek\n3)0.5 l wody\n4.\u{00A0}0.5 kg migdałów\n•1.5 g cynamonu\n- 2 jajka\n"
+            ."1.500 g kaszy\n-1.5 g przyprawy\nbez ilości: aromat\nPrzygotowanie\nWymieszaj składniki.",
+        );
+
+        $this->assertNotNull($przepis);
+        $this->assertSame([
+            '1.5 kg mąki', '0.5 l mleka', '12.5 g soli', '1.5 kg cukru', '1,5 kg jabłek',
+            '500 g masła', '1.5 kg gruszek', '0.5 l wody', '0.5 kg migdałów', '1.5 g cynamonu', '2 jajka',
+            '1.500 g kaszy', '-1.5 g przyprawy', 'bez ilości: aromat',
+        ], $przepis->skladniki, 'PDF_2614_ILOSC_DZIESIETNA_NIE_JEST_NUMEREM_LISTY');
+        $this->assertSame(['Wymieszaj składniki.'], $przepis->kroki);
+    }
+
     public function test_tekst_bez_naglowkow_trafia_w_calosci_do_krokow_i_nic_nie_ginie(): void
     {
         $przepis = (new ParserTekstuPrzepisu)->odczytaj("Kompot\n\nWeź śliwki i jabłka.\n\nZagotuj z wodą.\n");
