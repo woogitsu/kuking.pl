@@ -5169,11 +5169,22 @@
     gap: var(--spacing-3);
 }
 
-/* Opis pod „Nastaw własny minutnik” stoi na tle `.cook-timer`: zwykłe `.meta`
-   ma tu za mały kontrast w ciemnym motywie (axe, color-contrast). Ta sama para
-   tło/tekst co cały blok minutnika — sprawdzona w obu motywach. */
-.cook-timer-wybor > .meta {
+/* Cały tekst wyboru stoi na tle `.cook-timer`: zwykłe kolory `.meta` i etykiety
+   pola mają tu za mały kontrast w ciemnym motywie (axe, color-contrast). Ta sama
+   para tło/tekst co cały blok minutnika: 6,53:1 jasny, 6,98:1 ciemny. */
+.cook-timer-wybor .meta,
+.cook-timer-wybor label {
     color: var(--color-accent-tint-ink);
+}
+
+/* Błąd „Ile minut?” jest ukryty, dopóki ktoś nie wpisze złej liczby, więc axe
+   go nie widzi. Zwykły --color-danger na tle minutnika daje w ciemnym motywie
+   1,17:1 — dlatego własne tło z pary danger-tint (7,37:1 jasny, 11,11:1 ciemny). */
+.cook-timer-wybor .field-error {
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-md);
+    background-color: var(--color-danger-tint);
+    color: var(--color-danger-tint-ink);
 }
 
 .cook-timer-szybkie {
