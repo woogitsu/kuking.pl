@@ -40,6 +40,7 @@ w których to zaplanowano, razem z rokiem. Przycisk przy wyniku otwiera właści
 Szukamy tylko w Waszych własnych planach, w tym, co sami dopisaliście, i w
 nazwach przepisów, które nadal możecie zobaczyć. Wielkość liter i polskie
 znaki nie mają znaczenia. Pokazujemy do 50 najnowszych wyników.
+
 ### Skrót do ulubionego zeszytu
 
 Jeśli wracacie głównie do jednego zeszytu, na jego stronie jest teraz
@@ -49,9 +50,6 @@ zeszytów dużo. Skrót można ustawić tylko do własnego zeszytu, widzicie go
 tylko Wy i w każdej chwili usuniecie go przyciskiem „Usuń skrót” — zeszyt
 i zapisy zostają. Skrót nie zmienia tego, dokąd trafia „Zapisuję”.
 
-## Alfa 0.78
-
-**Co zużyć najpierw, lista zakupów i wydruk zeszytu.**
 ### Przeliczenie stopni w trybie gotowania
 
 Gdy krok przepisu podaje temperaturę wprost — na przykład „350°F” albo
@@ -61,6 +59,10 @@ temperaturę”. Po jej otwarciu zobaczycie, ile to w drugiej skali, na przykła
 piekarnik, i zawsze opisany jako „około”. Tekst przepisu zostaje taki, jak
 napisał go autor, a samo „180 stopni” bez jednostki nie jest przeliczane.
 Rozwijanie działa bez żadnych ustawień i niczego nie zapisuje.
+
+## Alfa 0.78
+
+**Co zużyć najpierw, lista zakupów i wydruk zeszytu.**
 
 ### Co zużyć w pierwszej kolejności
 
