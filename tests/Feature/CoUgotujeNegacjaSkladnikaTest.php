@@ -41,7 +41,7 @@ final class CoUgotujeNegacjaSkladnikaTest extends TestCase
 
         $wynik = app(CoUgotuje::class)->dla($ja);
         $this->assertSame([$przepis->getKey()], $wynik['przepisy']->modelKeys());
-        $this->assertSame(1, (int) $wynik['przepisy'][0]->skladnikow_brakuje, 'SPIZARNIA_2613_SOL_NIE_JEST_MASLEM');
+        $this->assertSame(1, (int) $wynik['przepisy'][0]->getAttribute('skladnikow_brakuje'), 'SPIZARNIA_2613_SOL_NIE_JEST_MASLEM');
         $this->assertSame(['200 g masła BEZ SOLI'], $wynik['brakujace'][$przepis->getKey()], 'SPIZARNIA_2613_SOL_NIE_JEST_MASLEM');
 
         $this->actingAs($ja)->get(route('pantry.cook'))
@@ -67,7 +67,7 @@ final class CoUgotujeNegacjaSkladnikaTest extends TestCase
 
         $wynik = app(CoUgotuje::class)->dla($ja);
         $this->assertSame([$przepis->getKey()], $wynik['przepisy']->modelKeys());
-        $this->assertSame(0, (int) $wynik['przepisy'][0]->skladnikow_brakuje);
+        $this->assertSame(0, (int) $wynik['przepisy'][0]->getAttribute('skladnikow_brakuje'));
         $this->assertSame([], $wynik['brakujace'][$przepis->getKey()]);
         $this->actingAs($ja)->get(route('pantry.cook'))->assertOk()->assertSee('Masz wszystkie składniki (1).');
 
@@ -84,7 +84,7 @@ final class CoUgotujeNegacjaSkladnikaTest extends TestCase
 
         $wynik = app(CoUgotuje::class)->dla($ja);
         $this->assertSame([$przepis->getKey()], $wynik['przepisy']->modelKeys());
-        $this->assertSame(0, (int) $wynik['przepisy'][0]->skladnikow_brakuje);
+        $this->assertSame(0, (int) $wynik['przepisy'][0]->getAttribute('skladnikow_brakuje'));
         $this->assertSame([], $wynik['brakujace'][$przepis->getKey()]);
     }
 
@@ -97,7 +97,7 @@ final class CoUgotujeNegacjaSkladnikaTest extends TestCase
 
         $pilny = app(CoUgotuje::class)->dla($ja, 0, 20, true);
         $this->assertSame([$przepis->getKey()], $pilny['przepisy']->modelKeys());
-        $this->assertSame(1, (int) $pilny['przepisy'][0]->pilnych_pasuje, 'SPIZARNIA_2613_SOL_NIE_JEST_MASLEM');
+        $this->assertSame(1, (int) $pilny['przepisy'][0]->getAttribute('pilnych_pasuje'), 'SPIZARNIA_2613_SOL_NIE_JEST_MASLEM');
         $this->assertSame(['200 g masła bez soli'], $pilny['brakujace'][$przepis->getKey()]);
         $this->assertSame(['cukier'], array_column($pilny['do_zuzycia'][$przepis->getKey()], 'nazwa'), 'SPIZARNIA_2613_SOL_NIE_JEST_MASLEM');
         $this->actingAs($ja)->get(route('pantry.cook', ['najpierw' => 'termin']))
