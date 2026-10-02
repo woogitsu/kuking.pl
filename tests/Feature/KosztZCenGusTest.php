@@ -451,6 +451,43 @@ class KosztZCenGusTest extends TestCase
         }
     }
 
+    #[Test]
+    public function prawdziwy_cennik_nie_myli_maki_gryczanej_z_kasza(): void
+    {
+        $this->assertSame(0, Artisan::call('kuking:ceny-skladnikow'));
+        $cennik = new CennikSkladnikow;
+
+        foreach (['500 g mąki gryczanej', '500 g mąka gryczana', '500 g mąki ryżowej'] as $tekst) {
+            $this->assertNull($cennik->dopasuj($tekst), 'KOSZT_2605_MAKA_NIE_JEST_KASZA: '.$tekst);
+        }
+
+        foreach (['500 g kaszy gryczanej', '500 g kasza gryczana', '500 g kaszę gryczaną'] as $tekst) {
+            $this->assertSame('kasza_gryczana', $cennik->dopasuj($tekst)?->klucz, $tekst);
+        }
+
+        $this->assertSame('maka_pszenna', $cennik->dopasuj('500 g mąki pszennej')?->klucz);
+    }
+
+    #[Test]
+    public function prawdziwy_cennik_nie_myli_maki_gryczanej_w_pelnej_wycenie(): void
+    {
+        $this->assertSame(0, Artisan::call('kuking:ceny-skladnikow'));
+
+        $samaKasza = app(SzacunekKosztuZCen::class)->dla($this->przepis(['500 g kaszy gryczanej']));
+        $this->assertNotNull($samaKasza);
+        $this->assertTrue($samaKasza->jestPrzedzial());
+
+        $zMaka = app(SzacunekKosztuZCen::class)->dla($this->przepis([
+            '500 g kaszy gryczanej',
+            '500 g mąki gryczanej',
+        ]));
+
+        $this->assertNotNull($zMaka);
+        $this->assertFalse($zMaka->jestPrzedzial(), 'KOSZT_2605_MAKA_NIE_DAJE_POKRYCIA');
+        $this->assertStringContainsString('nie mamy średnich cen części składników', $zMaka->zdanie());
+        $this->assertStringContainsString('„500 g mąki gryczanej”', $zMaka->zdanie());
+    }
+
     /**
      * Zbieżność z miarami domowymi wartości odżywczych (D-286, „Zbieżność”):
      * dopóki koszt trzyma własną masę kotleta, nie może się ona rozjechać
