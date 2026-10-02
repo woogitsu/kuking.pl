@@ -35,6 +35,8 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
+    'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',
     'Koszt: opis celu kasuje rozpoznaną masę (#2508)': r'KOSZT_2508_OPIS_CELU_NIE_KASUJE_MASY',
     'Koszt: słowny zakres gubi granice i miarę (#2477)': r'KOSZT_2477_SLOWNY_ZAKRES_ZACHOWUJE_GRANICE_I_MIARE',
     'Koszt: uszkodzony zakres przyjmuje początek (#2477)': r'KOSZT_2477_USZKODZONY_ZAKRES_NIE_LICZY_POCZATKU',
@@ -43,7 +45,6 @@ OCZEKUJ = {
     'Bieżący eksport pomija wybór Bez ilości (#2476)': r'EKSPORT_BIEZACY_BEZ_ILOSCI',
     'Ukryty przepis nazwany szkicem w eksporcie (#2479)': r'EKSPORT_UKRYTY_NIE_JEST_SZKICEM',
     'Sam rok rodzinny znika z HTML eksportu (#2478)': r'EKSPORT_ROK_SAM_W_HTML',
-    'Fixture wspomnienia znika po północy w Polsce': r'POMIAR_WSPOMNIENIA_PRZED_I_PO_POLNOCY',
     # #1011, paczka H: wpisy dopisane po wzorcach dla wcześniejszych kontroli.
     "Goły ->with('status') wraca do kontrolera": r'Goły zapis klucza `status` wygląda jak zielony sukces',
     'Odmowa nazwana sukcesem': r'Komunikat::sukces\(\) z tekstem „Nie udało się…" — to błąd, nie sukces\.',

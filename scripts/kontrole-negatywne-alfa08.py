@@ -2192,12 +2192,17 @@ checks = [
     # Z9 (#2283): regulamin §2 wymienia usługi, których adresy istnieją.
     ("Regulamin §2 bez „Poradźcie”", "resources/legal/regulamin.md", "RegulaminWymieniaUslugiSerwisuTest",
      lambda s: replace_once(s, " („Poradźcie”),", ",")),
-    ("Szyna zeszytu ponownie czyta całą historię (#2030)", "app/Http/Controllers/CollectionController.php",
-     "test_szyna_sprawdza_widocznosc_tylko_malej_partii_kandydatow",
-     lambda s: replace_once(s, "        $partia = 20;\n", "        $partia = 1000;\n")),
+    # #2480: sam skan musi otwierać sekcję źródła bez dopisywania historii.
+    ("Sam skan bez notatki znika ze strony przepisu", "resources/views/pages/recipes/show.blade.php", "test_wlasciciel_widzi_sam_skan_na_zwyklej_stronie_prywatnego_przepisu",
+     lambda s: replace_once(s,
+         "@if(($recipe->source_note || $recipe->source_person || $recipe->sourceScan) && ! $dlaPomocnika)",
+         "@if(($recipe->source_note || $recipe->source_person) && ! $dlaPomocnika)")),
     ("Fixture wspomnienia znika po północy w Polsce", "scripts/fixtures/rocznice-wykonania-s.php",
      "test_fixture_pomiaru_pokazuje_wspomnienie_po_polnocy_w_polsce",
      lambda s: replace_once(s, "$dzis->copy()->addDay()->subYear()", "$dzis->copy()->subYear()")),
+    ("Szyna zeszytu ponownie czyta całą historię (#2030)", "app/Http/Controllers/CollectionController.php",
+     "test_szyna_sprawdza_widocznosc_tylko_malej_partii_kandydatow",
+     lambda s: replace_once(s, "        $partia = 20;\n", "        $partia = 1000;\n")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
