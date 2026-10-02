@@ -24,6 +24,7 @@ use App\Models\Comment;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Unit;
+use App\Support\CytatKroku;
 use App\Support\Komunikat;
 use App\Support\KursorListy;
 use App\Support\OdpowiedziWatku;
@@ -531,8 +532,20 @@ class RecipeController extends Controller
         $wyborZapamietanych = app(ZapamietanePorcje::class)->wybor($model, $request->user(), $request->query('porcje'));
         $wyborSztuk = WyborSztuk::dla($model, $request->query('sztuki'));
 
+        // „Zapytaj o ten krok” (#2556): link tylko dla konta, które może użyć
+        // zwykłego formularza komentarza (aktywne, nie autor przepisu), a cytat
+        // w polu tylko wtedy, gdy to konto naprawdę zobaczy formularz. Gość i konto
+        // zawieszone dostają stronę bez zmian — też z kopii brzegowej (#610).
+        $mozeZapytacOKrok = $request->user() !== null
+            && $request->user()->isActive()
+            && $request->user()->getKey() !== $model->author_id;
+
         return view('pages.recipes.show', [
             'recipe' => $model,
+            'mozeZapytacOKrok' => $mozeZapytacOKrok,
+            'tekstStartowyPytania' => $request->user() !== null && $request->user()->isActive()
+                ? CytatKroku::tekstStartowy($model, $request->query(CytatKroku::PARAMETR))
+                : null,
             // Na ile porcji pokazać ilości (D-284). Wybór żyje w adresie
             // (`?porcje=6`), przeliczenie w `App\Domain\Recipes\Porcje`.
             // Wybór SZTUK (#2645) wygrywa z `?porcje=` i z zapamiętaną liczbą
