@@ -1,6 +1,7 @@
 # Co się zmieniło w Kuking
 
 ## Nieopublikowane
+- Naprawione (#2561): orientacyjny koszt rozpoznaje masę zapisaną z grupowaniem tysięcy (np. „1 000 g jajek”) jako całą masę, a przy uszkodzonym grupowaniu odmawia wyceny zamiast zamieniać fragment na sztuki.
 
 - Naprawione (#2477, #2508): koszt zachowuje obie granice słownego zakresu ilości. Dopisek celu, np. „300 g mąki do 2 porcji”, zachowuje rozpoznaną masę; nie zmieniamy tekstu autora.
 

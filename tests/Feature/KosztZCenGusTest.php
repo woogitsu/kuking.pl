@@ -47,6 +47,11 @@ class KosztZCenGusTest extends TestCase
             'sztuki bez słowa miary' => ['3 jajka', ['ilosc' => 3.0, 'miara' => 'sztuka']],
             'ułamek znakiem' => ['½ łyżeczki soli', ['ilosc' => 0.5, 'miara' => 'lyzeczka']],
             'ułamek mieszany' => ['1 1/2 szklanki mleka', ['ilosc' => 1.5, 'miara' => 'szklanka']],
+            'tysiąc gramów' => ['1 000 g jajek', ['ilosc' => 1000.0, 'miara' => 'g']],
+            'tysiące po nazwie' => ['jajka 1 500 g', ['ilosc' => 1500.0, 'miara' => 'g']],
+            'kilka grup tysięcy' => ['1 234 567 g mąki', ['ilosc' => 1234567.0, 'miara' => 'g']],
+            'nierozpoznane grupowanie' => ['1 00 g jajek', null],
+            'nierówne grupy tysięcy' => ['12 345 67 g mąki', null],
             'przedział' => ['2-3 łyżki oleju', ['ilosc' => 2.5, 'miara' => 'lyzka']],
             'przedział do w gramach' => ['200 do 300 g mąki', ['ilosc' => 250.0, 'miara' => 'g']],
             'przedział lub w sztukach' => ['2 lub 3 jajka', ['ilosc' => 2.5, 'miara' => 'sztuka']],
@@ -73,6 +78,55 @@ class KosztZCenGusTest extends TestCase
     public function ilosc_z_tekstu(string $tekst, ?array $oczekiwane): void
     {
         $this->assertEquals($oczekiwane, IloscZTekstu::rozbierz($tekst));
+    }
+
+    #[Test]
+    public function grupowane_tysiace_zachowuja_cala_mase_i_nie_staja_sie_sztukami(): void
+    {
+        foreach ([' ', "\u{00A0}", "\u{202F}"] as $odstep) {
+            $this->assertSame(
+                ['ilosc' => 1000.0, 'miara' => 'g'],
+                IloscZTekstu::rozbierz("1{$odstep}000 g jajek"),
+                'KOSZT_2561_GRUPOWANE_TYSIACE_NIE_SA_SZTUKAMI',
+            );
+            $this->assertSame(['ilosc' => 1500.0, 'miara' => 'g'], IloscZTekstu::rozbierz("jajka 1{$odstep}500 g"));
+        }
+
+        $this->assertSame(['ilosc' => 1500.0, 'miara' => 'g'], IloscZTekstu::rozbierz('1 000 do 2 000 g mąki'));
+        $this->assertSame(['ilosc' => 1500.0, 'miara' => 'g'], IloscZTekstu::rozbierz('1,5 kg mąki'));
+        $this->assertSame(['ilosc' => 1500.0, 'miara' => 'g'], IloscZTekstu::rozbierz('1 1/2 kg mąki'));
+        $this->assertSame(['ilosc' => 3.0, 'miara' => 'sztuka'], IloscZTekstu::rozbierz('3 jajka'));
+
+        foreach (['1 00 g jajek', '1 0000 g jajek', '12 345 67 g jajek', 'jajka 1 00 g'] as $tekst) {
+            $this->assertNull(IloscZTekstu::rozbierz($tekst), 'Uszkodzona liczba nie może dać częściowej wyceny.');
+        }
+    }
+
+    #[Test]
+    public function grupowane_tysiace_zachowuja_mase_pokrycie_i_kwote_pelnego_szacunku(): void
+    {
+        $this->cennik();
+
+        $zapisCaly = $this->przepis(['1000 g jajek']);
+        $zapisGrupowany = $this->przepis(['1 000 g jajek']);
+        $bezpiecznaOdmowa = $this->przepis(['1 00 g jajek', '2 jajka']);
+        $zwykleSztuki = $this->przepis(['3 jajka']);
+
+        $caly = app(SzacunekKosztuZCen::class)->dla($zapisCaly);
+        $grupowany = app(SzacunekKosztuZCen::class)->dla($zapisGrupowany);
+        $odmowa = app(SzacunekKosztuZCen::class)->dla($bezpiecznaOdmowa);
+        $sztuki = app(SzacunekKosztuZCen::class)->dla($zwykleSztuki);
+
+        $this->assertNotNull($caly);
+        $this->assertTrue($caly->jestPrzedzial());
+        $this->assertSame(16, $caly->od, '1000 g jajek z ceną za sztukę 60 g ma koszt 18,83 zł przed rozrzutem.');
+        $this->assertSame(22, $caly->do);
+        $this->assertEquals($caly, $grupowany, 'KOSZT_2561_PELNA_WYCENA_MASY_NIE_SZTUKE');
+        $this->assertNotNull($odmowa);
+        $this->assertFalse($odmowa->jestPrzedzial(), 'Błędne grupowanie nie może tworzyć wiarygodnego przedziału.');
+        $this->assertNotNull($sztuki);
+        $this->assertTrue($sztuki->jestPrzedzial(), 'Zapis trzech jajek pozostaje poprawną liczbą sztuk.');
+        $this->assertSame('1 000 g jajek', $zapisGrupowany->ingredients->first()->ingredient_text);
     }
 
     #[Test]
@@ -594,7 +648,7 @@ class KosztZCenGusTest extends TestCase
             'kielbasa,kiełbasa,kielbasa|kielbasy,,32.96,1,kg,1000,,,,,2025,GUS,1753078',
             'kurczak,kurczak,kurczak|kurczaka,filet|piers,13.24,1,kg,1000,,,,1600,2025,GUS,4961',
             'mleko,mleko,mleko|mleka,kokos,4.40,1,l,1000,250,15,5,,2025,GUS,4975',
-            'jajka,jajko,jajko|jajka|jaj,,1.13,1,szt,60,,,,60,2025,GUS,4993',
+            'jajka,jajko,jajko|jajka|jajek|jaj,,1.13,1,szt,60,,,,60,2025,GUS,4993',
             'olej,olej rzepakowy,olej|oleju,kokos,9.55,1,l,920,230,14,5,,2025,GUS,4984',
             'maka_pszenna,mąka pszenna,maka|maki|make,ziemniaczan|kukurydz,3.76,1,kg,1000,160,10,3,,2025,GUS,1749185',
             'schab,schab bez kości,schab|schabu|schabowy|schabowe|schabowych,,25.04,1,kg,1000,,,,,2025,GUS,633049',

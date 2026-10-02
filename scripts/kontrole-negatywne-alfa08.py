@@ -1264,6 +1264,8 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    ("Koszt: grupowane tysiące stają się sztukami (#2561)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "grupowane_tysiace_zachowuja_cala_mase_i_nie_staja_sie_sztukami",
+     lambda s: replace_once(s, r'|\d{1,3}(?: \d{3})+(?:[.,]\d+)?', '')),
     ("Koszt: opis celu kasuje rozpoznaną masę (#2508)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "opis_celu_po_produkcie_nie_kasuje_odczytanej_masy",
      lambda s: replace_once(s, r'^\s*(?:do|lub|albo)\s+\d', r'(?:^|\s)(?:do|lub|albo)\s+\d')),
     ("Koszt: słowny zakres gubi granice i miarę (#2477)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "slowne_zakresy_zachowuja_obie_granice_i_miare",
