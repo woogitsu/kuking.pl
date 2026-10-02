@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2633): formularze dodawania i edycji wpisu pokazują pod polem opisu zdanie „Najwyżej 4000 znaków.” oraz licznik na żywo. Limit jest widoczny przed wysłaniem, a wklejony tekst nie jest obcinany.
+
 ## Alfa 0.78 — co zużyć najpierw, lista zakupów i wydruk zeszytu
 
 - Naprawione (#2621): wklejona pusta linia z nierozdzielającą spacją nie dodaje niewidocznego składnika ani nie skleja dwóch kroków przepisu. Spacja wewnątrz wpisanej ilości zostaje bez zmian.
