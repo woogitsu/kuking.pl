@@ -59,4 +59,18 @@ final class ImportLiteralnePorownanieTest extends TestCase
         );
         $this->assertSame('Bake below <80 C.', ParserJsonLdPrzepisu::tekst('<b>Bake below &lt;80 C.</b>'));
     }
+
+    #[Test]
+    public function test_znacznik_pomocniczy_w_tresci_nie_ginie_a_porownanie_w_atrybucie_markup_nie_wychodzi(): void
+    {
+        $znacznik = "\u{E000}";
+        $tekst = 'Zostaw '.$znacznik.'L oraz '.$znacznik.$znacznik
+            .'; <b title="<80">Piecz &lt;80 C.</b>';
+
+        $this->assertSame(
+            'Zostaw '.$znacznik.'L oraz '.$znacznik.$znacznik.'; Piecz <80 C.',
+            ParserJsonLdPrzepisu::tekst($tekst),
+            'IMPORT_2580_ZNACZNIK_BEZ_UTRATY',
+        );
+    }
 }

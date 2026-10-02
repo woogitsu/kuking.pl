@@ -1271,7 +1271,7 @@ def pierwsze_z_wielu(source, old, new, ile):
 checks = [
     ("Literalne porównanie znika z instrukcji JSON-LD (#2580)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
      "test_porownanie_liczbowe_zostaje_w_calym_kroku_tekstowym_i_howtostep",
-     lambda s: replace_once(s, "$tekst = (string) preg_replace('/<(?=\\d)/', $znacznik, $tekst);",
+     lambda s: replace_once(s, "$tekst = (string) preg_replace('/<(?=\\d)/', $znacznik.'L', $tekst);",
                             "$tekst = (string) preg_replace('/<(?=\\d)/', '<', $tekst);")),
     ("Zakodowane podziały JSON-LD sklejają instrukcje (#2564)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
      "test_json_ld_zakodowane_granice_zachowuja_kroki_i_skladniki",

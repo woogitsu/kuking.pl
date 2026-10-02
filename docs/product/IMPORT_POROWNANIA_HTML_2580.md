@@ -6,8 +6,9 @@ i usuwał liczbę wraz z resztą instrukcji. Dotyczyło to zarówno tekstowego
 `recipeInstructions`, jak i pola `text` w `HowToStep`.
 
 Przed usuwaniem rzeczywistych znaczników HTML chronimy dosłowny znak `<`
-bezpośrednio przed cyfrą. Znacznik zastępczy wybierany jest spoza wejścia i
-odtwarzany po `strip_tags()`. Granice `<br>`, `<p>` i `<li>` nadal dzielą
+bezpośrednio przed cyfrą. Wystąpienia znacznika zastępczego w źródle są
+najpierw podwajane, a po `strip_tags()` odtwarzane razem z porównaniami
+jednym przejściem, bez pętli zależnej od treści. Granice `<br>`, `<p>` i `<li>` nadal dzielą
 wiersze; prawdziwy markup jest usuwany, a limit dwóch dekodowań zostaje.
 Odczyt pozostaje lokalny, bez pobierania dodatkowych adresów i bez renderowania
 HTML ze źródła. Wynik importu nadal jest prywatnym szkicem (D-300).

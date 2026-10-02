@@ -274,15 +274,16 @@ final class ParserJsonLdPrzepisu
         // `strip_tags()` uznaje także zwykłe „<80” za początek niedomkniętego
         // znacznika i ucina resztę instrukcji. Chronimy tylko porównanie z
         // liczbą; prawdziwy markup nadal usuwa ta sama funkcja. Znacznik
-        // wybieramy spoza wejścia, żeby nie zmieniać cudzego tekstu.
+        // odróżniamy od takiego samego znaku w wejściu bez szukania w pętli.
         $znacznik = "\u{E000}";
-        while (str_contains($tekst, $znacznik)) {
-            $znacznik .= "\u{E000}";
-        }
+        $tekst = str_replace($znacznik, $znacznik.$znacznik, $tekst);
+        $tekst = (string) preg_replace('/<(?=\d)/', $znacznik.'L', $tekst);
+        $tekst = strtr(strip_tags($tekst), [
+            $znacznik.$znacznik => $znacznik,
+            $znacznik.'L' => '<',
+        ]);
 
-        $tekst = (string) preg_replace('/<(?=\d)/', $znacznik, $tekst);
-
-        return trim((string) preg_replace('/\s+/u', ' ', str_replace($znacznik, '<', strip_tags($tekst))));
+        return trim((string) preg_replace('/\s+/u', ' ', $tekst));
     }
 
     /**
