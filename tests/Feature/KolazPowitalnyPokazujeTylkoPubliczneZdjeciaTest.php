@@ -449,45 +449,23 @@ class KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest extends TestCase
         );
     }
 
-    public function test_kolaz_jest_ozdobnikiem_wiec_zdjecia_maja_puste_alt(): void
+    /**
+     * Od 2.10.2026 (#2708) kolaż nie jest ozdobnikiem: każdy kafel ma
+     * podpis i odnośnik (szczegóły w `KolazPowitalnyPodpisAutoraPrzyKazdymZdjeciuTest`).
+     * Zdjęcie dalej ma `alt=""`, bo jego nazwę podaje podpis w tym samym
+     * odnośniku — a kolaż nie jest już chowany przed czytnikiem ekranu.
+     */
+    public function test_kolaz_nie_jest_ukryty_przed_czytnikiem_ekranu(): void
     {
         $this->czteryPubliczneZdjecia();
 
         $html = (string) $this->get('/')->assertOk()->getContent();
 
-        $this->assertStringContainsString('<div class="hero-kolaz" aria-hidden="true">', $html);
+        $this->assertStringNotContainsString('<div class="hero-kolaz" aria-hidden="true">', $html);
+        $this->assertStringNotContainsString('class="hero-kolaz" aria-hidden', $html);
         $this->assertSame(
             HeroKolaz::SLOTOW,
             preg_match_all('~class="hero-kolaz-kafel"[^>]*\salt=""~', $html),
-            'Któreś zdjęcie kolażu przestało być ozdobnikiem — patrz uzasadnienie w `landing.blade.php`.',
         );
-    }
-
-    public function test_podpis_z_autorami_nie_jest_ukryty_przed_czytnikiem_ekranu(): void
-    {
-        $zestaw = $this->czteryPubliczneZdjecia();
-
-        $html = (string) $this->get('/')->assertOk()->getContent();
-
-        $podpis = $this->wytnij($html, '<figcaption class="hero-kolaz-podpis">', '</figcaption>');
-
-        $this->assertNotSame('', $podpis, 'Zniknął podpis z nazwami autorów zdjęć z kolażu.');
-
-        foreach ($zestaw as [, , $autor]) {
-            $this->assertStringContainsString($autor->displayName(), $podpis);
-        }
-    }
-
-    private function wytnij(string $html, string $od, string $do): string
-    {
-        $start = strpos($html, $od);
-
-        if ($start === false) {
-            return '';
-        }
-
-        $koniec = strpos($html, $do, $start);
-
-        return $koniec === false ? '' : substr($html, $start, $koniec - $start);
     }
 }

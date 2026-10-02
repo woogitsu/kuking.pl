@@ -274,43 +274,52 @@
     }
   }
 
-  /* UKŁAD: WIATRACZEK, NIE SIATKA 2×2.
+  /* UKŁAD KOLAŻU (od 2.10.2026, #2708): DWIE KOLUMNY KAFLI Z PODPISEM.
 
-     Cztery kafle w dwóch kolumnach i trzech rzędach, zazębione po przekątnej:
-     wysoki kafel lewy-górny i wysoki prawy-dolny trzymają się przeciwnych
-     narożników, a dwa niskie wypełniają to, co zostaje. Żadna pozioma ani
-     pionowa linia nie przechodzi przez cały kolaż, więc oko nie czyta tego
-     jako tabelki — a o to właśnie chodziło („kolaż ma wyglądać jak coś, co
-     ktoś ułożył").
-
-     Rzędy mają wysokości STAŁE (`rem`), a nie proporcje zdjęć: przy
-     `object-fit: cover` kształt kolażu nie zależy wtedy od tego, czy
-     gospodarz wybrał zdjęcia pionowe, czy poziome. Kolaż z jednego wyboru
-     ma wyglądać tak samo jak z drugiego.
-
-     Suma: 7.5 + 4.5 + 7.5 rem plus dwie przerwy = 21.5 rem ≈ 344 px. To
-     mniej niż wysokość kolumny tekstu w hero, więc kolaż nie dyktuje
-     wysokości pasa i nie spycha niczego pod spód nawet na szerokim ekranie. */
+     Wcześniejszy „wiatraczek" (stałe wysokości rzędów, obroty kafli,
+     zazębione narożniki) nie mieści podpisu PRZY zdjęciu, a podpis przy
+     każdym zdjęciu jest wymaganiem (analiza prawna z 2.10.2026, pytanie 1):
+     nazwa autora i odnośnik do wpisu, widoczne bez najechania. Kafel to
+     jeden odnośnik: zdjęcie 4:3 (`object-fit: cover`) i pod nim dwa wiersze
+     tekstu po 18 px (`--text-body`). Kolory tylko z tokenów, więc tryb
+     ciemny dziedziczy kontrast z `tokens.css`. */
   .hero-kolaz {
     display: grid;
-    grid-template-columns: 1.15fr 1fr;
-    grid-template-rows: 7.5rem 4.5rem 7.5rem;
-    gap: var(--spacing-3);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-4) var(--spacing-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
-  .hero-kolaz-kafel:nth-child(1) { grid-column: 1; grid-row: 1 / span 2; rotate: -1.4deg; }
-  .hero-kolaz-kafel:nth-child(2) { grid-column: 2; grid-row: 1; rotate: 1.6deg; }
-  .hero-kolaz-kafel:nth-child(3) { grid-column: 2; grid-row: 2 / span 2; rotate: -1deg; }
-  .hero-kolaz-kafel:nth-child(4) { grid-column: 1; grid-row: 3; rotate: 1.2deg; }
+  .hero-kolaz-pole {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+  }
 
-  /* Obwódka w kolorze podniesionej powierzchni udaje biały brzeg odbitki —
-     to ona sprawia, że cztery zdjęcia czytają się jako rozłożone fotografie,
-     a nie jako kafelki interfejsu. Obrót jest mały z rozmysłem: przy większym
-     kącie sąsiednie kafle zachodzą na siebie rogami, a przy `overflow`
-     obcinanym przez pas wychodziłyby poza jego wnętrze. */
-  .hero-kolaz-kafel {
-    width: 100%;
+  .hero-kolaz-link {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
     height: 100%;
+    min-height: 48px;
+    color: var(--color-ink);
+    text-decoration: none;
+  }
+
+  .hero-kolaz-link:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 3px;
+    border-radius: var(--radius-lg);
+  }
+
+  /* Obwódka w kolorze podniesionej powierzchni udaje biały brzeg odbitki. */
+  .hero-kolaz-kafel {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
     object-fit: cover;
     border-radius: var(--radius-lg);
     border: 4px solid var(--color-surface-raised);
@@ -318,13 +327,23 @@
     background-color: var(--color-surface-sunken);
   }
 
-  /* Podpis z nazwami autorów. `--text-body` (18 px), nie `--text-help`:
-     to jest zdanie do przeczytania, a nie metka — i obowiązuje je minimum
-     produktowe z `docs/UX_50_PLUS.md`. */
-  .hero-kolaz-podpis {
-    margin: var(--spacing-4) 0 0;
+  /* Podpisy: `--text-body` (18 px), nie `--text-help` — to zdania do
+     przeczytania, a nie metki (`docs/UX_50_PLUS.md`). Długie nazwy łamią się,
+     zamiast wypychać siatkę. */
+  .hero-kolaz-autor,
+  .hero-kolaz-wpis {
     font-size: var(--text-body);
-    color: var(--color-ink-muted);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .hero-kolaz-autor {
+    font-weight: 700;
+  }
+
+  .hero-kolaz-wpis {
+    color: var(--color-brand);
+    text-decoration: underline;
   }
 
   /* Drugi claim marki stoi NAD hasłem głównym, mniejszy i w kolorze marki.

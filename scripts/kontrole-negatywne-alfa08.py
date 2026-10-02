@@ -784,11 +784,11 @@ CISZA_BEZ_WARUNKU = (
 # priorytetem. Mutacja przywraca bezwarunkowe `loading="lazy"` na każdym kaflu.
 LANDING = "resources/views/pages/landing.blade.php"
 KOLAZ_LCP_TEST = "KolazPowitalnyPriorytetLcpTest"
-KOLAZ_PRIORYTET = """                                 @if($loop->first)
-                                 fetchpriority="high"
-                                 @else
-                                 loading="lazy"
-                                 @endif
+KOLAZ_PRIORYTET = """                                         @if($loop->first)
+                                         fetchpriority="high"
+                                         @else
+                                         loading="lazy"
+                                         @endif
 """
 # Arkusz wydruku przepisu (#765): żadne pismo na kartce poniżej 12 pt.
 # Strażnik czyta `wydruk-przepisu.css` i zbiera rozmiary z bloku `@media print`;
@@ -2050,7 +2050,9 @@ checks = [
     ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
      lambda s: replace_once(s, "! hash_equals($akcja, $akcjaZOdpowiedzi) => 'inna_akcja',\n", "")),
     ("Kolaż hero z lazy na pierwszym kaflu", LANDING, KOLAZ_LCP_TEST,
-     lambda s: replace_once(s, KOLAZ_PRIORYTET, '                                 loading="lazy"\n')),
+     lambda s: replace_once(s, KOLAZ_PRIORYTET, '                                         loading="lazy"\n')),
+    ("Kolaż hero bez podpisu autora przy zdjęciu (#2708)", LANDING, "KolazPowitalnyPodpisAutoraPrzyKazdymZdjeciuTest",
+     lambda s: replace_once(s, '<span class="hero-kolaz-autor">Zdjęcie: {{ $kafel[\'autor\']->displayName() }}</span>\n', '')),
     ("Polityka z innym terminem usunięcia treści niż konfiguracja", POLITYKA, TWARDE_USUNIECIE_TEST,
      lambda s: replace_once(s, "najpóźniej **30 dni** po usunięciu", "najpóźniej **60 dni** po usunięciu")),
     ("Users znowu importuje Social", ZALOZ_KONTO, GRAF_MODULOW_TEST,
