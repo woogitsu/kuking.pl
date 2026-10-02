@@ -95,7 +95,7 @@ class NaglowekWejscZewnetrznychTest extends TestCase
         $this->assertSame($naglowek, preg_replace('/\s+/u', ' ', trim($h2->item(0)->textContent)));
 
         $napisy = [];
-        foreach ($xpath->query('.//p[contains(@class, "wejscia-dostawcow")]/a', $blok) as $a) {
+        foreach ($xpath->query('.//p[contains(@class, "wejscia-dostawcow")]/button', $blok) as $a) {
             $napisy[] = preg_replace('/\s+/u', ' ', trim($a->textContent));
         }
         $this->assertSame($przyciski, $napisy);

@@ -20,8 +20,10 @@ use App\Support\PowrotDoRozmowy;
 use App\Support\RejestracjaZamknieta;
 use App\Support\ZamiarDolaczeniaDoZeszytu;
 use App\Support\ZamiarZapisu;
+use App\Support\ZapamietajMnie;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
@@ -196,6 +198,11 @@ class GoogleLoginController extends Controller
          * a jest tu darmowe, bo to jeszcze nie jest sesja zalogowana.
          */
         $request->session()->regenerate();
+
+        // Wybór „Zapamiętaj mnie na tym urządzeniu” (#2708): logowanie kończy się dopiero po powrocie od Google.
+        if (! Auth::check()) {
+            ZapamietajMnie::zapiszWSesji($request);
+        }
 
         $state = KlientGoogle::losowaWartosc();
         $nonce = KlientGoogle::losowaWartosc();

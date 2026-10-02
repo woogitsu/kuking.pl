@@ -19,6 +19,7 @@ use App\Support\Poczta;
 use App\Support\Skrot;
 use App\Support\Turnstile;
 use App\Support\Wejscie;
+use App\Support\ZapamietajMnie;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -325,11 +326,11 @@ class LoginLinkController extends Controller
 
         $request->session()->regenerate();
 
-        // `remember: true` jak przy logowaniu hasłem — sesja 7 dni
+        // Zapamiętanie według pola na ekranie „Zaloguj mnie” (#2708; bez pola jak dotąd `remember: true`) — sesja 7 dni
         // i „zapamiętaj mnie" domyślnie to jedna z rzeczy, które dla tej
         // grupy już zrobiliśmy (issue #25, sekcja „co już zrobiliśmy”).
         // Kto wchodzi linkiem, tym bardziej nie chce robić tego co tydzień.
-        Auth::login($user, remember: true);
+        Auth::login($user, remember: ZapamietajMnie::zZadania($request));
 
         return redirect()->intended(route('home'));
     }

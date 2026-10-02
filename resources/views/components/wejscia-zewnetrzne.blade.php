@@ -140,12 +140,17 @@
             Nie musisz wymyślać ani pamiętać hasła. Przeniesiemy Cię
             {{ $naStrone }}, tam potwierdzisz, że to Ty, i wrócisz do Kuking.
         </p>
+        {{-- Zwykły formularz GET (bez JavaScriptu), pusty, a jego pola i przyciski podpięte atrybutem
+             `form`: przyciski kierują na start wejścia danego dostawcy, a pole „Zapamiętaj mnie”
+             jedzie w adresie i zostaje w sesji do powrotu (#2708). --}}
+        <form id="wejscie-dostawcy-{{ $rodzaj }}" method="GET" action="{{ $dostawcy[0]['adres'] }}"></form>
+        <x-zapamietaj-mnie id="f-zapamietaj-dostawca" :form="'wejscie-dostawcy-'.$rodzaj" />
         <p class="form-actions wejscia-dostawcow">
             @foreach($dostawcy as $dostawca)
-                <a class="btn btn-secondary" href="{{ $dostawca['adres'] }}">
+                <button class="btn btn-secondary" type="submit" form="wejscie-dostawcy-{{ $rodzaj }}" formaction="{{ $dostawca['adres'] }}">
                     <x-logo-dostawcy :nazwa="$dostawca['znak']" />
                     {{ $dostawca['napis'] }}
-                </a>
+                </button>
             @endforeach
         </p>
         <p class="meta">

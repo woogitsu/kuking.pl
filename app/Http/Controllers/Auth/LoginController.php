@@ -17,6 +17,7 @@ use App\Support\PowrotDoRozmowy;
 use App\Support\Turnstile;
 use App\Support\ZamiarObserwowania;
 use App\Support\ZamiarZapisu;
+use App\Support\ZapamietajMnie;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -113,7 +114,7 @@ class LoginController extends Controller
         }
 
         $request->session()->regenerate();
-        Auth::login($user, remember: true);
+        Auth::login($user, remember: ZapamietajMnie::zZadania($request));
         AuditLogEntry::recordBezWywracania('account.password_login_succeeded', $user, $user, ip: $adres);
 
         return redirect()->intended(route('home'));
