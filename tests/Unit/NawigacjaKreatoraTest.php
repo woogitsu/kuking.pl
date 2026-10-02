@@ -37,6 +37,7 @@ final class NawigacjaKreatoraTest extends TestCase
             'składnik: grupa' => ['ingredients.3.group_name', 2],
             'składnik: uwaga' => ['ingredients.12.note', 2],
             'składnik: zamiennik' => ['ingredients.1.substitutes', 2],
+            'nowa nazwa grupy (#2444)' => ['nowaNazwaGrupy', 2],
             // Krok 3 — przygotowanie.
             'brak kroku przygotowania' => ['steps', 3],
             'krok: opis' => ['steps.0.instruction', 3],

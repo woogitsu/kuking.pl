@@ -5,11 +5,21 @@
      DOM strony, nie granice komponentów Blade).
 
      $ingredients       wiersze składników (`_key`, `text`, `group_name`, `note`, `substitutes`, `no_amount`)
+     $grupy             istniejące grupy (`ZmianaNazwyGrupy::grupy()`), do zbiorczej zmiany nazwy (#2444)
+     $grupaDoZmiany     ?string — klucz wybranej grupy
+     $podgladGrupy      ?array — podgląd zmiany przed zatwierdzeniem
+     $komunikatGrupy    string — wynik ostatniej zmiany
+     $nowaNazwaGrupy    string — wpisana nowa nazwa
      $liczbaKrokow      int — `recipe-wizard::STEPS`
      $zOdczytu          bool — szkic z odczytu zdjęcia
      $skan              ?Media — `skanOdczytu()` --}}
 @props([
     'ingredients',
+    'grupy' => [],
+    'grupaDoZmiany' => null,
+    'podgladGrupy' => null,
+    'komunikatGrupy' => '',
+    'nowaNazwaGrupy' => '',
     'liczbaKrokow',
     'zOdczytu' => false,
     'skan' => null,
@@ -28,6 +38,70 @@
 
     @if($zOdczytu)
         @include('pages.import.partials.oryginal', ['skan' => $skan])
+    @endif
+
+    {{-- ZMIANA NAZWY CAŁEJ GRUPY (V2, #2444). Drugorzędna i nieobowiązkowa:
+         pokazuje się dopiero wtedy, gdy przepis ma choć jedną grupę. Zmienia
+         tylko `group_name` wierszy wybranej grupy — po potwierdzeniu i bez
+         nowej tabeli grup. --}}
+    @if($grupy !== [] || $komunikatGrupy !== '')
+        <section class="wizard-row" aria-labelledby="zmiana-grupy-naglowek">
+            <h3 class="m-0" id="zmiana-grupy-naglowek">Zmiana nazwy całej grupy (nieobowiązkowe)</h3>
+
+            <div role="status">
+                @if($komunikatGrupy !== '')
+                    <p class="notice mt-3 mb-0">{{ $komunikatGrupy }}</p>
+                @endif
+            </div>
+
+            @if($grupaDoZmiany === null)
+                <p class="meta mt-3 mb-3">
+                    Chcesz zmienić nagłówek, na przykład „Ciasto” na „Spód”? Nie poprawiaj go przy każdym składniku.
+                    Wybierz grupę, wpisz nową nazwę i zatwierdź jedną zmianę. Zobaczysz, ile składników obejmie.
+                </p>
+                <div class="form-actions">
+                    @foreach($grupy as $grupa)
+                        <button class="btn btn-secondary" type="button"
+                                wire:key="grupa-{{ md5($grupa['klucz']) }}"
+                                wire:click="wybierzGrupeDoZmiany({{ \Illuminate\Support\Js::from($grupa['klucz']) }})">
+                            Zmień nazwę grupy „{{ $grupa['nazwa'] }}” ({{ $grupa['liczba'] }} {{ \App\Support\Odmiana::rzeczownik($grupa['liczba'], 'składnik', 'składniki', 'składników') }})
+                        </button>
+                    @endforeach
+                </div>
+            @elseif($podgladGrupy === null)
+                <div class="mt-3">
+                    <x-field name="nowaNazwaGrupy" label="Nowa nazwa grupy (zostaw puste, aby usunąć nagłówek)"
+                             wire="nowaNazwaGrupy" wire-modifier="blur" :value="$nowaNazwaGrupy"
+                             help="Zmiana obejmie wszystkie składniki tej grupy, także te, które stoją w liście osobno." />
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-primary" type="button" wire:click="pokazZmianeGrupy">Zobacz zmianę</button>
+                    <button class="btn btn-secondary" type="button" wire:click="anulujZmianeGrupy">Anuluj</button>
+                </div>
+            @else
+                <div class="mt-3" aria-live="polite">
+                    <p class="m-0"><strong>Obecna nazwa:</strong> „{{ $podgladGrupy['obecna'] }}”</p>
+                    <p class="m-0"><strong>Nowa nazwa:</strong> {{ $podgladGrupy['nowa'] === '' ? 'bez nagłówka' : '„'.$podgladGrupy['nowa'].'”' }}</p>
+                    <p class="m-0"><strong>Objęte składniki:</strong> {{ $podgladGrupy['liczba'] }}</p>
+
+                    @if($podgladGrupy['nowa'] === '')
+                        <p class="notice mt-3 mb-0">Składniki przejdą do części bez nagłówka. Żaden składnik nie zostanie usunięty.</p>
+                    @elseif($podgladGrupy['scalaLiczba'] !== null)
+                        <p class="notice mt-3 mb-0">
+                            Grupa „{{ $podgladGrupy['nowa'] }}” już istnieje ({{ $podgladGrupy['scalaLiczba'] }} {{ \App\Support\Odmiana::rzeczownik($podgladGrupy['scalaLiczba'], 'składnik', 'składniki', 'składników') }}).
+                            Po zatwierdzeniu składniki obu grup będą pod jednym nagłówkiem „{{ $podgladGrupy['nowa'] }}”. Kolejność składników się nie zmieni.
+                        </p>
+                    @endif
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-primary" type="button" wire:click="zatwierdzZmianeGrupy">
+                        {{ $podgladGrupy['scalaLiczba'] !== null ? 'Połącz grupy i zmień nazwę' : ($podgladGrupy['nowa'] === '' ? 'Usuń nagłówek grupy' : 'Zatwierdź zmianę nazwy') }}
+                    </button>
+                    <button class="btn btn-secondary" type="button" wire:click="wrocDoNazwyGrupy">Wróć do nazwy</button>
+                    <button class="btn btn-secondary" type="button" wire:click="anulujZmianeGrupy">Anuluj</button>
+                </div>
+            @endif
+        </section>
     @endif
 
     @foreach($ingredients as $index => $row)
