@@ -25,6 +25,8 @@ use Illuminate\View\View;
  */
 class PlanerController extends Controller
 {
+    private const LIMIT_WYNIKOW_W_PLANACH = 50;
+
     public function show(Request $request, PlanerTygodnia $planer): View
     {
         $poniedzialek = PlanerTygodnia::poniedzialek($request->query('tydzien'));
@@ -56,7 +58,31 @@ class PlanerController extends Controller
             }
         }
 
+        // „Szukaj w moich planach” (#2581): osobny formularz GET i osobny
+        // parametr, żeby nie mylić go z `q` (przepis do dodania).
+        $wPlanach = $request->query('szukaj_w_planach');
+        $wPlanach = is_string($wPlanach) ? trim($wPlanach) : '';
+        $szukanoWPlanach = $wPlanach !== '';
+        $bladWPlanach = null;
+        $wynikiWPlanach = null;
+        // Tablicę w adresie zdejmuje globalnie `ParametryAdresuBezTablic`:
+        // dla nas to brak frazy, czyli ekran bez wyszukiwania.
+        if ($szukanoWPlanach) {
+            $walidator = SearchQuery::phraseValidator($wPlanach, 'Szukaj w moich planach');
+            if ($walidator->fails()) {
+                $bladWPlanach = $walidator->errors()->first('q');
+            } elseif (! SearchQuery::jestPrzeszukiwalna($wPlanach)) {
+                $bladWPlanach = 'Wpisz co najmniej dwie litery i szukaj jeszcze raz.';
+            } else {
+                $wynikiWPlanach = $planer->szukajWPlanach($user, $wPlanach, self::LIMIT_WYNIKOW_W_PLANACH);
+            }
+        }
+
         return view('pages.planer.show', [
+            'wPlanach' => $wPlanach,
+            'bladWPlanach' => $bladWPlanach,
+            'wynikiWPlanach' => $wynikiWPlanach,
+            'limitWPlanach' => self::LIMIT_WYNIKOW_W_PLANACH,
             'szukanyDzien' => $szukanyDzien,
             'fraza' => $fraza,
             'bladFrazy' => $bladFrazy,

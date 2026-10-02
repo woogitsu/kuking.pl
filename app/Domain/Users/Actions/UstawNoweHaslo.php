@@ -9,9 +9,13 @@ use App\Domain\Users\ZamekKonta;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\User;
+use App\Notifications\PotwierdzenieZmianyHasla;
 use Illuminate\Auth\Passwords\PasswordBroker;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use InvalidArgumentException;
+use Throwable;
 
 /**
  * Ustawienie nowego hasła — JEDNA droga dla zmiany w ustawieniach i dla
@@ -143,7 +147,58 @@ final class UstawNoweHaslo
             // zobaczyć nowy skrót hasła i nowy token „zapamiętaj mnie".
             $user->setRawAttributes($swiezy->getAttributes(), sync: true);
 
+            $this->zamowListPotwierdzajacy($swiezy, $powod);
+
             return $anulowana;
+        });
+    }
+
+    /**
+     * List „Hasło zostało zmienione" (#2565) — JEDNA droga dla obu ścieżek.
+     *
+     * Zamawiamy go z KONTA ODCZYTANEGO POD BLOKADĄ (adres nigdy z żądania),
+     * ale ZLECAMY dopiero po zatwierdzeniu transakcji: rollback nie zostawia
+     * listu o zmianie, której nie było. Błąd zlecenia (np. baza kolejki) idzie
+     * do `report()` i nie cofa ani nie przewraca już zatwierdzonej zmiany.
+     *
+     * Zasady adresata:
+     *  - konto wymazane — nic nie wysyłamy;
+     *  - reset linkiem — kliknięcie w list z tej skrzynki jest dowodem, że
+     *    adres jest właścicielski, choć znacznik weryfikacji zapisuje się
+     *    dopiero po tej akcji (kontroler);
+     *  - zmiana w ustawieniach — tylko na adres potwierdzony, żeby list
+     *    bezpieczeństwa nie szedł na literówkę;
+     *  - `banned` / `suspended` / `pending_delete` dostają list: to ochrona
+     *    konta, nie funkcja serwisu, a droga odzyskania hasła jest dla nich
+     *    otwarta tak samo.
+     * Adres i imię utrwalamy teraz — worker może ruszyć po zmianie adresu.
+     */
+    private function zamowListPotwierdzajacy(User $swiezy, string $powod): void
+    {
+        if ($swiezy->isErased() || $swiezy->data_erased_at !== null) {
+            return;
+        }
+
+        $adres = trim((string) $swiezy->email);
+        $reset = $powod === CancelEmailChange::POWOD_RESET_HASLA;
+
+        if ($adres === '' || (! $reset && ! $swiezy->hasVerifiedEmail())) {
+            return;
+        }
+
+        $list = new PotwierdzenieZmianyHasla(
+            now(),
+            $reset ? PotwierdzenieZmianyHasla::RESET_LINKIEM : PotwierdzenieZmianyHasla::ZMIANA_W_USTAWIENIACH,
+            $swiezy->profile?->display_name,
+            $swiezy->profile?->form_of_address,
+        );
+
+        DB::afterCommit(static function () use ($adres, $list): void {
+            try {
+                Notification::route('mail', $adres)->notify($list);
+            } catch (Throwable $e) {
+                report($e);
+            }
         });
     }
 }

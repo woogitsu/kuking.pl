@@ -154,6 +154,7 @@ final class ParserMikrodanychPrzepisu
             porcje: ParserJsonLdPrzepisu::porcje($this->pierwszy($wlasciwosci, 'recipeyield')),
             przygotowanieMinut: ParserJsonLdPrzepisu::minuty($this->pierwszy($wlasciwosci, 'preptime')),
             gotowanieMinut: ParserJsonLdPrzepisu::minuty($this->pierwszy($wlasciwosci, 'cooktime')),
+            lacznieMinut: ParserJsonLdPrzepisu::minuty($this->pierwszy($wlasciwosci, 'totaltime')),
             skladniki: $skladniki,
             kroki: $kroki,
         );

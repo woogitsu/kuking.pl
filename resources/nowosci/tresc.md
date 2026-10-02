@@ -32,6 +32,34 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Szukaj w moich planach
+
+W Planerze jest teraz pole „Szukaj w moich planach”. Pamiętacie, że w planie
+był „obiad u mamy”, ale nie wiecie kiedy? Wpiszcie te słowa, a pokażemy dni,
+w których to zaplanowano, razem z rokiem. Przycisk przy wyniku otwiera właściwy tydzień.
+Szukamy tylko w Waszych własnych planach, w tym, co sami dopisaliście, i w
+nazwach przepisów, które nadal możecie zobaczyć. Wielkość liter i polskie
+znaki nie mają znaczenia. Pokazujemy do 50 najnowszych wyników.
+
+### Skrót do ulubionego zeszytu
+
+Jeśli wracacie głównie do jednego zeszytu, na jego stronie jest teraz
+przycisk „Ustaw jako skrót w »Moje«”. Od tej chwili na górze ekranu „Moje”
+czeka duży przycisk „Otwórz: nazwa zeszytu”, także gdy na liście macie
+zeszytów dużo. Skrót można ustawić tylko do własnego zeszytu, widzicie go
+tylko Wy i w każdej chwili usuniecie go przyciskiem „Usuń skrót” — zeszyt
+i zapisy zostają. Skrót nie zmienia tego, dokąd trafia „Zapisuję”.
+
+### Przeliczenie stopni w trybie gotowania
+
+Gdy krok przepisu podaje temperaturę wprost — na przykład „350°F” albo
+„180°C” — pod jego tekstem pojawia się rozwijana pozycja „Przelicz
+temperaturę”. Po jej otwarciu zobaczycie, ile to w drugiej skali, na przykład
+„350°F to około 175°C”. Wynik jest zaokrąglony do 5 stopni, bo tak ustawia się
+piekarnik, i zawsze opisany jako „około”. Tekst przepisu zostaje taki, jak
+napisał go autor, a samo „180 stopni” bez jednostki nie jest przeliczane.
+Rozwijanie działa bez żadnych ustawień i niczego nie zapisuje.
+
 ## Alfa 0.78
 
 **Co zużyć najpierw, lista zakupów i wydruk zeszytu.**

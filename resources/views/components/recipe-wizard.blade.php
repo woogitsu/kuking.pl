@@ -158,6 +158,21 @@ new class extends Component
 
     public const WERSJA_STANU = 5;
 
+    /**
+     * Czas łączny podany przez źródło importu (#2572), tylko do odczytu w kroku 1.
+     * `#[Locked]`: wartość pochodzi z bazy, nie z przeglądarki.
+     */
+    #[Locked]
+    public ?int $czasZrodlaMinuty = null;
+
+    /**
+     * Autor kliknął „Usuń tę informację” (#2677). Usunięcie dzieje się dopiero
+     * przy zapisie (autozapis albo Opublikuj) — do tego czasu „Przywróć”
+     * je cofa. Zapis przekazuje do `PublishRecipe` jawne `null`.
+     */
+    #[Locked]
+    public bool $czasZrodlaDoUsuniecia = false;
+
     /** @var list<array{_key: string, group_name: string, text: string, note: string, substitutes: string, no_amount: bool}> */
     public array $ingredients = [];
 
@@ -282,6 +297,7 @@ new class extends Component
         $this->heroMediaId = $recipe->hero_media_id;
         $this->sourceScanMediaId = $recipe->source_scan_media_id;
 
+        $this->czasZrodlaMinuty = $recipe->czas_laczny_zrodla_minut;
         $this->form->title = (string) $recipe->title;
         $this->form->summary = (string) $recipe->summary;
         $this->form->servings = PodgladPrzepisu::liczbaNaTekst($recipe->servings);
@@ -436,6 +452,21 @@ new class extends Component
     {
         $this->steps[] = $this->blankStep();
         $this->autozapis();
+    }
+
+    /** „Usuń tę informację” (#2677): oznacza do usunięcia przy zapisie; cofa je `przywrocCzasZrodla()`. */
+    public function usunCzasZrodla(): void
+    {
+        if ($this->czasZrodlaMinuty === null) {
+            return;
+        }
+
+        $this->czasZrodlaDoUsuniecia = true;
+    }
+
+    public function przywrocCzasZrodla(): void
+    {
+        $this->czasZrodlaDoUsuniecia = false;
     }
 
     public function removeStep(int $index): void
@@ -756,9 +787,7 @@ new class extends Component
             $limit->sprawdz(auth()->user());
         }
 
-        $recipe = app(PublishRecipe::class)->handle(
-            author: auth()->user(),
-            attributes: DanePublikacji::atrybuty(
+        $atrybuty = DanePublikacji::atrybuty(
                 title: $this->form->title,
                 summary: $this->form->summary,
                 servings: $this->form->servings,
@@ -776,7 +805,17 @@ new class extends Component
                 sourceScanMediaId: $this->sourceScanMediaId,
                 sprawdzilemOdczyt: $this->sprawdzilemOdczyt,
                 odczytSprawdzony: $this->odczytSprawdzony,
-            ),
+        );
+
+        // Czas łączny ze źródła (#2677): klucz tylko przy jawnym usunięciu.
+        // Bez klucza `PublishRecipe` zostawia wartość z importu nietkniętą.
+        if ($this->czasZrodlaDoUsuniecia) {
+            $atrybuty['czas_laczny_zrodla_minut'] = null;
+        }
+
+        $recipe = app(PublishRecipe::class)->handle(
+            author: auth()->user(),
+            attributes: $atrybuty,
             ingredients: $this->cleanIngredients(),
             steps: $this->cleanSteps(),
             publish: $publish,
@@ -786,6 +825,13 @@ new class extends Component
             ip: request()->ip(),
             deklaracjaAlergenow: $this->deklaracjaAlergenowDoZapisu(),
         );
+
+        // Usunięte przy zapisie (#2677): informacji już nie ma w bazie,
+        // więc znika też z kroku — i nie ma czego przywracać.
+        if ($this->czasZrodlaDoUsuniecia) {
+            $this->czasZrodlaMinuty = null;
+            $this->czasZrodlaDoUsuniecia = false;
+        }
 
         // Stan oznaczenia po zapisie: składniki mogły zmienić `declared` na
         // `needs_review`. Wtedy pole „sprawdzone” przestaje być prawdziwe —
@@ -1381,6 +1427,8 @@ new class extends Component
             :juz-opublikowany="$juzOpublikowany"
             :zrodlo-importu="$zrodloImportu"
             :hero-media-id="$heroMediaId"
+            :czas-zrodla-minuty="$czasZrodlaMinuty"
+            :czas-zrodla-do-usuniecia="$czasZrodlaDoUsuniecia"
         />
     @elseif($step === 2)
         {{-- ==============================================================

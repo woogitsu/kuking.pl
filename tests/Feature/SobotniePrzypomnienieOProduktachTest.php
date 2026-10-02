@@ -549,6 +549,26 @@ class SobotniePrzypomnienieOProduktachTest extends TestCase
         $this->assertCount(10, $wymienione);
     }
 
+    public function test_produkt_ktory_minal_nalezy_zuzyc_do_po_zakolejkowaniu_nie_wychodzi_w_liscie(): void
+    {
+        // SOBOTA to 2026-10-10: termin jutrzejszy jest pilny w chwili kolejkowania.
+        $basia = $this->osoba('basia', termin: '2026-10-11');
+        $mail = new PrzypomnienieOProduktach($basia);
+
+        // Kontrola dodatnia: dopóki termin nie minął, list wychodzi.
+        $transport = \Mockery::mock(Mailer::class);
+        $transport->shouldReceive('send')->once()->andReturn(null);
+        $mail->send($transport);
+
+        // Doba później (niedziela) produkt jest po „Należy zużyć do” — worker
+        // wysyła już zakolejkowany list, który nie ma czego wymienić.
+        $this->travelTo(Carbon::parse('2026-10-12 08:00:00', 'UTC'));
+        $zablokowany = \Mockery::mock(Mailer::class);
+        $zablokowany->shouldReceive('send')->never();
+        $this->assertNull((new PrzypomnienieOProduktach($basia))->send($zablokowany), 'WYSYLKA_2659_PO_TERMINIE_USE_BY');
+        $this->assertSame(1, $basia->pantryItems()->count(), 'Produkt zostaje na liście do poprawienia.');
+    }
+
     public function test_w_chwili_wysylki_wycofana_zgoda_albo_zniknieta_lista_zatrzymuja_list(): void
     {
         $basia = $this->osoba('basia');

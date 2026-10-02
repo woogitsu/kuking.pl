@@ -8,7 +8,7 @@
     <h1>Zapisz swoje kody zapasowe</h1>
 
     <p class="mb-5">
-        Weryfikacja dwuetapowa jest już włączona. Te osiem kodów pokazujemy <strong>tylko teraz</strong> —
+        Weryfikacja dwuetapowa jest już włączona. Te kody (razem {{ count($kody) }}) pokazujemy <strong>tylko teraz</strong> —
         po opuszczeniu tej strony nie zobaczysz ich już nigdzie w serwisie. Zapisz je albo wydrukuj
         i schowaj w bezpiecznym miejscu.
     </p>

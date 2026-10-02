@@ -656,6 +656,7 @@ try {
                 UpdateCollectionItemNote::PRZEPIS,
                 $argumenty['przepis'],
                 $argumenty['notatka'],
+                $argumenty['przed'],
             );
         })(),
 

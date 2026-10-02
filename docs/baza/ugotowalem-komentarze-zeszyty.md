@@ -520,3 +520,23 @@ Nie trzeba przepisywać istniejących relacji ani powiadomień — już przechow
 UUID. Po potwierdzeniu konfiguracji fallback po nazwie można usunąć osobnym
 wdrożeniem. Błędny, niepusty UUID celowo oznacza brak gospodarza, nie próbę
 odgadnięcia go po nazwie.
+
+### Skrót do zeszytu w „Moje” — `users.ulubiony_zeszyt_id` (issue #2542, D-333)
+
+Migracja `2026_10_02_190100_add_ulubiony_zeszyt_to_users`.
+
+- **`users.ulubiony_zeszyt_id`** (`uuid NULL`) → `collections` `ON DELETE SET NULL`
+  (`users_ulubiony_zeszyt_fk`, dodany `NOT VALID` + `VALIDATE`), indeks częściowy
+  `users_ulubiony_zeszyt_idx WHERE ulubiony_zeszyt_id IS NOT NULL`
+  (`CONCURRENTLY`; bez niego usunięcie zeszytu skanowałoby `users`). Jeden
+  własny zeszyt wskazany jako skrót na ekranie „Moje”. `NULL` — brak skrótu.
+- Pole NIE jest w `$fillable`; ustawia je `UstawSkrotDoZeszytu` (blokada
+  współdzielona wiersza zeszytu, `owner_id` = osoba), odczyt zawęża do
+  właściciela. Usunięcie zeszytu zdejmuje skrót samo (`SET NULL`).
+- Eksport RODO: `zeszyt_skrot_w_moje` (nazwa zeszytu); anonimizacja konta
+  (`EraseAccountData`) zeruje pole.
+- **Rollback:** `down()` **odmawia**, gdy choć jedno konto ma ustawiony skrót
+  (D-088) — ludzie straciliby własny wybór; wymuszenie świadome:
+  `KUKING_ROLLBACK_KASUJE_SKROT_ZESZYTU=1`; komunikat podaje kopię
+  `CREATE TABLE ... AS SELECT` i odtworzenie. Na bazie bez skrótów zdejmuje
+  indeks, klucz i kolumnę bez pytania. Test: `tests/Feature/UlubionyZeszytMigracjaTest.php`.

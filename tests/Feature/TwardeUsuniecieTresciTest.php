@@ -183,7 +183,7 @@ class TwardeUsuniecieTresciTest extends TestCase
     {
         $przepis = Recipe::factory()->family()->create(['title' => 'Pierogi babci Heli z Knyszyna']);
         $zdjecie = $this->zdjecie($przepis->author);
-        $przepis->forceFill(['hero_media_id' => $zdjecie->getKey()])->save();
+        $przepis->forceFill(['hero_media_id' => $zdjecie->getKey(), 'czas_laczny_zrodla_minut' => 95])->save();
         DB::table('recipe_steps')->insert(['id' => (string) Str::uuid(), 'recipe_id' => $przepis->getKey(), 'position' => 1, 'instruction' => 'Zagnieść ciasto jak Hela.']);
         $wykonanie = CookedEvent::factory()->create(['recipe_id' => $przepis->getKey(), 'note' => 'Wyszły świetnie.']);
 
@@ -205,6 +205,7 @@ class TwardeUsuniecieTresciTest extends TestCase
         $this->assertNull($nagrobek->source_person);
         $this->assertNull($nagrobek->source_note);
         $this->assertNull($nagrobek->hero_media_id);
+        $this->assertNull($nagrobek->czas_laczny_zrodla_minut);
         $this->assertDatabaseMissing('recipe_steps', ['recipe_id' => $przepis->getKey()]);
         $this->assertStringNotContainsString('knyszyn', json_encode(DB::table('recipes')->where('id', $przepis->getKey())->first()) ?: '');
         Storage::disk('public')->assertMissing($this->pliki($zdjecie));

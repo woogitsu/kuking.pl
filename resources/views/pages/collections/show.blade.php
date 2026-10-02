@@ -246,6 +246,20 @@
             widoczności nie wymaga już utraty niczego innego.
         --}}
         <a class="btn btn-secondary mt-6" href="{{ route('collections.edit', $collection) }}">Edytuj zeszyt</a>
+        {{-- Skrót na ekranie „Moje” (#2542): jeden własny zeszyt, zwykły
+             formularz POST/DELETE, działa bez JavaScriptu. --}}
+        @if(auth()->user()->ulubiony_zeszyt_id === $collection->getKey())
+            <form method="POST" action="{{ route('collections.shortcut.destroy', $collection) }}" class="mt-4" data-rola="skrot-usun">
+                @csrf
+                @method('DELETE')
+                <button class="btn btn-secondary" type="submit">Usuń skrót</button>
+            </form>
+        @else
+            <form method="POST" action="{{ route('collections.shortcut.store', $collection) }}" class="mt-4" data-rola="skrot-ustaw">
+                @csrf
+                <button class="btn btn-secondary" type="submit">Ustaw jako skrót w »Moje«</button>
+            </form>
+        @endif
         @unless($collection->is_default)
             {{-- Wspólne zapisywanie z bliską osobą (#1743). --}}
             <a class="btn btn-secondary mt-6" href="{{ route('collections.sharing', $collection) }}">Zaproś do wspólnego zapisywania</a>

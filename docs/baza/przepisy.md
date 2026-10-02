@@ -10,6 +10,8 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - `summary` — patrz niżej;
 - `servings`, `prep_minutes`, `cook_minutes`, `difficulty`
   (CHECK: `easy` \| `medium` \| `hard`) — o czasach patrz niżej;
+- `czas_laczny_zrodla_minut` — łączny czas podany przez źródło importu, osobno
+  od `prep_minutes` i `cook_minutes` (patrz niżej);
 - `estimated_cost_pln` — szacunkowy koszt wg autora, patrz niżej (D-286);
 - `visibility` (`public` \| `followers` \| `private`),
   `status` (`draft` \| `published` \| `hidden` \| `removed`), `hero_media_id`;
@@ -39,6 +41,32 @@ kolumnach różnych od `NULL` i sumie większej od zera. Jedna reguła w modelu:
 kreatora) i jej odpowiednik SQL `Recipe::scopeGotoweWCiagu()` (filtr
 „Do 30 minut"). Przepis z samym czasem przygotowania nie pokazuje czasu
 całkowitego i nie trafia do szybkich wyników. Bez zmiany schematu.
+
+**`czas_laczny_zrodla_minut` — `totalTime` ze źródła importu** (#2572,
+migracja `2026_10_02_190000_add_czas_laczny_zrodla_to_recipes`).
+
+```sql
+ALTER TABLE recipes ADD COLUMN czas_laczny_zrodla_minut integer NULL;
+ALTER TABLE recipes ADD CONSTRAINT recipes_czas_laczny_zrodla_check
+    CHECK (czas_laczny_zrodla_minut IS NULL
+        OR (czas_laczny_zrodla_minut > 0 AND czas_laczny_zrodla_minut <= 10080));
+```
+
+Wypełnia ją tylko `ZapiszSzkicZImportu` (jawny `totalTime` z JSON-LD lub
+mikrodanych, ten sam parser ISO 8601 co prep/cook). To informacja źródła, NIE
+czas Kuking: nie wchodzi do `Recipe::totalMinutes()`, filtra „Do 30 minut"
+ani `totalTime` w JSON-LD strony, i nigdy nie trafia do `prep_minutes` ani
+`cook_minutes`. Gdy źródło podaje prep, cook i total, wszystkie trzy zostają
+bez sprawdzania sumy. Strona pokazuje zdanie „Źródło podaje łącznie: około …”
+(`Czas::czasPrzepisu()`) tylko gdy czas całkowity autora jest nieznany.
+`PublishRecipe` zmienia kolumnę tylko przy jawnym kluczu, więc kreator jej nie
+czyści. Usuwanie wartości przez autora: na później (wymaga zmiany kreatora).
+Eksport danych: `czas_laczny_zrodla_minuty`.
+
+**Rollback:** `down()` ODMAWIA (D-088), gdy któryś przepis ma wartość —
+informacji ze źródła `up()` nie odtworzy; komunikat podaje ręczne wyzerowanie
+(`UPDATE recipes SET czas_laczny_zrodla_minut = NULL`). Bez wartości usuwa CHECK
+i kolumnę. Pilnuje `tests/Feature/CzasLacznyZrodlaImportuTest.php`.
 
 **`tresc_zmieniona_at` — data zmiany treści, nie zapisu wiersza** (#2014,
 migracja `2026_09_28_210000_add_tresc_zmieniona_at_to_recipes`).

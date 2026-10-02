@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)': r'JIT_2291_SWIEZA_SESJA_WYMAGA_OFF',
     "Pusta linia Unicode tworzy składnik (#2621)": r'PUSTE_LINIE_2621_UNICODE',
     "Pusta linia Unicode skleja kroki po POST (#2621)": r'PUSTE_LINIE_2621_POST_KROKI',
     "Co ugotuję: ostatnia strona wraca do siebie (#2599)": r'PAGINACJA_2599_BEZ_PETLI',

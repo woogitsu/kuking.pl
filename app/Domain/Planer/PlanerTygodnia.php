@@ -8,6 +8,7 @@ use App\Models\MealPlanEntry;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Support\Czas;
+use App\Support\FrazaWyszukiwania;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -189,5 +190,55 @@ final class PlanerTygodnia
         }
 
         return $dni;
+    }
+
+    /**
+     * „Szukaj w moich planach” (#2581): własne pozycje, których tekst albo
+     * tytuł WIDOCZNEGO przepisu pasuje do frazy. Najnowsze dni najpierw.
+     *
+     * Właściciela pilnuje `$user->mealPlanEntries()` (user_id) — cudze plany
+     * nie dają wyników. Tytuł liczy się tylko dla przepisów z
+     * `widocznePrzepisy()`, tej samej reguły co odczyt tygodnia; przepis
+     * niedostępny nie dopasowuje się i jego tytuł nie wychodzi z bazy.
+     * Porównanie po kolumnie `recipes.title_search` i `kuking_normalize(label)`
+     * (małe litery, bez polskich znaków), metaznaki LIKE cytowane.
+     * Pobieramy `limit + 1` wierszy, żeby wiedzieć, że jest więcej.
+     *
+     * @return array{wyniki: list<array{wpis: MealPlanEntry, stan: string, przepis: ?Recipe}>, wiecej: bool}
+     */
+    public function szukajWPlanach(User $user, string $fraza, int $limit = 50): array
+    {
+        $wzorzec = '%'.FrazaWyszukiwania::doLike(FrazaWyszukiwania::normalizuj($fraza)).'%';
+
+        $trafione = $this->widocznePrzepisy($user)
+            ->whereRaw('recipes.title_search LIKE ?', [$wzorzec])
+            ->select('recipes.id');
+
+        $wpisy = $user->mealPlanEntries()
+            ->where(fn (Builder $q) => $q
+                ->whereRaw('public.kuking_normalize(meal_plan_entries.label) LIKE ?', [$wzorzec])
+                ->orWhereIn('meal_plan_entries.recipe_id', $trafione))
+            ->orderByDesc('day')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit($limit + 1)
+            ->get();
+
+        $wiecej = $wpisy->count() > $limit;
+        $wpisy = $wpisy->take($limit);
+
+        $idPrzepisow = $wpisy->pluck('recipe_id')->filter()->unique()->values();
+        $przepisy = $idPrzepisow->isEmpty()
+            ? collect()
+            : $this->widocznePrzepisy($user)->whereIn('recipes.id', $idPrzepisow)->get()->keyBy('id');
+
+        return [
+            'wyniki' => $wpisy->map(fn (MealPlanEntry $wpis): array => [
+                'wpis' => $wpis,
+                'stan' => $wpis->recipe_id !== null ? self::STAN_PRZEPIS : self::STAN_WLASNY,
+                'przepis' => $wpis->recipe_id !== null ? $przepisy->get($wpis->recipe_id) : null,
+            ])->values()->all(),
+            'wiecej' => $wiecej,
+        ];
     }
 }

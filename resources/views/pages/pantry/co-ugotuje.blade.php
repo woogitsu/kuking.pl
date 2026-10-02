@@ -48,6 +48,11 @@
                     Żaden przepis nie pasuje do produktów z krótkim terminem. Dopisz terminy do produktów
                     na liście „Co mam w domu” albo zobacz wszystkie propozycje.
                 </x-empty-state>
+            @elseif($wszystkie_po_terminie ?? false)
+                <x-empty-state title="Wszystkie Twoje produkty są po terminie" action="Sprawdź listę „Co mam w domu”" :href="route('pantry.index')">
+                    Produkty po terminie „Należy zużyć do” pomijamy przy doborze przepisów, a na Twojej liście
+                    są teraz tylko takie. Popraw datę albo usuń produkt na liście „Co mam w domu”.
+                </x-empty-state>
             @else
                 <x-empty-state title="Nie znaleźliśmy przepisu z tymi produktami" action="Dopisz więcej produktów" :href="route('pantry.index')">
                     Żaden przepis nie ma jeszcze niczego z Twojej listy. Dopisz więcej produktów
@@ -89,7 +94,7 @@
                     <a class="btn btn-secondary" href="{{ route('pantry.cook', array_filter(['od' => $nastepne, 'najpierw' => $najpierwTermin ? 'termin' : null])) }}">Pokaż więcej przepisów</a>
                 </p>
             @elseif($granicaPrzegladania)
-                <p class="text-center mt-6">To koniec dostępnego przeglądania tej listy. Mogą być jeszcze inne pasujące przepisy. Zmień produkty na swojej liście, aby zobaczyć inne propozycje.</p>
+                <p class="text-center mt-6">To koniec dostępnego przeglądania tej listy.@if($jest_wiecej) Mogą być jeszcze inne pasujące przepisy. Zmień produkty na swojej liście, aby zobaczyć inne propozycje.@endif</p>
                 <p class="text-center"><a class="btn btn-secondary" href="{{ route('pantry.index') }}">Zmień listę produktów</a></p>
             @endif
         @endif

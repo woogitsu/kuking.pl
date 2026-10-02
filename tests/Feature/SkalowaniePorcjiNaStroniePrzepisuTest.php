@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
+use App\Models\RecipeStep;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -253,11 +254,92 @@ final class SkalowaniePorcjiNaStroniePrzepisuTest extends TestCase
             $odpowiedz = $this->get(route('recipes.show', [$przepis->slug, 'porcje' => $zle]))->assertOk();
 
             $odpowiedz->assertSee('Tej liczby porcji nie da się przeliczyć.')
-                ->assertSee('Wybierz od 1 do 100 przyciskami „Mniej” i „Więcej”.', false)
+                ->assertSee('Wpisz od 1 do 100 w polu albo użyj przycisków „Mniej” i „Więcej”.', false)
                 ->assertDontSee('Przeliczone na');
 
             $this->assertSame('200 g mąki', $this->skladniki($odpowiedz)[0], "Dla ?porcje={$zle}");
         }
+    }
+
+    public function test_pole_na_ile_porcji_ma_etykiete_biezaca_wartosc_i_przycisk(): void
+    {
+        $przepis = $this->przepis(4);
+
+        $xpath = $this->xpath($this->get(route('recipes.show', $przepis->slug))->assertOk());
+
+        $formularz = self::elementDom($xpath->query('//form[contains(@class,"porcje-wybor-pole")]')->item(0));
+        $this->assertSame('get', strtolower($formularz->getAttribute('method')));
+        $this->assertSame(route('recipes.show', $przepis->slug).'#skladniki', $formularz->getAttribute('action'));
+
+        $pole = self::elementDom($xpath->query('//input[@id="porcje-wybor-pole"]')->item(0));
+        $this->assertSame('porcje', $pole->getAttribute('name'));
+        $this->assertSame('decimal', $pole->getAttribute('inputmode'));
+        $this->assertSame('4', $pole->getAttribute('value'));
+        $this->assertSame('Na ile porcji?', trim($xpath->query('//label[@for="porcje-wybor-pole"]')->item(0)->textContent));
+        $this->assertSame('Przelicz', trim($xpath->query('//form[contains(@class,"porcje-wybor-pole")]//button[@type="submit"]')->item(0)->textContent));
+        $this->assertSame(0, $xpath->query('//input[@id="porcje-wybor-pole"][@placeholder]')->length, 'Etykieta nie może być placeholderem.');
+    }
+
+    public function test_wartosc_z_pola_przelicza_ilosci_a_pole_zachowuje_liczbe(): void
+    {
+        $przepis = $this->przepis(4);
+
+        foreach (['20' => '1000 g mąki', '20,0' => '1000 g mąki', '2,5' => '130 g mąki'] as $wpisane => $maka) {
+            $odpowiedz = $this->get(route('recipes.show', [$przepis->slug, 'porcje' => $wpisane]))->assertOk();
+
+            $this->assertSame($maka, $this->skladniki($odpowiedz)[0], "Dla ?porcje={$wpisane}");
+            $odpowiedz->assertDontSee('porcje-wybor-blad', false);
+        }
+
+        $xpath = $this->xpath($this->get(route('recipes.show', [$przepis->slug, 'porcje' => '20']))->assertOk());
+        $this->assertSame('20', self::elementDom($xpath->query('//input[@id="porcje-wybor-pole"]')->item(0))->getAttribute('value'));
+    }
+
+    public function test_zle_wartosci_z_pola_dostaja_komunikat_przy_polu_i_zostaja_w_polu(): void
+    {
+        $przepis = $this->przepis(4);
+
+        foreach (['0', '101', 'abc', '1e2', '-3'] as $zle) {
+            $odpowiedz = $this->get(route('recipes.show', [$przepis->slug, 'porcje' => $zle]))->assertOk();
+            $xpath = $this->xpath($odpowiedz);
+
+            $blad = $xpath->query('//p[@id="porcje-wybor-blad"]')->item(0);
+            $this->assertNotNull($blad, "Brak komunikatu przy polu dla {$zle}");
+            $this->assertStringContainsString('Wpisz liczbę od 1 do 100', $blad->textContent);
+
+            $pole = self::elementDom($xpath->query('//input[@id="porcje-wybor-pole"]')->item(0));
+            $this->assertSame($zle, $pole->getAttribute('value'), 'Wpisana wartość ma zostać w polu.');
+            $this->assertSame('true', $pole->getAttribute('aria-invalid'));
+            $this->assertSame('200 g mąki', $this->skladniki($odpowiedz)[0], 'Przy błędzie ilości zostają autora.');
+        }
+
+        // Tablica w adresie (`?porcje[]=5`): middleware wycina ją przed widokiem —
+        // bez błędu 500 i z ilościami autora.
+        $tablica = $this->get(route('recipes.show', [$przepis->slug, 'porcje' => [5]]))->assertOk();
+        $this->assertSame('200 g mąki', $this->skladniki($tablica)[0]);
+    }
+
+    public function test_liczba_z_pola_przechodzi_do_trybu_gotowania(): void
+    {
+        $przepis = $this->przepis(4);
+        RecipeStep::create(['recipe_id' => $przepis->getKey(), 'position' => 0, 'instruction' => 'Krok.']);
+
+        $odpowiedz = $this->get(route('recipes.show', [$przepis->slug, 'porcje' => '20']))->assertOk();
+
+        $this->assertStringContainsString(
+            route('cooking.show', ['recipe' => $przepis->slug, 'porcje' => '20']),
+            html_entity_decode($odpowiedz->getContent()),
+        );
+    }
+
+    public function test_pole_zachowuje_kontekst_kartki_pomocnika(): void
+    {
+        $przepis = $this->przepis(4);
+
+        $xpath = $this->xpath($this->get(route('recipes.show', [$przepis->slug, 'druk' => 1, 'dla' => 'pomocnika']))->assertOk());
+
+        $this->assertSame('1', self::elementDom($xpath->query('//form[contains(@class,"porcje-wybor-pole")]/input[@name="druk"]')->item(0))->getAttribute('value'));
+        $this->assertSame('pomocnika', self::elementDom($xpath->query('//form[contains(@class,"porcje-wybor-pole")]/input[@name="dla"]')->item(0))->getAttribute('value'));
     }
 
     public function test_przepis_bez_liczby_porcji_nie_ma_wyboru(): void
@@ -267,6 +349,7 @@ final class SkalowaniePorcjiNaStroniePrzepisuTest extends TestCase
         $this->get(route('recipes.show', [$przepis->slug, 'porcje' => 6]))
             ->assertOk()
             ->assertDontSee('Na ile porcji?')
+            ->assertDontSee('porcje-wybor-pole', false)
             ->assertDontSee('Przeliczone na')
             ->assertSee('200 g mąki');
     }

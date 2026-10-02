@@ -220,6 +220,23 @@
             <p class="cook-step-numer" aria-hidden="true">Krok {{ $krok }} z {{ $total }}</p>
             <p class="cook-step-tekst">{{ $aktualnyKrok->instruction }}</p>
 
+            {{-- Przeliczenie °F ↔ °C na żądanie (#2585). Tekst kroku powyżej
+                 zostaje dosłowny; blok pojawia się tylko przy jawnej
+                 temperaturze (°C/°F, „stopni Celsjusza/Fahrenheita”),
+                 działa bez JS i bez hovera, nic nie zapisuje. --}}
+            @php($temperatury = \App\Domain\Recipes\Gotowanie\Temperatury::wTekscie((string) $aktualnyKrok->instruction))
+            @if($temperatury !== [])
+                <details class="cook-temperatura" data-przelicz-temperature>
+                    <summary>Przelicz temperaturę</summary>
+                    <ul>
+                        @foreach($temperatury as $temperatura)
+                            <li>{{ $temperatura['tekst'] }}</li>
+                        @endforeach
+                    </ul>
+                    <p class="cook-temperatura-uwaga">To przybliżenie do 5 stopni. Tekst przepisu zostaje bez zmian.</p>
+                </details>
+            @endif
+
             @if($aktualnyKrok->media)
                 <div class="cook-step-zdjecie">
                     {{-- Wymiana odrzuconego zdjęcia kroku przez Policy, tylko dla aktywnego konta (#752).

@@ -37,7 +37,7 @@ Przy zmianie schematu dopisz opis do pliku obszaru (z planem wycofania, AGENTS.m
 | [`przepisy`](baza/przepisy.md) | Przepisy, ceny i wersje | recipes, ceny_skladnikow, recipe_slug_redirects, recipe_versions |
 | [`skladniki-kroki-i-miary`](baza/skladniki-kroki-i-miary.md) | Składniki, kroki, miary | ingredients, units, recipe_ingredients, recipe_steps, skladniki_odzywcze, miary_domowe, aliasy_skladnikow, users.moj_stol_enabled |
 | [`wspomnienia-i-urodziny`](baza/wspomnienia-i-urodziny.md) | Wspomnienia „Rok temu gotowałaś…" i urodziny bez roku | wspomnienia (issue #34), urodziny bez roku (users) |
-| [`ugotowalem-komentarze-zeszyty`](baza/ugotowalem-komentarze-zeszyty.md) | Ugotowałem, komentarze, zeszyty | collection_items, cooked_events, cooked_event_media, comment_thanks, comments, collections, collection_members, collection_invitations, first_post_events |
+| [`ugotowalem-komentarze-zeszyty`](baza/ugotowalem-komentarze-zeszyty.md) | Ugotowałem, komentarze, zeszyty | collection_items, cooked_events, cooked_event_media, comment_thanks, comments, collections, users.ulubiony_zeszyt_id, collection_members, collection_invitations, first_post_events |
 | [`powiadomienia-i-poczta`](baza/powiadomienia-i-poczta.md) | Powiadomienia, przegląd tygodnia, push, poczta | notifications, weekly_digest_sends, push_subscriptions, ustawienia_powiadomien_zewnetrznych, mail_failures, przypomnienia_dobowe |
 | [`kontakt`](baza/kontakt.md) | Formularz kontaktowy | contact_messages, contact_message_replies |
 | [`zgloszenia`](baza/zgloszenia.md) | Zgłoszenia i pilne alarmy | reports, human_urgent_alarm_attempts |
