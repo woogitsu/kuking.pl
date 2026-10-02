@@ -69,6 +69,12 @@ Ten plik zestawia każdą odpowiedź z tym, co jest dziś w kodzie i na produkcj
    Przed publicznym startem 16+ zalecana jest jeszcze pisemna notatka z danymi
    (zatrudnienie, obrót lub suma bilansowa, powiązania).
 
+8. **Railway: umowa powierzenia (DPA) podpisana 2.10.2026** (DocuSign, Effective Date
+   2026-10-02, EU SCC moduł 2 wbudowane). Szczegóły w
+   [`REJESTR_UMOW_POWIERZENIA.md`](../legal/REJESTR_UMOW_POWIERZENIA.md) §2.1.
+   Uwaga: Exhibit A deklaruje brak danych szczególnych kategorii (do porównania z
+   notatkami o zdrowiu).
+
 Punkty oznaczone wyżej jako DECYZJA przy pytaniach 6, 9, 12 i 15 są tym rozstrzygnięte.
 Otwarta zostaje data wejścia regulaminu dla bety (pytanie 4).
 
@@ -415,7 +421,7 @@ Otwarta zostaje data wejścia regulaminu dla bety (pytanie 4).
 
 | ID | Warunek | Stan 2.10.2026 | Kto |
 |---|---|---|---|
-| P0-01 | DPA i role aktywnych dostawców | Nie wykazano przyjętych wersji DPA (B8 w `DROGA_DO_BETY`) | TY |
+| P0-01 | DPA i role aktywnych dostawców | **Railway: DPA z SCC podpisane, obowiązuje od 2.10.2026** ([rejestr](../legal/REJESTR_UMOW_POWIERZENIA.md) §2.1). Cloudflare, EmailLabs i OpenAI: brak dowodu | TY |
 | P0-02 | Podstawy transferów | Brak mapy transferów z dowodami | TY + agent (mapa) |
 | P0-03 | Brak trackingu poczty | Wyłączone 2.10. Brak dowodu z dostarczonego MIME | TY (`.eml`) |
 | P0-04 | Analityka zgodna z PKE | Web Analytics **działa**, bez zgody | DECYZJA |

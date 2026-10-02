@@ -74,7 +74,32 @@ panelu w ogóle szukasz umowy.
   PRZEZ WŁAŚCICIELA** — widać go tylko w umowie albo w panelu (plan konta).
 - **Dlaczego nie da się tego pominąć:** bez Railway nie ma serwisu. Ten
   odbiorca nie podlega wariantowi „ograniczyć liczbę odbiorców".
-- **Data potwierdzenia:** ______________  **Kto:** ______________
+- **Data potwierdzenia:** 2.10.2026  **Kto:** właściciel (podpis), wpis: sesja koordynatora
+- **ZAWARTA (2.10.2026).** *Data Processing Addendum* Railway Corporation do
+  Terms of Service, podpisany przez obie strony przez DocuSign
+  (koperta `04FC80D8-ABBE-843E-8176-BFDC686A49A0`, 11 stron). Strony: Customer
+  Samsufi sp. z o.o. (podpisał prezes zarządu), Railway Corporation (Head of
+  Operations). **Effective Date: 2026-10-02.** Oryginał PDF trzyma właściciel;
+  nie publikujemy go w repozytorium (repozytorium jest publiczne, a dokument
+  zawiera podpisy).
+  - **Role (§2.1):** SAMSUFI jest administratorem, Railway procesorem.
+  - **Transfery (§9):** EU SCC (decyzja 2021/914) są włączone do DPA
+    i „uznane za podpisane”: moduł 2 (administrator → procesor), prawo i sąd
+    Irlandii; dla UK aneks ICO. Eksporter danych: Samsufi sp. z o.o.,
+    biuro@samsufi.pl.
+  - **Podprocesorzy (§6):** ogólne upoważnienie; lista na trust.railway.com;
+    zawiadomienie e-mailem co najmniej 10 dni przed nowym podprocesorem,
+    sprzeciw w ciągu 10 dni.
+  - **Naruszenie (§8):** Railway zawiadamia „without undue delay”.
+  - **Audyt (§5):** raporty i certyfikaty, a w razie potrzeby audyt raz w roku,
+    na koszt klienta.
+  - **UWAGA — Exhibit A: „Sensitive Data or Special Categories of Data: None”.**
+    Analiza z 2.10.2026 (§5.5) każe porównać to z faktycznym użyciem. Notatki
+    w przepisach, planerze i spiżarni mogą zawierać informacje o zdrowiu
+    (alergie, dieta po leczeniu). Do decyzji: ograniczyć funkcje, uzgodnić
+    zakres z Railway albo przyjąć ryzyko. Zapis w #2708.
+- **Wciąż do odczytania:** okres przechowywania dzienników Railway oraz
+  retencja kopii i PITR (panel).
 
 ### 2.2 Cloudflare R2 — zdjęcia i paczki eksportu
 
