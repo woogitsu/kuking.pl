@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Domain\Compliance\PrzedawnioneSprawyModeracyjne;
 use App\Domain\Compliance\PrzedawnioneUsunieteTresci;
 use App\Domain\Compliance\PrzedawnioneWersjePrzepisow;
+use App\Domain\Media\Actions\PrzypnijAwatar;
 use App\Domain\Media\DostepDoZdjecia;
 use App\Domain\Media\KasujZdjecie;
 use App\Domain\Moderation\Actions\RestoreContent;
@@ -19,6 +20,7 @@ use App\Models\Media;
 use App\Models\ModerationAction;
 use App\Models\Notification;
 use App\Models\Post;
+use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\RecipeVersion;
 use App\Models\Report;
@@ -399,6 +401,51 @@ class ZabezpieczenieDowoduCsamTest extends TestCase
 
         $this->assertDatabaseHas('media', ['id' => $zdjecie->getKey(), 'status' => Media::STATUS_SECURED]);
         Storage::disk('public')->assertExists($this->pliki($zdjecie));
+    }
+
+    public function test_nieszkodliwy_awatar_przechodzi_istniejaca_akcje_i_nie_wycieka_po_zabezpieczeniu(): void
+    {
+        $autor = $this->user('autor');
+        $moderator = $this->moderator();
+        $zdjecie = $this->zdjecie($autor);
+        $adres = '/zdjecia/'.$zdjecie->getKey().'/large';
+        $pliki = $this->pliki($zdjecie);
+
+        app(PrzypnijAwatar::class)->handle($autor, $zdjecie);
+        $this->assertSame(
+            (string) $zdjecie->getKey(),
+            (string) Profile::query()->where('user_id', $autor->getKey())->value('avatar_media_id'),
+        );
+        $this->actingAs($autor)->get($adres)->assertRedirect();
+
+        $this->wykonaj($moderator, 'media', $zdjecie)
+            ->assertSessionHasNoErrors()
+            ->assertRedirectContains('/csam/wynik/');
+
+        // Pierwsza asercja po akcji: mutant zdejmujący ochronę statusu musi
+        // oblać ten test z własnej przyczyny, przed pozostałymi sprawdzeniami.
+        $this->assertFalse($zdjecie->fresh()->maWariantDoPokazania('large'), 'CSAM_AWATAR_2708_NIE_WYCIEKA');
+        $this->assertSame(Media::STATUS_SECURED, $zdjecie->fresh()->status);
+        $this->assertSame(
+            (string) $zdjecie->getKey(),
+            (string) Profile::query()->where('user_id', $autor->getKey())->value('avatar_media_id'),
+        );
+        $this->assertDatabaseHas('zabezpieczenia_dowodow', [
+            'target_type' => 'media',
+            'target_id' => $zdjecie->getKey(),
+            'previous_media_status' => Media::STATUS_READY,
+        ]);
+        $this->assertSame(1, AuditLogEntry::where('action', 'moderation.csam_secured')->count());
+        $this->assertSame(User::STATUS_BANNED, $autor->fresh()->status);
+        $powiadomienia = Notification::where('user_id', $autor->getKey())->get();
+        $this->assertCount(1, $powiadomienia);
+        $this->assertSame(ZabezpieczDowodCsam::WIADOMOSC_BLOKADY, $powiadomienia->first()->data['message']);
+
+        $this->actingAs($moderator)->get($adres)->assertNotFound();
+        $this->assertFalse(app(DostepDoZdjecia::class)->moze($autor->fresh(), $zdjecie->fresh()));
+        auth()->logout();
+        $this->get($adres)->assertNotFound();
+        Storage::disk('public')->assertExists($pliki);
     }
 
     public function test_przepis_zabezpieczony_zachowuje_cala_historie_wersji(): void
