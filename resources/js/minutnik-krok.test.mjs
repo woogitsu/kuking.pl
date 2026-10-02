@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza, PRZETERMINOWANIE_NAJWYZEJ_MS} from './minutnik-krok.js';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika, PRZETERMINOWANIE_NAJWYZEJ_MS} from './minutnik-krok.js';
 
 test('pozostaloSekund liczy z zegara monotonicznego, nie ze zegara sciennego (issue #751)', () => {
     // Start minutnika: 5 minut = 300 sekund, na dowolnym punkcie zegara
@@ -87,4 +87,33 @@ test('krokZKlucza odczytuje krok tylko z kluczy minutnika TEGO przepisu (issue #
     assert.equal(krokZKlucza('kuking.cos-innego', 'zupa'), null);
     assert.equal(krokZKlucza(kluczStanu('zupa', ''), 'zupa'), null);
     assert.equal(krokZKlucza(null, 'zupa'), null);
+});
+
+test('2589: edycja i przeładowanie zachowują termin B, ale nie przypisują go nowemu krokowi 2', () => {
+    const idA = '00000000-0000-4000-8000-000000000001';
+    const idB = '00000000-0000-4000-8000-000000000002';
+    const a = 'a'.repeat(64);
+    const b = 'b'.repeat(64);
+    const stanNaStart = {stepId: idB, fingerprint: b, krokPierwotny: 2};
+    const zapis = zapiszStan(600, 1_600_000, stanNaStart);
+    const klucz = kluczStanu('zupa', 2, idB, b);
+    const poEdycji = [{id: idB, fingerprint: b}, {id: idA, fingerprint: a}];
+    const odczyt = odczytajTermin(zapis, 1_060_000, 100);
+
+    assert.equal(krokZKlucza(klucz, 'zupa'), `id_${idB}_${b}`);
+    assert.equal(aktualnyKrokMinutnika(odczyt, poEdycji), 1, 'TIMER_2589_ZAMIANA_KROKOW');
+    assert.equal(odczyt.krokPierwotny, 2);
+    assert.equal(odczyt.sekundyCalkiem, 600);
+    assert.equal(odczyt.terminMonotoniczny, 540_100, 'Edycja nie zmienia pierwotnego terminu');
+    assert.equal(kluczStanu('zupa', 2, idA, a) === klucz, false, 'Nowy krok 2 nie nadpisuje licznika B');
+    assert.equal(kluczStanu('zupa', 1, idB, b), klucz, 'Single i kolejka używają tego samego klucza czynności');
+
+    assert.equal(aktualnyKrokMinutnika(odczyt, [{id: idB, fingerprint: 'c'.repeat(64)}]), null,
+        'Zmieniona instrukcja lub czas nie są tą samą czynnością');
+    assert.equal(aktualnyKrokMinutnika(odczyt, [{id: idA, fingerprint: a}]), null,
+        'Usunięty krok nie wskazuje następcy pod dawnym numerem');
+    assert.equal(aktualnyKrokMinutnika(odczytajTermin(zapiszStan(600, 1_600_000), 1_060_000, 100), poEdycji), null,
+        'Stary zapis bez tożsamości nie może wskazać innej czynności');
+    // Zmiana samego tytułu przepisu nie jest w odcisku kroku.
+    assert.equal(aktualnyKrokMinutnika(odczyt, poEdycji), 1);
 });

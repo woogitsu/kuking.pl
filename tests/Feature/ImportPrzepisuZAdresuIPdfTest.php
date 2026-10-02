@@ -296,6 +296,34 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
     }
 
+    public function test_import_json_ld_listitem_item_zapisuje_kroki_w_prywatnym_szkicu_bez_modelu(): void
+    {
+        $autor = $this->user();
+        $html = '<html><script type="application/ld+json">'.json_encode([
+            '@context' => 'https://schema.org', '@type' => 'Recipe', 'name' => 'Placek z listy',
+            'recipeIngredient' => ['200 g mąki'],
+            'recipeInstructions' => ['@type' => 'ItemList', 'itemListElement' => [
+                ['@type' => 'ListItem', 'position' => 2, 'name' => 'Etykieta', 'item' => ['@type' => 'HowToStep', 'text' => 'Upiecz ciasto.']],
+                ['@type' => 'ListItem', 'position' => 1, 'item' => ['@type' => 'HowToStep', 'text' => 'Wymieszaj mąkę.']],
+            ]],
+        ], JSON_UNESCAPED_UNICODE).'</script></html>';
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
+            'https://przepisy.example.pl/blog' => Http::response($html, 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $this->actingAs($autor)->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/blog'])->assertRedirect();
+
+        $przepis = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
+        $this->assertSame('Placek z listy', $przepis->title);
+        $this->assertSame(['200 g mąki'], $przepis->ingredients()->pluck('ingredient_text')->all());
+        $this->assertSame(['Wymieszaj mąkę.', 'Upiecz ciasto.'], $przepis->steps()->orderBy('position')->pluck('instruction')->all(), 'JSONLD_LISTITEM_ITEM_ZAPISUJE_KROKI');
+        $this->assertSame(Recipe::STATUS_DRAFT, $przepis->status);
+        $this->assertSame('private', $przepis->visibility);
+        $this->assertSame('json_ld', PrzepisZImportu::query()->findOrFail($przepis->getKey())->droga);
+        Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
+    }
+
     public function test_meta_content_mikrodanych_importuje_skladniki_kroki_i_ulamkowe_porcje_bez_modelu(): void
     {
         $autor = $this->user();

@@ -19,6 +19,12 @@ do składnika (placeholder kreatora wprost podpowiadał „albo masło roślinne
    „Przeliczone na N porcji. Autor podał ilości na M porcji…” i link
    „Pokaż ilości z przepisu”. Zła wartość w adresie pokazuje przepis autora
    i zdanie, co zrobić. Przepis bez liczby porcji nie ma wyboru.
+
+   **Doprecyzowanie #2624.** Gdy autor podał więcej niż 101 porcji,
+   „Mniej” prowadzi od razu do 100 — najwyższej liczby przyjmowanej przez
+   wybór widza. Link nie może prowadzić do 149 porcji, skoro adres takiej
+   wartości nie przyjmuje. Ilość autora nadal jest dostępna bez przeliczenia;
+   granice wyboru widza i źródłowa liczba autora nie zmieniają się.
 2. **Ilość czytana z tekstu wiersza w chwili pokazania, nic nie jest
    zapisywane.** Składnik to jedno pole wolnego tekstu (D-017), `quantity`
    i `unit_id` są puste. `App\Domain\Recipes\Porcje\PrzeliczSkladnik` szuka

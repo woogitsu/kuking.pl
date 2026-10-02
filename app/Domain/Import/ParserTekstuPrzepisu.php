@@ -152,6 +152,9 @@ final class ParserTekstuPrzepisu
 
     private function bezPunktora(string $wiersz): string
     {
-        return trim((string) preg_replace('/^([-–—•*·▪●◦]|\d{1,2}[.)])\s*/u', '', $wiersz));
+        // Kropka jest numeracją tylko z odstępem: „1.5 kg” to ilość.
+        // „2)500 g” jest jednoznaczne także bez odstępu; „-1.5” może być
+        // liczbą ujemną, więc zachowujemy taki niejednoznaczny zapis.
+        return trim((string) preg_replace('/^(?:[•*·▪●◦]\s*|[-–—](?:\h+|(?!\d))|\d{1,2}\)\s*|\d{1,2}\.\h+)/u', '', $wiersz));
     }
 }
