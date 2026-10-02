@@ -285,6 +285,9 @@ class ListaZakupowController extends Controller
             'recipe' => $model,
             'wybor' => $wybor,
             'porcje' => (string) $wybor->doAdresu((float) $wybor->wybrane),
+            // Lista docelowa (#2528): wybór sprzed błędu albo sprzed zmiany
+            // przepisu. Pole porównuje go tylko z WŁASNYMI listami osoby.
+            'wybranaLista' => $this->idListy(old('lista', $request->query('lista'))),
             ...$podglad,
         ]);
     }
@@ -318,10 +321,20 @@ class ListaZakupowController extends Controller
             'porcje' => ['nullable', 'string', 'max:12'],
             'odcisk' => ['nullable', 'string', 'size:64'],
             'lista' => ['nullable', 'string'],
+            'ilosci' => ['nullable', 'string', 'in:przeliczone,autora'],
         ], [
             'porcje.max' => 'Nie rozpoznajemy tej liczby porcji. Wybierz ją jeszcze raz na stronie przepisu.',
             'odcisk.size' => 'Podgląd jest nieaktualny. Otwórz podgląd jeszcze raz.',
+            'ilosci.in' => 'Nie wiemy, które ilości dodać. Otwórz podgląd jeszcze raz i naciśnij jeden z przycisków.',
         ]);
+
+        // Podgląd porcji (#2489) ma jeden formularz z wyborem listy (#2528)
+        // i dwa przyciski: „Dodaj ilości autora” wysyła `ilosci=autora`, więc
+        // liczba porcji z podglądu zostaje pominięta i kopiujemy ilości autora.
+        $podglad = filled($dane['porcje'] ?? null) ? (string) $dane['porcje'] : null;
+        if (($dane['ilosci'] ?? null) === 'autora') {
+            $dane['porcje'] = null;
+        }
 
         // Przeliczone porcje (#2489): liczba musi przejść ten sam `WyborPorcji`
         // co strona przepisu; zła wartość NIE zapisuje po cichu innych ilości.
@@ -341,6 +354,12 @@ class ListaZakupowController extends Controller
             $wybrana = $lista->znajdzListe($user, $this->idListy($dane['lista'] ?? null));
             $wynik = $lista->dodajSkladniki($user, $recipe, (bool) ($dane['potwierdzam'] ?? false), $porcje, $odcisk, lista: $wybrana);
         } catch (ValidationException $e) {
+            // Z podglądu porcji (#2489) błąd listy docelowej (#2528) wraca na
+            // podgląd: przy polu wyboru, z tą samą liczbą porcji i wpisanym wyborem.
+            if ($podglad !== null && isset($e->errors()['lista'])) {
+                throw $e->redirectTo(route('shopping.recipe.scaled', ['recipe' => $recipe->slug, 'porcje' => $podglad]));
+            }
+
             // Strona przepisu, planer i ekran „dodać jeszcze raz?” nie mają
             // pola `text` ani podsumowania błędów przy tym przycisku — błąd
             // z limitu ginąłby po przekierowaniu „wstecz”, a przycisk
@@ -355,6 +374,8 @@ class ListaZakupowController extends Controller
             return redirect()->route('shopping.recipe.scaled', [
                 'recipe' => $recipe->slug,
                 'porcje' => $dane['porcje'] ?? null,
+                // Wybrana lista (#2528) zostaje zaznaczona na świeżym podglądzie.
+                ...($wybrana !== null ? ['lista' => $wybrana->getKey()] : []),
             ])->with(Komunikat::informacja(
                 'Składniki przepisu zmieniły się od chwili podglądu, więc niczego nie dodaliśmy. Sprawdź aktualny podgląd i zatwierdź jeszcze raz.',
             ));
@@ -394,6 +415,11 @@ class ListaZakupowController extends Controller
      * Ekran „Wybierz składniki do zakupów” (#2462): przepis z polami wyboru
      * przy każdej linii. Zwykły GET — nic nie dopisuje, a odświeżenie ani
      * wejście tu niczego nie zmienia. Zapis idzie dopiero z „Dodaj wybrane”.
+     *
+     * Nazwane listy (#2528): `?lista=` to lista wybrana przed ostrzeżeniem
+     * o duplikacie albo przed zmianą przepisu — pole wyboru wraca z nią,
+     * a ostrzeżenie liczy duplikat w obrębie TEJ listy. Lista usunięta
+     * w innej karcie nie blokuje ekranu: pole wraca do listy domyślnej.
      */
     public function pickRecipe(Request $request, Recipe $recipe, ListaZakupow $lista): View
     {
@@ -402,13 +428,25 @@ class ListaZakupowController extends Controller
         /** @var User $user */
         $user = $request->user();
 
+        try {
+            $docelowa = $lista->znajdzListe($user, $this->idListy($request->query('lista')));
+        } catch (ValidationException) {
+            $docelowa = null;
+        }
+
+        $wczesniej = session()->has('zakupy_wybor_juz_jest')
+            ? $lista->pierwszeDodanie($user, $recipe, $docelowa)
+            : null;
+
         return view('pages.zakupy.wybierz', [
             'recipe' => $recipe,
             ...$lista->doWyboru($recipe),
             'zPlanera' => $request->boolean('z_planera'),
-            'wczesniej' => session()->has('zakupy_wybor_juz_jest')
-                ? $lista->pierwszeDodanie($user, $recipe)
-                : null,
+            'wczesniej' => $wczesniej,
+            'docelowa' => $docelowa,
+            'wybranaLista' => $this->idListy(old('lista', $docelowa?->getKey())),
+            'nazwaListy' => $docelowa->name ?? ShoppingList::NAZWA_DOMYSLNEJ,
+            'maInneListy' => $lista->listy($user)->isNotEmpty(),
             'maksPozycji' => ListaZakupow::maksPozycji(),
         ]);
     }
@@ -431,7 +469,9 @@ class ListaZakupowController extends Controller
                 'skladniki.*' => ['required', 'string', 'uuid'],
                 'odcisk' => ['required', 'string', 'size:64'],
                 'potwierdzam' => ['nullable', 'boolean'],
+                'potwierdzona_lista' => ['nullable', 'string'],
                 'z_planera' => ['nullable', 'boolean'],
+                'lista' => ['nullable', 'string'],
             ], [
                 'skladniki.required' => 'Zaznacz co najmniej jeden składnik i naciśnij „Dodaj wybrane”. Nic nie zostało dodane.',
                 'skladniki.array' => 'Zaznacz składniki z listy i naciśnij „Dodaj wybrane”. Nic nie zostało dodane.',
@@ -445,8 +485,21 @@ class ListaZakupowController extends Controller
                 'odcisk.size' => 'Ta strona jest nieaktualna. Odśwież ją i zaznacz składniki jeszcze raz.',
             ]);
 
+            // Lista docelowa (#2528) — jak w „Dodaj składniki”: pusta = domyślna,
+            // cudza = odmowa, usunięta = błąd przy polu z zachowanym zaznaczeniem.
+            $idListy = $this->idListy($dane['lista'] ?? null);
+            $wybrana = $lista->znajdzListe($user, $idListy);
+            if ($wybrana !== null) {
+                $wracaDoWyboru = route('shopping.recipe.pick', [$recipe, ...($zPlanera ? ['z_planera' => 1] : []), 'lista' => $wybrana->getKey()]);
+            }
+
+            // „Dodaj wybrane jeszcze raz” potwierdza duplikat na liście, o którą
+            // pytało ostrzeżenie. Inna lista wybrana po ostrzeżeniu — nowe pytanie.
+            $potwierdzone = (bool) ($dane['potwierdzam'] ?? false)
+                && $this->idListy($dane['potwierdzona_lista'] ?? null) === $idListy;
+
             $wynik = $lista->dodajSkladniki(
-                $user, $recipe, (bool) ($dane['potwierdzam'] ?? false), odcisk: $dane['odcisk'], wybraneId: array_values($dane['skladniki']),
+                $user, $recipe, $potwierdzone, odcisk: $dane['odcisk'], wybraneId: array_values($dane['skladniki']), lista: $wybrana,
             );
         } catch (ValidationException $e) {
             // Limit z listy zakupów mówi o polu `text`, którego ten ekran nie
@@ -459,7 +512,7 @@ class ListaZakupowController extends Controller
             throw $e->redirectTo($wracaDoWyboru);
         }
 
-        $zaznaczone = $request->only('skladniki', 'odcisk');
+        $zaznaczone = $request->only('skladniki', 'odcisk', 'lista');
 
         if ($wynik['wynik'] === ListaZakupow::WYNIK_JUZ_JEST) {
             // Ostrzeżenie zachowuje dokładnie ten sam podzbiór: ekran wyboru
@@ -481,8 +534,9 @@ class ListaZakupowController extends Controller
 
         $ile = $wynik['dodano'];
 
-        return redirect()->route('shopping.index')->with(Komunikat::sukces(
-            'Dodane do listy zakupów: '.$ile.' '.Odmiana::rzeczownik($ile, 'wybrany składnik', 'wybrane składniki', 'wybranych składników')
+        return redirect($this->adres($wybrana?->getKey()))->with(Komunikat::sukces(
+            ($wybrana === null ? 'Dodane do listy zakupów: ' : 'Dodane do listy „'.$wybrana->name.'”: ')
+            .$ile.' '.Odmiana::rzeczownik($ile, 'wybrany składnik', 'wybrane składniki', 'wybranych składników')
             .' z przepisu „'.$recipe->title.'”.',
         ));
     }
