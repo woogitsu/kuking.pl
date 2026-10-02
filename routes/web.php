@@ -109,6 +109,7 @@ use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WskazowkaController;
 use App\Http\Controllers\WspolneGotowanieController;
 use App\Http\Controllers\WspomnienieController;
+use App\Http\Controllers\ZakupyDoSpizarniController;
 use App\Http\Controllers\ZeszytyUsunieteController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
 use App\Http\Controllers\ZgodaOdczytuAiController;
@@ -1231,6 +1232,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereUuid('pozycja')
         ->middleware("throttle:{$limits['zakupy']},zakupy")
         ->name('shopping.destroy');
+    // „Dodaj kupione do »Co mam w domu«” (#2481): wybór odhaczonych pozycji i
+    // poprawa nazw; samo odhaczenie niczego w spiżarni nie zmienia. Stoi PRZED
+    // trasami z `{pozycja}` (te mają `whereUuid`, więc się nie zderzają).
+    Route::get('/lista-zakupow/do-spizarni', [ZakupyDoSpizarniController::class, 'form'])
+        ->name('shopping.pantry.form');
+    Route::post('/lista-zakupow/do-spizarni', [ZakupyDoSpizarniController::class, 'store'])
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.pantry.store');
     Route::get('/przepisy/{recipe}/lista-zakupow', [ListaZakupowController::class, 'confirmRecipe'])
         ->name('shopping.recipe.confirm');
     Route::post('/przepisy/{recipe}/lista-zakupow', [ListaZakupowController::class, 'storeRecipe'])

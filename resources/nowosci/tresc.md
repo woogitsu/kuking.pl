@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Kupione prosto do „Co mam w domu”
+
+Wróciliście ze sklepu i odhaczyliście zakupy? Pod odhaczonymi pozycjami na liście zakupów jest przycisk „Dodaj kupione do »Co mam w domu«”. Zaznaczacie tylko to, co chcecie dopisać (papier do pieczenia raczej nie), poprawiacie nazwę produktu — na przykład z „2 szklanki mąki” na „mąka” — i potwierdzacie. Nie zgadujemy ilości ani terminów, produkty, które już macie, zostają bez zmian, a lista zakupów się nie zmienia. Samo odhaczenie niczego w spiżarni nie robi.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.
