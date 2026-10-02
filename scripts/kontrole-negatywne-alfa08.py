@@ -1312,6 +1312,9 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    ("Robots: awaria PCRE nie daje zgody (#2617)", "app/Domain/Import/Url/RobotsTxt.php",
+     "test_wyczerpanie_pcre_nie_jest_zgoda_na_pobranie",
+     lambda s: replace_once(s, "if ($wynik === false) {", "if (false) {")),
     ("Robots: zakodowane litery omijają zakaz (#2569)", "app/Domain/Import/Url/RobotsTxt.php",
      "test_zakodowane_unreserved_i_utf8_nie_omijaja_zakazu",
      lambda s: replace_once(s, "        $result = '';", "        return $value;\n        $result = '';")),

@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Robots: awaria PCRE nie daje zgody (#2617)': r'ROBOTS_2617_AWARIA_PCRE_NIE_JEST_ZGODA',
     'Robots: zakodowane litery omijają zakaz (#2569)': r'ROBOTS_2569_OKTETY_ZAKAZANE',
     'Robots: znaki zarezerwowane dekodowane bez ograniczenia (#2569)': r'ROBOTS_2569_BEZ_PONOWNEGO_DEKODOWANIA',
     'Robots: długość kodowania wygrywa nad oktetami (#2569)': r'ROBOTS_2569_DLUGOSC_OKTETOW',

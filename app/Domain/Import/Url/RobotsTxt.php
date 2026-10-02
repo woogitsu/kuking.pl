@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Import\Url;
 
+use App\Domain\Import\ImportOdrzucony;
+
 /**
  * Odczyt pliku `robots.txt` według RFC 9309 — tyle, ile potrzeba, żeby
  * uczciwie odpowiedzieć „czy wolno nam pobrać TĘ ścieżkę" (D-300).
@@ -131,7 +133,14 @@ final class RobotsTxt
 
         $regex = '#^'.str_replace('\*', '.*', preg_quote($rdzen, '#')).($kotwica ? '$' : '').'#';
 
-        return preg_match($regex, $sciezka) === 1;
+        $wynik = preg_match($regex, $sciezka);
+
+        if ($wynik === false) {
+            // Awaria PCRE nie oznacza zgody wydawcy na pobranie strony.
+            throw new ImportOdrzucony(ImportOdrzucony::ROBOTS_NIEPEWNE);
+        }
+
+        return $wynik === 1;
     }
 
     private static function normalizeOctets(string $value, bool $pattern): string
