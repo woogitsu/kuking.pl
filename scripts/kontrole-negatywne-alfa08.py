@@ -1269,6 +1269,15 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    ("Robots: zakodowane litery omijają zakaz (#2569)", "app/Domain/Import/Url/RobotsTxt.php",
+     "test_zakodowane_unreserved_i_utf8_nie_omijaja_zakazu",
+     lambda s: replace_once(s, "        $result = '';", "        return $value;\n        $result = '';")),
+    ("Robots: znaki zarezerwowane dekodowane bez ograniczenia (#2569)", "app/Domain/Import/Url/RobotsTxt.php",
+     "test_zarezerwowane_znaki_nie_staja_sie_separatorami_ani_operatorami",
+     lambda s: replace_once(s, "        $result = '';", "        return rawurldecode($value);\n        $result = '';")),
+    ("Robots: długość kodowania wygrywa nad oktetami (#2569)", "app/Domain/Import/Url/RobotsTxt.php",
+     "test_normalizacja_nie_zmienia_grup_query_wildcardow_i_remisu",
+     lambda s: replace_once(s, "strlen((string) preg_replace('/%[0-9A-F]{2}/', 'x', $wzorzec))", "strlen($wzorzec)")),
     # #2524: przeliczony składnik i nieprzeliczona kwota autora to sprzeczna strona.
     ("Koszt autora pozostaje bazowy po zmianie porcji (#2524)", "resources/views/pages/recipes/show.blade.php", "test_koszt_autora_i_skladniki_uzywaja_tego_samego_wyboru_porcji_takze_w_wydruku",
      lambda s: replace_once(s, "{{ $kosztAutora }}</p>", "{{ $recipe->costLabel() }}</p>")),
