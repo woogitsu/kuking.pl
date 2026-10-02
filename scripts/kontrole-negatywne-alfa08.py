@@ -1280,6 +1280,17 @@ checks = [
     ("Wspólna sesja traci zdjęcie kroku (#2486)", "resources/views/pages/wspolne-gotowanie/show.blade.php",
      "test_zamienniki_i_zdjecia_sa_przy_wlasciwych_elementach_dla_obu_rol",
      lambda s: replace_once(s, '@if($krok->media)', '@if(false)')),
+    # #2449: osobno wykrycie jawnej zmiany i odmowa zgadywania starego wyboru.
+    ("Historia ignoruje wybór Bez ilości (#2449)", "app/Domain/Recipes/Historia/PorownanieWersji.php",
+     "test_jawna_zmiana_bez_ilosci_w_obie_strony_jest_widoczna_bez_zmiany_tekstu_autora",
+     lambda s: replace_once(s,
+         "if ($staryWybor !== null && $nowyWybor !== null && $staryWybor !== $nowyWybor) {",
+         "if (false) {")),
+    ("Historia zgaduje wybór w starej migawce (#2449)", "app/Domain/Recipes/Historia/PorownanieWersji.php",
+     "test_stara_migawka_bez_wyboru_nie_staje_sie_nie_a_pozostale_zmiany_sa_widoczne",
+     lambda s: replace_once(s,
+         "} elseif (($staryWybor === null) !== ($nowyWybor === null)) {",
+         "} elseif (false) {")),
     # #2291: regresja domyślnej konfiguracji ma zapalić odczyt `SHOW jit` na
     # rzeczywistym nowym połączeniu PostgreSQL, nie tylko test tekstu configu.
     ("Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)", "config/database.php", "PolaczenieBazyMaWylaczonyJitTest::swieze_polaczenie_aplikacji_ma_jit_off",

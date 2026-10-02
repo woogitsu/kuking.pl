@@ -52,7 +52,8 @@ final class PorownanieWersji
         $b = new MigawkaWersji($nowsza);
 
         [$pola, $bezDanych] = self::pola($a, $b, $zAlergenami);
-        $skladniki = self::skladniki($a->skladniki(), $b->skladniki());
+        [$skladniki, $bezDanychSkladnikow] = self::skladniki($a->skladniki(), $b->skladniki());
+        array_push($bezDanych, ...$bezDanychSkladnikow);
         $kroki = self::kroki($a->kroki(), $b->kroki());
 
         return [
@@ -118,9 +119,9 @@ final class PorownanieWersji
     }
 
     /**
-     * @param  list<array{group_name: ?string, text: string, note: ?string, substitutes: ?string}>  $stare
-     * @param  list<array{group_name: ?string, text: string, note: ?string, substitutes: ?string}>  $nowe
-     * @return list<array{rodzaj: string, przed: ?string, po: ?string}>
+     * @param  list<array{group_name: ?string, text: string, note: ?string, substitutes: ?string, no_amount: ?bool}>  $stare
+     * @param  list<array{group_name: ?string, text: string, note: ?string, substitutes: ?string, no_amount: ?bool}>  $nowe
+     * @return array{0: list<array{rodzaj: string, przed: ?string, po: ?string}>, 1: list<string>}
      */
     private static function skladniki(array $stare, array $nowe): array
     {
@@ -131,9 +132,10 @@ final class PorownanieWersji
         }
 
         $wynik = [];
+        $bezDanych = [];
         $sparowane = [];
 
-        foreach ($nowe as $n) {
+        foreach ($nowe as $pozycja => $n) {
             $klucz = self::klucz($n['text']);
 
             if (! empty($kolejka[$klucz])) {
@@ -141,6 +143,16 @@ final class PorownanieWersji
                 $sparowane[$i] = true;
                 $przed = self::opisSkladnika($stare[$i]);
                 $po = self::opisSkladnika($n);
+                $staryWybor = $stare[$i]['no_amount'];
+                $nowyWybor = $n['no_amount'];
+
+                if ($staryWybor !== null && $nowyWybor !== null && $staryWybor !== $nowyWybor) {
+                    // Nazwany wybór jest osobny od tekstu autora; nie dopisujemy „do smaku”.
+                    $przed .= self::opisWyboruBezIlosci($staryWybor);
+                    $po .= self::opisWyboruBezIlosci($nowyWybor);
+                } elseif (($staryWybor === null) !== ($nowyWybor === null)) {
+                    $bezDanych[] = 'wybór „Bez ilości” przy składniku '.($pozycja + 1).' („'.$n['text'].'”)';
+                }
 
                 if ($przed !== $po) {
                     $wynik[] = ['rodzaj' => self::ZMIENIONO, 'przed' => $przed, 'po' => $po];
@@ -158,7 +170,7 @@ final class PorownanieWersji
             }
         }
 
-        return $wynik;
+        return [$wynik, $bezDanych];
     }
 
     /**
@@ -270,7 +282,7 @@ final class PorownanieWersji
     }
 
     /**
-     * @param  array{group_name: ?string, text: string, note: ?string, substitutes: ?string}  $s
+     * @param  array{group_name: ?string, text: string, note: ?string, substitutes: ?string, no_amount: ?bool}  $s
      */
     private static function opisSkladnika(array $s): string
     {
@@ -287,6 +299,11 @@ final class PorownanieWersji
         }
 
         return $opis;
+    }
+
+    private static function opisWyboruBezIlosci(bool $wybrane): string
+    {
+        return ' (wybór „Bez ilości”: '.($wybrane ? 'tak' : 'nie').')';
     }
 
     private static function klucz(string $tekst): string
