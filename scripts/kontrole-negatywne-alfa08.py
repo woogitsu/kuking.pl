@@ -2312,6 +2312,13 @@ checks = [
      lambda s: replace_once(s, "                    'label' => $pozycja['wpis']->label,\n", "                    'label' => $pozycja['wpis']->label,\n                    'done_at' => $pozycja['wpis']->done_at,\n")),
     ("Zrobione w Planerze: rollback nie odmawia przy oznaczeniach (#2593)", "database/migrations/2026_10_02_190200_add_done_at_to_meal_plan_entries.php", "PlanerZrobioneTest",
      lambda s: replace_once(s, "        if ($oznaczone > 0) {", "        if (false) {")),
+    # #2443: poprawianie pozycji listy zakupów — rollback nie może po cichu
+    # zatrzeć informacji, że tekst nie jest już dosłowną linią z przepisu, a
+    # stara karta nie może nadpisać nowszej korekty.
+    ("Poprawka zakupów: rollback nie odmawia przy poprawionych pozycjach (#2443)", "database/migrations/2026_10_05_143127_add_edited_at_to_shopping_list_items.php", "ListaZakupowPoprawkaTest",
+     lambda s: replace_once(s, "        if ($poprawione > 0) {", "        if (false) {")),
+    ("Poprawka zakupów: stara karta nadpisuje nowszą korektę (#2443)", ZAKUPY_LISTA, "ListaZakupowPoprawkaTest",
+     lambda s: replace_once(s, "if (! hash_equals(self::znacznikTekstu($pozycja), $widzianyZnacznik)) {", "if (false) {")),
     # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
     # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
     ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,
