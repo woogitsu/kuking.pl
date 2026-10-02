@@ -63,7 +63,7 @@
     {{-- Wybór tygodnia po dacie (#2513): zwykły GET bez skryptu. Zły albo pusty
          `tydzien` daje bieżący tydzień (PlanerTygodnia::poniedzialek). Jak
          przyciski wyżej, nie przenosi wyszukiwania dnia (`dzien`, `q`). --}}
-    <form class="planer-dopisz mb-5" method="GET" action="{{ route('planer.show') }}">
+    <form class="planer-dopisz mb-5" method="GET" action="{{ route('planer.show') }}" novalidate>
         <div class="field">
             <label for="f-tydzien">Pokaż tydzień z dniem</label>
             <input class="field-input" id="f-tydzien" type="date" name="tydzien" value="{{ $poniedzialek->toDateString() }}">
