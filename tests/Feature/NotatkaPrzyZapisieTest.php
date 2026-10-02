@@ -218,7 +218,7 @@ final class NotatkaPrzyZapisieTest extends TestCase
             ->assertOk()->getContent();
 
         $this->assertSame('B', $this->notatka($zeszyt), 'Stara karta nie może nadpisać notatki B.');
-        $this->assertStringContainsString('została zmieniona, zanim ją zapisałeś', $html);
+        $this->assertStringContainsString('została zmieniona przed Twoim zapisem', $html);
         $this->assertStringContainsString('Aktualna notatka brzmi: „B”', $html);
         $this->assertMatchesRegularExpression('/<textarea[^>]*>\s*C\s*<\/textarea>/', $html, 'Tekst C zostaje w polu.');
         $this->assertMatchesRegularExpression('/<details class="mt-2"\s+open\s*>/', $html);

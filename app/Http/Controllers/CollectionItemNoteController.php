@@ -55,7 +55,7 @@ class CollectionItemNoteController extends Controller
             return redirect()->back(fallback: route('collections.show', $collection))
                 ->withInput($request->except(UpdateCollectionItemNote::POLE_ODCISKU))
                 ->withErrors([
-                    'note' => 'Ta notatka została zmieniona, zanim ją zapisałeś — przez inną osobę albo przez Ciebie w innej karcie. '
+                    'note' => 'Ta notatka została zmieniona przed Twoim zapisem — przez inną osobę albo przez Ciebie w innej karcie. '
                         .'Nic nie zostało nadpisane. '.$aktualna.' '
                         .'Twój tekst został w polu poniżej. Żeby zastąpić nim obecną notatkę, kliknij „Zapisz notatkę” jeszcze raz. '
                         .'Żeby zostawić obecną, po prostu nie zapisuj i zamknij formularz.',
