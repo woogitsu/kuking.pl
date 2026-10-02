@@ -430,6 +430,41 @@ final class ImportParseryTest extends TestCase
         $this->assertSame(['Bigos', 'Kapusta kiszona'], $wiersze);
     }
 
+    public function test_zagniezdzone_komentarze_znikaja_z_calym_poddrzewem_a_przepis_zostaje(): void
+    {
+        foreach (['div', 'section', 'ol', 'ul'] as $tag) {
+            $html = '<article><p>Własny przepis.</p></article>'
+                .'<'.$tag.' id="comments"><div>Komentarz pierwszy.</div><p>Komentarz drugi.</p></'.$tag.'>'
+                .'<nav>Menu</nav><script>Obcy skrypt.</script><form><p>Formularz.</p></form>'
+                .'<p>Koniec przepisu.</p>';
+
+            $this->assertSame(
+                ['Własny przepis.', 'Koniec przepisu.'],
+                TekstStrony::wiersze($html),
+                'IMPORT_2640_CALE_PODDRZEWO: '.$tag,
+            );
+        }
+
+        $this->assertSame(
+            ['Przed.', 'Po.'],
+            TekstStrony::wiersze('<p>Przed.</p><div class="comments-area"><p>Komentarz.</p></div><p>Po.</p>'),
+        );
+        $this->assertSame(
+            ['Przed.', 'Po.'],
+            TekstStrony::wiersze('<span>Przed.</span><div id="comments"><div>Komentarz.</div></div><span>Po.</span>'),
+            'IMPORT_2640_CALE_PODDRZEWO: bez sklejania tekstu sąsiadów',
+        );
+    }
+
+    public function test_po_usunieciu_komentarzy_pozostaja_dotychczasowe_limity_wierszy_i_znakow(): void
+    {
+        $wiersze = array_map(static fn (int $n): string => '<p>Wiersz '.$n.'</p>', range(1, 405));
+        $html = '<div id="comments"><p>Nie przepis.</p></div>'.implode('', $wiersze);
+
+        $this->assertCount(TekstStrony::MAKS_WIERSZY, TekstStrony::wiersze($html));
+        $this->assertSame(['Przepis.'], TekstStrony::wiersze('<p>Przepis.</p><p>'.str_repeat('a', TekstStrony::MAKS_ZNAKOW).'</p>'));
+    }
+
     // ---------------------------------------------------------------
     // Tryb fragmentów
     // ---------------------------------------------------------------
