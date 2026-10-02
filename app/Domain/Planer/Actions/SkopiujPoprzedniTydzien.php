@@ -80,6 +80,10 @@ final class SkopiujPoprzedniTydzien
                     'day' => $dzien,
                     'recipe_id' => $pozycja['wpis']->recipe_id,
                     'label' => $pozycja['wpis']->label,
+                    // Dopisek (#2549) jedzie z pozycją; istniejącej pozycji
+                    // w celu `insertOrIgnore` nie rusza, więc jej ręczny tekst
+                    // nie zostaje ani nadpisany, ani zdublowany.
+                    'note' => $pozycja['wpis']->note,
                     'created_at' => $teraz,
                     'updated_at' => $teraz,
                 ]);

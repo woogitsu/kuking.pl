@@ -18,6 +18,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * `done_at` (#2593) to prywatne „Zrobione” — także poza `$fillable`: stan
  * ustawia wyłącznie akcja `OznaczPozycjePlanu`, nie żądanie.
  *
+ * `note` (#2549) to krótki prywatny dopisek przy pozycji z przepisem —
+ * także poza `$fillable`; ustawia go wyłącznie akcja `ZapiszDopisekPlanu`.
+ *
  * Pozycja bez przepisu i bez tekstu jest możliwa — zostaje po TWARDYM
  * usunięciu przepisu (`ON DELETE SET NULL`), patrz migracja.
  */

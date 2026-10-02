@@ -533,6 +533,12 @@ final class PodgladPaczkiEksportu
                 || $this->tekst($krok['opis'] ?? null, 1, LimityTekstuPrzepisu::POLA['steps.*.instruction']) === null) {
                 return 'Któryś krok jest pusty albo dłuższy niż '.LimityTekstuPrzepisu::POLA['steps.*.instruction'].' znaków.';
             }
+
+            // Nazwa etapu (#2652) jest nieobowiązkowa; paczka sprzed tej funkcji
+            // jej nie ma i to jest poprawny przepis bez etapów.
+            if (! $this->opcjonalnyTekst($krok['etap'] ?? null, LimityTekstuPrzepisu::POLA['steps.*.section_name'])) {
+                return 'Przy którymś kroku nazwa etapu jest za długa (najwyżej '.LimityTekstuPrzepisu::POLA['steps.*.section_name'].' znaków).';
+            }
         }
 
         return null;
@@ -787,7 +793,11 @@ final class PodgladPaczkiEksportu
         $kroki = [];
 
         foreach ($p['kroki'] ?? [] as $krok) {
-            $kroki[] = ['instruction' => $this->tekst($krok['opis'] ?? null, 1, LimityTekstuPrzepisu::POLA['steps.*.instruction'])];
+            $etap = is_string($krok['etap'] ?? null) ? trim($krok['etap']) : '';
+            $kroki[] = [
+                'instruction' => $this->tekst($krok['opis'] ?? null, 1, LimityTekstuPrzepisu::POLA['steps.*.instruction']),
+                'section_name' => $etap === '' ? null : $etap,
+            ];
         }
 
         $opis = is_string($p['krotki_opis'] ?? null) && trim($p['krotki_opis']) !== '' ? trim($p['krotki_opis']) : null;

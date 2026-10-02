@@ -14,6 +14,7 @@ use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
+use App\Domain\Recipes\OdzyskajUsunietyPrzepis;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Domain\Recipes\Porcje\WyborSztuk;
 use App\Domain\Recipes\Porcje\ZapamietanePorcje;
@@ -25,8 +26,10 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\RecipeHint;
 use App\Models\Unit;
+use App\Support\CytatKroku;
 use App\Support\Komunikat;
 use App\Support\KursorListy;
+use App\Support\Odmiana;
 use App\Support\OdpowiedziWatku;
 use App\Support\PaginationLinks;
 use App\Support\StaryAdresPrzepisu;
@@ -191,9 +194,11 @@ class RecipeController extends Controller
     /** Prywatna lista autora; skróty na „Dodaj” nie zastępują dostępu do starszych szkiców. */
     public function drafts(Request $request): View
     {
+        // Odłożone na później (#2550) to ta sama lista, osobny widok: `?odlozone=1`.
+        $odlozone = $request->query('odlozone') === '1';
+        $zapytanie = $request->user()->recipes()->where('status', Recipe::STATUS_DRAFT);
         $drafts = KursorListy::strona(
-            $request->user()->recipes()
-                ->where('status', Recipe::STATUS_DRAFT)
+            ($odlozone ? $zapytanie->whereNotNull('odlozony_at') : $zapytanie->whereNull('odlozony_at'))
                 ->orderByDesc('updated_at')
                 ->orderByDesc('id'),
             20,
@@ -203,7 +208,16 @@ class RecipeController extends Controller
             $this->authorize('view', $draft);
         }
 
-        return view('pages.recipes.drafts', ['drafts' => $drafts]);
+        $liczbaOdlozonych = $request->user()->recipes()
+            ->where('status', Recipe::STATUS_DRAFT)
+            ->whereNotNull('odlozony_at')
+            ->count();
+
+        return view('pages.recipes.drafts', [
+            'drafts' => $drafts,
+            'odlozone' => $odlozone,
+            'liczbaOdlozonych' => $liczbaOdlozonych,
+        ]);
     }
 
     private function wizard(Request $request, Recipe $recipe): View
@@ -213,6 +227,7 @@ class RecipeController extends Controller
             'drafts' => $request->user()
                 ->recipes()
                 ->where('status', Recipe::STATUS_DRAFT)
+                ->whereNull('odlozony_at')
                 ->orderByDesc('updated_at')
                 ->limit(5)
                 ->get(),
@@ -541,8 +556,20 @@ class RecipeController extends Controller
         $wyborZapamietanych = app(ZapamietanePorcje::class)->wybor($model, $request->user(), $request->query('porcje'));
         $wyborSztuk = WyborSztuk::dla($model, $request->query('sztuki'));
 
+        // „Zapytaj o ten krok” (#2556): link tylko dla konta, które może użyć
+        // zwykłego formularza komentarza (aktywne, nie autor przepisu), a cytat
+        // w polu tylko wtedy, gdy to konto naprawdę zobaczy formularz. Gość i konto
+        // zawieszone dostają stronę bez zmian — też z kopii brzegowej (#610).
+        $mozeZapytacOKrok = $request->user() !== null
+            && $request->user()->isActive()
+            && $request->user()->getKey() !== $model->author_id;
+
         return view('pages.recipes.show', [
             'recipe' => $model,
+            'mozeZapytacOKrok' => $mozeZapytacOKrok,
+            'tekstStartowyPytania' => $request->user() !== null && $request->user()->isActive()
+                ? CytatKroku::tekstStartowy($model, $request->query(CytatKroku::PARAMETR))
+                : null,
             // Na ile porcji pokazać ilości (D-284). Wybór żyje w adresie
             // (`?porcje=6`), przeliczenie w `App\Domain\Recipes\Porcje`.
             // Wybór SZTUK (#2645) wygrywa z `?porcje=` i z zapamiętaną liczbą
@@ -705,6 +732,11 @@ class RecipeController extends Controller
 
         $model->delete();
 
-        return redirect()->route('home')->with(Komunikat::sukces('Przepis usunięty.'));
+        $dni = OdzyskajUsunietyPrzepis::dniOkna();
+
+        return redirect()->route('home')->with(Komunikat::sukces(
+            'Przepis usunięty. Jeśli to pomyłka, przez '.$dni.' '.Odmiana::rzeczownik($dni, 'dzień', 'dni', 'dni')
+            .' możesz go odzyskać w „Zeszyt”, w „Usunięte przepisy”.',
+        ));
     }
 }

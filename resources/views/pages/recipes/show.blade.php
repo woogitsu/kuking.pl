@@ -834,29 +834,44 @@
                     {{-- D-017: numer i akapit, BEZ tytułu kroku z kitu.
                          Autor pisze jeden ciąg zdań i nie ma skąd wziąć
                          tytułu, którego nie napisał. --}}
-                    <ol class="step-list">
-                        @foreach($recipe->steps as $step)
-                            <li>
-                                <span class="step-number" aria-hidden="true">{{ $step->position + 1 }}</span>
-                                <div>
-                                    <span class="visually-hidden">Krok {{ $step->position + 1 }}.</span>
-                                    <p class="m-0 whitespace-pre-line">{{ $step->instruction }}</p>
-                                    @if($step->timerLabel())
-                                        <p class="m-0">Czas kroku: {{ $step->timerLabel() }}</p>
-                                    @endif
-                                    @if($step->media)
-                                        <div class="mt-3 max-w-[20rem]">
-                                            {{-- Opis dla czytnika (issue #1304): własny opis autora,
-                                                 a bez niego kontekst kroku zamiast pustego `alt`. --}}
-                                            <x-photo :media="$step->media" variant="feed" class="post-photo"
-                                                     :alt="$step->media->alt_text ?: 'Zdjęcie do kroku '.($step->position + 1)"
-                                                     tresc="przepis" :wymien-url="$edycjaZdjecPrzepisu ? $edycjaZdjecPrzepisu.'#f-steps-'.$loop->index.'-photo' : null" />
-                                        </div>
-                                    @endif
-                                </div>
-                            </li>
-                        @endforeach
-                    </ol>
+                    {{-- Nazwane etapy (#2652): bez ani jednej nazwy to jedna grupa
+                         bez nagłówka, czyli ta sama lista co dawniej. Numer kroku
+                         zostaje numerem instrukcji w całym przepisie. --}}
+                    @foreach(\App\Domain\Recipes\EtapyPrzygotowania::grupy($recipe->steps) as $etapPrzygotowania)
+                        @if($etapPrzygotowania['nazwa'] !== null)
+                            <h3 class="naglowek-grupy">{{ $etapPrzygotowania['nazwa'] }}</h3>
+                        @endif
+                        <ol class="step-list">
+                            @foreach($etapPrzygotowania['kroki'] as $indeksKroku => $step)
+                                <li>
+                                    <span class="step-number" aria-hidden="true">{{ $step->position + 1 }}</span>
+                                    <div>
+                                        <span class="visually-hidden">Krok {{ $step->position + 1 }}.</span>
+                                        <p class="m-0 whitespace-pre-line">{{ $step->instruction }}</p>
+                                        @if($step->timerLabel())
+                                            <p class="m-0">Czas kroku: {{ $step->timerLabel() }}</p>
+                                        @endif
+                                        {{-- „Zapytaj o ten krok” (#2556): zwykły link, bez JS. Tylko dla
+                                             konta, które może użyć zwykłego formularza komentarza, i nie dla
+                                             autora przepisu (sam siebie nie zapyta). Prowadzi do formularza
+                                             pod przepisem z cytatem w polu; niczego nie wysyła. --}}
+                                        @if($mozeZapytacOKrok)
+                                            <p class="m-0 mt-2"><a class="btn btn-quiet" href="{{ route('recipes.show', ['recipe' => $recipe->slug, \App\Support\CytatKroku::PARAMETR => $step->position + 1]) }}#nowy-komentarz">Zapytaj o ten krok<span class="visually-hidden"> (krok {{ $step->position + 1 }})</span></a></p>
+                                        @endif
+                                        @if($step->media)
+                                            <div class="mt-3 max-w-[20rem]">
+                                                {{-- Opis dla czytnika (issue #1304): własny opis autora,
+                                                     a bez niego kontekst kroku zamiast pustego `alt`. --}}
+                                                <x-photo :media="$step->media" variant="feed" class="post-photo"
+                                                         :alt="$step->media->alt_text ?: 'Zdjęcie do kroku '.($step->position + 1)"
+                                                         tresc="przepis" :wymien-url="$edycjaZdjecPrzepisu ? $edycjaZdjecPrzepisu.'#f-steps-'.$indeksKroku.'-photo' : null" />
+                                            </div>
+                                        @endif
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ol>
+                    @endforeach
                 @endif
             </section>
         </div>
@@ -1052,7 +1067,7 @@
         <div class="kolumna-czytania">
             <x-zdejmij-z-urzedu :tresc="$recipe" typ="recipe" />
 
-            <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem" :action="route('recipes.comment', $recipe->slug)" :autor-przepisu="$recipe->author_id" />
+            <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem" :action="route('recipes.comment', $recipe->slug)" :autor-przepisu="$recipe->author_id" :tekst-startowy="$tekstStartowyPytania" />
         </div>
     </article>
 </x-layout>

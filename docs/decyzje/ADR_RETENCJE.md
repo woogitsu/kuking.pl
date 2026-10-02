@@ -704,6 +704,14 @@ polityce („do usunięcia treści przez Ciebie”) i art. 17 RODO.
   dopiero, gdy ostatnie cudze wykonanie zniknie.
 - **Zdjęcia:** po skasowaniu treści `KasujZdjecie::jesliNieuzywane()`;
   gdy dysk zawiedzie, dobiera je `kuking:sprzataj-osierocone-zdjecia`.
+- **Odzyskanie przez autora (#2620, 2.10.2026, D-333):** w tym samym oknie
+  autor z aktywnym kontem może jednym przyciskiem („Usunięte przepisy” w
+  Zeszycie) przywrócić własny przepis jako prywatny szkic
+  (`OdzyskajUsunietyPrzepis`). Okna to nie wydłuża i nie tworzy nowych kopii:
+  po terminie, po nagrobku, po wymazaniu konta i przy jakiejkolwiek sprawie
+  moderacyjnej (ta sama definicja co wyjątek moderacyjny wyżej) przepis nie
+  wraca. Sprzątanie czyta kandydata jeszcze raz pod blokadą wiersza, więc
+  przepis, który właśnie wrócił, nie znika tej samej nocy.
 
 ### 5.8 Wersje przepisu (`recipe_versions`) — dopisane 29.09.2026 (#2024, D-333)
 
@@ -726,6 +734,20 @@ minut w bazie). Wymazanie konta kasuje ją od razu. Tabela nie trafia do
 paczki danych (`InwentarzDanychKonta`: to te same pozycje, co w sekcji
 `lista_zakupow`, trzymane najwyżej 15 minut). Liczbę potwierdził właściciel
 2.10.2026.
+
+### 5.10 Kopia odzyskania usuniętego zeszytu (`deleted_collections`) — dopisane 2.10.2026 (#2567, D-333)
+
+Usunięcie PRYWATNEGO zeszytu bez członków i zaproszeń zostawia krótką kopię
+(nazwa, opis, data założenia, pozycje z własnymi dopiskami i datami zapisania —
+same identyfikatory cudzych treści). Okno to samo co w §5.7
+(`kuking.usuniete_tresci.retention_days`, 30 dni od usunięcia), a kopię kasuje
+to samo zadanie co inne usunięte treści (`kuking:sprzataj-usuniete-tresci`),
+czytając wiersz jeszcze raz pod blokadą. Wcześniej kopia znika po odzyskaniu
+zeszytu i przy wymazaniu konta. Zeszyty publiczne i wspólne oraz objęte sprawą
+moderacyjną kopii nie dostają. Nie wydłuża to żadnego okresu i nie tworzy
+historii: jedna kopia na zeszyt, najwyżej 20 na osobę i 1000 pozycji na
+zeszyt. Paczka danych ma sekcję `usuniete_zeszyty`. Zakres potwierdza właściciel
+w D-333.
 
 ## 6. Decyzje właściciela — zbiorczo
 

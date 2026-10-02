@@ -203,7 +203,7 @@ new class extends Component
      * krokiem — a tego nie dałaby druga tablica indeksowana pozycją
      * (audyt T12/T24: przestawienie kroków przypisywało zdjęcie do złego).
      *
-     * @var list<array{_key: string, instruction: string, timer_minutes: string, mediaId: ?string, photo: mixed}>
+     * @var list<array{_key: string, instruction: string, section_name: string, timer_minutes: string, mediaId: ?string, photo: mixed}>
      */
     public array $steps = [];
 
@@ -334,6 +334,8 @@ new class extends Component
             ->map(fn ($row): array => [
                 '_key' => $this->nextRowKey(),
                 'instruction' => (string) $row->instruction,
+                // Nazwa etapu nad krokiem (#2652); pusty tekst = bez nagłówka.
+                'section_name' => (string) $row->section_name,
                 // Baza trzyma sekundy (tego czyta tryb gotowania), człowiek
                 // wpisuje minuty. Przelicznik jest jeden — `StepTimer` —
                 // i ten sam po obu stronach zapisu.
@@ -474,7 +476,7 @@ new class extends Component
 
     public function removeStep(int $index): void
     {
-        $this->replaceSteps(WierszePrzepisu::bezWiersza($this->steps, $index));
+        $this->replaceSteps(WierszePrzepisu::bezKroku($this->steps, $index));
 
         if ($this->steps === []) {
             $this->steps = [$this->blankStep()];
@@ -1200,7 +1202,7 @@ new class extends Component
      * `id` zawsze null — zdjęcie kroku niesie `mediaId` w wierszu
      * (uzasadnienie w `WierszePrzepisu::kroki()`).
      *
-     * @return list<array{id: null, instruction: string, timer_minutes: string, media_id: ?string}>
+     * @return list<array{id: null, instruction: string, timer_minutes: string, media_id: ?string, section_name: ?string}>
      */
     public function cleanSteps(): array
     {
@@ -1274,12 +1276,13 @@ new class extends Component
         return ['_key' => $this->nextRowKey(), 'group_name' => '', 'text' => '', 'note' => '', 'substitutes' => '', 'no_amount' => false];
     }
 
-    /** @return array{_key: string, instruction: string, timer_minutes: string, mediaId: ?string, photo: mixed} */
+    /** @return array{_key: string, instruction: string, section_name: string, timer_minutes: string, mediaId: ?string, photo: mixed} */
     private function blankStep(): array
     {
         return [
             '_key' => $this->nextRowKey(),
             'instruction' => '',
+            'section_name' => '',
             'timer_minutes' => '',
             'mediaId' => null,
             'photo' => null,

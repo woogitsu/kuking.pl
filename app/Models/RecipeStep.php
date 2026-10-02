@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property ?string $section_name Nazwa etapu, od którego zaczyna się ten krok (#2652); NULL = brak nagłówka.
+ */
 class RecipeStep extends Model
 {
     use HasUuids;
@@ -21,6 +24,7 @@ class RecipeStep extends Model
         'instruction',
         'media_id',
         'timer_seconds',
+        'section_name',
     ];
 
     protected function casts(): array

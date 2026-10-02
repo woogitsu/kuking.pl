@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Collections\Odzyskiwanie\UsunZeszyt;
 use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
 use App\Domain\Recipes\Gotowanie\Wspolne\SesjaWspolnegoGotowania;
 use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
@@ -661,6 +662,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $przepis = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $przepisPrywatny = Recipe::factory()->create(['author_id' => $wlasciciel->getKey(), 'visibility' => 'private']);
         $przepisDoKasacji = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
+        $szkicDoOdlozenia = Recipe::factory()->draft()->create(['author_id' => $wlasciciel->getKey()]);
+        // Omyłkowo usunięty przepis właściciela (#2620) — cel „Odzyskaj przepis”.
+        $przepisUsuniety = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
+        $przepisUsuniety->delete();
         // Historia wersji (#2024) idzie tą samą bramką co przepis: dwie wersje,
         // żeby ekran porównania miał z czym porównywać.
         foreach ([1, 2] as $numerWersji) {
@@ -775,6 +780,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'name' => 'Zeszyt na próbę',
             'visibility' => 'private',
         ]);
+        // Omyłkowo usunięty prywatny zeszyt właściciela (#2567) — cel „Odzyskaj zeszyt”.
+        $zeszytUsuniety = Collection::create([
+            'owner_id' => $wlasciciel->getKey(),
+            'name' => 'Zeszyt usunięty przez pomyłkę',
+            'visibility' => 'private',
+        ]);
+        app(UsunZeszyt::class)->handle($wlasciciel, $zeszytUsuniety);
         // Pozycja, przy której właściciel pisze prywatną notatkę (#978).
         $zeszyt->recipes()->attach($przepis->getKey());
 
@@ -1276,6 +1288,16 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.unsave', $przepisPrywatny), [], [$W, $W, $W, $W, $O]);
         $dodaj('recipes.destroy', 'usunięcie przepisu', 'delete',
             route('recipes.destroy', $przepisDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // „Odłóż na później” własnego szkicu (#2550): tylko autor; szkic jest
+        // wyłącznie jego, więc moderator też dostaje odmowę (`RecipePolicy::postpone`).
+        $dodaj('recipes.drafts.postpone', 'odłożenie własnego szkicu na później', 'post',
+            route('recipes.drafts.postpone', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.drafts.resume', 'powrót do pracy nad odłożonym szkicem', 'delete',
+            route('recipes.drafts.resume', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
+        // Odzyskanie własnego, usuniętego przepisu (#2620): TYLKO autor z aktywnym
+        // kontem. Moderator nie ma tu furtki — cudzy „kosz” jest prywatny.
+        $dodaj('collections.deleted-recipes.recover', 'odzyskanie usuniętego przepisu', 'post',
+            route('collections.deleted-recipes.recover', $przepisUsuniety->getKey()), [], [$W, $O, $O, $O, $O]);
 
         // ─── WYKONANIA („Ugotowałem") ────────────────────────────────────
         $dodaj('cooked.show', 'wykonanie publicznego przepisu', 'get',
@@ -1297,6 +1319,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // więc to samo wykonanie wystarcza dla wszystkich ról.
         $dodaj('wspomnienia.ukryj-wykonanie', 'ukrycie wspomnienia z wykonania', 'post',
             route('wspomnienia.ukryj-wykonanie', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        // #2540: prywatna liczba faktycznych porcji — poprawia wyłącznie kucharz
+        // (`CookedEventPolicy::poprawPorcje`), także autor przepisu dostaje odmowę.
+        $dodaj('cooked.porcje.edit', 'ekran poprawy prywatnej liczby porcji', 'get',
+            route('cooked.porcje.edit', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooked.porcje.update', 'poprawa prywatnej liczby porcji', 'put',
+            route('cooked.porcje.update', $wykonanie), ['faktyczne_porcje' => '8'], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.destroy', 'usunięcie wykonania', 'delete',
             route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $O, $O]);
         // Wskazówki od gotujących (#2352): prosi wyłącznie autor przepisu
@@ -1347,6 +1375,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.print', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.destroy', 'usunięcie zeszytu', 'delete',
             route('collections.destroy', $zeszytDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // Odzyskanie własnego, usuniętego zeszytu (#2567): TYLKO właściciel z aktywnym
+        // kontem. Moderator nie ma tu furtki — cudzy „kosz” jest prywatny.
+        $dodaj('collections.deleted.recover', 'odzyskanie usuniętego zeszytu', 'post',
+            route('collections.deleted.recover', $zeszytUsuniety->getKey()), [], [$W, $O, $O, $O, $O]);
 
         // ─── „CO MAM W DOMU” (D-285) ─────────────────────────────────────
         // Lista prywatna: produkt usuwa wyłącznie właściciel — moderator
@@ -1408,6 +1440,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('collections.note', 'notatka przy zapisie', 'patch',
             route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
             ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
+        // Ręczna kolejność przepisów (#2544) — wyłącznie właściciel własnego,
+        // prywatnego zeszytu bez zaproszonych osób (`CollectionPolicy::reorder`).
+        $dodaj('collections.recipes.move', 'przesunięcie przepisu w zeszycie', 'post',
+            route('collections.recipes.move', ['collection' => $zeszyt, 'pozycja' => $przepis->getKey()]),
+            ['kierunek' => 'wyzej'], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.recipes.order-reset', 'powrót do kolejności zapisu', 'post',
+            route('collections.recipes.order-reset', $zeszyt), [], [$W, $O, $O, $O, $O]);
         // Skrót do własnego zeszytu w „Moje” (#2542) — wyłącznie właściciel.
         $dodaj('collections.shortcut.store', 'ustawienie skrótu do zeszytu', 'post',
             route('collections.shortcut.store', $zeszyt), [], [$W, $O, $O, $O, $O]);
@@ -1475,6 +1514,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // Prywatne „Zrobione” (#2593): tylko właściciel pozycji.
         $dodaj('planer.done', 'oznaczenie „Zrobione” pozycji planera', 'patch',
             route('planer.done', $pozycjaPlanu), ['zrobione' => '1', 'stan' => ''], [$W, $O, $O, $O, $O]);
+        $dodaj('planer.note', 'dopisek przy przepisie w planerze', 'patch',
+            route('planer.note', $pozycjaPlanu), ['note' => 'Kolacja', 'stan' => ''], [$W, $O, $O, $O, $O]);
         $dodaj('planer.destroy', 'pozycja planera tygodnia', 'delete',
             route('planer.destroy', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
 

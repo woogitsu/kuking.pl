@@ -18,6 +18,7 @@ use App\Models\CookedEvent;
 use App\Models\CookingNote;
 use App\Models\CookingProgress;
 use App\Models\CookingSession;
+use App\Models\DeletedCollection;
 use App\Models\Hide;
 use App\Models\MealPlanEntry;
 use App\Models\Notification;
@@ -195,6 +196,7 @@ final class CollectUserExportData
             'wskazowki_do_moich_przepisow' => $this->hintsAsAuthor($user),
             'moje_komentarze' => $this->ownComments($user),
             'kolekcje' => $this->collections($user),
+            'usuniete_zeszyty' => $this->usunieteZeszyty($user),
             // Wspólne zeszyty (#1743, D-302) — w granicach RODO art. 15 ust. 4,
             // patrz `sharedCollections()` i `collectionInvitations()` niżej.
             'zeszyty_udostepnione_mi' => $this->sharedCollections($user),
@@ -457,6 +459,8 @@ final class CollectUserExportData
             'trudnosc' => $recipe->difficulty,
             'widocznosc' => $recipe->visibility,
             'status' => $recipe->status,
+            // Prywatne „Odłożone na później” (#2550): kiedy autor odłożył szkic; `null` = szkic bieżący.
+            'odlozony_na_pozniej' => $this->date($recipe->odlozony_at),
             'skad_przepis' => $recipe->source_type,
             'skad_przepis_opis' => Recipe::SOURCE_LABELS[$recipe->source_type] ?? null,
             'zrodlo_adres' => $recipe->source_url,
@@ -507,6 +511,8 @@ final class CollectUserExportData
                 // kroki tak, jak czyta je człowiek: od jedynki.
                 'numer' => $step->position + 1,
                 'opis' => $step->instruction,
+                // Nazwa etapu, od którego zaczyna się ten krok (#2652); null = brak nagłówka.
+                'etap' => $step->section_name,
                 'minutnik_sekundy' => $step->timer_seconds,
                 'zdjecie' => $photos->pathFor($step->media_id),
             ])->all(),
@@ -583,6 +589,10 @@ final class CollectUserExportData
             // dzień `RRRR-MM-DD`; `null` = nie podano. Osobny od `kiedy`
             // (chwili zgłoszenia).
             'dzien_gotowania_podany_przeze_mnie' => $event->dzien_gotowania?->format('Y-m-d'),
+            // Prywatna liczba faktycznie ugotowanych porcji (#2540), podana
+            // przez samą osobę; `null` = nie podano (to NIE jest liczba porcji
+            // przepisu).
+            'faktyczne_porcje_podane_przeze_mnie' => $event->faktyczne_porcje,
             // Numer wersji przepisu otwartej przy gotowaniu (#2378) — sam numer,
             // bez treści wersji; `null` = nie wiadomo (wykonanie sprzed zmiany
             // albo wersja usunięta retencją).
@@ -746,6 +756,14 @@ final class CollectUserExportData
             // Wspólny zeszyt (#1743): kto poza Tobą ma dostęp — nazwa
             // wyświetlana, jak przy obserwujących. Nigdy e-mail ani id.
             'osoby_z_dostepem' => $collection->members->map(fn (User $czlonek): string => $czlonek->displayName())->values()->all(),
+            // RĘCZNA KOLEJNOŚĆ (#2544): lista `przepisy` niżej idzie w kolejności
+            // zeszytu — ułożonej przez właściciela albo od najnowszego zapisu.
+            // Klucz mówi, która z dwóch to jest, żeby kolejność w pliku nie
+            // była zgadywana. Osobisty porządek należy do paczki, bo jest
+            // danymi tej osoby (RODO: dostęp i przenoszenie).
+            'kolejnosc_przepisow' => $collection->recipes->contains(fn (Recipe $recipe): bool => $recipe->pivot->position !== null)
+                ? 'reczna'
+                : 'od_najnowszego',
             'przepisy' => $collection->recipes->map(fn (Recipe $recipe): array => [
                 'tytul' => $recipe->title,
                 'autor' => $recipe->author?->displayName(),
@@ -1150,6 +1168,7 @@ final class CollectUserExportData
                 'adres_przepisu' => $przepis !== null ? route('recipes.show', $przepis->slug) : null,
                 'przepis_niedostepny' => $wpis->recipe_id !== null && $przepis === null,
                 'dodano' => $this->date($wpis->created_at),
+                'dopisek' => $wpis->note,
                 'zrobione' => $wpis->done_at !== null,
                 'oznaczono_jako_zrobione' => $this->date($wpis->done_at),
             ];
@@ -1304,6 +1323,48 @@ final class CollectUserExportData
                 'ilosc' => $produkt->quantity_note,
                 'mrozone' => (bool) $produkt->frozen,
             ])->all();
+    }
+
+    /**
+     * Usunięte prywatne zeszyty, które czekają w oknie odzyskania (#2567).
+     * Dopiski i daty zapisania to dane osoby, więc idą w całości; tytuł
+     * przepisu tylko wtedy, gdy przepis widać dziś pod jego adresem.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function usunieteZeszyty(User $user): array
+    {
+        $dni = max(1, (int) config('kuking.usuniete_tresci.retention_days'));
+
+        return DeletedCollection::query()
+            ->where('owner_id', $user->getKey())
+            ->where('deleted_at', '>', now()->subDays($dni))
+            ->orderBy('deleted_at')
+            ->get()
+            ->map(function (DeletedCollection $kopia) use ($dni): array {
+                $przepisy = Recipe::query()
+                    ->whereIn('id', array_values(array_filter(array_column($kopia->items, 'recipe_id'))))
+                    ->get()
+                    ->keyBy('id');
+
+                return [
+                    'nazwa' => $kopia->name,
+                    'opis' => $kopia->description,
+                    'zalozono' => $this->date($kopia->collection_created_at),
+                    'usunieto' => $this->date($kopia->deleted_at),
+                    'mozna_odzyskac_do' => $this->date($kopia->deleted_at->addDays($dni)),
+                    'pozycje' => array_map(fn (array $pozycja): array => [
+                        'rodzaj' => $pozycja['recipe_id'] !== null ? 'przepis' : 'wpis',
+                        'tytul' => $pozycja['recipe_id'] === null
+                            ? null
+                            : (($przepis = $przepisy->get($pozycja['recipe_id'])) !== null && $this->granica->widzi($przepis)
+                                ? $przepis->title
+                                : self::TRESC_NIEDOSTEPNA),
+                        'moj_dopisek' => $pozycja['note'],
+                        'zapisano' => $this->date(Carbon::parse($pozycja['created_at'])),
+                    ], $kopia->items),
+                ];
+            })->all();
     }
 
     /**

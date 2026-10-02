@@ -4,7 +4,7 @@
      Pola nadal wiążą się z kreatorem przez `wire:model` (Livewire czyta
      DOM strony, nie granice komponentów Blade).
 
-     $steps             wiersze kroków (`_key`, `instruction`, `timer_minutes`, `mediaId`, `photo`)
+     $steps             wiersze kroków (`_key`, `instruction`, `section_name`, `timer_minutes`, `mediaId`, `photo`)
      $liczbaKrokow      int — `recipe-wizard::STEPS`
      $zOdczytu          bool — szkic z odczytu zdjęcia
      $skan              ?Media — `skanOdczytu()` --}}
@@ -30,6 +30,13 @@
 
     @foreach($steps as $index => $row)
         <div class="wizard-row" wire:key="krok-{{ $row['_key'] ?? $index }}">
+            {{-- Nazwa etapu (#2652) — nieobowiązkowa; nagłówek nad tym krokiem
+                 na stronie przepisu, w wydruku i w trybie gotowania. --}}
+            <x-field :name="'steps.'.$index.'.section_name'" label="Nazwa etapu nad tym krokiem"
+                     :wire="'steps.'.$index.'.section_name'" :value="$row['section_name'] ?? ''"
+                     placeholder="Dzień 1: farsz"
+                     help="Wpisz, żeby zacząć nowy etap. Etap trwa do kroku z następną nazwą. Zostaw puste, jeśli ten krok należy do poprzedniego etapu." />
+
             <x-field :name="'steps.'.$index.'.instruction'" :label="'Krok '.($index + 1).': co się robi'" type="textarea" :rows="3"
                      :wire="'steps.'.$index.'.instruction'" :value="$row['instruction'] ?? ''"
                      :placeholder="$index === 0 ? 'Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny.' : null" />

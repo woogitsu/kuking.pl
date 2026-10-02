@@ -65,6 +65,7 @@ final class InwentarzDanychKonta
         'recipe_hints.author_id' => [self::EKSPORT, 'wskazowki_do_moich_przepisow'],
         'comments.author_id' => [self::EKSPORT, 'moje_komentarze'],
         'collections.owner_id' => [self::EKSPORT, 'kolekcje'],
+        'deleted_collections.owner_id' => [self::EKSPORT, 'usuniete_zeszyty'],
         // Wspólny zeszyt (#1743, D-302). Pozycje dodane we WŁASNYM zeszycie
         // są w `kolekcje` (z podpisem „dodane_przez"), w cudzym — tutaj.
         'collection_members.user_id' => [self::EKSPORT, 'zeszyty_udostepnione_mi'],

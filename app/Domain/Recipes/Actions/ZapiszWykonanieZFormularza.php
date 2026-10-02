@@ -67,6 +67,7 @@ final class ZapiszWykonanieZFormularza
             kluczWyslania: $kluczWyslania,
             wersjaPrzepisuId: $wersjaPrzepisuId,
             dzienGotowania: isset($dane['dzien_gotowania']) && is_string($dane['dzien_gotowania']) ? $dane['dzien_gotowania'] : null,
+            faktycznePorcje: isset($dane['faktyczne_porcje']) && is_string($dane['faktyczne_porcje']) ? $dane['faktyczne_porcje'] : null,
         );
     }
 }

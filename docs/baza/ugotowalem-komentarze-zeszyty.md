@@ -82,6 +82,27 @@ Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
   (D-088 — to deklaracja człowieka, której kolejny `migrate` nie odtworzy, a
   odtworzenie z `cooked_at` byłoby nieprawdą); inaczej zdejmuje CHECK i
   kolumnę. Test: `tests/Feature/PrywatnyDzienGotowaniaTest.php`.
+- **`faktyczne_porcje numeric(5,2) NULL`** (CHECK `faktyczne_porcje IS NULL OR
+  (faktyczne_porcje >= 0.5 AND faktyczne_porcje <= 100)`, migracja
+  `2026_10_03_180000_add_faktyczne_porcje_to_cooked_events`, #2540, decyzja
+  właściciela z 2.10.2026) — **prywatna** liczba porcji, którą kucharz
+  świadomie podał o TEJ próbie („przepis na 4, ugotowano 8”). `numeric`, nie
+  `float`: „2,5” i „0,75” wracają dokładnie; dwa miejsca po przecinku to jawna
+  precyzja, zakres 0,5–100 pilnuje CHECK i `App\Domain\Recipes\Gotowanie\PorcjeWykonania`.
+  `NULL` = nie podano (domyślnie; wykonania sprzed migracji bez backfillu,
+  bo liczba porcji przepisu nie jest dowodem, ile ugotowano). Nic jej nie
+  wylicza z przepisu, adresu `?porcje=`, zapamiętanego wyboru ani Planera.
+  Poza `$fillable`; ustawiają ją wyłącznie `RecordCookedEvent` (przy zapisie)
+  i `PoprawPorcjeWykonania` (poprawa/usunięcie przy istniejącym wykonaniu —
+  zapytanie po kluczu, bez nowego wykonania, powiadomienia ani ruszania
+  `cooked_at`). Widzi ją tylko kucharz (karta wykonania gdy `auth()->id() ===
+  user_id`; poprawa: `CookedEventPolicy::poprawPorcje`); publiczna karta, profil,
+  autor przepisu, powiadomienie, API i SEO jej nie niosą. Eksport danych konta:
+  `ugotowalem[].faktyczne_porcje_podane_przeze_mnie`. Wymazanie konta zeruje
+  kolumnę także przy zakresie `minimum` (wykonanie zostaje). **Rollback:**
+  `down()` odmawia, gdy choć jedno wykonanie ma zapisaną liczbę (D-088 —
+  deklaracja człowieka, której kolejny `migrate` nie odtworzy); inaczej zdejmuje
+  CHECK i kolumnę. Test: `tests/Feature/PrywatneFaktycznePorcjeTest.php`.
 - **`recipe_version_id uuid NULL` → `recipe_versions (id)` `ON DELETE SET NULL`**
   (#2378, migracja `2026_10_01_100100_add_recipe_version_id_to_cooked_events`) —
   wersja przepisu otwarta przy formularzu „Ugotowałem”. **Wskaźnik, nie kopia:**
@@ -502,6 +523,46 @@ pod zamkiem pary kont). **Usunięcie konta** — patrz D-302.
   `tests/Feature/CofniecieMigracjiWspolnegoZeszytuTest.php` (odmowa i kontrola
   dodatnia dla obu migracji).
 
+### collection_items.position — ręczna kolejność przepisów (#2544)
+
+`collection_items.position integer NULL` (migracja
+`2026_10_03_140000_add_position_to_collection_items`) — miejsce przepisu na
+liście, którą właściciel ułożył sam (V2, F7/D-333).
+
+- `NULL` = zeszyt nieułożony: kolejność jak dotąd, od najnowszego zapisu
+  (`created_at DESC`, remis po id przepisu). Migracja **nie nadaje** pozycji
+  istniejącym wierszom. Pozycje powstają z pierwszego świadomego kliknięcia
+  „Wyżej" / „Niżej" / „Na początek" / „Na koniec" i obejmują wtedy WSZYSTKIE
+  przepisy zeszytu (także niewidoczne dla oglądającego), numerowane od 1;
+- CHECK `collection_items_position_check`: `position IS NULL OR (position > 0
+  AND recipe_id IS NOT NULL)` — dotyczy wyłącznie przepisów, wpisy zostają bez
+  pozycji. Dodany `NOT VALID` + `VALIDATE`;
+- unikalny indeks częściowy `collection_items_position_unique`
+  `(collection_id, position) WHERE position IS NOT NULL` (`CONCURRENTLY`):
+  w jednym zeszycie dwa przepisy nie dzielą pozycji, także przy wyścigu.
+  Dziury po wyjętych przepisach są dozwolone — przesuwanie liczy się po
+  kolejności, nie po różnicy numerów;
+- reguły (`App\Domain\Collections\KolejnoscPrzepisow`): przepis dopisany albo
+  przywrócony do ułożonego zeszytu staje na końcu (`max + 1`, pod zamkiem
+  zeszytu); do nieułożonego — jak zawsze. Przesunięcie nie rusza `created_at`,
+  notatki, autora dopisania i nie powiadamia nikogo. „Wróć do kolejności
+  zapisu" zeruje pozycje zeszytu;
+- czyta to `Collection::recipes()` (`position ASC NULLS LAST, created_at DESC,
+  recipe_id DESC`), więc ekran zeszytu, wydruk (`collections.print`) i paczka
+  danych (`kolekcje[].kolejnosc_przepisow` = `reczna` | `od_najnowszego`, lista
+  `przepisy` w tej kolejności) pokazują ten sam układ. Układać może wyłącznie
+  właściciel własnego PRYWATNEGO zeszytu bez zaproszonych osób
+  (`CollectionPolicy::reorder`); zeszyty wspólne są poza pilotem. Wymazanie
+  konta i usunięcie zeszytu kasują pozycje razem z wierszami (CASCADE).
+
+**Rollback.** `down()` **odmawia**, gdy choć jeden przepis ma pozycję (D-088):
+ułożenie jest decyzją człowieka, której `up()` nie odtworzy. Komunikat podaje
+liczbę zeszytów i przepisów oraz polecenie kopii (`CREATE TABLE … AS SELECT`);
+alternatywą jest „Wróć do kolejności zapisu" w zeszytach. Na bazie bez
+ręcznych układów zdejmuje indeks, CHECK i kolumnę bez pytania. Pilnuje
+`tests/Feature/KolejnoscPrzepisowWZeszycieMigracjaTest.php` (odmowa i kontrola
+dodatnia).
+
 ### first_post_events
 
 Trwała pamięć jednorazowego pierwszego wkładu autora (#1009), niezależna od
@@ -561,3 +622,60 @@ Migracja `2026_10_02_190100_add_ulubiony_zeszyt_to_users`.
   `KUKING_ROLLBACK_KASUJE_SKROT_ZESZYTU=1`; komunikat podaje kopię
   `CREATE TABLE ... AS SELECT` i odtworzenie. Na bazie bez skrótów zdejmuje
   indeks, klucz i kolumnę bez pytania. Test: `tests/Feature/UlubionyZeszytMigracjaTest.php`.
+
+### deleted_collections — kopia odzyskania usuniętego zeszytu (issue #2567, D-333)
+
+Migracja `2026_10_03_160000_create_deleted_collections_table`. Krótka,
+ograniczona KOPIA zeszytu, który jego właściciel usunął; służy wyłącznie do
+odzyskania go przez właściciela w oknie `kuking.usuniete_tresci.retention_days`
+(to samo okno co przepisy, wpisy i komentarze — ADR retencji §5.7). To NIE jest
+miękkie usunięcie: `collections` i `collection_items` nie zmieniają znaczenia,
+więc liczniki, eksport, unikalna nazwa i unikalny zeszyt domyślny nie muszą
+niczego filtrować.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | |
+| `owner_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | właściciel; poza `$fillable` (model ma pusty `$fillable`) |
+| `collection_id` | `uuid NOT NULL UNIQUE` | dawny identyfikator zeszytu, bez klucza obcego (zeszytu już nie ma); odzyskany zeszyt wraca pod nim |
+| `name` | `varchar(120) NOT NULL` | `CHECK` 1–120 znaków (`deleted_collections_name_check`) |
+| `description` | `varchar(500) NULL` | |
+| `collection_created_at` | `timestamptz NOT NULL` | data założenia zeszytu (wraca bez zmian) |
+| `items` | `jsonb NOT NULL DEFAULT '[]'` | pozycje: `{recipe_id, post_id, note, created_at}` — TYLKO identyfikatory, własny dopisek i data zapisania; żadnych tytułów ani tekstów cudzych treści |
+| `items_count` | `integer NOT NULL` | `CHECK jsonb_typeof(items) = 'array' AND jsonb_array_length(items) = items_count` (`deleted_collections_items_check`) |
+| `deleted_at` | `timestamptz NOT NULL DEFAULT now()` | początek okna odzyskania |
+
+Indeksy: `(owner_id, deleted_at)` (ekran „Usunięte zeszyty”), `deleted_at`
+(nocne sprzątanie).
+
+Kiedy powstaje kopia (`UsunZeszyt`, ta sama transakcja co usunięcie, pod
+blokadą `users` → `collections`): konto AKTYWNE, zeszyt PRYWATNY, niedomyślny,
+bez członków i bez oczekujących zaproszeń, bez sprawy moderacyjnej
+(`reports`/`moderation_actions` z `target_type = 'collection'`), nie więcej niż
+`kuking.collections.odzyskanie_max_pozycji` (1000) pozycji, nie więcej niż
+`kuking.collections.odzyskanie_max_zeszytow` (20) kopii osoby w oknie. W innym
+wypadku zeszyt jest usuwany jak dawniej, a komunikat mówi, że nie da się go
+odzyskać (bez nazywania sprawy moderacyjnej).
+
+Odzyskanie (`OdzyskajUsunietyZeszyt`, `FOR NO KEY UPDATE` na koncie, potem
+`FOR UPDATE` na wierszu kopii): konto aktywne, własność, termin, brak sprawy
+moderacyjnej, nazwa niezajęta przez inny zeszyt osoby
+(`collections_owner_name_lower_unique`; kopia zostaje, gdy nazwa jest zajęta).
+Zeszyt wraca jako prywatny, niewspółdzielony, z oryginalną datą założenia;
+pozycje wracają z własnym dopiskiem i datą zapisania, o ile ich przepis albo
+wpis nadal istnieje i nie jest usunięty (skasowany przepis nie jest
+wskrzeszany, a liczba zapisów, które nie wróciły, trafia do komunikatu).
+`added_by_id` = właściciel. Powiadomień nie ma. Skrót w „Moje” nie wraca sam.
+Kopia jest kasowana w tej samej transakcji.
+
+Sprzątanie: `PrzedawnioneUsunieteZeszyty`, wołane przez
+`kuking:sprzataj-usuniete-tresci` (to samo okno), czyta wiersz jeszcze raz pod
+`FOR UPDATE`. Wymazanie konta kasuje kopie jawnie (`EraseAccountData`). Paczka
+danych ma sekcję `usuniete_zeszyty`; wpis w rejestrze czynności: §3.30.
+
+Rollback (D-088): `down()` usuwa tabelę, ale ODMAWIA, gdy jest choć jedna kopia
+w oknie odzyskania. Na pustej tabeli, przy samych przedawnionych kopiach i w CI
+(`migrate:refresh`) przechodzi bez pytania. Wymuszenie po kopii tabeli:
+`KUKING_ROLLBACK_KASUJE_USUNIETE_ZESZYTY=1`. Testy:
+`CofniecieMigracjiNieKasujeUsunietychZeszytowTest`,
+`OdzyskanieUsunietegoZeszytuTest`, `tests/Dwa/OdzyskanieZeszytuKontraSprzatanieTest`.

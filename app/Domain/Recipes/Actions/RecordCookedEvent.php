@@ -7,6 +7,7 @@ namespace App\Domain\Recipes\Actions;
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Domain\Recipes\Gotowanie\DzienGotowania;
+use App\Domain\Recipes\Gotowanie\PorcjeWykonania;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\CookedEvent;
@@ -101,17 +102,22 @@ final class RecordCookedEvent
         ?string $kluczWyslania = null,
         ?string $wersjaPrzepisuId = null,
         ?string $dzienGotowania = null,
+        ?string $faktycznePorcje = null,
     ): CookedEvent {
         // Prywatny dzień gotowania (#2583): sprawdzany tu, a nie tylko w
         // formularzu, żeby żadna droga (konsola, import) nie zapisała dnia
         // z przyszłości. Błąd rzucamy PRZED transakcją i powiadomieniem.
         $dzienGotowania = DzienGotowania::sprawdz($dzienGotowania);
 
+        // Prywatna liczba faktycznych porcji (#2540): ta sama zasada. Podaje
+        // ją wyłącznie człowiek; nic jej nie wylicza z przepisu ani z adresu.
+        $faktyczne = PorcjeWykonania::sprawdz($faktycznePorcje);
+
         $zapisz = function (?string $klucz) use (
-            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ip, $wersjaPrzepisuId, $dzienGotowania
+            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ip, $wersjaPrzepisuId, $dzienGotowania, $faktyczne
         ): CookedEvent {
             return DB::transaction(function () use (
-                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $klucz, $ip, $wersjaPrzepisuId, $dzienGotowania
+                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $klucz, $ip, $wersjaPrzepisuId, $dzienGotowania, $faktyczne
             ): CookedEvent {
                 /*
                  * ZDJĘCIA WYBIERANE POD BLOKADĄ, W TEJ SAMEJ TRANSAKCJI
@@ -218,6 +224,7 @@ final class RecordCookedEvent
                 $event->forceFill([
                     'recipe_version_id' => $this->wersjaWykonania($recipe, $wersjaPrzepisuId),
                     'dzien_gotowania' => $dzienGotowania,
+                    'faktyczne_porcje' => $faktyczne,
                 ])->save();
 
                 $position = 0;

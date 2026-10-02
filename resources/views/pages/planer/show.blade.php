@@ -47,6 +47,10 @@
             if ($cel !== null) {
                 $celeBledow = ['day' => $cel, 'q' => $cel, 'recipe_id' => $cel, 'label' => $cel];
             }
+            // Dopisek przy przepisie (#2549): błąd prowadzi do pola TEJ pozycji.
+            if ($errors->has('note') && \App\Support\WierszFormularza::aktywnyWiersz() !== null) {
+                $celeBledow['note'] = 'f-note-'.\App\Support\WierszFormularza::aktywnyWiersz();
+            }
         }
     @endphp
     <x-error-summary :field-ids="$celeBledow" />
@@ -150,6 +154,9 @@
                                     default => 'przepis usunięty',
                                 };
                                 $zrobione = $wpis->done_at !== null;
+                                // Dopisek (#2549) tylko przy pozycji z przepisem; własny wpis ma swój tekst.
+                                $maDopisek = $pozycja['stan'] !== PlanerTygodnia::STAN_WLASNY;
+                                $bladDopisku = $maDopisek && \App\Support\WierszFormularza::jestAktywny($wpis->getKey()) && $errors->has('note');
                             @endphp
                             <li class="planer-pozycja">
                                 <span class="planer-pozycja-tresc">
@@ -161,6 +168,9 @@
                                         <span class="meta">Przepis jest już niedostępny.</span>
                                     @else
                                         <span class="meta">Przepis został usunięty.</span>
+                                    @endif
+                                    @if($wpis->note !== null && $maDopisek)
+                                        <span class="planer-dopisek-tekst">Dopisek: {{ $wpis->note }}</span>
                                     @endif
                                     @if($zrobione)
                                         <span class="planer-zrobione">Zrobione</span>
@@ -183,6 +193,19 @@
                                         </form>
                                     @endif
                                 </span>
+                                @if($maDopisek)
+                                    {{-- Prywatny dopisek (#2549): zwykły formularz; wpisany tekst wraca po błędzie, pole ma widoczną etykietę. --}}
+                                    <details class="planer-dopisek" @if($bladDopisku) open @endif>
+                                        <summary class="btn btn-secondary">{{ $wpis->note === null ? 'Dodaj dopisek' : 'Zmień dopisek' }}<span class="visually-hidden">: {{ $nazwa }}, {{ PlanerTygodnia::nazwaDnia($dzien['dzien']) }}</span></summary>
+                                        <form class="planer-dopisz mt-3" method="POST" action="{{ route('planer.note', $wpis) }}" novalidate>
+                                            @csrf @method('PATCH')
+                                            <input type="hidden" name="_wiersz" value="{{ $wpis->getKey() }}">
+                                            <input type="hidden" name="stan" value="{{ \App\Domain\Planer\Actions\ZapiszDopisekPlanu::znacznik($wpis) }}">
+                                            <x-field name="note" label="Dopisek (np. kolacja)" help="Najwyżej 80 znaków. Zostaw puste, żeby usunąć dopisek. Widzisz go tylko Ty." :value="$wpis->note" :wiersz="$wpis->getKey()" :bez-oznaczenia="true" />
+                                            <button class="btn btn-secondary" type="submit">Zapisz dopisek</button>
+                                        </form>
+                                    </details>
+                                @endif
                                 {{-- Usunięcie jest osobno: pierwszy dotyk rozwija pytanie, nie wysyła DELETE. --}}
                                 <details class="confirm planer-potwierdzenie">
                                     <summary class="btn btn-danger confirm-summary">

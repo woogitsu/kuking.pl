@@ -20,16 +20,21 @@ declare(strict_types=1);
  * o WYNIK KROKU, a nie o to, czy narzędzie się nie wywróciło.
  */
 
+use App\Domain\Collections\Actions\PrzesunPrzepisWZeszycie;
 use App\Domain\Collections\Actions\RemoveUnavailableFromCollection;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\Actions\UpdateCollectionItemNote;
+use App\Domain\Collections\KierunekPrzesuniecia;
+use App\Domain\Collections\Odzyskiwanie\OdzyskajUsunietyZeszyt;
+use App\Domain\Collections\Odzyskiwanie\PrzedawnioneUsunieteZeszyty;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\Wspoldzielenie\DostepDoZeszytu;
 use App\Domain\Collections\Wspoldzielenie\OdpowiedzNaZaproszenie;
 use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Compliance\PrzedawnioneUsunieteTresci;
 use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
@@ -56,6 +61,7 @@ use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Gotowanie\Wspolne\PostepWspolnegoGotowania;
 use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
+use App\Domain\Recipes\OdzyskajUsunietyPrzepis;
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
@@ -326,6 +332,25 @@ try {
             // połączenia w stanie 25P02 i pozwala dopisać zamówioną treść.
             return ($argumenty['transakcja'] ?? '0') === '1' ? DB::transaction($save) : $save();
         })(),
+
+        // Ręczna kolejność przepisów (#2544): prawdziwa akcja domenowa
+        // (zamek zeszytu, odcisk układu) i dopisanie przepisu do TEGO zeszytu.
+        'przesun-przepis-2544' => (function () use ($argumenty): string {
+            $wynik = app(PrzesunPrzepisWZeszycie::class)->handle(
+                User::query()->findOrFail($argumenty['kto']),
+                Collection::query()->findOrFail($argumenty['zeszyt']),
+                $argumenty['przepis'],
+                KierunekPrzesuniecia::from($argumenty['kierunek']),
+                $argumenty['odcisk'],
+            );
+
+            return $wynik->tytul.':'.$wynik->pozycja;
+        })(),
+        'zapisz-przepis-do-zeszytu-2544' => (string) app(SaveRecipeToCollection::class)->handle(
+            User::query()->findOrFail($argumenty['kto']),
+            Recipe::query()->findOrFail($argumenty['przepis']),
+            Collection::query()->findOrFail($argumenty['zeszyt']),
+        )->getKey(),
 
         // Egzekucja karencji jednego konta (Z-2, D-093).
         'kasowanie' => app(EraseAccountData::class)->handle(
@@ -645,6 +670,23 @@ try {
 
             return $po === null ? -1 : $po->revision;
         })(),
+
+        // #2567: właściciel odzyskuje własny, usunięty zeszyt. Prawdziwa akcja,
+        // pod blokadą konta i kopii.
+        'odzyskaj-zeszyt-2567' => (function () use ($argumenty): array {
+            $wynik = app(OdzyskajUsunietyZeszyt::class)->handle(
+                User::query()->whereKey($argumenty['konto'])->firstOrFail(),
+                $argumenty['zeszyt'],
+            );
+
+            return ['juz' => $wynik->juzOdzyskany];
+        })(),
+
+        // #2567: nocne sprzątanie kopii usuniętych zeszytów z NIŻSZYM progiem niż
+        // okno odzyskania — symulacja rozjazdu zegarów między serwerem WWW i
+        // workerem, czyli jedyny sposób, w jaki kandydat sprzątania może jeszcze
+        // zostać odzyskany.
+        'sprzataj-zeszyty-2567' => app(PrzedawnioneUsunieteZeszyty::class)->posprzataj((int) $argumenty['dni']),
 
         // Etap 2 (#2016): dwa urządzenia zaznaczają RÓŻNE składniki „przygotowane” naraz.
         'postep-skladnik' => (function () use ($argumenty): int {
@@ -1213,6 +1255,23 @@ try {
 
             return app(ImportujWartosciOdzywcze::class)->handle($argumenty['katalog']);
         })(),
+
+        // #2620: autor odzyskuje własny, usunięty przepis. Prawdziwa akcja,
+        // pod blokadą konta i przepisu.
+        'odzyskaj-przepis-2620' => (function () use ($argumenty): array {
+            $wynik = app(OdzyskajUsunietyPrzepis::class)->handle(
+                User::query()->whereKey($argumenty['konto'])->firstOrFail(),
+                $argumenty['przepis'],
+            );
+
+            return ['juz' => $wynik->juzOdzyskany, 'zdjecia' => $wynik->zdjeciaNieWrocily];
+        })(),
+
+        // #2620: nocne sprzątanie usuniętych treści z NIŻSZYM progiem niż okno
+        // odzyskania — to symuluje rozjazd zegarów między serwerem WWW i
+        // workerem, czyli jedyny sposób, w jaki kandydat sprzątania może
+        // jeszcze zostać odzyskany.
+        'sprzataj-usuniete-2620' => app(PrzedawnioneUsunieteTresci::class)->posprzataj((int) $argumenty['dni']),
 
         // Dwa równoległe wpisy z tym samym NOWYM tagiem albo z nazwami o wspólnym
         // slugu (ta sama akcja co publikacja wpisu). Bariera stoi w zdarzeniu

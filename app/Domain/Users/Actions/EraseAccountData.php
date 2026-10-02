@@ -329,6 +329,14 @@ final class EraseAccountData
             $fresh->cookedEvents()->whereNotNull('dzien_gotowania')->update(['dzien_gotowania' => null]);
 
             /*
+             * PRYWATNA LICZBA FAKTYCZNYCH PORCJI ZNIKA RAZEM Z KONTEM (#2540).
+             *
+             * Tak jak dzień gotowania wyżej: wykonanie przy zakresie `minimum`
+             * zostaje, a liczba, którą kucharz podał tylko dla siebie, nie.
+             */
+            $fresh->cookedEvents()->whereNotNull('faktyczne_porcje')->update(['faktyczne_porcje' => null]);
+
+            /*
              * „CO MAM W DOMU” ZNIKA RAZEM Z KONTEM (D-285).
              *
              * Lista produktów z kuchni to dana prywatna, której nikt poza
@@ -340,6 +348,17 @@ final class EraseAccountData
              * mają wspólnego wiersza (ten sam argument co `tag_follows`, D-093).
              */
             $fresh->pantryItems()->delete();
+
+            /*
+             * KOPIE ODZYSKANIA USUNIĘTYCH ZESZYTÓW ZNIKAJĄ RAZEM Z KONTEM (#2567).
+             *
+             * To dopiski i nazwy z prywatnych zeszytów, które osoba usunęła, a
+             * które czekają w oknie odzyskania. Po wymazaniu konta nie ma komu
+             * ich oddać, a spóźnione odzyskanie nie może ich odtworzyć. Jawnie,
+             * nie kaskadą: kont się nie kasuje, tylko anonimizuje (D-022).
+             * Wiersze kluczem `owner_id` tego jednego konta.
+             */
+            DB::table('deleted_collections')->where('owner_id', $fresh->getKey())->delete();
 
             /*
              * ZAPAMIĘTANY POSTĘP GOTOWANIA ZNIKA RAZEM Z KONTEM (#2016).

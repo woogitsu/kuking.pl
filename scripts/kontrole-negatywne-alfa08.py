@@ -1315,7 +1315,9 @@ def planer_bez_potwierdzenia(source):
     """Przywróć bezpośredni formularz DELETE sprzed #2468."""
     poczatek = '                                <details class="confirm planer-potwierdzenie">'
     koniec = '                                </details>'
-    if source.count(poczatek) != 1 or source.count(koniec) != 1:
+    # Zamknięcie szukamy od początku potwierdzenia: na tym samym wcięciu stoją
+    # też inne `<details>` pozycji (np. dopisek z #2549).
+    if source.count(poczatek) != 1 or koniec not in source[source.find(poczatek):]:
         raise RuntimeError('Nie znaleziono dokładnie jednego potwierdzenia Planera.')
     od = source.index(poczatek)
     do = source.index(koniec, od) + len(koniec)
@@ -2014,7 +2016,7 @@ checks = [
      lambda s: replace_once(s, 'href="{{ $adresDruku(false) }}" rel="nofollow" data-drukuj-przepis',
                             'href="{{ route(\'recipes.show\', [\'recipe\' => $recipe->slug, \'druk\' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis')),
     ("Strona przepisu gubi czas kroku (#2484)", DRUK_PORCJE_WIDOK, CZAS_KROKU_STRONA_TEST,
-     lambda s: replace_once(s, '                                    @if($step->timerLabel())\n                                        <p class="m-0">Czas kroku: {{ $step->timerLabel() }}</p>\n                                    @endif\n', '')),
+     lambda s: replace_once(s, '                                        @if($step->timerLabel())\n                                            <p class="m-0">Czas kroku: {{ $step->timerLabel() }}</p>\n                                        @endif\n', '')),
     ("Wydruk zeszytu gubi czas kroku (#2484)", CZAS_KROKU_WIDOK_ZESZYTU, CZAS_KROKU_ZESZYT_TEST,
      lambda s: replace_once(s, '                                    @if($krok->timerLabel())\n                                        <p class="m-0">Czas kroku: {{ $krok->timerLabel() }}</p>\n                                    @endif\n', '')),
     ("Ściągawka do wydruku z pismem poniżej 16 pt (F4)", WYDRUK_CSS, SCIAGAWKA_TEST,
@@ -2312,6 +2314,30 @@ checks = [
      lambda s: replace_once(s, "                    'label' => $pozycja['wpis']->label,\n", "                    'label' => $pozycja['wpis']->label,\n                    'done_at' => $pozycja['wpis']->done_at,\n")),
     ("Zrobione w Planerze: rollback nie odmawia przy oznaczeniach (#2593)", "database/migrations/2026_10_02_190200_add_done_at_to_meal_plan_entries.php", "PlanerZrobioneTest",
      lambda s: replace_once(s, "        if ($oznaczone > 0) {", "        if (false) {")),
+    # #2549: dopisek przy przepisie w Planerze — własność, konflikt kart, kopia tygodnia, rollback i polityka.
+    ("Dopisek w Planerze: policy wpuszcza cudzą osobę (#2549)", "app/Policies/MealPlanEntryPolicy.php", "test_cudza_pozycja_nie_zmienia_sie_i_nie_ujawnia_dopisku",
+     lambda s: replace_once(s, "    public function editNote(User $user, MealPlanEntry $entry): bool\n    {\n        return $user->getKey() === $entry->user_id;", "    public function editNote(User $user, MealPlanEntry $entry): bool\n    {\n        return true;")),
+    ("Dopisek w Planerze: domena nie sprawdza własności (#2549)", "app/Domain/Planer/Actions/ZapiszDopisekPlanu.php", "test_cudza_pozycja_nie_zmienia_sie_i_nie_ujawnia_dopisku",
+     lambda s: replace_once(s, "                ->where('user_id', $swiezy->getKey())\n", "")),
+    ("Dopisek w Planerze: stara karta nadpisuje nowszy dopisek (#2549)", "app/Domain/Planer/Actions/ZapiszDopisekPlanu.php", "test_stary_znacznik_nie_wyczysci_nowszego_dopisku",
+     lambda s: replace_once(s, "            if (self::znacznik($wpis) !== ($widzianyZnacznik ?? '')) {", "            if (false) {")),
+    ("Dopisek w Planerze: kopia tygodnia gubi dopisek (#2549)", "app/Domain/Planer/Actions/SkopiujPoprzedniTydzien.php", "test_kopia_tygodnia_przenosi_dopisek_i_nie_nadpisuje_istniejacego",
+     lambda s: replace_once(s, "                    'note' => $pozycja['wpis']->note,\n", "")),
+    ("Dopisek w Planerze: rollback nie odmawia przy dopiskach (#2549)", "database/migrations/2026_10_03_130000_add_note_to_meal_plan_entries.php", "test_cofniecie_migracji_odmawia_przy_dopiskach_i_przechodzi_bez_nich",
+     lambda s: replace_once(s, "        if ($zDopiskiem > 0) {", "        if (false) {")),
+    ("Dopisek w Planerze: polityka bez wiersza o dopisku (#2549)", POLITYKA_TEKST, "test_dopisek_w_planie_ma_wiersz_w_polityce_z_limitem_z_kodu",
+     lambda s: replace_once(s, "| Dopisek przy przepisie w planie |", "| Notatka przy planie |")),
+    # #2550: „Odłóż na później” szkicu — własność, bieżąca lista, publikacja i rollback.
+    ("Odłożenie szkicu: policy wpuszcza cudzą osobę (#2550)", "app/Policies/RecipePolicy.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "        return $user->getKey() === $recipe->author_id\n            && $recipe->status === Recipe::STATUS_DRAFT", "        return true\n            && $recipe->status === Recipe::STATUS_DRAFT")),
+    ("Odłożenie szkicu: domena nie sprawdza autorstwa (#2550)", "app/Domain/Recipes/Actions/OdlozSzkicPrzepisu.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "                ->where('author_id', $swiezy->getKey())\n", "")),
+    ("Odłożenie szkicu: bieżąca lista pokazuje też odłożone (#2550)", "app/Http/Controllers/RecipeController.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "($odlozone ? $zapytanie->whereNotNull('odlozony_at') : $zapytanie->whereNull('odlozony_at'))", "$zapytanie")),
+    ("Odłożenie szkicu: publikacja nie zdejmuje oznaczenia (#2550)", "app/Domain/Recipes/Actions/PublishRecipe.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "                        $recipe->forceFill(['odlozony_at' => null]);\n", "")),
+    ("Odłożenie szkicu: rollback nie odmawia przy odłożonych (#2550)", "database/migrations/2026_10_03_150000_add_odlozony_at_to_recipes.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "        if ($odlozone > 0) {", "        if (false) {")),
     # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
     # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
     ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,
