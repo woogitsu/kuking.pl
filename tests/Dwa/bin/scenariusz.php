@@ -20,10 +20,12 @@ declare(strict_types=1);
  * o WYNIK KROKU, a nie o to, czy narzędzie się nie wywróciło.
  */
 
+use App\Domain\Collections\Actions\PrzesunPrzepisWZeszycie;
 use App\Domain\Collections\Actions\RemoveUnavailableFromCollection;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\Actions\UpdateCollectionItemNote;
+use App\Domain\Collections\KierunekPrzesuniecia;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\Wspoldzielenie\DostepDoZeszytu;
 use App\Domain\Collections\Wspoldzielenie\OdpowiedzNaZaproszenie;
@@ -312,6 +314,25 @@ try {
             // połączenia w stanie 25P02 i pozwala dopisać zamówioną treść.
             return ($argumenty['transakcja'] ?? '0') === '1' ? DB::transaction($save) : $save();
         })(),
+
+        // Ręczna kolejność przepisów (#2544): prawdziwa akcja domenowa
+        // (zamek zeszytu, odcisk układu) i dopisanie przepisu do TEGO zeszytu.
+        'przesun-przepis-2544' => (function () use ($argumenty): string {
+            $wynik = app(PrzesunPrzepisWZeszycie::class)->handle(
+                User::query()->findOrFail($argumenty['kto']),
+                Collection::query()->findOrFail($argumenty['zeszyt']),
+                $argumenty['przepis'],
+                KierunekPrzesuniecia::from($argumenty['kierunek']),
+                $argumenty['odcisk'],
+            );
+
+            return $wynik->tytul.':'.$wynik->pozycja;
+        })(),
+        'zapisz-przepis-do-zeszytu-2544' => (string) app(SaveRecipeToCollection::class)->handle(
+            User::query()->findOrFail($argumenty['kto']),
+            Recipe::query()->findOrFail($argumenty['przepis']),
+            Collection::query()->findOrFail($argumenty['zeszyt']),
+        )->getKey(),
 
         // Egzekucja karencji jednego konta (Z-2, D-093).
         'kasowanie' => app(EraseAccountData::class)->handle(

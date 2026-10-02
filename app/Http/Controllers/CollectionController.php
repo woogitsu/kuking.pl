@@ -9,6 +9,7 @@ use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\Actions\UstawSkrotDoZeszytu;
 use App\Domain\Collections\CollectionSaveContext;
+use App\Domain\Collections\KolejnoscPrzepisow;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\Wspoldzielenie\ZaproszeniaDoZeszytow;
 use App\Domain\Search\SearchQuery;
@@ -460,7 +461,25 @@ class CollectionController extends Controller
         // porządkowanie (#773).
         $recipes = $this->zawartosc->przepisy($collection, $request->user())
             ->with(Recipe::RELACJE_KARTY)
-            ->paginate(12);
+            ->paginate(KolejnoscPrzepisow::NA_STRONE);
+
+        // RĘCZNA KOLEJNOŚĆ (#2544): przyciski „Wyżej"/„Niżej" widzi wyłącznie
+        // właściciel prywatnego zeszytu bez zaproszonych osób (`reorder`), i to
+        // dopiero po świadomym wejściu w tryb układania (`?uloz=1`). Zwykłe
+        // przeglądanie wygląda jak dotąd. Odcisk układu to dowód świeżości
+        // karty: stara karta nie przesunie niczego, gdy kolejność już się zmieniła.
+        $mozeUkladac = $request->user() !== null && Gate::forUser($request->user())->allows('reorder', $collection);
+        $ulozenie = [
+            'mozeUkladac' => $mozeUkladac,
+            'trybUkladania' => $mozeUkladac && $request->boolean('uloz'),
+            'jestUlozony' => $mozeUkladac && KolejnoscPrzepisow::jestUlozony($collection),
+        ];
+        $ulozenie['odciskUkladu'] = $ulozenie['trybUkladania']
+            ? KolejnoscPrzepisow::odcisk(KolejnoscPrzepisow::uklad($collection))
+            : null;
+        if ($ulozenie['trybUkladania']) {
+            $recipes->appends('uloz', 1);
+        }
 
         // Granice widoczności: `WidocznaZawartoscZeszytu` (#773, ta sama reguła
         // liczy niżej niedostępne zapisy). Relacje karty, licznik komentarzy
@@ -485,7 +504,7 @@ class CollectionController extends Controller
             }
             $request->session()->reflash();
 
-            return redirect()->route('collections.show', ['collection' => $collection, ...$pages]);
+            return redirect()->route('collections.show', ['collection' => $collection, ...$pages, ...($request->boolean('uloz') ? ['uloz' => 1] : [])]);
         }
 
         // Wpis z własną treścią zostaje w zeszycie także wtedy, gdy jego
@@ -505,7 +524,7 @@ class CollectionController extends Controller
                 + max(0, $collection->posts()->withTrashed()->count() - $posts->total())
             : 0;
 
-        return view('pages.collections.show', [
+        return view('pages.collections.show', $ulozenie + [
             'saveContext' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->parameters($request->input('save_type'), $request->input('save_id')) : [],
             'saveContent' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->content($request->input('save_type'), $request->input('save_id'), $request->user()) : null,
             'collection' => $collection,

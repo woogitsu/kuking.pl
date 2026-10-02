@@ -56,7 +56,7 @@
         @endif
         @if($obcieto)
             <div class="notice mt-4" role="status">
-                <p class="m-0">Ten zeszyt ma więcej przepisów, niż mieści jeden wydruk. Poniżej jest pierwszych {{ $limit }} w kolejności alfabetycznej. Resztę możesz wydrukować pojedynczo, przyciskiem „Drukuj przepis” na stronie przepisu.</p>
+                <p class="m-0">Ten zeszyt ma więcej przepisów, niż mieści jeden wydruk. Poniżej jest pierwszych {{ $limit }} {{ $kolejnoscReczna ? 'w kolejności ułożonej w zeszycie' : 'w kolejności alfabetycznej' }}. Resztę możesz wydrukować pojedynczo, przyciskiem „Drukuj przepis” na stronie przepisu.</p>
             </div>
         @endif
         <p class="mt-6 mb-3">Tak będzie wyglądać książka:</p>

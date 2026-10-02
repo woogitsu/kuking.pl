@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Kolumny tabeli pośredniej `collection_items` — są tylko wtedy, gdy przepis
  * wczytano przez `Collection::recipes()`:
  *
- * @property-read (Pivot&object{note: string|null, created_at: string|null, added_by_id: string|null})|null $pivot
+ * @property-read (Pivot&object{note: string|null, created_at: string|null, added_by_id: string|null, position: int|null})|null $pivot
  * @property string $allergen_status stan oznaczenia alergenów: unchecked | declared | needs_review (#1902)
  * @property list<string> $allergens kody alergenów według autora; zmienia je tylko `OznaczAlergenyPrzepisu`
  * @property CarbonInterface|null $allergens_declared_at

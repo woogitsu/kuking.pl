@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Collections\KolejnoscPrzepisow;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Models\Collection;
 use Illuminate\Http\Request;
@@ -36,6 +37,12 @@ use Illuminate\View\View;
  * dwóch wydrukach wygląda tak samo; kolejność „od najnowszych” z ekranu
  * zeszytu zmieniałaby się przy każdym zapisie.
  *
+ * WYJĄTEK: RĘCZNA KOLEJNOŚĆ (#2544, D-333). Gdy właściciel ułożył przepisy
+ * w zeszycie, wydruk idzie jego kolejnością (zupa → danie → deser): najpierw
+ * przepisy z pozycją, rosnąco, potem — gdyby jakiś jej nie miał — reszta
+ * alfabetycznie. W zeszycie, którego nikt nie układał, nic się nie zmienia.
+ * Dotyczy to wszystkich oglądających wydruk, bo układ jest częścią zeszytu.
+ *
  * LIMIT: zeszyt nie ma górnej granicy liczby przepisów, a strona idzie
  * jednym żądaniem. Pierwsze `kuking.collections.print_max_recipes` pozycji;
  * reszta jest zapowiedziana zdaniem (nic nie znika po cichu).
@@ -58,6 +65,7 @@ class CollectionPrintController extends Controller
         // liczba zapytań nie zależy od liczby przepisów.
         $przepisy = $this->zawartosc->przepisy($collection, $widz)
             ->reorder()
+            ->orderByRaw('collection_items.position ASC NULLS LAST')
             ->orderBy('recipes.title_search')
             ->orderBy('recipes.id')
             ->with(['author.profile', 'heroMedia', 'ingredients', 'steps'])
@@ -78,6 +86,7 @@ class CollectionPrintController extends Controller
             'collection' => $collection,
             'przepisy' => $przepisy,
             'obcieto' => $obcieto,
+            'kolejnoscReczna' => KolejnoscPrzepisow::jestUlozony($collection),
             'limit' => $limit,
             'dostepDoNotatek' => $dostepDoNotatek,
             'zeZdjeciami' => ! $request->boolean('bez-zdjec'),

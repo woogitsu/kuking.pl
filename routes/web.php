@@ -35,6 +35,7 @@ use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\CollectionItemNoteController;
 use App\Http\Controllers\CollectionPrintController;
+use App\Http\Controllers\CollectionRecipeOrderController;
 use App\Http\Controllers\CollectionSharingController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
@@ -1175,6 +1176,16 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereIn('typ', ['przepis', 'wpis'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.note');
+    // Ręczna kolejność przepisów w własnym, prywatnym zeszycie (#2544): zwykłe
+    // POST-y z przycisków, Policy `reorder`. Odwracalne, nikogo nie powiadamia
+    // i nie rusza dat zapisów — budżet `zeszyt`, jak notatka.
+    Route::post('/zeszyt/{collection}/przepisy/{pozycja}/kolejnosc', [CollectionRecipeOrderController::class, 'przesun'])
+        ->whereUuid('pozycja')
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
+        ->name('collections.recipes.move');
+    Route::post('/zeszyt/{collection}/kolejnosc/zapis', [CollectionRecipeOrderController::class, 'przywroc'])
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
+        ->name('collections.recipes.order-reset');
     // Skrót do własnego zeszytu w „Moje” (#2542): odwracalne ustawienie konta,
     // własny budżet `zeszyt`. Policy `setShortcut` — tylko właściciel.
     Route::post('/zeszyt/{collection}/skrot', [CollectionController::class, 'setShortcut'])

@@ -1226,6 +1226,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('collections.note', 'notatka przy zapisie', 'patch',
             route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
             ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
+        // Ręczna kolejność przepisów (#2544) — wyłącznie właściciel własnego,
+        // prywatnego zeszytu bez zaproszonych osób (`CollectionPolicy::reorder`).
+        $dodaj('collections.recipes.move', 'przesunięcie przepisu w zeszycie', 'post',
+            route('collections.recipes.move', ['collection' => $zeszyt, 'pozycja' => $przepis->getKey()]),
+            ['kierunek' => 'wyzej'], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.recipes.order-reset', 'powrót do kolejności zapisu', 'post',
+            route('collections.recipes.order-reset', $zeszyt), [], [$W, $O, $O, $O, $O]);
         // Skrót do własnego zeszytu w „Moje” (#2542) — wyłącznie właściciel.
         $dodaj('collections.shortcut.store', 'ustawienie skrótu do zeszytu', 'post',
             route('collections.shortcut.store', $zeszyt), [], [$W, $O, $O, $O, $O]);

@@ -36,6 +36,18 @@ Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrac
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Własna kolejność przepisów w zeszycie
+
+W swoim prywatnym zeszycie możecie sami ułożyć przepisy, na przykład niedzielny
+obiad od zupy przez danie główne do deseru. Na stronie zeszytu wybierzcie
+„Ułóż kolejność przepisów” — pod każdym przepisem pojawią się przyciski
+„Wyżej”, „Niżej”, „Na początek” i „Na koniec”, bez przeciągania. Kolejność
+zostaje po zamknięciu strony i obowiązuje też na wydruku zeszytu oraz w paczce
+danych. Nowy przepis staje na końcu. Przesuwanie niczego nie zmienia w datach
+zapisu ani w notatkach i nikogo nie powiadamia. Gdy zechcecie wrócić do dawnego
+porządku, od najnowszego zapisu, służy do tego „Wróć do kolejności zapisu”.
+Na razie dotyczy to zeszytów prywatnych, do których nie zaproszono nikogo.
+
 ### Szukaj w moich planach
 
 W Planerze jest teraz pole „Szukaj w moich planach”. Pamiętacie, że w planie
