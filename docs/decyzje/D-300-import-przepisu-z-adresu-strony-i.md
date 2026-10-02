@@ -79,6 +79,12 @@ na prawnika, dla wszystkich zalogowanych (P-7), w tych granicach:
 `CofniecieMigracjiImportuTest`, `ObrazMaNarzedziaPdfTest` — sieć wyłącznie
 przez `Http::fake`, DNS przez podstawioną mapę nazw.
 
+**Mikrodane (#2626).** `itemprop` może mieć kilka nazw na jednym elemencie.
+Parser łączy dawne `ingredients` z `recipeIngredient` oraz `step` z
+`itemListElement` według tożsamości węzła i kolejności na stronie. Jeden węzeł
+nie staje się dwoma składnikami lub krokami, ale dwa osobne węzły o jednakowym
+tekście pozostają dwoma pozycjami. Import nadal kończy się prywatnym szkicem.
+
 **Uzupełnienie #2293 (30.09.2026, audyt infra IN-01).** Poppler chodzi przez
 Symfony Process, a `docker/php.ini` wyłącza `proc_open`, więc na obrazie
 produkcyjnym odczyt PDF padał zawsze. `php.ini` zostaje bez zmian (WWW dalej

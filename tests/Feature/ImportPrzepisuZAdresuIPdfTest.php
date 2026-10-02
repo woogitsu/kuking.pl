@@ -86,8 +86,11 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
             .'<img itemprop="image" src="https://przepisy.example.pl/zdjecie-mikrodane.jpg">'
             .'<span itemprop="recipeYield">6 porcji</span>'
             .'<span itemprop="author" itemscope itemtype="https://schema.org/Person"><span itemprop="name">Obca Autorka</span></span>'
-            .'<ul><li itemprop="recipeIngredient">1 kg jabłek</li><li itemprop="recipeIngredient">cynamon</li></ul>'
-            .'<div itemprop="recipeInstructions"><p>Obierz jabłka.</p><p>Piecz 40 minut.</p></div></div>';
+            .'<ul><li itemprop="ingredients recipeIngredient">1 kg jabłek</li><li itemprop="recipeIngredient">cynamon</li></ul>'
+            .'<div itemprop="recipeInstructions" itemscope itemtype="https://schema.org/HowToSection">'
+            .'<p itemprop="step itemListElement" itemscope itemtype="https://schema.org/HowToStep"><span itemprop="text">Obierz jabłka.</span></p>'
+            .'<p itemprop="itemListElement" itemscope itemtype="https://schema.org/HowToStep"><span itemprop="text">Piecz 40 minut.</span></p>'
+            .'</div></div>';
     }
 
     private function stronaZMikrodanymi(): string
@@ -334,8 +337,8 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         $this->assertNull($recipe->hero_media_id);
         $this->assertSame('Szarlotka z mikrodanych', $recipe->title);
         $this->assertSame(6.0, $recipe->servings);
-        $this->assertSame(['1 kg jabłek', 'cynamon'], $recipe->ingredients()->pluck('ingredient_text')->all());
-        $this->assertSame(['Obierz jabłka.', 'Piecz 40 minut.'], $recipe->steps()->orderBy('position')->pluck('instruction')->all());
+        $this->assertSame(['1 kg jabłek', 'cynamon'], $recipe->ingredients()->pluck('ingredient_text')->all(), 'MICRODATA_2626_HTTP_SKLADNIK');
+        $this->assertSame(['Obierz jabłka.', 'Piecz 40 minut.'], $recipe->steps()->orderBy('position')->pluck('instruction')->all(), 'MICRODATA_2626_HTTP_KROK');
         $this->assertSame('json_ld', PrzepisZImportu::query()->findOrFail($recipe->getKey())->droga);
 
         Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'zdjecie-mikrodane'));

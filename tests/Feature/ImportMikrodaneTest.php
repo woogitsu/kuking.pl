@@ -96,6 +96,52 @@ final class ImportMikrodaneTest extends TestCase
         $this->assertSame(['Obierz warzywa.', 'Gotuj godzinę.', 'Podawaj gorącą.'], $przepis->kroki);
     }
 
+    public function test_wiele_nazw_itemprop_nie_powiela_skladnika_ani_nie_zmienia_kolejnosci(): void
+    {
+        $html = $this->strona(<<<'HTML'
+            <article itemscope itemtype="https://schema.org/Recipe">
+              <h1 itemprop="name">Placek</h1>
+              <li itemprop="ingredients recipeIngredient">200 g mąki</li>
+              <li itemprop="recipeIngredient">1 jajko</li>
+              <li itemprop="ingredients">1 jajko</li>
+              <li itemprop="recipeIngredient ingredients">szczypta soli</li>
+            </article>
+            HTML);
+
+        $przepis = $this->parser()->odczytaj($html);
+
+        $this->assertNotNull($przepis, 'MICRODATA_2626_SKLADNIK');
+        $this->assertSame(
+            ['200 g mąki', '1 jajko', '1 jajko', 'szczypta soli'],
+            $przepis->skladniki,
+            'MICRODATA_2626_SKLADNIK: ten sam węzeł ma być raz, a dwa osobne jednakowe teksty dwa razy w kolejności strony.',
+        );
+    }
+
+    public function test_wiele_nazw_itemprop_nie_powiela_kroku_howtosection(): void
+    {
+        $html = $this->strona(<<<'HTML'
+            <article itemscope itemtype="https://schema.org/Recipe">
+              <h1 itemprop="name">Placek</h1>
+              <div itemprop="recipeInstructions" itemscope itemtype="https://schema.org/HowToSection">
+                <p itemprop="step itemListElement" itemscope itemtype="https://schema.org/HowToStep"><span itemprop="text">Wymieszaj.</span></p>
+                <p itemprop="itemListElement" itemscope itemtype="https://schema.org/HowToStep"><span itemprop="text">Piecz.</span></p>
+                <p itemprop="step" itemscope itemtype="https://schema.org/HowToStep"><span itemprop="text">Piecz.</span></p>
+                <p itemprop="itemListElement step" itemscope itemtype="https://schema.org/HowToStep"><span itemprop="text">Podawaj.</span></p>
+              </div>
+            </article>
+            HTML);
+
+        $przepis = $this->parser()->odczytaj($html);
+
+        $this->assertNotNull($przepis, 'MICRODATA_2626_KROK');
+        $this->assertSame(
+            ['Wymieszaj.', 'Piecz.', 'Piecz.', 'Podawaj.'],
+            $przepis->kroki,
+            'MICRODATA_2626_KROK: aliasy jednego węzła nie mnożą kroku, osobne węzły zostają.',
+        );
+    }
+
     public function test_meta_content_skladnik_i_kroki_sa_odczytane_w_kolejnosci(): void
     {
         $html = $this->strona(<<<'HTML'
