@@ -31,6 +31,9 @@ use Illuminate\Support\Facades\Gate;
  */
 final class MojaWersja
 {
+    public const KOMUNIKAT_KOPIA_BEZ_ZMIAN = 'Ta kopia niczym nie różni się od szkicu, z którego powstała (składniki, kroki, porcje i czasy są takie same). '
+        .'Zmień w niej coś, z czego się gotuje — żeby był to osobny wariant — i opublikuj jeszcze raz. Kopia zostaje zapisana jako szkic.';
+
     public const KOMUNIKAT_BEZ_ZMIAN = 'To jest ten sam przepis. Może wystarczy „Ugotowałem”? '
         .'Jeśli robisz go po swojemu, zmień składniki, kroki, czas albo liczbę porcji — wtedy opublikujesz swoją wersję.';
 
@@ -206,6 +209,29 @@ final class MojaWersja
             'fork_id' => (string) $wersja->getKey(),
             'recipe_title' => $oryginal->title,
         ]);
+    }
+
+    /**
+     * Kopia własnego szkicu (#2507), w której NIC nie zmieniono względem źródła, nie
+     * zostaje opublikowana: seria identycznych przepisów jednej osoby to nie wariant.
+     * Porównanie jak przy „Mojej wersji” (to, z czego się gotuje: składniki, kroki,
+     * porcje, czasy — sam tytuł i opis nie liczą się jako zmiana), także ze źródłem
+     * usuniętym miękko. Źródło usunięte twardo (`kopia_z_id` = NULL) nie ma z czym
+     * się porównać.
+     *
+     * @throws BladDlaCzlowieka
+     */
+    public static function pilnujRoznicyKopii(Recipe $kopia): void
+    {
+        if ($kopia->kopia_z_id === null) {
+            return;
+        }
+
+        $zrodlo = Recipe::withTrashed()->find($kopia->kopia_z_id);
+
+        if ($zrodlo !== null && self::odcisk($kopia) === self::odcisk($zrodlo)) {
+            throw new BladDlaCzlowieka(self::KOMUNIKAT_KOPIA_BEZ_ZMIAN);
+        }
     }
 
     /** @return array<string, mixed> */

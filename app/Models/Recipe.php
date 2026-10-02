@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $allergen_status stan oznaczenia alergenów: unchecked | declared | needs_review (#1902)
  * @property list<string> $allergens kody alergenów według autora; zmienia je tylko `OznaczAlergenyPrzepisu`
  * @property CarbonInterface|null $allergens_declared_at
+ * @property string|null $kopia_z_id z którego własnego szkicu powstała ta kopia (#2507); poza `$fillable`, ustawia je wyłącznie `ZrobKopieSzkicu`
  * @property CarbonInterface|null $odlozony_at prywatne „Odłożone na później” własnego szkicu (#2550); poza `$fillable`, ustawia je wyłącznie `OdlozSzkicPrzepisu`, zdejmuje też `PublishRecipe`
  */
 class Recipe extends Model

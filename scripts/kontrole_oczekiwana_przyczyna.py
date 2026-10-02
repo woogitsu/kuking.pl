@@ -35,6 +35,11 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Niezmieniona kopia szkicu wychodzi do ludzi (#2507)': r'KOPIA_2507_PUBLIKACJA',
+    'Kopia szkicu gubi podpis Mojej wersji (#2507)': r'KOPIA_2507_ATRYBUCJA',
+    'Kopia szkicu przejmuje zdjęcia kroków (#2507)': r'KOPIA_2507_MEDIA',
+    'Kopia szkicu ocenia prawo na starym stanie (#2507)': r'KOPIA_2507_SWIEZY_STAN',
+    'Kopię cudzego szkicu zrobi każdy (#2507)': r'KOPIA_2507_WLASCICIEL',
     'Kolaż hero bez podpisu autora przy zdjęciu (#2708)': r'Kafel nie ma podpisu z nazwą dokładnie jednego autora',
     'Dołączenie zdjęcia: podmiana UUID kucharza (#2500)': r'DOLACZENIE_2500_PODMIANA_UUID',
     'Dołączenie zdjęcia liczy limit bez przypiętych (#2500)': r'DOLACZENIE_2500_LIMIT',

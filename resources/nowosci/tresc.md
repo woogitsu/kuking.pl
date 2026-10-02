@@ -70,6 +70,10 @@ Przepis jest na 4 porcje, a gotujecie dla 2 osób? Po wybraniu liczby porcji na 
 
 Wróciliście ze sklepu i odhaczyliście zakupy? Pod odhaczonymi pozycjami na liście zakupów jest przycisk „Dodaj kupione do »Co mam w domu«”. Zaznaczacie tylko to, co chcecie dopisać (papier do pieczenia raczej nie), poprawiacie nazwę produktu — na przykład z „2 szklanki mąki” na „mąka” — i potwierdzacie. Nie zgadujemy ilości ani terminów, produkty, które już macie, zostają bez zmian, a lista zakupów się nie zmienia. Samo odhaczenie niczego w spiżarni nie robi.
 
+### Kopia szkicu do drugiego wariantu
+
+Macie rodzinny przepis w szkicu i chcecie wypróbować drugi wariant, nie ruszając pierwowzoru? Na liście „Wszystkie szkice” przy szkicu jest przycisk „Zrób kopię”. Najpierw zobaczycie, co się skopiuje (składniki, kroki, minutniki, porcje, czasy), a czego nie (zdjęć), potem powstaje osobny, prywatny szkic, który od razu otwieramy w kreatorze. Pierwowzór zostaje taki, jaki był. Gdy zdecydujecie się opublikować kopię, musi się czymś różnić od pierwowzoru — składnikami, krokami, porcjami albo czasami.
+
 ### Zmiana nazwy produktu w „Co mam w domu”
 
 Wpisaliście „mleko”, a w lodówce jest „mleko kokosowe”? Albo w nazwie została

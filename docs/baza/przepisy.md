@@ -33,7 +33,7 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - `tresc_zmieniona_at` (`timestamptz NULL`, bez DEFAULT) — kiedy ostatnio
   zmieniła się TREŚĆ przepisu; źródło `dateModified` w JSON-LD (#2014) —
   patrz niżej.
-- „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej;
+- „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej; `kopia_z_id` — kopia własnego szkicu (#2507), patrz niżej;
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
 - `pokazuj_wartosci_odzywcze boolean NOT NULL DEFAULT true` — patrz
   sekcja `skladniki_odzywcze` niżej (D-299).
@@ -230,6 +230,37 @@ między strażnik a DDL (#2059). Zależny indeks znika razem z kolumną w tej
 samej transakcji, bez osobnego `DROP INDEX CONCURRENTLY`. Testy:
 `tests/Feature/CofniecieMigracjiNieGubiPodpisuWersjiTest.php` i
 `tests/Dwa/RollbackWersjiTrzymaBlokadeTest.php`.
+
+**`kopia_z_id` — kopia własnego szkicu do drugiego wariantu** (#2507, decyzja
+właściciela z 2.10.2026, D-333 — paczka E, migracja `2026_10_07_130000_add_kopia_to_recipes`).
+
+```sql
+ALTER TABLE recipes ADD COLUMN kopia_z_id uuid NULL
+    REFERENCES recipes (id) ON DELETE SET NULL;           -- recipes_kopia_z_id_foreign
+ALTER TABLE recipes ADD CONSTRAINT recipes_kopia_spojna_check
+    CHECK (kopia_z_id IS NULL OR kopia_z_id <> id);
+CREATE INDEX recipes_kopia_z_idx ON recipes (kopia_z_id) WHERE kopia_z_id IS NOT NULL;
+```
+
+- Wskazuje, z KTÓREGO własnego szkicu powstała kopia (`ZrobKopieSzkicu`). Służy
+  jednej regule: kopia, w której nie zmieniono nic, z czego się gotuje
+  (składniki, kroki, porcje, czasy), nie zostaje opublikowana
+  (`MojaWersja::pilnujRoznicyKopii`, wołana w `PublishRecipe` obok
+  `pilnujRoznicy`); źródło usunięte miękko też jest punktem odniesienia.
+  `ON DELETE SET NULL`: twarde skasowanie źródła nie kasuje kopii.
+- Tożsamość wysłania formularza niesie ISTNIEJĄCY `klucz_wyslania` (unikalny w
+  parze z autorem, D-027): ponowienie zwraca tę samą kopię, nowy formularz
+  zakłada kolejny wariant. Poza `$fillable`; kolumnę ustawia wyłącznie akcja.
+- Kopia dziedziczy `forked_from_id`/`forked_at` źródła BEZ ZMIAN (podpis „Na
+  podstawie przepisu…” jest nieusuwalny, także gdy oryginał niedostępny).
+  Kopiowane: tytuł z dopiskiem, opis, porcje/sztuki, czasy, trudność, składniki
+  (grupy, uwagi, zamienniki, „bez ilości”, ilość i jednostka), kroki z
+  minutnikami i etapami, rodzinne pochodzenie. NIE kopiowane: zdjęcia (główne,
+  przy krokach, skan kartki), alergeny, koszt, wersje, wykonania, komentarze.
+- **Rollback (D-088):** `down()` odmawia, gdy istnieje choć jedna niepublikowana
+  kopia (`kopia_z_id IS NOT NULL AND published_at IS NULL`); opublikowane kopie i
+  świeża baza przechodzą bez pytania. Test:
+  `tests/Feature/KopiaWlasnegoSzkicuTest.php`.
 
 **`klucz_wyslania` — jedno wysłanie formularza to jeden przepis** (D-027,
 migracja `2026_09_12_600000_add_klucz_wyslania_to_recipes`).

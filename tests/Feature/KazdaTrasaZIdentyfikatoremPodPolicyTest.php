@@ -1325,6 +1325,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // wyłącznie jego, więc moderator też dostaje odmowę (`RecipePolicy::postpone`).
         $dodaj('recipes.drafts.postpone', 'odłożenie własnego szkicu na później', 'post',
             route('recipes.drafts.postpone', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
+        // „Zrób kopię” własnego szkicu (#2507): ekran i zapis tylko dla autora szkicu
+        // (`RecipePolicy::copyDraft`); moderator i obca osoba dostają odmowę.
+        $dodaj('recipes.drafts.copy', 'ekran kopiowania własnego szkicu', 'get',
+            route('recipes.drafts.copy', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.drafts.copy.store', 'kopia własnego szkicu', 'post',
+            route('recipes.drafts.copy.store', $szkicDoOdlozenia->getKey()), ['klucz_kopii' => '0192f1a0-0000-7000-8000-0000000000aa'], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.drafts.resume', 'powrót do pracy nad odłożonym szkicem', 'delete',
             route('recipes.drafts.resume', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
         // Odzyskanie własnego, usuniętego przepisu (#2620): TYLKO autor z aktywnym
