@@ -502,6 +502,46 @@ pod zamkiem pary kont). **Usunięcie konta** — patrz D-302.
   `tests/Feature/CofniecieMigracjiWspolnegoZeszytuTest.php` (odmowa i kontrola
   dodatnia dla obu migracji).
 
+### collection_items.position — ręczna kolejność przepisów (#2544)
+
+`collection_items.position integer NULL` (migracja
+`2026_10_03_140000_add_position_to_collection_items`) — miejsce przepisu na
+liście, którą właściciel ułożył sam (V2, F7/D-333).
+
+- `NULL` = zeszyt nieułożony: kolejność jak dotąd, od najnowszego zapisu
+  (`created_at DESC`, remis po id przepisu). Migracja **nie nadaje** pozycji
+  istniejącym wierszom. Pozycje powstają z pierwszego świadomego kliknięcia
+  „Wyżej" / „Niżej" / „Na początek" / „Na koniec" i obejmują wtedy WSZYSTKIE
+  przepisy zeszytu (także niewidoczne dla oglądającego), numerowane od 1;
+- CHECK `collection_items_position_check`: `position IS NULL OR (position > 0
+  AND recipe_id IS NOT NULL)` — dotyczy wyłącznie przepisów, wpisy zostają bez
+  pozycji. Dodany `NOT VALID` + `VALIDATE`;
+- unikalny indeks częściowy `collection_items_position_unique`
+  `(collection_id, position) WHERE position IS NOT NULL` (`CONCURRENTLY`):
+  w jednym zeszycie dwa przepisy nie dzielą pozycji, także przy wyścigu.
+  Dziury po wyjętych przepisach są dozwolone — przesuwanie liczy się po
+  kolejności, nie po różnicy numerów;
+- reguły (`App\Domain\Collections\KolejnoscPrzepisow`): przepis dopisany albo
+  przywrócony do ułożonego zeszytu staje na końcu (`max + 1`, pod zamkiem
+  zeszytu); do nieułożonego — jak zawsze. Przesunięcie nie rusza `created_at`,
+  notatki, autora dopisania i nie powiadamia nikogo. „Wróć do kolejności
+  zapisu" zeruje pozycje zeszytu;
+- czyta to `Collection::recipes()` (`position ASC NULLS LAST, created_at DESC,
+  recipe_id DESC`), więc ekran zeszytu, wydruk (`collections.print`) i paczka
+  danych (`kolekcje[].kolejnosc_przepisow` = `reczna` | `od_najnowszego`, lista
+  `przepisy` w tej kolejności) pokazują ten sam układ. Układać może wyłącznie
+  właściciel własnego PRYWATNEGO zeszytu bez zaproszonych osób
+  (`CollectionPolicy::reorder`); zeszyty wspólne są poza pilotem. Wymazanie
+  konta i usunięcie zeszytu kasują pozycje razem z wierszami (CASCADE).
+
+**Rollback.** `down()` **odmawia**, gdy choć jeden przepis ma pozycję (D-088):
+ułożenie jest decyzją człowieka, której `up()` nie odtworzy. Komunikat podaje
+liczbę zeszytów i przepisów oraz polecenie kopii (`CREATE TABLE … AS SELECT`);
+alternatywą jest „Wróć do kolejności zapisu" w zeszytach. Na bazie bez
+ręcznych układów zdejmuje indeks, CHECK i kolumnę bez pytania. Pilnuje
+`tests/Feature/KolejnoscPrzepisowWZeszycieMigracjaTest.php` (odmowa i kontrola
+dodatnia).
+
 ### first_post_events
 
 Trwała pamięć jednorazowego pierwszego wkładu autora (#1009), niezależna od

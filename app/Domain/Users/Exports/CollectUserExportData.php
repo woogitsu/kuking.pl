@@ -740,6 +740,14 @@ final class CollectUserExportData
             // Wspólny zeszyt (#1743): kto poza Tobą ma dostęp — nazwa
             // wyświetlana, jak przy obserwujących. Nigdy e-mail ani id.
             'osoby_z_dostepem' => $collection->members->map(fn (User $czlonek): string => $czlonek->displayName())->values()->all(),
+            // RĘCZNA KOLEJNOŚĆ (#2544): lista `przepisy` niżej idzie w kolejności
+            // zeszytu — ułożonej przez właściciela albo od najnowszego zapisu.
+            // Klucz mówi, która z dwóch to jest, żeby kolejność w pliku nie
+            // była zgadywana. Osobisty porządek należy do paczki, bo jest
+            // danymi tej osoby (RODO: dostęp i przenoszenie).
+            'kolejnosc_przepisow' => $collection->recipes->contains(fn (Recipe $recipe): bool => $recipe->pivot->position !== null)
+                ? 'reczna'
+                : 'od_najnowszego',
             'przepisy' => $collection->recipes->map(fn (Recipe $recipe): array => [
                 'tytul' => $recipe->title,
                 'autor' => $recipe->author?->displayName(),
