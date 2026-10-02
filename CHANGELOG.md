@@ -7,6 +7,7 @@
 - Naprawione (#2502): po zmianie liczby porcji składnik nie pozostaje automatycznie oznaczony jako „Przygotowane” przy nowej ilości, także gdy wrócisz do poprzedniej liczby. Ekran prosi o sprawdzenie i ponowne zaznaczenie składników; odhaczenia kroków i minutniki zostają. Stary formularz z drugiego urządzenia nie przywróci dawnych składników po takim powrocie.
 - Naprawione (#2473): stary adres dalszej strony „Moich wpisów” po usunięciu wpisu albo wyłączeniu pytań wraca do ostatniej istniejącej strony. „Pokaż więcej” zachowuje wcześniej wczytane karty i rozpoznaje koniec listy także po jej opróżnieniu.
 - Naprawione (#2520): oczekujący odczyt zdjęcia kartki nie nadpisuje ręcznie poprawionej nazwy, opisu ani porcji szkicu. Wynik kończy się istniejącą informacją o zmienionym szkicu, bez ponownego płatnego odczytu.
+- Naprawione (#2551): skopiowanie poprzedniego tygodnia nie przywraca prywatnych notatek planu po równoległym wymazaniu konta. Zapis planu sprawdza świeży stan konta; zawieszone konto nadal może plan czytać, ale nie dopisywać.
 - Naprawione (#2480): kartka przypięta do przepisu jest widoczna na jego zwykłej stronie także wtedy, gdy autor nie dodał osoby ani notatki o źródle. Prywatność zdjęcia i wariant dla pomocnika pozostają bez zmian.
 - Naprawione (#2451): porównanie wersji przepisu pokazuje przestawienie składników i grup. Dodanie lub usunięcie składnika nie tworzy pozornej zmiany kolejności pozostałych.
 - Naprawione (#2524): po wybraniu innej liczby porcji szacunkowy koszt całego przepisu podany przez autora zmienia się razem z ilościami składników. Podpis mówi, że kwota jest przeliczona z szacunku autora; powrót do jego porcji przywraca oryginalne zdanie. Dotyczy też wydruku tej strony, bez zmiany zapisanego kosztu i przedziału z cennika.
@@ -14,7 +15,6 @@
 - Naprawione (#2505): samo otwarcie lub odświeżenie niezmienionej kolejki gotowania nie odnawia jej 24-godzinnej ważności. Dodanie, usunięcie, zmiana kolejności lub kroku nadal odnawiają termin.
 - Naprawione (#2536, #2538, #2539): import z adresu wybiera pierwszy przepis JSON-LD z rzeczywistą treścią, odczytuje `content` składników i kroków z mikrodanych oraz zachowuje jednoznaczną ułamkową liczbę porcji. Szkic pozostaje prywatny, bez dodatkowego użycia AI.
 - Naprawione (#2477, #2508): koszt zachowuje obie granice słownego zakresu ilości. Dopisek celu, np. „300 g mąki do 2 porcji”, zachowuje rozpoznaną masę; nie zmieniamy tekstu autora.
-
 - Naprawione (#2476, #2478, #2479): osobista paczka danych zachowuje sam rok rodzinny w HTML, odróżnia przepis ukryty od szkicu i zapisuje jawny wybór „Bez ilości” w bieżących składnikach JSON.
 - Wewnętrzne (pomiar dostępności): lokalne dane wspomnienia obejmują także następny dzień, żeby audyt przechodzący przez północ w Polsce nadal oglądał właściwy, niepusty ekran. Zasada pokazywania wspomnień w serwisie pozostaje taka sama.
 

@@ -92,6 +92,10 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna atomowości importów #2402 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2551.py; then
+            printf "${CZERWONY}Kontrola ujemna kopii planu po wymazaniu #2551 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
     fi
     printf "${ZIELONY}Przebiegów zielonych: %s z %s.${RESET}\n" "$PRZESZLO" "$PRZEBIEGI"
     exit 0
