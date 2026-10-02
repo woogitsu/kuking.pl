@@ -172,3 +172,45 @@ export function krokZKlucza(klucz, recipeSlug) {
 
     return /^[1-9]\d*$/.test(krok) || /^id_[0-9a-f-]{36}_[0-9a-f]{64}$/i.test(krok) ? krok : null;
 }
+
+/** Najdłuższy własny minutnik: 24 godziny (issue #2595). */
+export const WLASNY_MINUTNIK_MAX_MINUT = 24 * 60;
+
+/**
+ * Sprawdza minuty wpisane albo wybrane przy kroku BEZ czasu autora.
+ * Zwraca `{sekundy}` albo `{blad}` -- komunikat po polsku, mówiący, co zrobić.
+ * Tylko pełne dodatnie minuty: puste, tekst, ułamki, zero i liczby ujemne
+ * nie uruchamiają odliczania.
+ */
+export function sprawdzMinutyWlasne(tekst) {
+    const wpisane = String(tekst ?? '').trim();
+
+    if (wpisane === '') {
+        return {blad: 'Wpisz, ile minut ma odliczać minutnik, na przykład 7.'};
+    }
+
+    if (/^-\s*\d/.test(wpisane)) {
+        return {blad: 'Liczba minut nie może być ujemna. Wpisz liczbę większą od zera, na przykład 7.'};
+    }
+
+    if (!/^\d+$/.test(wpisane)) {
+        return {blad: 'Wpisz pełną liczbę minut cyframi, na przykład 7.'};
+    }
+
+    const minuty = Number(wpisane);
+
+    if (minuty < 1) {
+        return {blad: 'Wpisz liczbę minut większą od zera, na przykład 7.'};
+    }
+
+    if (minuty > WLASNY_MINUTNIK_MAX_MINUT) {
+        return {blad: `Najdłuższy minutnik to ${WLASNY_MINUTNIK_MAX_MINUT} minut (24 godziny). Wpisz mniejszą liczbę.`};
+    }
+
+    return {sekundy: minuty * 60};
+}
+
+/** `420` → `"7 min"`; podpis własnego minutnika w komunikacie. */
+export function etykietaMinut(sekundy) {
+    return `${Math.round(sekundy / 60)} min`;
+}

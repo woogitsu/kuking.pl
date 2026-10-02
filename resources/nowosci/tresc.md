@@ -63,6 +63,9 @@ temperaturę”. Po jej otwarciu zobaczycie, ile to w drugiej skali, na przykła
 piekarnik, i zawsze opisany jako „około”. Tekst przepisu zostaje taki, jak
 napisał go autor, a samo „180 stopni” bez jednostki nie jest przeliczane.
 Rozwijanie działa bez żadnych ustawień i niczego nie zapisuje.
+### Własny minutnik w trybie gotowania
+
+Krok, przy którym autor nie podał czasu, ma teraz „Nastaw własny minutnik”: możecie wybrać 5, 10, 15 lub 20 minut albo wpisać własną liczbę i dotknąć „Start”. Minutnik odlicza i dzwoni tak samo jak ten od autora, i odlicza dalej po przejściu do następnych kroków. Czas zostaje tylko w tej przeglądarce — nie zmienia przepisu.
 
 ## Alfa 0.78
 
