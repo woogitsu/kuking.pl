@@ -200,6 +200,16 @@ class CollectionPolicy
         return $user->isActive() || ($user->isSuspended() && $visibility === 'private');
     }
 
+    /**
+     * Skrót w „Moje” (#2542): tylko WŁASNY zeszyt. Współtwórca wspólnego
+     * zeszytu ani nikt obcy go nie ustawi — skrót jest ustawieniem konta
+     * właściciela, nie prawem do zawartości.
+     */
+    public function setShortcut(User $user, Collection $collection): bool
+    {
+        return $user->getKey() === $collection->owner_id;
+    }
+
     public function delete(User $user, Collection $collection): bool
     {
         // Domyślnego zeszytu "Zapisane" nie da się usunąć — inaczej przycisk

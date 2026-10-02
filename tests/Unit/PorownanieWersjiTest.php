@@ -171,6 +171,76 @@ final class PorownanieWersjiTest extends TestCase
         $this->assertSame(2, $wynik[1]['numer']);
     }
 
+    public function test_zmiana_tekstu_i_czasu_kroku_pokazuje_oba_czasy(): void
+    {
+        $wynik = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('Piecz ciasto', 600)]],
+            ['steps' => [$this->krok('Piecz ciasto na złoty kolor', 1200)]],
+        )['kroki'];
+
+        $this->assertCount(1, $wynik);
+        $this->assertSame(PorownanieWersji::ZMIENIONO, $wynik[0]['rodzaj']);
+        $this->assertSame('Piecz ciasto (minutnik: 10 min)', $wynik[0]['przed']);
+        $this->assertSame('Piecz ciasto na złoty kolor (minutnik: 20 min)', $wynik[0]['po']);
+    }
+
+    public function test_zmiana_tekstu_z_dodanym_lub_usunietym_minutnikiem_nie_zgaduje_czasu(): void
+    {
+        $dodany = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('Piecz')]],
+            ['steps' => [$this->krok('Piecz dłużej', 90)]],
+        )['kroki'];
+        $this->assertSame('Piecz (minutnik: brak)', $dodany[0]['przed']);
+        $this->assertSame('Piecz dłużej (minutnik: 90 s)', $dodany[0]['po']);
+
+        $usuniety = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('Piecz', 90)]],
+            ['steps' => [$this->krok('Piecz dłużej')]],
+        )['kroki'];
+        $this->assertSame('Piecz (minutnik: 90 s)', $usuniety[0]['przed']);
+        $this->assertSame('Piecz dłużej (minutnik: brak)', $usuniety[0]['po']);
+    }
+
+    public function test_dodany_krok_z_czasem_pokazuje_czas_nowej_migawki(): void
+    {
+        $wynik = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('Wymieszaj')]],
+            ['steps' => [$this->krok('Wymieszaj'), $this->krok('Piecz', 1200)]],
+        )['kroki'];
+
+        $this->assertCount(1, $wynik);
+        $this->assertSame(PorownanieWersji::DODANO, $wynik[0]['rodzaj']);
+        $this->assertSame('Piecz (minutnik: 20 min)', $wynik[0]['po']);
+    }
+
+    public function test_usuniety_krok_z_czasem_pokazuje_czas_starej_migawki(): void
+    {
+        $wynik = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('Wymieszaj'), $this->krok('Piecz', 600)]],
+            ['steps' => [$this->krok('Wymieszaj')]],
+        )['kroki'];
+
+        $this->assertCount(1, $wynik);
+        $this->assertSame(PorownanieWersji::USUNIETO, $wynik[0]['rodzaj']);
+        $this->assertSame('Piecz (minutnik: 10 min)', $wynik[0]['przed']);
+    }
+
+    public function test_kroki_bez_czasu_nie_dostaja_dopisku_o_minutniku(): void
+    {
+        $zmieniony = PorownanieWersji::porownaj(
+            ['steps' => [$this->krok('A')]],
+            ['steps' => [$this->krok('B')]],
+        )['kroki'];
+        $this->assertSame('A', $zmieniony[0]['przed']);
+        $this->assertSame('B', $zmieniony[0]['po']);
+
+        $dodany = PorownanieWersji::porownaj(['steps' => []], ['steps' => [$this->krok('C')]])['kroki'];
+        $this->assertSame('C', $dodany[0]['po']);
+
+        $usuniety = PorownanieWersji::porownaj(['steps' => [$this->krok('D')]], ['steps' => []])['kroki'];
+        $this->assertSame('D', $usuniety[0]['przed']);
+    }
+
     public function test_brak_klucza_w_starszej_migawce_to_brak_danych_a_nie_zmiana(): void
     {
         $stara = ['title' => 'Rosół', 'source_type' => 'external'];

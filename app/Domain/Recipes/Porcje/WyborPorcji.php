@@ -130,6 +130,12 @@ final readonly class WyborPorcji
         return self::liczba($porcje, '.');
     }
 
+    /** Liczba do pola „Na ile porcji?”: „4”, „2,5” (przecinek, jak w całym serwisie). */
+    public static function doPola(float $porcje): string
+    {
+        return self::liczba($porcje);
+    }
+
     /** „4 porcje”, „1 porcja”, „2,5 porcji”. */
     public static function etykieta(float $porcje): string
     {

@@ -60,6 +60,58 @@
         <a class="btn btn-secondary" href="{{ route('shopping.index') }}">Lista zakupów</a>
     </nav>
 
+    {{-- Wybór tygodnia po dacie (#2513): zwykły GET bez skryptu. Zły albo pusty
+         `tydzien` daje bieżący tydzień (PlanerTygodnia::poniedzialek). Jak
+         przyciski wyżej, nie przenosi wyszukiwania dnia (`dzien`, `q`). --}}
+    <form class="planer-dopisz mb-5" method="GET" action="{{ route('planer.show') }}" novalidate>
+        <div class="field">
+            <label for="f-tydzien">Pokaż tydzień z dniem</label>
+            <input class="field-input" id="f-tydzien" type="date" name="tydzien" value="{{ $poniedzialek->toDateString() }}">
+        </div>
+        <button class="btn btn-secondary" type="submit">Pokaż tydzień</button>
+    </form>
+    <section class="card mb-5" aria-labelledby="szukaj-w-planach-tytul">
+        <h2 class="mt-0" id="szukaj-w-planach-tytul">Szukaj w moich planach</h2>
+        <p class="meta meta-samodzielne">Pamiętasz, co jest w planie, ale nie kiedy? Wpisz kawałek tekstu, np. „obiad u mamy”, a pokażemy dni z Twojego planu. To inne szukanie niż „Szukaj przepisu” przy dniu, które dodaje przepis do planu.</p>
+        <form class="planer-dopisz" method="GET" action="{{ route('planer.show') }}#wyniki-w-planach">
+            <div class="field @if($bladWPlanach) has-error @endif">
+                <label for="szukaj-w-planach">Czego szukasz w planie?</label>
+                <input class="field-input" id="szukaj-w-planach" type="search" name="szukaj_w_planach" value="{{ $wPlanach }}" autocomplete="off"
+                       @if($bladWPlanach) aria-invalid="true" aria-describedby="szukaj-w-planach-blad" @endif>
+                @if($bladWPlanach)
+                    <span class="field-error" id="szukaj-w-planach-blad">{{ $bladWPlanach }}</span>
+                @endif
+            </div>
+            <button class="btn btn-secondary" type="submit">Szukaj w moich planach</button>
+        </form>
+        @if($wynikiWPlanach !== null)
+            <div id="wyniki-w-planach" tabindex="-1">
+                @if($wynikiWPlanach['wyniki'] === [])
+                    <p class="meta meta-samodzielne">Nic nie znaleźliśmy w Twoich planach dla „{{ $wPlanach }}”. Spróbuj krótszego słowa, np. samej nazwy dania.</p>
+                @else
+                    <ul class="planer-pozycje mt-3" aria-label="Znalezione pozycje w Twoich planach">
+                        @foreach($wynikiWPlanach['wyniki'] as $wynik)
+                            @php
+                                $dataWyniku = $wynik['wpis']->day;
+                                $nazwaWyniku = $wynik['przepis']?->title ?? $wynik['wpis']->label;
+                            @endphp
+                            <li class="planer-pozycja">
+                                <span class="planer-pozycja-tresc">
+                                    <strong>{{ \Illuminate\Support\Str::ucfirst(PlanerTygodnia::nazwaDnia($dataWyniku)) }} {{ $dataWyniku->year }}</strong><br>
+                                    {{ $nazwaWyniku }}
+                                </span>
+                                <a class="btn btn-secondary" href="{{ route('planer.show', ['tydzien' => $dataWyniku->toDateString()]) }}#dzien-{{ $dataWyniku->toDateString() }}">Pokaż ten tydzień<span class="visually-hidden">: {{ $nazwaWyniku }}, {{ PlanerTygodnia::nazwaDnia($dataWyniku) }} {{ $dataWyniku->year }}</span></a>
+                            </li>
+                        @endforeach
+                    </ul>
+                    @if($wynikiWPlanach['wiecej'])
+                        <p class="meta meta-samodzielne">Pokazujemy {{ $limitWPlanach }} najnowszych pozycji, a jest ich więcej. Wpisz dokładniejszy tekst, żeby zawęzić wyniki.</p>
+                    @endif
+                @endif
+            </div>
+        @endif
+    </section>
+
     @if($poprzedniMaPozycje)
         <form class="card mb-5" method="POST" action="{{ route('planer.copy') }}">
             @csrf

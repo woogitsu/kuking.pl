@@ -469,6 +469,33 @@ final class PlanerTygodniaTest extends TestCase
             ->assertDontSee('Wróć do tego tygodnia');
     }
 
+    public function test_wybor_tygodnia_po_dacie_prowadzi_do_tygodnia_z_wybranym_dniem(): void
+    {
+        $ja = $this->user('planujaca');
+        $pole = fn (string $html, string $poniedzialek) => preg_match(
+            '/<label[^>]*for="f-tydzien"[^>]*>\s*Pokaż tydzień z dniem\s*<\/label>\s*<input[^>]*id="f-tydzien"[^>]*type="date"[^>]*name="tydzien"[^>]*value="'.$poniedzialek.'"/s',
+            $html,
+        ) === 1;
+
+        $biezacy = $this->actingAs($ja)->get(route('planer.show'))->assertOk();
+        $this->assertTrue($pole($biezacy->getContent(), '2026-09-28'), 'Pole daty ma poniedziałek bieżącego tygodnia.');
+        $biezacy->assertSee('Pokaż tydzień', false);
+        $biezacy->assertSee('method="GET"', false);
+
+        // Środa innego tygodnia (14 października) → tydzień 12–18, pole z poniedziałkiem.
+        $inny = $this->actingAs($ja)->get(route('planer.show', ['tydzien' => '2026-10-14']))->assertOk();
+        $inny->assertSee('12–18 października');
+        $this->assertTrue($pole($inny->getContent(), '2026-10-12'));
+
+        // Zła wartość → bieżący tydzień, bez 500.
+        foreach (['abc', '2026-02-31', ''] as $zly) {
+            $zlyOdp = $this->actingAs($ja)->get(route('planer.show', ['tydzien' => $zly]))->assertOk();
+            $zlyOdp->assertSee('28 września – 4 października');
+            $this->assertTrue($pole($zlyOdp->getContent(), '2026-09-28'));
+        }
+        $this->actingAs($ja)->get('/planer?tydzien[]=x')->assertOk()->assertSee('28 września – 4 października');
+    }
+
     /** Niedziela 23:30 w Polsce to w UTC jeszcze niedziela 21:30 — ale też nie poniedziałek. */
     public function test_tydzien_liczy_sie_w_strefie_czlowieka(): void
     {

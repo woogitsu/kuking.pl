@@ -322,6 +322,7 @@ final class PrzedawnioneUsunieteTresci
                 'servings' => null,
                 'prep_minutes' => null,
                 'cook_minutes' => null,
+                'czas_laczny_zrodla_minut' => null,
                 'difficulty' => null,
                 'hero_media_id' => null,
                 'source_type' => 'own',

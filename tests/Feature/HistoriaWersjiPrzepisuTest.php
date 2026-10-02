@@ -288,6 +288,19 @@ class HistoriaWersjiPrzepisuTest extends TestCase
             ->assertSee('Jest: Piecz 40 minut.');
     }
 
+    public function test_porownanie_pokazuje_stary_i_nowy_czas_przy_zmianie_tekstu_kroku(): void
+    {
+        $przepis = Recipe::factory()->create();
+        $this->wersja($przepis, 1, ['steps' => [['position' => 0, 'instruction' => 'Piecz ciasto', 'timer_seconds' => 600]]]);
+        $this->wersja($przepis, 2, ['steps' => [['position' => 0, 'instruction' => 'Piecz ciasto na złoty kolor', 'timer_seconds' => 1200]]]);
+
+        $this->get(route('recipes.history.changes', [$przepis->slug, 2]))
+            ->assertOk()
+            ->assertSee('Zmieniono: krok 1')
+            ->assertSee('Było: Piecz ciasto (minutnik: 10 min)', false)
+            ->assertSee('Jest: Piecz ciasto na złoty kolor (minutnik: 20 min)', false);
+    }
+
     public function test_pierwsza_wersja_nie_ma_z_czym_sie_porownac(): void
     {
         $przepis = $this->przepisZWersjami(2);

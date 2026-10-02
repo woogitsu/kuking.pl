@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -41,6 +42,7 @@ use Laravel\Sanctum\TransientToken;
  * Tu jest tylko to, co dotyczy logowania, ustawień i stanu konta.
  *
  * @property bool $wants_pantry_reminder zgoda na sobotnie przypomnienie o produktach do zużycia (#1903); kolumna dodana surowym SQL, więc Larastan nie zna jej z migracji
+ * @property string|null $ulubiony_zeszyt_id własny zeszyt jako skrót w „Moje” (#2542); kolumna dodana surowym SQL (FK NOT VALID + VALIDATE), więc Larastan nie zna jej z migracji
  */
 class User extends Authenticatable implements MustVerifyEmailContract
 {
@@ -495,6 +497,19 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
+     * Zeszyt wskazany jako skrót w „Moje” (#2542). Pole `ulubiony_zeszyt_id`
+     * nie jest w `$fillable`; ustawia je wyłącznie `UstawSkrotDoZeszytu`.
+     * Odczyt i tak zawęża do zeszytów tej osoby (obrona w głąb).
+     *
+     * @return BelongsTo<Collection, $this>
+     */
+    public function ulubionyZeszyt(): BelongsTo
+    {
+        return $this->belongsTo(Collection::class, 'ulubiony_zeszyt_id')
+            ->where('collections.owner_id', $this->getKey());
+    }
+
+    /**
      * Cudze zeszyty, do których tę osobę zaproszono (#1743, D-302).
      *
      * Wpis w `collection_members`, nie ocena dostępu — tę robi
@@ -884,6 +899,20 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function hasTwoFactorConfirmed(): bool
     {
         return $this->two_factor_confirmed_at !== null && $this->two_factor_secret !== null;
+    }
+
+    /**
+     * Ile kodów zapasowych zostało (#2575). Zwraca wyłącznie LICZBĘ — skróty
+     * zostają w modelu i nigdy nie trafiają do widoku. Bez potwierdzonej 2FA
+     * (wyłączona albo dopiero konfigurowana) zapasu nie ma, więc 0.
+     */
+    public function pozostaleKodyZapasowe(): int
+    {
+        if (! $this->hasTwoFactorConfirmed()) {
+            return 0;
+        }
+
+        return count($this->two_factor_backup_codes ?? []);
     }
 
     /** Uprawnienia administratora: rola ORAZ czynne konto — jak `isModerator()` (issue #1336). */

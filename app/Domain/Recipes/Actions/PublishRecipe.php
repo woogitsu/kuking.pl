@@ -392,6 +392,12 @@ final class PublishRecipe
             // „wyczyść": droga, która tego pola nie zna (ekran dodawania),
             // nie może po cichu skasować kwoty wpisanej wcześniej
             // w szczegółach. Jawne `null` czyści.
+            // Czas łączny ze źródła importu (#2572): jak koszt — brak klucza
+            // (kreator, edycja) nie czyści wartości zapisanej przy imporcie.
+            if (array_key_exists('czas_laczny_zrodla_minut', $attributes)) {
+                $payload['czas_laczny_zrodla_minut'] = $attributes['czas_laczny_zrodla_minut'];
+            }
+
             if (array_key_exists('estimated_cost_pln', $attributes)) {
                 $payload['estimated_cost_pln'] = $attributes['estimated_cost_pln'];
             }

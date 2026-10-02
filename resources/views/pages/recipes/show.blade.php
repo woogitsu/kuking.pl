@@ -404,6 +404,11 @@
                     @endif
                 </ul>
             @endif
+            {{-- Czas łączny podany przez źródło importu (#2572): osobne zdanie,
+                 nie mnożymy czasów — tylko gdy autor nie ma własnych prep+cook. --}}
+            @if($recipe->czas_laczny_zrodla_minut && ! $total)
+                <p class="przepis-czas-zrodla kolumna-czytania" data-czas-zrodla="{{ $recipe->czas_laczny_zrodla_minut }}">Źródło podaje łącznie: około {{ \App\Support\Czas::czasPrzepisu($recipe->czas_laczny_zrodla_minut) }}.</p>
+            @endif
             {{-- Typowy czas z wykonań (#2067): dwa osobne zdania, dwa źródła.
                  Zwykły tekst, bez ikony i bez „szybciej niż autor”. Poniżej
                  progu 5 osób nie ma nic — także zdania o braku danych. --}}

@@ -1167,6 +1167,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereIn('typ', ['przepis', 'wpis'])
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.note');
+    // Skrót do własnego zeszytu w „Moje” (#2542): odwracalne ustawienie konta,
+    // własny budżet `zeszyt`. Policy `setShortcut` — tylko właściciel.
+    Route::post('/zeszyt/{collection}/skrot', [CollectionController::class, 'setShortcut'])
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
+        ->name('collections.shortcut.store');
+    Route::delete('/zeszyt/{collection}/skrot', [CollectionController::class, 'clearShortcut'])
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
+        ->name('collections.shortcut.destroy');
     Route::delete('/zeszyt/{collection}', [CollectionController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('collections.destroy');

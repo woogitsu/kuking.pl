@@ -115,6 +115,7 @@ final class CoUgotuje
      *     brakujace: array<string, list<string>>,
      *     jest_wiecej: bool,
      *     produktow: int,
+     *     wszystkie_po_terminie?: bool,
      *     do_zuzycia: array<string, list<array{nazwa: string, termin: string}>>
      * }
      */
@@ -147,9 +148,19 @@ final class CoUgotuje
         ))->pluck('rdzen')->unique()->values();
 
         if ($rdzenie->isEmpty()) {
+            $produktow = $widz->pantryItems()->count();
+            // Cała lista po terminie „Należy zużyć do” (#2453, #2659): to inny
+            // stan niż „nic nie pasuje”, więc ekran mówi to wprost. Reguły
+            // doboru to nie zmienia (D-333).
+            $dostepnych = (int) (DB::selectOne(
+                'SELECT count(*) AS n FROM pantry_items p WHERE p.user_id = ? AND '.PriorytetZuzycia::DOSTEPNY_SQL,
+                [$uid, $dzis],
+            )->n ?? 0);
+
             return [
                 'przepisy' => new Collection, 'brakujace' => [], 'jest_wiecej' => false,
-                'produktow' => $widz->pantryItems()->count(),
+                'produktow' => $produktow,
+                'wszystkie_po_terminie' => ! $najpierwTermin && $produktow > 0 && $dostepnych === 0,
                 'do_zuzycia' => [],
             ];
         }
