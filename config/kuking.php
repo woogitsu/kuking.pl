@@ -3348,6 +3348,14 @@ return [
         'retention_hours' => 24,
     ],
 
+    'porcje_zapamietane' => [
+        // Zapamiętana liczba porcji przy przepisie (#2602, D-333): ile
+        // przepisów jedna osoba może mieć z własnym, jawnie zapisanym
+        // ustawieniem. Zmiana istniejącego wpisu i jego usunięcie nie liczą się
+        // do limitu; po przekroczeniu osoba dostaje polski komunikat.
+        'limit_na_osobe' => 500,
+    ],
+
     'sessions' => [
         // RETENCJA TABELI `sessions` (RZ-01, 21.09.2026).
         //

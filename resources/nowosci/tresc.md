@@ -32,6 +32,17 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
 
+### Własna liczba porcji przy przepisie
+
+Gotujecie zwykle ten sam rodzinny obiad dla dwojga, choć autor napisał go na
+sześć porcji? Wybierzcie „Na ile porcji?” jak dotąd, a potem naciśnijcie
+„Zapamiętaj dla mnie”. Następnym razem ten przepis otworzy się od razu na
+Waszą liczbę, a ekran powie, że to Wasze ustawienie. Zapomnicie je jednym
+przyciskiem, a „Pokaż ilości z przepisu” pokaże ilości autora bez kasowania
+ustawienia. Zapisujemy tylko jedną liczbę przy jednym przepisie, tylko wtedy,
+gdy sami o to poprosicie, i widzicie ją tylko Wy. Liczba z adresu strony
+zawsze wygrywa z zapamiętaną.
+
 ## Alfa 0.78
 
 **Co zużyć najpierw, lista zakupów i wydruk zeszytu.**

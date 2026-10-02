@@ -24,6 +24,7 @@ use App\Models\PostReaction;
 use App\Models\Profile;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
+use App\Models\RecipeServingPreference;
 use App\Models\RecipeVersion;
 use App\Models\ShoppingListItem;
 use App\Models\User;
@@ -211,6 +212,8 @@ final class CollectUserExportData
             'obserwowane_tagi' => $this->followedTags($user),
             'co_mam_w_domu' => $this->pantry($user),
             'postep_gotowania' => $this->postepGotowania($user),
+            // Jawnie zapamiętane liczby porcji przy przepisach (#2602).
+            'zapamietane_porcje' => $this->zapamietanePorcje($user),
             'ukryte' => $this->hides($user),
             // „Smakowicie wygląda" (#1813, D-280): napisane przez tę osobę
             // i otrzymane pod jej wpisami. Otrzymane z nazwą konta — autor
@@ -1252,6 +1255,33 @@ final class CollectUserExportData
                     'przygotowane_skladniki' => $widoczny ? $skladniki : [],
                     'ostatnia_zmiana' => $this->date($postep->updated_at),
                     'wygasa' => $this->date($postep->expires_at),
+                ];
+            })->all();
+    }
+
+    /**
+     * Liczby porcji, które osoba świadomie zapamiętała przy przepisach (#2602).
+     * Tytuł i adres tylko przy przepisie widocznym dziś dla osoby; liczba
+     * jest jej własnym wyborem, więc wychodzi zawsze.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function zapamietanePorcje(User $user): array
+    {
+        return $user->servingPreferences()
+            ->with('recipe')
+            ->orderBy('updated_at')
+            ->orderBy('id')
+            ->get()
+            ->map(function (RecipeServingPreference $wybor): array {
+                $widoczny = $wybor->recipe !== null && $this->granica->widzi($wybor->recipe);
+
+                return [
+                    'przepis' => $widoczny ? $wybor->recipe->title : self::TRESC_NIEDOSTEPNA,
+                    'adres' => $widoczny ? route('recipes.show', $wybor->recipe) : null,
+                    'zapamietana_liczba_porcji' => (float) $wybor->servings,
+                    'zapisano' => $this->date($wybor->created_at),
+                    'zmieniono' => $this->date($wybor->updated_at),
                 ];
             })->all();
     }

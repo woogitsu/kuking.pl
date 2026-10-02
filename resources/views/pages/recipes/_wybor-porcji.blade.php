@@ -16,7 +16,9 @@
     @php
         $adresPorcji = fn (?float $ile): string => route('recipes.show', array_filter([
             'recipe' => $recipe->slug,
-            'porcje' => $ile === null ? null : $wyborPorcji->doAdresu($ile),
+            // Przy zapamiętanym ustawieniu (#2602) ilości autora to jawne `autor`:
+            // adres bez parametru oznacza wtedy „po mojemu”, nie oryginał.
+            'porcje' => $zapamietanePorcje->parametrDla($ile),
             // Na kartce „dla pomocnika” (#2345) zmiana porcji zostaje na kartce.
             'druk' => ($dlaPomocnika ?? false) ? 1 : null,
             'dla' => ($dlaPomocnika ?? false) ? 'pomocnika' : null,

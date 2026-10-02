@@ -60,6 +60,7 @@ use App\Http\Controllers\PantryController;
 use App\Http\Controllers\PlanerController;
 use App\Http\Controllers\PodsumowanieTygodniaController;
 use App\Http\Controllers\PodziekowanieZaKomentarzController;
+use App\Http\Controllers\PorcjeZapamietaneController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
@@ -1004,6 +1005,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/przepisy/{recipe}/moja-wersja', [RecipeController::class, 'fork'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('recipes.fork');
+    // „Zapamiętaj dla mnie N porcji" (#2602): jawny, prywatny zapis jednej
+    // liczby przy jednym przepisie. POST i DELETE bez JavaScriptu; Policy
+    // `view`, właściciel zawsze z sesji.
+    Route::post('/przepisy/{recipe}/moje-porcje', [PorcjeZapamietaneController::class, 'zapisz'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('recipes.porcje.store');
+    Route::delete('/przepisy/{recipe}/moje-porcje', [PorcjeZapamietaneController::class, 'zapomnij'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('recipes.porcje.destroy');
     Route::delete('/przepisy/{recipe}', [RecipeController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('recipes.destroy');
