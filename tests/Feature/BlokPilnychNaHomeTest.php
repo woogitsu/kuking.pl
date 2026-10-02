@@ -57,7 +57,7 @@ class BlokPilnychNaHomeTest extends TestCase
     public function test_blok_pojawia_sie_z_nazwami_reszta_i_przyciskiem(): void
     {
         $ja = $this->user();
-        $this->produkt($ja, 'mleko', '2026-10-09');
+        $this->produkt($ja, 'mleko', '2026-10-10');
         $this->produkt($ja, 'szynka', '2026-10-11');
         $this->produkt($ja, 'jogurt', '2026-10-12');
         $this->produkt($ja, 'kefir', '2026-10-13');
@@ -83,6 +83,20 @@ class BlokPilnychNaHomeTest extends TestCase
         // Cudza osoba widzi tylko swoje.
         $this->actingAs($obca)->get(route('home'))->assertOk()
             ->assertSee('Do zużycia w ciągu 3 dni: tajna szynka.');
+    }
+
+    public function test_wczorajszy_use_by_zostaje_na_liscie_ale_nie_w_bloku_startu(): void
+    {
+        $ja = $this->user();
+        $this->produkt($ja, 'mleko', '2026-10-09');
+
+        $this->actingAs($ja)->get(route('home'))->assertOk()
+            ->assertDontSee('Do zużycia w ciągu 3 dni: mleko.');
+        $this->get(route('pantry.index'))->assertOk()
+            ->assertSee('Po terminie „Należy zużyć do”')
+            ->assertSee('Zmień termin: mleko')
+            ->assertSee('Tak, usuń z listy: mleko');
+        $this->assertSame(1, $ja->pantryItems()->count());
     }
 
     public function test_blok_nie_ma_licznika_ikon_ani_slow_o_swiezosci(): void

@@ -49,6 +49,16 @@ Kontrola ujemna wykonana: `orderByDesc('cooked_events_count')` w `CoUgotuje`
 oblewa strażnika. Widoczność przepisów: ta sama co przy otwarciu
 (`published()` → `widoczneDla()`, aktywne konto autora, blokady w obie strony).
 
+**Granica przeglądania (#2599).** „Pokaż więcej” prowadzi zwykłym odnośnikiem
+do następnych 20 propozycji. Istniejący limit głębokiego zapytania to
+`od=10000`; na ostatniej dostępnej stronie nie ma już odnośnika, którego
+adres kontroler sprowadziłby ponownie do tego samego zakresu. Ekran wyjaśnia,
+że mogą istnieć dalsze pasujące przepisy, i prowadzi do zmiany własnej listy
+produktów. Dotyczy również trybu „Najpierw to, co się psuje” i bezpośredniego
+adresu z `od` ponad granicą. Nie zmieniono kolejności ani widoczności przepisów.
+Test HTTP używa rzeczywistego zapytania do PostgreSQL na 10 020 i 10 021
+pasujących wierszach; kontrola ujemna przywraca odnośnik do tej samej strony.
+
 **Dopasowanie składników (bez AI).** Jedna funkcja w bazie,
 `public.kuking_rdzenie_skladnika(text)`: `kuking_normalize()` (małe litery,
 bez polskich znaków) → podział na słowa → odrzucenie liczb i słów

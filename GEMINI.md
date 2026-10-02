@@ -23,3 +23,7 @@ i jedyne źródło prawdy — dla Gemini, Claude, GPT i każdego innego modelu.
 - Testy na PostgreSQL. Przed PR-em: `./scripts/check.sh` (AGENTS.md §10) — sam `pint`
   i `artisan test` pomijają składnię, migracje i assety.
 - Dokumentacja, interfejs i komentarze **po polsku**; kod po angielsku.
+- Czytaj AGENTS.md w całości, potem tylko dokumenty swojego obszaru; duże pliki
+  (`docs/DATABASE.md`, `CHANGELOG.md`, `docs/DECISIONS.md`, `docs/PULAPKI_TESTOW.md`)
+  przeszukuj grepem. Szczegóły i procedury: `docs/agenci/`.
+- Drobna decyzja właściciela = wiersz tabeli zbiorczego pliku decyzji (D-333), bez nowego numeru D.

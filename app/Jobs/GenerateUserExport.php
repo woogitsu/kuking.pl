@@ -189,8 +189,15 @@ class GenerateUserExport implements ShouldQueue
             $zip = $this->openZip($this->tempZip, fresh: true);
 
             $this->addReadme($zip, $user, $photos, $generatedAt);
+            $plikiPrzepisow = array_fill_keys($this->addRecipePages($zip, $user, $photos, $data), true);
+            foreach ($data['ugotowalem'] as &$wykonanie) {
+                $cel = $wykonanie['plik_wlasnego_przepisu'] ?? null;
+                if ($cel !== null && ! isset($plikiPrzepisow[$cel])) {
+                    $wykonanie['plik_wlasnego_przepisu'] = null;
+                }
+            }
+            unset($wykonanie);
             $this->addJson($zip, $data);
-            $this->addRecipePages($zip, $user, $photos, $data);
             $this->addPostsPage($zip, $data);
             $this->addIndex($zip, $user, $photos, $data, $generatedAt);
             $zip = $this->addPhotos($zip, $photos);
@@ -471,8 +478,11 @@ class GenerateUserExport implements ShouldQueue
         $zip->addFile($path, 'dane.json');
     }
 
-    /** @param array<string, mixed> $data */
-    private function addRecipePages(ZipArchive $zip, User $user, ExportPhotoPlan $photos, array $data): void
+    /**
+     * @param  array<string, mixed>  $data
+     * @return list<string> Ścieżki stron rzeczywiście dodanych do archiwum.
+     */
+    private function addRecipePages(ZipArchive $zip, User $user, ExportPhotoPlan $photos, array $data): array
     {
         $recipes = $user->recipes()
             ->with(['ingredients.ingredient', 'ingredients.unit', 'steps.media'])
@@ -494,6 +504,7 @@ class GenerateUserExport implements ShouldQueue
             $commentsByTitle[$entry['plik_do_czytania']] = $entry['komentarze'];
         }
 
+        $dodane = [];
         foreach ($recipes as $recipe) {
             $file = ExportFileNames::recipeFile($recipe);
 
@@ -511,8 +522,13 @@ class GenerateUserExport implements ShouldQueue
                 'comments' => $commentsByTitle['przepisy/'.$file] ?? [],
             ])->render();
 
-            $zip->addFromString('przepisy/'.$file, $html);
+            $sciezka = 'przepisy/'.$file;
+            if ($zip->addFromString($sciezka, $html)) {
+                $dodane[] = $sciezka;
+            }
         }
+
+        return $dodane;
     }
 
     /** @param array<string, mixed> $data */

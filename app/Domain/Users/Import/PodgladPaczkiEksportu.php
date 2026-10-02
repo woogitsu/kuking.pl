@@ -53,15 +53,18 @@ final class PodgladPaczkiEksportu
     /**
      * Sufit rozpakowanego `dane.json`: 12 MB.
      *
-     * `json_decode` potrzebuje około ośmiokrotności rozmiaru tekstu, a
-     * `memory_limit` w `docker/php.ini` to 256M — przy dawnym suficie 32 MB
-     * paczka 28–32 MB kończyła się fatalem (500 bez komunikatu). 12 MB × 8 to
-     * ok. 96 MB, czyli bezpiecznie. Konto z tysiącem przepisów to ok. 10 MB.
+     * Sam limit bajtów nie ogranicza liczby tablic i elementów tworzonych przez
+     * `json_decode`. Dlatego przed dekodowaniem sprawdzamy też budżet struktury.
      */
     public const MAX_DANE_BAJTOW = 12 * 1024 * 1024;
 
     /** Głębokość JSON: sama paczka ma ich mniej niż dziesięć. */
     public const MAX_GLEBOKOSC_JSON = 16;
+
+    /** Sufit kontenerów i separatorów JSON przed materializacją w PHP (#2611). */
+    public const MAX_KONTENEROW_JSON = 150_000;
+
+    public const MAX_SEPARATOROW_JSON = 1_000_000;
 
     /** Liczba pozycji w jednej sekcji (przepisy, wpisy, zeszyty). */
     public const MAX_POZYCJI = 5_000;
@@ -255,6 +258,8 @@ final class PodgladPaczkiEksportu
     /** @return array<string, mixed> */
     private function dane(string $json): array
     {
+        $this->sprawdzBudzetStruktury($json);
+
         try {
             $dane = json_decode($json, true, self::MAX_GLEBOKOSC_JSON, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
@@ -272,6 +277,56 @@ final class PodgladPaczkiEksportu
         }
 
         return $dane;
+    }
+
+    /**
+     * Liczymy osobno kontenery i separatory poza napisami: wiele pól w jednym
+     * przepisie jest tańsze niż setki tysięcy osobnych tablic. Nie budujemy
+     * przy tym drugiej tablicy tokenów.
+     * `json_decode` nadal rozstrzyga składnię; ta pętla chroni pamięć PRZED nim.
+     */
+    private function sprawdzBudzetStruktury(string $json): void
+    {
+        $kontenery = 0;
+        $separatory = 0;
+        $wNapisie = false;
+        $dlugosc = strlen($json);
+
+        for ($i = 0; $i < $dlugosc; $i++) {
+            $znak = $json[$i];
+
+            if ($wNapisie) {
+                if ($znak === '\\') {
+                    $i++; // znak po ukośniku jest częścią napisu, także gdy to cudzysłów
+                } elseif ($znak === '"') {
+                    $wNapisie = false;
+                }
+
+                continue;
+            }
+
+            if ($znak === '"') {
+                $wNapisie = true;
+            } elseif ($znak === '{' || $znak === '[') {
+                $kontenery++;
+
+                if ($kontenery > self::MAX_KONTENEROW_JSON) {
+                    throw new PaczkaOdrzucona(
+                        PaczkaOdrzucona::ZA_DUZO_POZYCJI,
+                        'Ta paczka ma zbyt wiele drobnych części, żeby bezpiecznie ją wczytać. Pobierz paczkę z Kuking jeszcze raz. Jeśli problem się powtórzy, napisz do nas przez formularz kontaktowy.',
+                    );
+                }
+            } elseif ($znak === ',') {
+                $separatory++;
+
+                if ($separatory > self::MAX_SEPARATOROW_JSON) {
+                    throw new PaczkaOdrzucona(
+                        PaczkaOdrzucona::ZA_DUZO_POZYCJI,
+                        'Ta paczka ma zbyt wiele drobnych części, żeby bezpiecznie ją wczytać. Pobierz paczkę z Kuking jeszcze raz. Jeśli problem się powtórzy, napisz do nas przez formularz kontaktowy.',
+                    );
+                }
+            }
+        }
     }
 
     /** @param array<string, mixed> $dane */

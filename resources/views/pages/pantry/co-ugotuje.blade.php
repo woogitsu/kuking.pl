@@ -35,6 +35,7 @@
 
         <p>
             Porównujemy z Twoją listą: {{ $produktow }} {{ \App\Support\Odmiana::rzeczownik($produktow, 'produkt', 'produkty', 'produktów') }}.
+            Produkty po terminie „Należy zużyć do” pomijamy przy doborze przepisów.
             <a href="{{ route('pantry.index') }}">Zmień listę</a>
         </p>
 
@@ -83,10 +84,13 @@
                 @endforeach
             </ol>
 
-            @if($jest_wiecej)
+            @if($jest_wiecej && ! $granicaPrzegladania)
                 <p class="text-center mt-6">
                     <a class="btn btn-secondary" href="{{ route('pantry.cook', array_filter(['od' => $nastepne, 'najpierw' => $najpierwTermin ? 'termin' : null])) }}">Pokaż więcej przepisów</a>
                 </p>
+            @elseif($granicaPrzegladania)
+                <p class="text-center mt-6">To koniec dostępnego przeglądania tej listy. Mogą być jeszcze inne pasujące przepisy. Zmień produkty na swojej liście, aby zobaczyć inne propozycje.</p>
+                <p class="text-center"><a class="btn btn-secondary" href="{{ route('pantry.index') }}">Zmień listę produktów</a></p>
             @endif
         @endif
     @endif

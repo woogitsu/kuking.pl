@@ -32,10 +32,10 @@ final class IloscZTekstu
 {
     /** @var array<string, array{0: string, 1: int|float}> forma słowa → [miara, mnożnik] */
     private const JEDNOSTKI = [
-        'g' => ['g', 1], 'gr' => ['g', 1], 'gram' => ['g', 1], 'gramy' => ['g', 1], 'gramow' => ['g', 1],
-        'dag' => ['g', 10], 'dkg' => ['g', 10], 'deko' => ['g', 10], 'dekagram' => ['g', 10], 'dekagramy' => ['g', 10], 'dekagramow' => ['g', 10],
-        'kg' => ['g', 1000], 'kilo' => ['g', 1000], 'kilogram' => ['g', 1000], 'kilogramy' => ['g', 1000], 'kilogramow' => ['g', 1000],
-        'ml' => ['ml', 1], 'mililitr' => ['ml', 1], 'mililitry' => ['ml', 1], 'mililitrow' => ['ml', 1],
+        'g' => ['g', 1], 'gr' => ['g', 1], 'gram' => ['g', 1], 'grama' => ['g', 1], 'gramy' => ['g', 1], 'gramow' => ['g', 1],
+        'dag' => ['g', 10], 'dkg' => ['g', 10], 'deko' => ['g', 10], 'dekagram' => ['g', 10], 'dekagrama' => ['g', 10], 'dekagramy' => ['g', 10], 'dekagramow' => ['g', 10],
+        'kg' => ['g', 1000], 'kilo' => ['g', 1000], 'kilogram' => ['g', 1000], 'kilograma' => ['g', 1000], 'kilogramy' => ['g', 1000], 'kilogramow' => ['g', 1000],
+        'ml' => ['ml', 1], 'mililitr' => ['ml', 1], 'mililitra' => ['ml', 1], 'mililitry' => ['ml', 1], 'mililitrow' => ['ml', 1],
         'l' => ['ml', 1000], 'litr' => ['ml', 1000], 'litra' => ['ml', 1000], 'litry' => ['ml', 1000], 'litrow' => ['ml', 1000],
         'szklanka' => ['szklanka', 1], 'szklanki' => ['szklanka', 1], 'szklanek' => ['szklanka', 1], 'szklanke' => ['szklanka', 1],
         'lyzka' => ['lyzka', 1], 'lyzki' => ['lyzka', 1], 'lyzek' => ['lyzka', 1], 'lyzke' => ['lyzka', 1],

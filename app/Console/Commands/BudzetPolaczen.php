@@ -170,7 +170,7 @@ class BudzetPolaczen extends Command
     /**
      * Tryb próbkowania: szczyt w krótkim oknie, którego godzinna czujka nie widzi.
      *
-     * DLACZEGO. `docs/DATABASE.md` §598 C liczy szczyt wdrożeniowy (stary
+     * DLACZEGO. `docs/baza/budzet-polaczen.md` (§598 C) liczy szczyt wdrożeniowy (stary
      * i nowy kontener obok siebie + `migrate`) na 13, ale to jest RACHUNEK:
      * czujka z harmonogramu próbkuje raz na godzinę, o :25, a okno wdrożenia
      * trwa minutę–dwie. Szansa, że próbka w nie trafi, jest bliska zeru —

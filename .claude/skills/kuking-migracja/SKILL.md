@@ -1,6 +1,6 @@
 ---
 name: kuking-migracja
-description: Zmienia schemat bazy Kuking.pl — migracja PostgreSQL z ograniczeniami, model, test, aktualizacja docs/DATABASE.md i plan rollbacku. Użyj przy dodawaniu tabeli, kolumny, indeksu albo zmianie modelu danych w tym repozytorium.
+description: Zmienia schemat bazy Kuking.pl — migracja PostgreSQL z ograniczeniami, model, test, opis w docs/baza/ (+ indeks docs/DATABASE.md) i plan rollbacku. Użyj przy dodawaniu tabeli, kolumny, indeksu albo zmianie modelu danych w tym repozytorium.
 ---
 
 # Zmiana schematu w Kuking
@@ -9,7 +9,7 @@ Każda zmiana schematu wymaga **czterech** rzeczy. Trzy z czterech to za mało.
 
 1. migracja,
 2. test,
-3. aktualizacja `docs/DATABASE.md`,
+3. opis w pliku obszaru w `docs/baza/` i — dla nowej tabeli — wiersz w indeksie `docs/DATABASE.md`,
 4. opis rollbacku (albo wyjaśnienie, dlaczego rollback nie jest bezpieczny).
 
 ## Wzorzec migracji

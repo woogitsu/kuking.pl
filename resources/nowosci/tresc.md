@@ -10,6 +10,7 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Spis wydań
 
 - [Najnowsze zmiany](#najnowsze-zmiany)
+- [Alfa 0.78 — co zużyć najpierw, lista zakupów i wydruk zeszytu](#alfa-078)
 - [Alfa 0.77 — wspólny zeszyt dla rodziny i import przepisu w tle](#alfa-077)
 - [Alfa 0.76 — planer z wyszukiwarką, „Co mam w domu” i zeszyt bez konta](#alfa-076)
 - [Alfa 0.75 — szukanie w wykonaniach i pewniejsze „Ugotowałem”](#alfa-075)
@@ -30,6 +31,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 ## Najnowsze zmiany
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+## Alfa 0.78
+
+**Co zużyć najpierw, lista zakupów i wydruk zeszytu.**
 
 ### Co zużyć w pierwszej kolejności
 

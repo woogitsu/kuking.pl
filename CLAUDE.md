@@ -19,7 +19,7 @@ i jedyne źródło prawdy — dla Claude, GPT, Gemini i każdego innego modelu.
 - UX 50+: tekst ≥ 18 px, przyciski ≥ 48 px, ikony zgodnie z jawnymi wyjątkami w AGENTS.md (menu trzech kropek), bez hover/swipe,
   błędy po polsku mówiące co zrobić, poprawne dane nigdy nie znikają.
 - JavaScript: stosuj AGENTS.md i D-053 — newralgiczne formularze mogą wymagać JS; nie zostawiaj martwych przycisków.
-- Zmiana schematu = migracja + test + `docs/DATABASE.md` + rollback,
+- Zmiana schematu = migracja + test + opis w `docs/baza/` (+ indeks `docs/DATABASE.md`) + rollback,
   a rollback **może odmówić** — patrz D-088 i AGENTS.md §6.
 - Bugfix = test regresyjny.
 - Pola **sterujące** nigdy w `$fillable`: `status` i `role` użytkownika,
@@ -29,6 +29,11 @@ i jedyne źródło prawdy — dla Claude, GPT, Gemini i każdego innego modelu.
 - Przed PR-em: `./scripts/check.sh` — jedna komenda (AGENTS.md §10).
   Sam `pint` i `artisan test` pomijają składnię, migracje i assety.
 - Brak destrukcyjnych operacji na produkcji bez jawnej zgody.
+- Czytaj **AGENTS.md** w całości, potem tylko dokumenty swojego obszaru; duże pliki
+  (`docs/DATABASE.md`, `CHANGELOG.md`, `docs/DECISIONS.md`, `docs/PULAPKI_TESTOW.md`)
+  przeszukuj grepem, nie czytaj w całości. Szczegóły i procedury: `docs/agenci/`.
+- Drobna decyzja właściciela = wiersz tabeli w zbiorczym pliku decyzji (obecnie D-333),
+  bez nowego numeru D; nowy plik `D-NNN` tylko dla dużej, osobnej decyzji.
 
 ## Zanim zaczniesz implementować
 

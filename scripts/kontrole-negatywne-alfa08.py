@@ -431,7 +431,8 @@ R2_ZAPIS_WERYFIKACJI_TEST = "test_data_sprawdzenia_r2_w_polityce_to_ostatni_zapi
 KONTROLER_AWATARA = "app/Http/Controllers/Settings/AvatarSettingsController.php"
 DOKUMENTACJA_AWATARA_TEST = "DokumentacjaAwataraZgodnaZKodemTest"
 AWATAR_KOMENTARZ = "        // Awatar dalej podlega zgłoszeniom od ludzi, jak każda treść.\n"
-DATABASE_DOC = "docs/DATABASE.md"
+INDEKS_BAZY_TEST = "IndeksDokumentacjiBazyTest"
+DATABASE_DOC = "docs/baza/zgloszenia.md"  # opis schematu bazy leży w docs/baza/, DATABASE.md to indeks
 AWATAR_DATABASE = "Wprowadził ją automat oceny\nzdjęć profilowych (issue #237), a oznaczenie wskazywało `media.id`."
 
 # Awans roli z powłoki gasi sesje sprzed awansu (#1315). Test chodzi po HTTP
@@ -840,6 +841,11 @@ IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
 CHANGELOG = "CHANGELOG.md"
 CHANGELOG_DUPLIKATY_TEST = "ChangelogBezZdublowanychWpisowTest"
 CHANGELOG_NAGLOWEK = "## Nieopublikowane\n\n"
+# Archiwum starszych wersji (docs/changelog/, 2.10.2026): testy czytają je
+# razem z CHANGELOG.md (tests/Support/PelnyChangelog.php).
+CHANGELOG_ARCHIWUM = "docs/changelog/archiwum-alfa-0.70-0.74.md"
+CHANGELOG_ARCHIWUM_LINK = "- [Alfa 0.69](docs/changelog/archiwum-alfa-0.69.md)\n"
+CHANGELOG_NUMERACJA_TEST = "PodbicieWersjiWymagaWpisuWChangelogTest"
 # Strażnik strony „Co nowego” (issue #1909, AGENTS.md §10): wpis CHANGELOGA
 # oznaczony `[nowa funkcja]` w sekcji „## Nieopublikowane" ma odpowiadający
 # akapit (`### ...`) w sekcji „## Najnowsze zmiany" pliku nowości.
@@ -1311,7 +1317,68 @@ def planer_bez_potwierdzenia(source):
     return source[:od] + dawny + source[do:]
 
 
+def skladniki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
+    old = "return preg_match('/\\A[ \\t\\n\\x{00A0}\\x{202F}]*\\z/u', $wiersz) === 1;"
+    new = "return preg_match('/\\A[ \\t\\n]*\\z/u', $wiersz) === 1;"
+
+    return replace_once(source, old, new)
+
+
+def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
+    old = next((line for line in source.splitlines() if '$bloki = preg_split(' in line), None)
+    if old is None or old.count('\\\\x{00A0}\\\\x{202F}') != 2:
+        raise RuntimeError('Nie znaleziono obu kotwic granicy kroków Unicode (#2621).')
+
+    return replace_once(source, old, old.replace('\\\\x{00A0}\\\\x{202F}', ''))
+
+
 checks = [
+    ("Pusta linia Unicode tworzy składnik (#2621)", "app/Domain/Recipes/TekstNaWiersze.php",
+     "test_niewidoczne_spacje_na_pustych_liniach_nie_tworza_skladnika_i_rozdzielaja_kroki",
+     skladniki_nie_rozpoznaja_nierozdzielajacej_spacji),
+    ("Pusta linia Unicode skleja kroki po POST (#2621)", "app/Domain/Recipes/TekstNaWiersze.php",
+     "test_wklejony_tekst_z_nierozdzielajaca_spacja_na_pustej_linii_zapisuje_wlasciwe_skladniki_i_kroki",
+     kroki_nie_rozpoznaja_nierozdzielajacej_spacji),
+    ("Co ugotuję: ostatnia strona wraca do siebie (#2599)", "resources/views/pages/pantry/co-ugotuje.blade.php",
+     "CoUgotujeGranicaPaginacjiTest::test_ostatnia_dostepna_strona_nie_odsyla_do_siebie_w_obu_trybach",
+     lambda s: replace_once(s, "@if($jest_wiecej && ! $granicaPrzegladania)", "@if($jest_wiecej)")),
+    ("HTTP import paczki nie pilnuje budżetu struktury (#2611)", "app/Domain/Users/Import/PodgladPaczkiEksportu.php",
+     "test_paczka_tuz_ponad_budzetem_struktury_jest_odrzucona_przez_http_bez_poczekalni",
+     lambda s: replace_once(s, 'if ($kontenery > self::MAX_KONTENEROW_JSON) {', 'if ($kontenery > self::MAX_KONTENEROW_JSON + 1) {')),
+    # #2611: wyłączenie preflightu musi oblać izolowane procesy PHP 256M
+    # konkretną odmową (w starym kodzie kończyły się fatalem), a nie bazę CI.
+    ("Paczka JSON bez budżetu struktury (#2611)", "app/Domain/Users/Import/PodgladPaczkiEksportu.php",
+     "BudzetStrukturyPaczkiTest::test_nadmierna_struktura_jest_odrzucona_przed_fatalem_256_mb",
+     lambda s: replace_once(s, "        $this->sprawdzBudzetStruktury($json);\n", "")),
+    ("Porcje mnożą procent tłuszczu (#2629)", "app/Domain/Recipes/Porcje/PrzeliczSkladnik.php",
+     "PrzeliczSkladnikTest::test_procent_opisuje_produkt_a_pozniejsza_masa_jest_iloscia",
+     lambda s: replace_once(s,
+         r"'/^(?<przed>\s*'.self::OKOLO.')(?<calosc>'.$ilosc.$nieProcent.$poIlosci.$jednostka.')/iu',",
+         r"'/^(?<przed>\s*'.self::OKOLO.')(?<calosc>'.$ilosc.$poIlosci.$jednostka.')/iu',")),
+    ("Mikrodane ListItem zastępują instrukcję etykietą (#2638)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "ImportMikrodaneTest::test_listitem_item_zachowuje_instrukcje_zamiast_nazwy_opakowania",
+     lambda s: replace_once(s, "if ($this->maTyp($el, ['ListItem'])) {", "if (false) {")),
+    ("Mikrodane pusty ListItem zgaduje instrukcję (#2638)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "ImportMikrodaneTest::test_listitem_bez_obslugiwanego_lokalnego_item_nie_zgaduje_instrukcji",
+     lambda s: replace_once(s, "if ($this->maTyp($el, ['ListItem'])) {", "if (false) {")),
+    ("Mikrodane ListItem zapisują etykietę do szkicu (#2638)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "ImportPrzepisuZAdresuIPdfTest::test_listitem_mikrodanych_zapisuje_item_w_prywatnym_szkicu_bez_modelu",
+     lambda s: replace_once(s, "if ($this->maTyp($el, ['ListItem'])) {", "if (false) {")),
+    ("Import URL: regex zostawia potomka komentarzy (#2640)",
+     "app/Domain/Import/Url/TekstStrony.php",
+     "ImportParseryTest::test_zagniezdzone_komentarze_znikaja_z_calym_poddrzewem_a_przepis_zostaje",
+     lambda s: replace_once(s, "$html = self::bezKomentarzyCzytelnikow($html);",
+         r"""$html = (string) preg_replace('#<(section|div|ol|ul)\b[^>]*\b(id|class)\s*=\s*["\'][^"\']*\bcomments?\b[^"\']*["\'][^>]*>.*?</\1\s*>#is', "\n", $html);""")),
+    ("Import URL HTTP: regex wysyła komentarz do fragmentów (#2640)",
+     "app/Domain/Import/Url/TekstStrony.php",
+     "ImportPrzepisuZAdresuIPdfTest::test_import_http_nie_przekazuje_zagniezdzonych_komentarzy_do_fragmentow_ani_szkicu",
+     lambda s: replace_once(s, "$html = self::bezKomentarzyCzytelnikow($html);",
+         r"""$html = (string) preg_replace('#<(section|div|ol|ul)\b[^>]*\b(id|class)\s*=\s*["\'][^"\']*\bcomments?\b[^"\']*["\'][^>]*>.*?</\1\s*>#is', "\n", $html);""")),
+    ("OCR: miesięczny limit obiecuje jutro (#2648)", "app/Domain/Import/KomunikatImportu.php",
+     "test_zapisane_zlecenie_pokazuje_obecny_miesieczny_limit_zamiast_obietnicy_jutra",
+     lambda s: replace_once(s,
+                            "Po rozpoczęciu następnego miesiąca możesz spróbować ponownie, jeśli odczytywanie będzie dostępne.",
+                            "Jutro rano będzie można dalej.")),
     ("PDF: ilość dziesiętna staje się numerem listy (#2614)",
      "app/Domain/Import/ParserTekstuPrzepisu.php",
      "ImportParseryTest::test_tekst_pdf_zachowuje_dziesietne_ilosci_a_usuwa_tylko_jednoznaczna_numeracje",
@@ -1343,6 +1410,8 @@ checks = [
      lambda s: replace_once(s, "$layer < 2", "$layer < 3")),
     ("Koszt: druga ilość wraca do wyceny pierwszej (#2578)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "druga_bezposrednia_ilosc_nie_zaniza_masy_do_pierwszej_liczby",
      lambda s: replace_once(s, "if (preg_match('/^\\s*(?:(?:i|oraz)\\s+|\\+\\s*)?\\d/', $poDopasowaniu) === 1) {", "if (false) {")),
+    ("Koszt: dopełniacz miary staje się sztuką (#2643)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "dopelniacz_jednostki_po_ulamku_zachowuje_mase_i_objetosc",
+     lambda s: replace_once(s, "'kilograma' => ['g', 1000], ", "")),
     ("Koszt: grupowane tysiące stają się sztukami (#2561)", "app/Domain/Recipes/Koszt/IloscZTekstu.php", "grupowane_tysiace_zachowuja_cala_mase_i_nie_staja_sie_sztukami",
      lambda s: replace_once(s, r'|\d{1,3}(?: \d{3})+(?:[.,]\d+)?', '')),
     ("Prywatny zeszyt obiecuje odebranie dostepu (#2601)", "app/Http/Controllers/CollectionController.php",
@@ -1427,8 +1496,8 @@ checks = [
     ("Meta content składnika znika z mikrodanych (#2538)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
      "test_meta_content_skladnik_i_kroki_sa_odczytane_w_kolejnosci",
      lambda s: replace_once(s,
-         "foreach (array_merge($wlasciwosci['recipeingredient'] ?? [], $wlasciwosci['ingredients'] ?? []) as $el) {\n            $tekst = $this->jednaLinia($this->wartosc($el));",
-         "foreach (array_merge($wlasciwosci['recipeingredient'] ?? [], $wlasciwosci['ingredients'] ?? []) as $el) {\n            $tekst = $this->jednaLinia($this->tekstElementu($el));")),
+         "foreach ($this->elementyAliasow($wlasciwosci, 'recipeingredient', 'ingredients') as $el) {\n            $tekst = $this->jednaLinia($this->wartosc($el));",
+         "foreach ($this->elementyAliasow($wlasciwosci, 'recipeingredient', 'ingredients') as $el) {\n            $tekst = $this->jednaLinia($this->tekstElementu($el));")),
     ("Meta content kroku znika z mikrodanych (#2538)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
      "test_meta_content_skladnik_i_kroki_sa_odczytane_w_kolejnosci",
      lambda s: replace_once(s,
@@ -1439,6 +1508,16 @@ checks = [
      lambda s: replace_once(s,
          "                    array_push($wynik, ...$this->wiersze($this->wartosc($pole)));",
          "                    array_push($wynik, ...$this->wiersze($this->tekstElementu($pole)));")),
+    ("Alias składnika powiela jeden węzeł (#2626)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "test_wiele_nazw_itemprop_nie_powiela_skladnika_ani_nie_zmienia_kolejnosci",
+     lambda s: replace_once(s,
+         "$this->elementyAliasow($wlasciwosci, 'recipeingredient', 'ingredients')",
+         "array_merge($wlasciwosci['recipeingredient'] ?? [], $wlasciwosci['ingredients'] ?? [])")),
+    ("Alias kroku powiela jeden węzeł (#2626)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
+     "test_wiele_nazw_itemprop_nie_powiela_kroku_howtosection",
+     lambda s: replace_once(s,
+         "$this->elementyAliasow($wlasciwosci, 'itemlistelement', 'step')",
+         "array_merge($wlasciwosci['itemlistelement'] ?? [], $wlasciwosci['step'] ?? [])")),
     ("Tekstowe ułamkowe porcje znikają (#2539)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
      "test_tekstowe_ulamkowe_porcje_sa_rownowazne_liczbie_bez_zgadywania_jednostek",
      lambda s: replace_once(s,
@@ -1467,6 +1546,16 @@ checks = [
     ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/CollectUserExportData.php",
      "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",
      lambda s: replace_once(s, "                'bez_ilosci' => (bool) $item->no_amount,\n", "")),
+    # #2639: własne wykonanie musi wskazać istniejący własny plik tej paczki.
+    ("Eksport gubi relację wykonania z własnym przepisem (#2639)", "app/Domain/Users/Exports/CollectUserExportData.php",
+     "test_dwa_wlasne_przepisy_o_tym_samym_tytule_maja_odrebne_prawdziwe_cele_w_paczce",
+     lambda s: replace_once(s,
+         "            'plik_wlasnego_przepisu' => $this->granica->widzi($event->recipe)\n"
+         "                ? ($this->plikiWlasnychPrzepisow[(string) $event->recipe_id] ?? null)\n"
+         "                : null,\n", "")),
+    ("Eksport planu zdjęć ładuje autora przepisu (#2639)", "app/Domain/Users/Exports/ExportPhotoPlan.php",
+     "test_dwa_wlasne_przepisy_o_tym_samym_tytule_maja_odrebne_prawdziwe_cele_w_paczce",
+     lambda s: replace_once(s, "->with(['media', 'recipe.author'])->get()", "->with(['media', 'recipe'])->get()")),
     # #2479: wrócenie do nazywania hidden szkicem ma oblać na rzeczywistym ZIP-ie.
     ("Ukryty przepis nazwany szkicem w eksporcie (#2479)", "app/Domain/Users/Exports/RecipeArchiveStatus.php",
      "test_ukryty_po_publikacji_nie_jest_szkicem_w_karcie_ani_spisie",
@@ -1491,6 +1580,14 @@ checks = [
      lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
     ("Nowe konto Facebook gubi powrót do rozmowy", POWROT_KOMENTARZA_FACEBOOK, POWROT_KOMENTARZA_FACEBOOK_TEST,
      lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
+    # #2420: każdy z trzech sposobów zakładania konta musi przejąć
+    # zaproszenie z sesji. Znacznik asercji wskazuje dokładnie ten powrót.
+    ("Rejestracja hasłem gubi zaproszenie do zeszytu (#2420)", "app/Http/Controllers/Auth/RegisterController.php", "test_gosc_po_rejestracji_i_pominieciu_wraca_na_podglad_a_dolacza_dopiero_po_kliknieciu",
+     lambda s: replace_once(s, "        $dolaczenie->przypiszKonto($request);\n", "")),
+    ("Nowe konto Google gubi zaproszenie do zeszytu (#2420)", POWROT_KOMENTARZA_GOOGLE, "test_nowe_konto_google_wraca_do_podgladu_zaproszenia_do_zeszytu",
+     lambda s: replace_once(s, "        $dolaczenie->przypiszKonto($request);\n", "")),
+    ("Nowe konto Facebook gubi zaproszenie do zeszytu (#2420)", POWROT_KOMENTARZA_FACEBOOK, "test_nowe_konto_facebook_wraca_do_podgladu_zaproszenia_do_zeszytu",
+     lambda s: replace_once(s, "        $dolaczenie->przypiszKonto($request);\n", "")),
     # #1868: instalacja bez wskazania migawki wróciłaby do ruchomego mirrora.
     ("APT install bez migawki", OBRAZ_KOPII, APT_MIGAWKA_TEST,
      lambda s: replace_once(s,
@@ -1732,6 +1829,10 @@ checks = [
     ("DATABASE.md znów mówi, że model ocenia awatar", DATABASE_DOC, DOKUMENTACJA_AWATARA_TEST,
      lambda s: replace_once(s, AWATAR_DATABASE, "Dziś trafia tu wyłącznie\nzdjęcie profilowe: model ocenia je po "
                             "przetworzeniu (`PrzeanalizujAwatar`),\na oznaczenie wskazuje `media.id`.")),
+    ("Indeks bazy gubi plik obszaru", "docs/DATABASE.md", INDEKS_BAZY_TEST,
+     lambda s: replace_once(s, "(baza/kontakt.md)", "(baza/kontakt-stary.md)")),
+    ("Link względny w docs/baza/ bez poprawki po przeniesieniu", "docs/baza/budzet-polaczen.md", INDEKS_BAZY_TEST,
+     lambda s: replace_once(s, "(../infra/MONITORING_ODBIOR_2026_09_20.md)", "(infra/MONITORING_ODBIOR_2026_09_20.md)")),
     ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
      lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
                             "return $this->zdejmij($user, $recipe, $collection);")),
@@ -2193,6 +2294,13 @@ checks = [
     ("CHANGELOG z tym samym wpisem dwa razy", CHANGELOG, CHANGELOG_DUPLIKATY_TEST,
      lambda s: replace_once(s, CHANGELOG_NAGLOWEK, CHANGELOG_NAGLOWEK
                             + "- Wpis zdublowany przez kontrolę dodatnią.\n" * 2)),
+    # Archiwum changelogu czytane razem z plikiem głównym: ten sam wpis
+    # dwa razy w samym archiwum nadal ma zapalić test duplikatów.
+    ("Archiwum CHANGELOG z tym samym wpisem dwa razy", CHANGELOG_ARCHIWUM, CHANGELOG_DUPLIKATY_TEST,
+     lambda s: s + "\n- Wpis zdublowany w archiwum.\n- Wpis zdublowany w archiwum.\n"),
+    # Plik archiwum bez odnośnika w CHANGELOG.md wypadłby po cichu z testów.
+    ("CHANGELOG bez odnośnika do pliku archiwum", CHANGELOG, CHANGELOG_NUMERACJA_TEST,
+     lambda s: replace_once(s, CHANGELOG_ARCHIWUM_LINK, "")),
     # Strona „Co nowego” (issue #1909): nowa funkcja w sekcji
     # „Nieopublikowane” musi mieć akapit w „Najnowszych zmianach”. Dodajemy
     # osierocony wpis, zamiast zdejmować znacznik ze starego wydania: po
@@ -2412,6 +2520,16 @@ checks = [
     ("Szyna zeszytu ponownie czyta całą historię (#2030)", "app/Http/Controllers/CollectionController.php",
      "test_szyna_sprawdza_widocznosc_tylko_malej_partii_kandydatow",
      lambda s: replace_once(s, "        $partia = 20;\n", "        $partia = 1000;\n")),
+    ("Przeterminowany use_by wraca do doboru (#2453)", "app/Domain/Pantry/PriorytetZuzycia.php",
+     "test_po_terminie_nalezy_zuzyc_do_nie_jest_skladnikiem_w_zadnym_trybie_ale_inne_terminy_pozostaja",
+     lambda s: replace_once(s,
+         'public const DOSTEPNY_SQL = "(p.expiry_kind IS DISTINCT FROM \'use_by\' OR p.expires_on >= ? OR p.frozen)";',
+         'public const DOSTEPNY_SQL = "(true OR p.expires_on >= ? OR p.frozen)";')),
+    ("Przeterminowany use_by wybiera odbiorcę listu (#2453)", "app/Console/Commands/WyslijPrzypomnieniaOProduktach.php",
+     "test_produkt_po_terminie_nalezy_zuzyc_do_nie_wywoluje_listu",
+     lambda s: replace_once(s,
+         "                    ->where('p.frozen', false)\n                    ->whereRaw(PriorytetZuzycia::DOSTEPNY_SQL, [$dzis]);",
+         "                    ->where('p.frozen', false);")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

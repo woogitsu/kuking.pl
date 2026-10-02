@@ -11,6 +11,7 @@ use App\Domain\Users\Import\PodgladPaczkiEksportu;
 use App\Domain\Users\Import\PozycjaPodgladu;
 use App\Jobs\GenerateUserExport;
 use App\Models\Collection;
+use App\Models\CookedEvent;
 use App\Models\DataExport;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -65,17 +66,23 @@ class PodgladPaczkiEksportuTest extends TestCase
     public function test_prawdziwy_eksport_jest_czytany_a_eksport_niesie_numer_formatu(): void
     {
         $basia = $this->user('basia');
-        $this->przepisZeSkladnikami($basia, 'Rosół z kury');
+        $przepis = $this->przepisZeSkladnikami($basia, 'Rosół z kury');
+        CookedEvent::factory()->create(['user_id' => $basia->getKey(), 'recipe_id' => $przepis->getKey()]);
         Post::factory()->for($basia, 'author')->create(['body' => 'Dzisiejszy obiad u Basi.']);
 
         $sciezka = $this->sciezkaEksportu($basia);
+        $dane = $this->daneZPaczki($sciezka);
 
         $podglad = (new PodgladPaczkiEksportu)->czytaj($this->user('zenek'), $sciezka);
 
         $this->assertSame(WersjaFormatuPaczki::AKTUALNA, $podglad->wersjaFormatu);
         $this->assertSame(
             WersjaFormatuPaczki::AKTUALNA,
-            $this->daneZPaczki($sciezka)['o_tym_pliku']['wersja_formatu'],
+            $dane['o_tym_pliku']['wersja_formatu'],
+        );
+        $this->assertSame(
+            $dane['przepisy'][0]['plik_do_czytania'],
+            $dane['ugotowalem'][0]['plik_wlasnego_przepisu'],
         );
         $this->assertNotNull($podglad->wygenerowano);
         $this->assertSame(['Rosół z kury'], array_map(fn ($p) => $p->tytul, $podglad->przepisy));
@@ -108,6 +115,30 @@ class PodgladPaczkiEksportuTest extends TestCase
         $this->assertSame($przedZeszyty, Collection::query()->count());
         $this->assertSame($przedProfile, DB::table('profiles')->count());
         $this->assertSame(0, Recipe::query()->where('author_id', $zenek->getKey())->count());
+    }
+
+    public function test_poprawny_duzy_eksport_wpisow_blisko_12_mb_nadal_daje_podglad(): void
+    {
+        $json = '{"o_tym_pliku":{"serwis":"Kuking.pl","wersja_formatu":1},"przepisy":[],"wpisy":[';
+
+        for ($i = 0; $i < 3_500; $i++) {
+            $json .= ($i === 0 ? '' : ',').'{"rodzaj":"dish","tresc":"'
+                .str_repeat('a', 3_296).str_pad((string) $i, 4, '0', STR_PAD_LEFT).'"}';
+        }
+
+        $json .= '],"kolekcje":[]}';
+
+        $this->assertGreaterThan(11 * 1024 * 1024, strlen($json));
+        $this->assertLessThan(PodgladPaczkiEksportu::MAX_DANE_BAJTOW, strlen($json));
+
+        $sciezka = $this->zip(['dane.json' => $json]);
+        unset($json);
+
+        $wynik = (new PodgladPaczkiEksportu)->czytaj($this->user('zenek'), $sciezka);
+
+        $this->assertCount(3_500, $wynik->wpisy);
+        $this->assertSame(PozycjaPodgladu::NOWA, $wynik->wpisy[0]->stan);
+        $this->assertSame(PozycjaPodgladu::NOWA, $wynik->wpisy[3_499]->stan);
     }
 
     public function test_te_same_tresci_na_koncie_wlasciciela_sa_konfliktem_a_nie_nowoscia(): void
