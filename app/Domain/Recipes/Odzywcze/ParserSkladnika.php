@@ -32,6 +32,9 @@ use Illuminate\Support\Str;
  */
 final class ParserSkladnika
 {
+    /** Spacje między grupami tysięcy, kropka tylko jako część dziesiętna. */
+    private const LICZBA = '(?:\d{1,3}(?: \d{3})+|\d+)(?:[.,]\d+)?';
+
     private const ULAMKI = ['½' => ' 1/2 ', '¼' => ' 1/4 ', '¾' => ' 3/4 ', '⅓' => ' 1/3 ', '⅔' => ' 2/3 ', '⅛' => ' 1/8 '];
 
     /** Liczebniki słowne po normalizacji. */
@@ -62,8 +65,12 @@ final class ParserSkladnika
     public function odczytaj(string $tekst): OdczytanySkladnik
     {
         $t = self::normalizuj($tekst);
+        $niejednoznacznaIlosc = self::maBledneGrupowanie($t);
 
         [$t, $gramyNaSztuke, $nawiasPo, $nawiasRazem, $nawiasSprzeczny] = $this->wyjmijNawiasy($t);
+        // Uszkodzony nawias blokuje masę, ale nie odbiera poprawnej liczby
+        // pojemników zapisanej poza nawiasem.
+        $niejednoznacznyTekst = self::maBledneGrupowanie($t);
         $bezIlosci = preg_match(self::BEZ_ILOSCI, $t) === 1;
 
         // Myślnik ze spacjami i dwukropek oddzielają nazwę od reszty:
@@ -81,17 +88,17 @@ final class ParserSkladnika
         $slowoJednostki = null;
         $nazwa = $t;
 
-        $zPoczatku = $this->iloscNaPoczatku($t);
+        $zPoczatku = $niejednoznacznyTekst ? null : $this->iloscNaPoczatku($t);
         if ($zPoczatku !== null) {
             [$ilosc, $jednostka, $slowoJednostki, $nazwa] = $zPoczatku;
-        } elseif ($ogon !== null && ($zOgona = $this->iloscNaPoczatku((string) preg_replace('/^(ok\.?|okolo)\s+/', '', $ogon))) !== null) {
+        } elseif (! $niejednoznacznyTekst && $ogon !== null && ($zOgona = $this->iloscNaPoczatku((string) preg_replace('/^(ok\.?|okolo)\s+/', '', $ogon))) !== null) {
             [$ilosc, $jednostka, $slowoJednostki] = $zOgona;
-        } elseif (($wSrodku = $this->iloscZJednostkaGdziekolwiek($t)) !== null) {
+        } elseif (! $niejednoznacznyTekst && ($wSrodku = $this->iloscZJednostkaGdziekolwiek($t)) !== null) {
             [$ilosc, $jednostka, $slowoJednostki, $nazwa] = $wSrodku;
         }
 
         $gramyZNawiasu = null;
-        if ($gramyNaSztuke !== null && ! $nawiasSprzeczny) {
+        if ($gramyNaSztuke !== null && ! $nawiasSprzeczny && ! $niejednoznacznaIlosc) {
             $mnoznik = ! $nawiasRazem && ($nawiasPo || ($jednostka !== null && JednostkiMiary::jestPojemnikiem($jednostka)))
                 ? ($ilosc ?? 1.0)
                 : 1.0;
@@ -107,7 +114,7 @@ final class ParserSkladnika
             ? self::oczyscNazwe(rtrim($slowoJednostki, '.').' '.$nazwa)
             : null;
 
-        return new OdczytanySkladnik($ilosc, $jednostka, $nazwa, $nazwaZJednostka, $gramyZNawiasu, $bezIlosci, $nawiasSprzeczny);
+        return new OdczytanySkladnik($ilosc, $jednostka, $nazwa, $nazwaZJednostka, $gramyZNawiasu, $bezIlosci, $nawiasSprzeczny, $niejednoznacznaIlosc);
     }
 
     /**
@@ -118,6 +125,7 @@ final class ParserSkladnika
     {
         $t = mb_strtolower($tekst);
         $t = strtr($t, self::ULAMKI);
+        $t = (string) preg_replace('/[\x{00A0}\x{202F}]/u', ' ', $t);
         $t = (string) preg_replace('/\s*[\x{2013}\x{2014}\x{2212}]\s*/u', ' - ', $t);
         $t = Str::lower(Str::ascii($t));
         // Zakres „2–3” po zamianie myślnika wyżej ma zostać zakresem,
@@ -158,7 +166,7 @@ final class ParserSkladnika
 
         if (preg_match_all('/\(([^)]*)\)/', $t, $nawiasy) > 0) {
             foreach ($nawiasy[1] as $wnetrze) {
-                if ($gramy === null && preg_match('/(?:^|\s)(po\s+)?(?:ok\.?\s*|okolo\s+)?(\d+(?:[.,]\d+)?)\s*(g|gr|dag|dkg|kg)\b/', $wnetrze, $m) === 1) {
+                if ($gramy === null && preg_match('/(?:^|\s)(po\s+)?(?:ok\.?\s*|okolo\s+)?('.self::LICZBA.')\s*(g|gr|dag|dkg|kg)\b/', $wnetrze, $m) === 1) {
                     $kod = JednostkiMiary::kod($m[3]) ?? 'g';
                     $gramy = self::liczba($m[2]) * JednostkiMiary::MASA[$kod];
                     $po = trim($m[1]) !== '';
@@ -198,7 +206,7 @@ final class ParserSkladnika
     private function iloscZJednostkaGdziekolwiek(string $t): ?array
     {
         $slowa = implode('|', array_map(static fn (string $s): string => preg_quote($s, '/'), array_keys(JednostkiMiary::SLOWA)));
-        $wzor = '/(?:^|\s)(\d+(?:[.,]\d+)?(?:\s*-\s*\d+(?:[.,]\d+)?)?)\s*('.$slowa.')(?=\s|$)(?!\s*%)/';
+        $wzor = '/(?:^|\s)('.self::LICZBA.'(?:\s*-\s*'.self::LICZBA.')?)\s*('.$slowa.')(?=\s|$)(?!\s*%)/';
 
         if (preg_match($wzor, $t, $m, PREG_OFFSET_CAPTURE) !== 1) {
             return null;
@@ -214,7 +222,7 @@ final class ParserSkladnika
      */
     private function liczbaNaPoczatku(string $t): ?array
     {
-        $cyfra = '\d+(?:[.,]\d+)?';
+        $cyfra = self::LICZBA;
 
         // „1 1/2”, „1/2”, „2-3”, „2 do 3”, „2 lub 3”, „250” (także „250g”).
         if (preg_match('/^(\d+)\s+(\d+)\/(\d+)(?![\d\/])/', $t, $m) === 1 && (int) $m[3] > 0) {
@@ -276,7 +284,7 @@ final class ParserSkladnika
 
     private static function liczbaLubZakres(string $tekst): float
     {
-        if (preg_match('/^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/', $tekst, $m) === 1) {
+        if (preg_match('/^('.self::LICZBA.')\s*-\s*('.self::LICZBA.')$/', $tekst, $m) === 1) {
             return (self::liczba($m[1]) + self::liczba($m[2])) / 2;
         }
 
@@ -285,6 +293,26 @@ final class ParserSkladnika
 
     private static function liczba(string $tekst): float
     {
-        return (float) str_replace(',', '.', $tekst);
+        return (float) str_replace([' ', ','], ['', '.'], $tekst);
+    }
+
+    /** Nie wolno wyliczyć 50 g z błędnego „1 50 g” ani 500 g z „1,5 500 g”. */
+    private static function maBledneGrupowanie(string $tekst): bool
+    {
+        if (preg_match('/\d+[.,]\d+ \d+/', $tekst) === 1) {
+            return true;
+        }
+
+        if (preg_match_all('/(?<![\d.,])\d+(?: \d+)+(?:[.,]\d+)?(?![\d\/])/', $tekst, $liczby) === 0) {
+            return false;
+        }
+
+        foreach ($liczby[0] as $liczba) {
+            if (preg_match('/^\d{1,3}(?: \d{3})+(?:[.,]\d+)?$/', $liczba) !== 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -1264,6 +1264,15 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    ("Odżywcze: grupowana masa traci tysiące (#2560)", "app/Domain/Recipes/Odzywcze/ParserSkladnika.php",
+     "GrupowanaMasaOdzywczaTest::test_kalkulator_liczy_cale_1500_g_zamiast_500_g",
+     lambda s: replace_once(s, "private const LICZBA = '(?:\\d{1,3}(?: \\d{3})+|\\d+)(?:[.,]\\d+)?';", "private const LICZBA = '\\d+(?:[.,]\\d+)?';")),
+    ("Odżywcze: błędna grupa jest częściową masą (#2560)", "app/Domain/Recipes/Odzywcze/ParserSkladnika.php",
+     "GrupowanaMasaOdzywczaTest::test_niepoprawna_grupa_odmawia_zamiast_liczyc_fragment_lub_miare_puszki",
+     lambda s: replace_once(s, "$niejednoznacznaIlosc = self::maBledneGrupowanie($t);", "$niejednoznacznaIlosc = false;")),
+    ("Odżywcze: błędna masa bierze miarę puszki (#2560)", "app/Domain/Recipes/Odzywcze/KalkulatorWartosci.php",
+     "GrupowanaMasaOdzywczaTest::test_niepoprawna_grupa_odmawia_zamiast_liczyc_fragment_lub_miare_puszki",
+     lambda s: replace_once(s, "if ($odczyt->sprzecznaMasaWNawiasie || $odczyt->niejednoznacznaIlosc) {", "if ($odczyt->sprzecznaMasaWNawiasie) {")),
     ("Odżywcze: masa razem mnożona przez puszki (#2487)", "app/Domain/Recipes/Odzywcze/ParserSkladnika.php",
      "test_jawnie_laczna_masa_nie_jest_mnozona_przez_liczbe_opakowan",
      lambda s: replace_once(s, "! $nawiasRazem && ", "")),

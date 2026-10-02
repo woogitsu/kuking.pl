@@ -35,6 +35,9 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Odżywcze: grupowana masa traci tysiące (#2560)': r'ODZYWCZE_2560_GRUPOWANA_MASA',
+    'Odżywcze: błędna grupa jest częściową masą (#2560)': r'ODZYWCZE_2560_BLAD_GRUPOWANIA_ODMAWIA',
+    'Odżywcze: błędna masa bierze miarę puszki (#2560)': r'ODZYWCZE_2560_BLAD_GRUPOWANIA_ODMAWIA',
     'Odżywcze: masa razem mnożona przez puszki (#2487)': r'ODZYWCZE_2487_LACZNA_MASA_BEZ_MNOZENIA',
     'Odżywcze: sprzeczna masa wpada w domyślną miarę (#2487)': r'ODZYWCZE_2487_SPRZECZNY_NAWIAS_ODMAWIA',
     'Koszt: opis celu kasuje rozpoznaną masę (#2508)': r'KOSZT_2508_OPIS_CELU_NIE_KASUJE_MASY',

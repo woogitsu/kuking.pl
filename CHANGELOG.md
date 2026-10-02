@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2560): szacunek wartości odżywczych czyta `1 500 g` jako całą masę. Przy uszkodzonym zapisie cyfr odmawia wyliczenia zamiast brać końcowy fragment liczby.
 - Naprawione (#2487): przy szacowaniu wartości odżywczych `2 puszki (800 g razem)` i `2 puszki (łącznie 800 g)` oznaczają 800 g łącznie. Nieoznaczona masa i `po 400 g` zachowują dotychczasowe znaczenie; sprzeczne `po … razem` nie daje niepewnych liczb.
 - Naprawione (#2477, #2508): koszt zachowuje obie granice słownego zakresu ilości. Dopisek celu, np. „300 g mąki do 2 porcji”, zachowuje rozpoznaną masę; nie zmieniamy tekstu autora.
 
