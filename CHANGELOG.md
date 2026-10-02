@@ -2,7 +2,7 @@
 
 ## Nieopublikowane
 
-- Naprawione (#2418): „Mój rok w kuchni” ponownie sprawdza dostęp do przepisu i autora przed pokazaniem tytułu oraz odnośnika. Przepis ukryty w trakcie wczytywania strony nie ujawnia już swojej nazwy.
+- Naprawione (#2418): „Mój rok w kuchni” ponownie sprawdza dostęp do przepisu i autora przed pokazaniem tytułu oraz odnośnika. Test wyścigu obejmuje przełączenie na prywatny, ukrycie, blokadę i zamknięcie konta autora; usunięcie chroni też istniejący zakres modelu.
 
 - Naprawione (#2485, #2486): wspólna sesja pokazuje zamienniki wpisane przez autora przy składnikach i przetworzone zdjęcia przy właściwych krokach. Dostęp nadal zależy od członkostwa i prawa do przepisu.
 

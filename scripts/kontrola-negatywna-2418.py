@@ -1,4 +1,4 @@
-"""#2418: cofnięcie drugiego filtra metadanych musi ujawnić pięć wyścigów.
+"""#2418: cofnięcie drugiego filtra metadanych ujawnia cztery wyścigi.
 
 Uruchamiane po przygotowaniu izolowanej bazy kuking_race w
 scripts/testy-dwa-polaczenia.sh. JUnit odróżnia wyciek od błędu środowiska.
@@ -18,6 +18,8 @@ ANCHOR = (
     "                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())\n"
 )
 MARKER = "MOJ_ROK_2418_TYTUL_PO_UTRACIE_WIDOCZNOSCI"
+WYCIEKI = {"prywatny", "ukryty moderacyjnie", "blokada", "zamknięty autor"}
+WSZYSTKIE = WYCIEKI | {"usunięty", "widoczny"}
 
 if os.environ.get("CI") != "true":
     if os.environ.get("KUKING_KONTROLA_2418_LOKALNIE") != "1":
@@ -46,10 +48,22 @@ def run_test(mutant: bool) -> None:
         if len(cases) != 6 or any(case.find("skipped") is not None for case in cases):
             raise RuntimeError("Oczekiwano dokładnie 6 wykonanych scenariuszy #2418.")
 
+        widziane = set()
         failures = []
         for case in cases:
+            name = case.attrib.get("name", "")
+            if "test_bez_zmiany_widocznosci" in name:
+                scenariusz = "widoczny"
+            else:
+                pasujace = [etykieta for etykieta in WYCIEKI | {"usunięty"} if etykieta in name]
+                if "test_zmiana_zatwierdzona" not in name or len(pasujace) != 1:
+                    raise RuntimeError(f"Nieznany scenariusz JUnit #2418: {name!r}.")
+                scenariusz = pasujace[0]
+            if scenariusz in widziane:
+                raise RuntimeError(f"Powtórzony scenariusz JUnit #2418: {scenariusz}.")
+            widziane.add(scenariusz)
             found = case.findall("failure") + case.findall("error")
-            if mutant and "test_zmiana_zatwierdzona" in case.attrib.get("name", ""):
+            if mutant and scenariusz in WYCIEKI:
                 if len(found) != 1:
                     raise RuntimeError("Mutant nie oblał scenariusza widoczności dokładnie raz.")
                 details = " ".join(" ".join(f.itertext()) + " " + str(f.attrib) for f in found)
@@ -59,8 +73,11 @@ def run_test(mutant: bool) -> None:
                 raise RuntimeError("Scenariusz dodatni oblał lub przywrócony kod nadal jest czerwony.")
             failures.extend(found)
 
-        if mutant and (result.returncode == 0 or len(failures) != 5):
-            raise RuntimeError("Mutant #2418 nie dał pięciu właściwych porażek.")
+        if widziane != WSZYSTKIE:
+            raise RuntimeError(f"Niepełne scenariusze #2418: {widziane!r}.")
+
+        if mutant and (result.returncode == 0 or len(failures) != 4):
+            raise RuntimeError("Mutant #2418 nie dał czterech właściwych porażek.")
         if not mutant and (result.returncode != 0 or failures):
             raise RuntimeError("Przywrócony kod #2418 nie przeszedł sześciu scenariuszy.")
 
@@ -83,4 +100,4 @@ finally:
         raise RuntimeError("Kod #2418 nie został przywrócony bajtowo i czasowo.")
 
 run_test(mutant=False)
-print("Kontrola #2418: pięć wycieków po usunięciu filtra, sześć zielonych po przywróceniu.", flush=True)
+print("Kontrola #2418: cztery wycieki i dwa oczekiwane sukcesy po usunięciu filtra; sześć zielonych po przywróceniu.", flush=True)

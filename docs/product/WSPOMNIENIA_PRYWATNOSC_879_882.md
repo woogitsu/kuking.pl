@@ -146,4 +146,10 @@ stosuje widoczność dla właściciela oraz dostępność autora. Zmiana
 zatwierdzona po agregacji wykonań nie może ujawnić nazwy niewidocznego
 przepisu na prywatnym ekranie. Test dwóch połączeń zatrzymuje HTTP po
 agregacji, zatwierdza zmianę na drugim połączeniu i sprawdza odpowiedź.
+Po cofnięciu nowych filtrów cztery przypadki ujawniają tytuł: przełączenie
+na prywatny, ukrycie moderacyjne, blokada i zamknięcie konta autora.
+Usunięcie miękkie pozostaje chronione także przez domyślny zakres modelu,
+więc nie jest piątym wyciekiem. Kontrola ujemna wymaga dokładnie tych czterech
+porażek z markerem i dwóch sukcesów (usunięcie oraz brak zmiany); po
+przywróceniu kodu wszystkie sześć scenariuszy przechodzi.
 Rollback samej poprawki przywraca okno wycieku; schemat pozostaje bez zmian.
