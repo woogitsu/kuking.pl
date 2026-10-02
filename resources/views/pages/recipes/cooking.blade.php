@@ -43,7 +43,8 @@
             gdy taki minutnik się skończy. Bez JavaScriptu zostaje pusty
             i ukryty: minutnika w przeglądarce i tak wtedy nie ma.
         --}}
-        <div class="cook-alarmy stack" data-alarmy-recipe="{{ $recipe->slug }}" data-alarmy-krok="{{ $krok }}" data-alarmy-adres="{{ $adresGotowania() }}" hidden></div>
+        <div class="cook-alarmy stack" data-alarmy-recipe="{{ $recipe->slug }}" data-alarmy-krok="{{ $krok }}" data-alarmy-adres="{{ $adresGotowania() }}"
+             data-alarmy-kroki="{{ json_encode($steps->map(fn ($step): array => ['id' => (string) $step->getKey(), 'fingerprint' => $step->timerFingerprint()])->all(), JSON_THROW_ON_ERROR) }}" hidden></div>
 
         {{--
             ZMIANA POSTĘPU NA INNYM URZĄDZENIU (#2016). Pas jest ukryty i widoczny
@@ -238,7 +239,8 @@
             @endif
 
             @if($timerLabel)
-                <div class="cook-timer" data-timer-recipe="{{ $recipe->slug }}" data-timer-krok="{{ $krok }}" data-timer-sekundy="{{ $aktualnyKrok->timer_seconds }}" data-timer-etykieta="{{ $timerLabel }}">
+                <div class="cook-timer" data-timer-recipe="{{ $recipe->slug }}" data-timer-krok="{{ $krok }}" data-timer-sekundy="{{ $aktualnyKrok->timer_seconds }}" data-timer-etykieta="{{ $timerLabel }}"
+                     data-timer-step-id="{{ $aktualnyKrok->getKey() }}" data-timer-fingerprint="{{ $aktualnyKrok->timerFingerprint() }}">
                     {{-- Baza, bez JS: samo zdanie mówi, co zrobić z minutnikiem
                          w kuchni, na piecyku albo telefonie. --}}
                     <p>Ustaw sobie kuchenny minutnik na {{ $timerLabel }}.</p>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use DOMDocument;
@@ -183,6 +184,53 @@ final class SkalowaniePorcjiNaStroniePrzepisuTest extends TestCase
 
         $odpowiedz->assertSee('Przeliczone na 1 porcję.');
         $this->assertSame(['50 g mąki', '½ jajka', 'szczypta soli', 'sól', '¼ łyżki masła'], $this->skladniki($odpowiedz));
+    }
+
+    public function test_mniej_z_duzej_liczby_autora_prowadzi_do_przyjetych_stu_porcji(): void
+    {
+        $przepis = $this->przepis(150);
+        $pierwsza = $this->get(route('recipes.show', $przepis->slug))->assertOk();
+        $mniej = $this->xpath($pierwsza)->query('//div[@class="porcje-wybor-przyciski"]/a[contains(., "Mniej")]')->item(0);
+
+        $this->assertNotNull($mniej);
+        $adres = self::elementDom($mniej)->getAttribute('href');
+        $this->assertStringEndsWith('?porcje=100#skladniki', $adres, 'PORCJE_2624_MNIEJ_BEZ_PETLI');
+        $this->assertSame('Mniej porcji: 100 porcji', self::elementDom($mniej)->getAttribute('aria-label'));
+
+        $druga = $this->get(explode('#', $adres)[0])->assertOk();
+        $druga->assertSee('Przeliczone na 100 porcji.')
+            ->assertDontSee('Tej liczby porcji nie da się przeliczyć.')
+            ->assertSee('Pokaż ilości z przepisu');
+        $this->assertSame('Mniej porcji: 99 porcji', self::elementDom(
+            $this->xpath($druga)->query('//div[@class="porcje-wybor-przyciski"]/a[contains(., "Mniej")]')->item(0),
+        )->getAttribute('aria-label'));
+        $this->assertSame(0, $this->xpath($druga)->query('//div[@class="porcje-wybor-przyciski"]/a[contains(., "Więcej")]')->length);
+    }
+
+    public function test_mniej_i_wiecej_oferuja_tylko_liczby_akceptowane_przez_wybor(): void
+    {
+        foreach ([
+            [0.5, null, 1.0],
+            [1, null, 2.0],
+            [100, 99.0, null],
+            [101, 100.0, null],
+            [102, 100.0, null],
+            [150, 100.0, null],
+            [999, 100.0, null],
+            [101.5, 100.0, null],
+        ] as [$autora, $oczekiwaneMniej, $oczekiwaneWiecej]) {
+            $przepis = Recipe::factory()->make(['servings' => $autora]);
+            $wybor = WyborPorcji::dla($przepis, null);
+
+            $this->assertSame($oczekiwaneMniej, $wybor->mniej(), "Mniej od {$autora} porcji.");
+            $this->assertSame($oczekiwaneWiecej, $wybor->wiecej(), "Więcej od {$autora} porcji.");
+            foreach ([$wybor->mniej(), $wybor->wiecej()] as $nastepne) {
+                if ($nastepne !== null) {
+                    $this->assertFalse(WyborPorcji::dla($przepis, $wybor->doAdresu($nastepne))->odrzucone);
+                }
+            }
+            $this->assertNull($wybor->doAdresu((float) $autora), 'Powrót do oryginału nie ma parametru porcji.');
+        }
     }
 
     public function test_porcje_ulamkowe_przechodza_do_pelnych_liczb(): void

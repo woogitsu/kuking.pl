@@ -10,6 +10,8 @@ use App\Domain\Import\Url\ParserJsonLdPrzepisu;
 use App\Domain\Import\Url\RobotsTxt;
 use App\Domain\Import\Url\TekstStrony;
 use App\Domain\Import\ZadanieFragmentow;
+use App\Models\Recipe;
+use App\Support\LimityTekstuPrzepisu;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -107,6 +109,160 @@ final class ImportParseryTest extends TestCase
         $this->assertSame(['Utrzyj twaróg z cukrem.', 'Dodaj jajka.', 'Piecz godzinę w 170°C.'], $przepis->kroki);
     }
 
+    public function test_json_ld_odpakowuje_listitem_item_i_sortuje_jednoznaczne_pozycje(): void
+    {
+        $html = $this->stronaZJsonLd([
+            '@type' => 'Recipe',
+            'name' => 'Placek',
+            'recipeIngredient' => ['200 g mąki'],
+            'recipeInstructions' => ['@type' => 'ItemList', 'itemListElement' => [
+                ['@type' => 'ListItem', 'position' => 2, 'name' => 'Etykieta, nie krok', 'item' => [
+                    '@type' => 'HowToSection', 'itemListElement' => [
+                        ['@type' => 'HowToStep', 'position' => 2, 'text' => 'Piecz ciasto.'],
+                        ['@type' => 'HowToStep', 'position' => 1, 'text' => 'Wstaw formę.'],
+                    ],
+                ]],
+                ['@type' => 'ListItem', 'position' => '1', 'name' => 'Inna etykieta', 'item' => [
+                    '@type' => 'HowToStep', 'text' => 'Wymieszaj składniki.',
+                ]],
+            ]],
+        ]);
+
+        $przepis = (new ParserJsonLdPrzepisu)->odczytaj($html);
+
+        $this->assertNotNull($przepis);
+        $this->assertSame('Placek', $przepis->tytul);
+        $this->assertSame(['200 g mąki'], $przepis->skladniki);
+        $this->assertSame(['Wymieszaj składniki.', 'Wstaw formę.', 'Piecz ciasto.'], $przepis->kroki);
+    }
+
+    public function test_json_ld_mieszana_lista_i_niejednoznaczne_pozycje_zachowuja_kolejnosc_zrodla(): void
+    {
+        $parser = new ParserJsonLdPrzepisu;
+
+        foreach ([null, 0, 'x', 1, '999999999999999999999999999'] as $drugaPozycja) {
+            $drugi = ['@type' => 'ListItem', 'name' => 'To tylko nazwa wrappera', 'item' => [
+                '@type' => 'HowToStep', 'text' => 'Drugi krok.',
+            ]];
+            if ($drugaPozycja !== null) {
+                $drugi['position'] = $drugaPozycja;
+            }
+
+            $html = $this->stronaZJsonLd([
+                '@type' => 'Recipe', 'name' => 'Próba', 'recipeIngredient' => ['mąka'],
+                'recipeInstructions' => [
+                    ['@type' => 'ListItem', 'position' => 1, 'item' => ['@type' => 'HowToStep', 'text' => 'Pierwszy krok.']],
+                    $drugi,
+                    ['@type' => 'HowToStep', 'position' => 3, 'text' => 'Trzeci krok.'],
+                ],
+            ]);
+
+            $this->assertSame(['Pierwszy krok.', 'Drugi krok.', 'Trzeci krok.'], $parser->odczytaj($html)?->kroki);
+        }
+
+        $pomieszane = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'recipeIngredient' => ['mąka'],
+            'recipeInstructions' => [
+                ['@type' => 'ListItem', 'position' => 2, 'item' => ['@type' => 'HowToStep', 'text' => 'Drugi.']],
+                ['@type' => 'HowToStep', 'position' => 1, 'text' => 'Pierwszy.'],
+            ],
+        ]);
+        $this->assertSame(['Pierwszy.', 'Drugi.'], $parser->odczytaj($pomieszane)?->kroki);
+
+        $duplikat = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'recipeIngredient' => ['mąka'],
+            'recipeInstructions' => [
+                ['@type' => 'ListItem', 'position' => 2, 'item' => ['@type' => 'HowToStep', 'text' => 'Zapisany pierwszy.']],
+                ['@type' => 'ListItem', 'position' => 1, 'item' => ['@type' => 'HowToStep', 'text' => 'Zapisany drugi.']],
+                ['@type' => 'ListItem', 'position' => 1, 'item' => ['@type' => 'HowToStep', 'text' => 'Zapisany trzeci.']],
+            ],
+        ]);
+        $this->assertSame(['Zapisany pierwszy.', 'Zapisany drugi.', 'Zapisany trzeci.'], $parser->odczytaj($duplikat)?->kroki);
+
+        $duzaLista = [];
+        for ($pozycja = 60; $pozycja >= 1; $pozycja--) {
+            $duzaLista[] = ['@type' => 'ListItem', 'position' => $pozycja, 'item' => [
+                '@type' => 'HowToStep', 'text' => "Krok {$pozycja}.",
+            ]];
+        }
+        $duzaLista = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'recipeIngredient' => ['mąka'], 'recipeInstructions' => $duzaLista,
+        ]);
+        $kroki = $parser->odczytaj($duzaLista)?->kroki;
+        $this->assertNotNull($kroki);
+        $this->assertSame('Krok 1.', $kroki[0]);
+        $this->assertCount(60, $kroki);
+        $this->assertSame('Krok 60.', $kroki[59]);
+    }
+
+    public function test_json_ld_listitem_nie_pobiera_adresu_i_nie_odczytuje_obcego_obiektu_jako_kroku(): void
+    {
+        $html = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'name' => 'Próba', 'recipeIngredient' => ['mąka'],
+            'recipeInstructions' => ['@type' => 'ItemList', 'itemListElement' => [
+                ['@type' => 'ListItem', 'name' => 'Nie instrukcja', 'item' => 'https://obcy.example.pl/krok'],
+                ['@type' => 'ListItem', 'name' => 'Nie instrukcja', 'item' => ['@id' => 'https://obcy.example.pl/inny']],
+                ['@type' => 'ListItem', 'name' => 'Nie instrukcja', 'item' => ['@type' => 'Person', 'name' => 'Cudza osoba']],
+                ['@type' => 'ListItem', 'item' => ['@type' => 'HowToStep', 'text' => 'Zagnieć ciasto.']],
+            ]],
+        ]);
+
+        $przepis = (new ParserJsonLdPrzepisu)->odczytaj($html);
+
+        $this->assertNotNull($przepis);
+        $this->assertSame(['Zagnieć ciasto.'], $przepis->kroki);
+        $this->assertStringNotContainsString('obcy.example.pl', serialize($przepis));
+        $this->assertStringNotContainsString('Cudza osoba', serialize($przepis));
+    }
+
+    public function test_json_ld_listitem_nie_omija_limitu_zagniezdzenia(): void
+    {
+        $wezel = ['@type' => 'HowToStep', 'text' => 'Za głęboko.'];
+        for ($i = 0; $i < 10; $i++) {
+            $wezel = ['@type' => 'HowToSection', 'itemListElement' => [$wezel]];
+        }
+
+        $html = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'recipeIngredient' => ['mąka'],
+            'recipeInstructions' => ['@type' => 'ListItem', 'item' => $wezel],
+        ]);
+
+        $this->assertSame([], (new ParserJsonLdPrzepisu)->odczytaj($html)?->kroki);
+    }
+
+    public function test_json_ld_id_kroku_nie_staje_sie_instrukcja_ani_nie_pobiera_celu(): void
+    {
+        $parser = new ParserJsonLdPrzepisu;
+
+        foreach ([['@id' => '#step1'], [['@id' => '#step1']]] as $referencja) {
+            $html = $this->stronaZJsonLd(['@graph' => [
+                ['@type' => 'Recipe', 'name' => 'Placek', 'recipeIngredient' => ['mąka'], 'recipeInstructions' => $referencja],
+                ['@id' => '#step1', '@type' => 'HowToStep', 'text' => 'Wymieszaj mąkę.'],
+            ]]);
+            $przepis = $parser->odczytaj($html);
+
+            $this->assertNotNull($przepis);
+            $this->assertSame([], $przepis->kroki, 'JSONLD_ID_KROKU_NIE_JEST_TEKSTEM');
+            $this->assertSame(['mąka'], $przepis->skladniki);
+        }
+
+        $bezCelu = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'recipeIngredient' => ['mąka'], 'recipeInstructions' => ['@id' => '#brak'],
+        ]);
+        $this->assertSame([], $parser->odczytaj($bezCelu)?->kroki);
+
+        $poprawny = $this->stronaZJsonLd([
+            '@type' => 'Recipe', 'recipeIngredient' => ['mąka'],
+            'recipeInstructions' => [
+                ['@type' => 'HowToStep', 'text' => 'Wymieszaj.'],
+                ['@type' => 'HowToStep', 'name' => 'Piecz.'],
+                'Ostudź.',
+                ['@type' => 'HowToSection', 'itemListElement' => ['Podaj.']],
+            ],
+        ]);
+        $this->assertSame(['Wymieszaj.', 'Piecz.', 'Ostudź.', 'Podaj.'], $parser->odczytaj($poprawny)?->kroki);
+    }
+
     public function test_json_ld_nie_przenosi_adresu_zdjecia_ani_autora_nigdzie(): void
     {
         $html = $this->stronaZJsonLd([
@@ -124,6 +280,51 @@ final class ImportParseryTest extends TestCase
         $zrzut = serialize($przepis);
         $this->assertStringNotContainsString('zdjecie.jpg', $zrzut);
         $this->assertStringNotContainsString('Jan Obcy', $zrzut);
+    }
+
+    public function test_json_ld_zakodowane_granice_zachowuja_kroki_i_skladniki(): void
+    {
+        $warianty = ["Wymieszaj ½ łyżki & sól.\nPiecz.", 'Wymieszaj ½ łyżki &amp; sól.&#10;Piecz.', 'Wymieszaj ½ łyżki &amp; sól.&amp;#10;Piecz.'];
+        foreach (['Wymieszaj ½ łyżki &amp; sól.<br>Piecz.', '<p>Wymieszaj ½ łyżki &amp; sól.</p><p>Piecz.</p>', '<ul><li>Wymieszaj ½ łyżki &amp; sól.</li><li>Piecz.</li></ul>'] as $html) {
+            // `&amp;` jest już jedną warstwą: zwykłe znaki treści nie
+            // dostają przypadkiem trzeciej warstwy podczas kodowania HTML.
+            $html = str_replace('&amp;', '&', $html);
+            for ($layer = 0; $layer <= 2; $layer++) {
+                $warianty[] = $html;
+                $html = htmlspecialchars($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            }
+        }
+
+        foreach ($warianty as $instrukcje) {
+            foreach ([$instrukcje, [$instrukcje]] as $poleInstrukcji) {
+                $przepis = (new ParserJsonLdPrzepisu)->odczytaj($this->stronaZJsonLd([
+                    '@type' => 'Recipe', 'name' => 'Żółty placek &amp;frac12;',
+                    'recipeIngredient' => '&amp;lt;p&amp;gt;½ kg mąki&amp;lt;/p&amp;gt;&amp;lt;p&amp;gt;sól &amp;amp; pieprz&amp;lt;/p&amp;gt;',
+                    'recipeInstructions' => $poleInstrukcji,
+                ]));
+
+                $this->assertNotNull($przepis, 'IMPORT_2564_KROKI_BEZ_SKLEJANIA');
+                $this->assertSame(['Wymieszaj ½ łyżki & sól.', 'Piecz.'], $przepis->kroki, 'IMPORT_2564_KROKI_BEZ_SKLEJANIA');
+                $this->assertSame(['½ kg mąki', 'sól & pieprz'], $przepis->skladniki, 'IMPORT_2564_SKLADNIKI_BEZ_SKLEJANIA');
+                $this->assertSame('Żółty placek ½', $przepis->tytul);
+            }
+        }
+    }
+
+    public function test_json_ld_dekoduje_tylko_dwie_warstwy_i_usuwanie_markup_zostaje(): void
+    {
+        $this->assertSame('Zażółć ½ & sól', ParserJsonLdPrzepisu::tekst('&amp;lt;b&amp;gt;Zażółć &amp;frac12; &amp;amp; sól&amp;lt;/b&amp;gt;'), 'IMPORT_2564_MARKUP_NIE_JEST_TEKSTEM');
+        $this->assertSame(['Mix.&lt;br&gt;Bake.'], ParserJsonLdPrzepisu::wiersze('Mix.&amp;amp;lt;br&amp;amp;gt;Bake.'), 'IMPORT_2564_TYLKO_DWIE_WARSTWY');
+        $this->assertSame('', ParserJsonLdPrzepisu::tekst(null));
+
+        $przepis = (new ParserJsonLdPrzepisu)->odczytaj($this->stronaZJsonLd([
+            '@type' => 'Recipe', 'name' => str_repeat('A', 300),
+            'recipeIngredient' => 'mąka',
+            'recipeInstructions' => str_repeat('&lt;p&gt;Piecz.&lt;/p&gt;', 65),
+        ]));
+        $this->assertNotNull($przepis);
+        $this->assertSame(LimityTekstuPrzepisu::POLA['title'], mb_strlen($przepis->tytul));
+        $this->assertCount(Recipe::MAX_STEPS, $przepis->kroki);
     }
 
     public function test_pusty_przepis_w_tym_samym_grafie_nie_zaslania_pelnego(): void
@@ -312,6 +513,23 @@ final class ImportParseryTest extends TestCase
         $this->assertSame('Najlepszy w rodzinie.', $przepis->opis);
         $this->assertSame(['1 kg twarogu', '5 jaj'], $przepis->skladniki);
         $this->assertSame(['Utrzyj twaróg.', 'Dodaj jajka i wymieszaj.', 'Piecz godzinę.'], $przepis->kroki);
+    }
+
+    public function test_tekst_pdf_zachowuje_dziesietne_ilosci_a_usuwa_tylko_jednoznaczna_numeracje(): void
+    {
+        $przepis = (new ParserTekstuPrzepisu)->odczytaj(
+            "Placek\nSkładniki\n1.5 kg mąki\n0.5 l mleka\n12.5 g soli\n1.5\u{00A0}kg cukru\n1,5 kg jabłek\n"
+            ."1. 500 g masła\n2) 1.5 kg gruszek\n3)0.5 l wody\n4.\u{00A0}0.5 kg migdałów\n•1.5 g cynamonu\n- 2 jajka\n"
+            ."1.500 g kaszy\n-1.5 g przyprawy\nbez ilości: aromat\nPrzygotowanie\nWymieszaj składniki.",
+        );
+
+        $this->assertNotNull($przepis);
+        $this->assertSame([
+            '1.5 kg mąki', '0.5 l mleka', '12.5 g soli', '1.5 kg cukru', '1,5 kg jabłek',
+            '500 g masła', '1.5 kg gruszek', '0.5 l wody', '0.5 kg migdałów', '1.5 g cynamonu', '2 jajka',
+            '1.500 g kaszy', '-1.5 g przyprawy', 'bez ilości: aromat',
+        ], $przepis->skladniki, 'PDF_2614_ILOSC_DZIESIETNA_NIE_JEST_NUMEREM_LISTY');
+        $this->assertSame(['Wymieszaj składniki.'], $przepis->kroki);
     }
 
     public function test_tekst_bez_naglowkow_trafia_w_calosci_do_krokow_i_nic_nie_ginie(): void

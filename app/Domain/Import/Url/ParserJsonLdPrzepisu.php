@@ -190,9 +190,32 @@ final class ParserJsonLdPrzepisu
             return [];
         }
 
-        // Pojedynczy węzeł zamiast listy.
-        if (isset($wartosc['@type']) || isset($wartosc['itemListElement']) || isset($wartosc['text'])) {
+        // Obiekt jest jednym węzłem także wtedy, gdy niesie tylko @id.
+        // Iterowanie po jego wartościach zamieniałoby identyfikator w krok.
+        if (! array_is_list($wartosc)) {
             $wartosc = [$wartosc];
+        }
+
+        // Pozycje porządkują listę tylko wtedy, gdy są poprawne i jednoznaczne
+        // dla każdego elementu. Przy brakach i duplikatach zostaje kolejność
+        // źródła — nie zgadujemy, w którym miejscu brakował krok.
+        $pozycje = [];
+        $widocznePozycje = [];
+
+        foreach ($wartosc as $element) {
+            $pozycja = is_array($element) ? self::pozycja($element['position'] ?? null) : null;
+
+            if ($pozycja === null || isset($widocznePozycje[$pozycja])) {
+                $pozycje = [];
+                break;
+            }
+
+            $pozycje[] = $pozycja;
+            $widocznePozycje[$pozycja] = true;
+        }
+
+        if (count($pozycje) === count($wartosc) && $pozycje !== []) {
+            array_multisort($pozycje, SORT_ASC, SORT_NUMERIC, $wartosc);
         }
 
         $wynik = [];
@@ -205,6 +228,17 @@ final class ParserJsonLdPrzepisu
             }
 
             if (! is_array($element)) {
+                continue;
+            }
+
+            if ($this->jestTypem($element, 'ListItem')) {
+                $item = $element['item'] ?? null;
+
+                if (is_array($item) && ($this->jestTypem($item, 'HowToStep') || $this->jestTypem($item, 'HowToSection'))) {
+                    array_push($wynik, ...$this->kroki($item, $glebokosc + 1));
+                }
+
+                // Nazwa opakowania nie jest instrukcją; @id/URL nie pobieramy.
                 continue;
             }
 
@@ -224,6 +258,29 @@ final class ParserJsonLdPrzepisu
         return $wynik;
     }
 
+    private static function pozycja(mixed $wartosc): ?int
+    {
+        if (! is_int($wartosc) && ! (is_string($wartosc) && ctype_digit($wartosc))) {
+            return null;
+        }
+
+        $pozycja = filter_var($wartosc, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+
+        return is_int($pozycja) ? $pozycja : null;
+    }
+
+    /** @param array<mixed> $wezel */
+    private function jestTypem(array $wezel, string $szukany): bool
+    {
+        foreach ((array) ($wezel['@type'] ?? null) as $typ) {
+            if (is_string($typ) && preg_match('#(^|[/:])'.preg_quote($szukany, '#').'$#i', trim($typ)) === 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Tekst, w którym kroki albo składniki rozdziela HTML (`<li>`, `<p>`,
      * `<br>`) albo znak nowej linii.
@@ -232,11 +289,14 @@ final class ParserJsonLdPrzepisu
      */
     public static function wiersze(string $tekst): array
     {
+        // Granice rozpoznajemy dopiero po dwóch obsługiwanych warstwach encji.
+        // Sprzątanie pojedynczego wiersza nie może już dekodować go ponownie.
+        $tekst = self::decodeEntities($tekst);
         $tekst = (string) preg_replace('#<\s*(br|/p|/li|/div|/h[1-6])\b[^>]*>#i', "\n", $tekst);
         $wynik = [];
 
         foreach (preg_split('/\R/u', $tekst) ?: [] as $wiersz) {
-            $wiersz = self::tekst($wiersz);
+            $wiersz = self::plainText($wiersz);
 
             if ($wiersz !== '') {
                 $wynik[] = $wiersz;
@@ -252,10 +312,33 @@ final class ParserJsonLdPrzepisu
             return '';
         }
 
-        // Dwa razy: wtyczki WordPressa potrafią zakodować encje podwójnie
-        // (`&amp;frac12;`).
-        $tekst = html_entity_decode(strip_tags($wartosc), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $tekst = html_entity_decode(strip_tags($tekst), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return self::plainText(self::decodeEntities($wartosc));
+    }
+
+    private static function decodeEntities(string $tekst): string
+    {
+        // Dwie warstwy, nie pętla do skutku: WordPress zapisuje także
+        // `&amp;frac12;`. Odtworzony markup sprzątamy dopiero po dekodowaniu.
+        for ($layer = 0; $layer < 2; $layer++) {
+            $tekst = html_entity_decode($tekst, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+
+        return $tekst;
+    }
+
+    private static function plainText(string $tekst): string
+    {
+        // `strip_tags()` uznaje także zwykłe „<80” za początek niedomkniętego
+        // znacznika i ucina resztę instrukcji. Chronimy tylko porównanie z
+        // liczbą; prawdziwy markup nadal usuwa ta sama funkcja. Znacznik
+        // odróżniamy od takiego samego znaku w wejściu bez szukania w pętli.
+        $znacznik = "\u{E000}";
+        $tekst = str_replace($znacznik, $znacznik.$znacznik, $tekst);
+        $tekst = (string) preg_replace('/<(?=\d)/', $znacznik.'L', $tekst);
+        $tekst = strtr(strip_tags($tekst), [
+            $znacznik.$znacznik => $znacznik,
+            $znacznik.'L' => '<',
+        ]);
 
         return trim((string) preg_replace('/\s+/u', ' ', $tekst));
     }
