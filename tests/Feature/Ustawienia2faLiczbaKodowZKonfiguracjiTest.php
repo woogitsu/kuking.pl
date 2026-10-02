@@ -29,11 +29,11 @@ class Ustawienia2faLiczbaKodowZKonfiguracjiTest extends TestCase
     public static function liczby(): array
     {
         return [
-            '8' => [8, 'Nowy komplet 8 kodów.'],
-            '5' => [5, 'Nowy komplet 5 kodów.'],
-            '2' => [2, 'Nowy komplet 2 kodów.'],
-            '1' => [1, 'Nowy komplet 1 kodu.'],
-            '12' => [12, 'Nowy komplet 12 kodów.'],
+            '8 kod.' => [8, 'Nowy komplet 8 kodów.'],
+            '5 kod.' => [5, 'Nowy komplet 5 kodów.'],
+            '2 kod.' => [2, 'Nowy komplet 2 kodów.'],
+            '1 kod.' => [1, 'Nowy komplet 1 kodu.'],
+            '12 kod.' => [12, 'Nowy komplet 12 kodów.'],
         ];
     }
 

@@ -5059,7 +5059,7 @@
 
 .cook-temperatura-uwaga {
     margin: 0 0 var(--spacing-2);
-    color: var(--color-text-muted);
+    color: var(--color-ink-muted);
 }
 
 .cook-ingredients {
