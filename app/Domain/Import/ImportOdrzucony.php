@@ -31,6 +31,8 @@ final class ImportOdrzucony extends BladDlaCzlowieka
 
     public const ROBOTS_ZABRANIA = 'robots_zabrania';
 
+    public const ROBOTS_NIEPEWNE = 'robots_niepewne';
+
     public const STRONA_NIEDOSTEPNA = 'strona_niedostepna';
 
     public const ZA_DUZO_PRZEKIEROWAN = 'za_duzo_przekierowan';
@@ -79,6 +81,8 @@ final class ImportOdrzucony extends BladDlaCzlowieka
             .'i czy otwiera się w przeglądarce.',
         self::ROBOTS_ZABRANIA => 'Ta strona nie pozwala na pobieranie przepisów przez inne serwisy. Skopiuj tekst przepisu '
             .'ze strony i wklej go w polu „Przygotowanie” — adres zapisaliśmy jako źródło.',
+        self::ROBOTS_NIEPEWNE => 'Nie udało się sprawdzić zasad pobierania tej strony. Spróbuj później '
+            .'albo wpisz przepis ręcznie.',
         self::STRONA_NIEDOSTEPNA => 'Z tej strony nie da się teraz pobrać przepisu. Sprawdź adres w przeglądarce '
             .'albo skopiuj tekst przepisu i wklej go w polu „Przygotowanie”.',
         self::ZA_DUZO_PRZEKIEROWAN => 'Ten adres przekierowuje zbyt wiele razy. Otwórz stronę w przeglądarce '
