@@ -30,7 +30,6 @@
 - Naprawione (#2624): przy przepisie autora na ponad 101 porcji „Mniej” przechodzi od razu do 100 porcji zamiast prowadzić do odrzucanego adresu i zapętlać wybór. Powrót do ilości autora nadal jest dostępny.
 - Naprawione (#2617): gdy nie da się ocenić reguły robots.txt, import nie pobiera strony. Prosi o ponowną próbę później albo ręczne wpisanie przepisu, bez przypisywania wydawcy odmowy.
 - Naprawione (#2569): zakodowanie litery w adresie nie omija zakazu wydawcy w robots.txt. Import nadal respektuje reguły także po przekierowaniu.
-- Naprawione (#2626): przy imporcie przepisu z mikrodanych jeden składnik lub krok nie powtarza się tylko dlatego, że strona nadała mu dwie nazwy `itemprop`. Osobne pozycje o jednakowym tekście pozostają osobne i zachowują kolejność ze strony.
 - Wewnętrzne (#2598): test dwóch połączeń przy zapisie do zeszytu czeka na właściwą barierę transakcji. Wcześniejsza, obca blokada nie daje fałszywej czerwieni; osobny przeplot i kontrola ujemna sprawdzają ten warunek w CI.
 - Wewnętrzne (#2596): lokalny serwer testu checklisty składników przyjmuje tylko dodatnią liczbę porcji. Nie odbija tekstu z adresu w HTML; test HTTP i kontrola ujemna pilnują tego w CI.
 - Naprawione (#2467): usunięcie produktu z „Co mam w domu” najpierw pokazuje pytanie z jego nazwą. „Anuluj” zamyka je bez kasowania ilości lub terminu, także bez JavaScriptu.
