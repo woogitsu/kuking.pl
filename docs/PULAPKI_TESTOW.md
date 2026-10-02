@@ -599,6 +599,16 @@ Krótko: **w teście albo data jest stała i zegar też, albo obie są względne
 Stała data przy idącym zegarze to bomba z opóźnionym zapłonem**, która
 tyka dokładnie tyle, ile wynosi różnica między dniem napisania a wpisaną datą.
 
+**Wyjątek przy dwóch zegarach (#1973, CI 01.10.2026):** jeśli PostgreSQL
+stempluje wiersz przez SQL `now()`, przesunięcie wyłącznie zegara PHP *przed*
+zapisem nie ustawia czasu tego wiersza. Test rezerwacji uruchomiony o 23:29
+polskiego czasu przesuwał PHP na następny dzień o 00:05; nowy wiersz w bazie
+miał nadal rzeczywiste 23:29 i sprzątanie zwalniało go już przy pierwszym
+wywołaniu. Przy pomiarze wygaśnięcia zapisz rezerwację przy bieżącym czasie
+bazy, a potem postarzej jej `created_at` względem `clock_timestamp()` w tej
+samej bazie. Budżet po północy czytaj z dnia zapisanego przy rezerwacji,
+bo pusty wiersz nowego dnia maskuje błąd.
+
 ---
 
 ---
