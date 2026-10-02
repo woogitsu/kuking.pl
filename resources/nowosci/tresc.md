@@ -101,6 +101,10 @@ Zgłosiliście ugotowanie od razu, a zdjęcie macie dopiero po posiłku? Na stro
 
 Autor zmienił przepis, a Wy chcecie powtórzyć dokładnie to, co Wam wcześniej wyszło? Na ekranie „Wersja z tego gotowania” (przy własnym wykonaniu) jest przycisk „Gotuj z tej wersji”. Prowadzi krok po kroku, z minutnikami, ale według starszej wersji, którą wtedy mieliście przed oczami — a nie według dzisiejszego tekstu autora. Na górze zawsze widać, z której wersji i z jakiej daty gotujecie, a przycisk „Wróć do dzisiejszego przepisu” jest pod ręką. Na końcu zapiszecie nowe „Ugotowałem” ze wskazaną starszą wersją. Jeśli ta wersja nie jest już dostępna, powiemy o tym wprost, zamiast po cichu podmienić ją na dzisiejszą.
 
+### Poprawka własnego przepisu z dawnej wersji
+
+Zmieniliście kilka proporcji, a po kolejnym gotowaniu chcecie wrócić do poprzedniej receptury? W historii zmian własnego przepisu, przy starszej wersji, jest przycisk „Zastosuj jako nową poprawkę”. Najpierw widzicie podgląd: co wróci z tej wersji, co jest dziś i czego nie przywracamy (zdjęcia, pochodzenie przepisu, widoczność). Samo oglądanie niczego nie zmienia. Zaznaczacie, co zastosować — dane, składniki, kroki — i dopiero wtedy powstaje nowa wersja. To nie cofnięcie czasu: dawne wersje zostają, a przepis dostaje kolejną poprawkę.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

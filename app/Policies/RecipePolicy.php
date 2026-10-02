@@ -167,6 +167,20 @@ class RecipePolicy
     }
 
     /**
+     * „Zastosuj jako nową poprawkę” z historii (#2525): wyłącznie autor
+     * własnego, OPUBLIKOWANEGO przepisu, z aktywnym kontem (zawieszenie
+     * odcina od zmiany treści publicznej) i przy statusie, który dopuszcza
+     * edycję przez autora (nie przepis zamrożony przez moderację).
+     */
+    public function applyVersion(User $user, Recipe $recipe): bool
+    {
+        return $user->getKey() === $recipe->author_id
+            && $user->isActive()
+            && $recipe->isPublished()
+            && RecipeStatusTransitions::authorMayEdit($recipe->status);
+    }
+
+    /**
      * „Odłóż na później” / „Wróć do pracy” (#2550): wyłącznie autor własnego
      * szkicu. Przepis opublikowany albo zamrożony przez moderację (`hidden`,
      * `removed`) nie ma czego odkładać — oznaczenie nie zmienia widoczności.
