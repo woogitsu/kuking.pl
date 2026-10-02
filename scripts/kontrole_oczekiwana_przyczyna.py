@@ -503,6 +503,7 @@ OCZEKUJ = {
     'Klucz localStorage bez opisu w polityce': r'zapisuje w localStorage „kuking-wyglad-nowy”',
     'Planer bez wiersza w polityce': r'Dane z sekcji paczki „planer” nie mają opisu',
     'Nowa sekcja paczki bez opisu w polityce': r'Paczka ma nową sekcję „planer_nowy”',
+    'Polityka bez górnego terminu usunięcia wspólnego gotowania (#2708)': r'Polityka nie podaje górnego terminu usunięcia \(48 godzin\) w wierszu „Wspólne gotowanie”',
     'Postęp gotowania z terminem niezgodnym z konfiguracją': r'Postęp gotowania żyje 24 godzin',
     'Cloudflare jako pośrednik bez wiersza w polityce': r'Kod używa usługi „Cloudflare \(sieć, CDN i ochrona',
     # #2267: theme-color i manifest.
