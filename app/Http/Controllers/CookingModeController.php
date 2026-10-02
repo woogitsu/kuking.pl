@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Moderation\DziennikWgladu;
 use App\Domain\Recipes\Gotowanie\JakWyszlo;
 use App\Domain\Recipes\Gotowanie\NieaktualnePorcjeSkladnikow;
+use App\Domain\Recipes\Gotowanie\NotatkiZZeszytowDoGotowania;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Gotowanie\RoboczyDopisek;
 use App\Domain\Recipes\Porcje\WyborPorcji;
@@ -181,6 +182,9 @@ class CookingModeController extends Controller
         $dopisekKonta = $osoba !== null ? app(RoboczyDopisek::class)->aktywny($osoba, $model) : null;
 
         return view('pages.recipes.cooking', [
+            // Własne dopiski z prywatnych zeszytów (#2433): tylko odczyt, tylko dla
+            // zalogowanej osoby — dla gościa zawsze pusta lista.
+            'notatkiZeszytow' => app(NotatkiZZeszytowDoGotowania::class)->dla($osoba, $model),
             'dopisek' => [
                 'dostepny' => $osoba !== null && $osoba->can('create', CookingNote::class),
                 'tresc' => $dopisekKonta?->body,
