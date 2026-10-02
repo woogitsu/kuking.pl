@@ -46,7 +46,7 @@ class CoMamWDomuTest extends TestCase
             ->assertOk()
             ->assertSee('Mąka pszenna')
             ->assertSee('Co masz w domu?')
-            ->assertSee('Usuń z listy: Mąka pszenna', false);
+            ->assertSee('Tak, usuń z listy: Mąka pszenna', false);
     }
 
     public function test_ta_sama_rzecz_w_innej_pisowni_nie_dubluje_sie(): void
