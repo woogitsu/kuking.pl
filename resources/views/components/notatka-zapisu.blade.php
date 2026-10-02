@@ -52,7 +52,7 @@
                 @method('PATCH')
                 <input type="hidden" name="_wiersz" value="{{ $wiersz }}">
                 <input type="hidden" name="{{ \App\Domain\Collections\Actions\UpdateCollectionItemNote::POLE_ODCISKU }}" value="{{ $odcisk }}">
-                <x-field name="note" :wiersz="$wiersz" :error-bag="$worek" :label="$wspolny ? 'Notatka' : 'Notatka dla siebie'" type="textarea" :rows="3"
+                <x-field name="note" :wiersz="$wiersz" :error-bag="$worek" :label="$wspolny ? 'Notatka' : 'Notatka dla siebie'" type="textarea" :rows="3" dyktowanie
                          :value="$notatka" :licznik-znakow="\App\Domain\Collections\Actions\UpdateCollectionItemNote::LIMIT_ZNAKOW"
                          :help="$wspolny
                             ? 'Widzą ją osoby, które mają dostęp do tego zeszytu. Nie zobaczy jej autor ani nikt inny, kto ogląda ten zeszyt. Żeby ją usunąć, wyczyść pole i zapisz.'

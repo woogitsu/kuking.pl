@@ -320,6 +320,65 @@ stałym `DEFAULT`, więc stary kod ich nie czyta i nic się nie psuje. Testy:
 `TerminySpizarniEksportIWymazanieTest`); `EraseAccountData` kasuje cały
 `pantry_items` konta, więc nie ma nic nowego do kasowania.
 
+## pantry_second_packages — drugie opakowanie produktu (V2, #2568)
+
+Drugie opakowanie tego samego produktu z „Co mam w domu”, z własnym terminem,
+rodzajem terminu, ilością i oznaczeniem „mrożone”. Migracja
+`2026_10_03_200000_create_pantry_second_packages_table`. **Nazwa produktu
+zostaje jedna** (`UNIQUE (user_id, klucz)` w `pantry_items` bez zmian), a zwykłe
+dodanie tej samej nazwy niczego nie tworzy — drugie opakowanie powstaje
+wyłącznie jawną akcją „Dodaj drugie opakowanie” (`DrugieOpakowanieProduktu`).
+**Pierwsze opakowanie to nadal kolumny `pantry_items`** (`expires_on`,
+`expiry_kind`, `quantity_note`, `frozen`); dotychczasowe terminy i ilości nie są
+przenoszone ani przeliczane.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | identyfikator drugiego opakowania (niesie go formularz edycji) |
+| `pantry_item_id` | `uuid NOT NULL` → `pantry_items` (`ON DELETE CASCADE`), `UNIQUE` | produkt; najwyżej jedno drugie opakowanie na produkt, więc razem dwa. Nie ma własnego `user_id` — właściciel to właściciel produktu |
+| `expires_on` | `date NULL` | jak w `pantry_items` (dzień z opakowania, bez strefy) |
+| `expiry_kind` | `varchar(12) NULL` | `use_by` albo `best_before`; `NULL` dokładnie wtedy, gdy `expires_on IS NULL` |
+| `quantity_note` | `varchar(40) NULL` | ilość jako wolny tekst |
+| `frozen` | `boolean NOT NULL DEFAULT false` | to opakowanie w zamrażarce; nie wpływa na pierwsze |
+| `created_at` | `timestamptz NOT NULL DEFAULT now()` | |
+
+Ograniczenia: `UNIQUE (pantry_item_id)` (`pantry_second_packages_pantry_item_id_unique`;
+limit „dwa opakowania” stoi w bazie, więc dwa równoległe zapisy nie dadzą
+trzeciego), `…_expiry_kind_check`, `…_expiry_pair_check`,
+`…_expires_on_range_check` (2020-01-01 … 2100-12-31) i `…_quantity_note_check`
+(1–40 znaków po obcięciu spacji) — te same reguły co dla pierwszego opakowania.
+Nowa, pusta tabela nie potrzebuje wzorca `NOT VALID`. Modelu nie wypełnia się
+masowo (`$fillable = []`): wiersz zapisuje tylko akcja domenowa, po walidacji
+wspólnej z `ZmienTerminProduktu`.
+
+Reguły, które na tym stoją:
+- **Dostępność, pilność i dopasowanie liczy się na każdym opakowaniu osobno**
+  (`PriorytetZuzycia::OPAKOWANIA_SQL` — `UNION ALL` opakowań pod aliasem `p`),
+  a produkt „jest”, gdy choć jedno opakowanie spełnia warunek (`EXISTS`,
+  `count(DISTINCT p.id)`). Produkt z jednym opakowaniem daje wiersze jak dawniej.
+  Opakowanie po „Należy zużyć do” nie otwiera produktu do gotowania, ale dobre
+  drugie — tak. Mrożone opakowanie nie chowa pilnego niemrożonego.
+- **Usunięcie jednego opakowania nie rusza drugiego.** Usunięcie drugiego kasuje
+  jego wiersz. Usunięcie pierwszego przenosi treść drugiego na miejsce pierwszego
+  (kolumny `pantry_items`) i kasuje wiersz drugiego w jednej transakcji pod
+  blokadą wiersza produktu; formularz niesie odcisk treści z chwili otwarcia, więc
+  stary formularz nie zadziała na opakowaniu, którego człowiek nie widział.
+  Usunięcie całego produktu (`pantry.destroy`) kasuje oba kaskadą.
+- **Limit 150** dotyczy produktów (`CoMamWDomu::MAKS_PRODUKTOW`), nie opakowań;
+  opakowań jest więc najwyżej 300.
+- **Eksport i wymazanie.** Paczka danych (`co_mam_w_domu[].drugie_opakowanie`,
+  `null` gdy go nie ma) obejmuje drugie opakowanie; wymazanie konta usuwa
+  `pantry_items`, a drugie opakowania znikają kaskadą. Tabela nie ma kolumny
+  wskazującej na `users`, więc nie wchodzi do `InwentarzDanychKonta`.
+- **Rollback (D-088).** `down()` ODMAWIA, gdy istnieje choć jedno drugie
+  opakowanie: to osobna decyzja człowieka (osobny termin, ilość, zamrożenie),
+  której nie wolno scalić po cichu z pierwszym ani skasować. Komunikat podaje
+  liczbę i polecenie kopii (`CREATE TABLE pantry_second_packages_kopia AS SELECT *
+  …`). Wymuszenie po kopii: `KUKING_ROLLBACK_KASUJE_DRUGIE_OPAKOWANIA=1`. Na
+  świeżej bazie cofnięcie przechodzi bez pytania, a produkty i pierwsze
+  opakowania zostają. Wycofanie samego kodu jest bezpieczne: tabela przestaje być
+  czytana.
+
 ## cooking_progress — zapamiętany postęp gotowania (V2, #2016)
 
 Opcjonalna synchronizacja odhaczonych kroków trybu gotowania między
@@ -441,6 +500,77 @@ niewygasły wiersz. Na pustej tabeli, przy samych wygasłych wierszach i w CI
 `KUKING_ROLLBACK_KASUJE_DOPISKI_GOTOWANIA=1` (albo wcześniej
 `php artisan kuking:sprzataj-postep-gotowania --wszystkie`). Test:
 `CofniecieMigracjiNieKasujeDopiskowZGotowaniaTest`.
+
+## recent_recipe_views — opcjonalna, prywatna lista ostatnio oglądanych przepisów (V2, #2553)
+
+Lista tylko do powrotu do przepisu, który osoba obejrzała, ale nie zapisała.
+**Domyślnie wyłączona**; włącza ją wyłącznie jawny przycisk w ustawieniach
+(„Ustawienia → Ostatnio oglądane”, zwykły POST). Migracja
+`2026_10_03_190000_create_recent_recipe_views` robi dwie rzeczy: zakłada tabelę
+i dodaje `users.ostatnio_ogladane_wlaczone_at` (zgoda — patrz
+[`konta-ustawienia-zgody`](konta-ustawienia-zgody.md)). Wiersz zapamiętuje
+wyłącznie przepis i czas ostatniej wizyty: bez kopii tytułu, zdjęcia, adresu
+z parametrami, wyszukiwanej frazy i wyboru alergenów.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | właściciel; model ma pusty `$fillable`, wiersz zmienia tylko `OstatnioOgladane` |
+| `recipe_id` | `uuid NOT NULL` → `recipes` (`ON DELETE CASCADE`) | przepis |
+| `viewed_at` | `timestamptz NOT NULL` | chwila OSTATNIEJ wizyty; powrót przesuwa tę wartość |
+
+Ograniczenia i indeksy: `UNIQUE (user_id, recipe_id)` (powrót do przepisu
+przesuwa jedną pozycję, nie dokłada drugiej); indeksy `(user_id, viewed_at)`
+(odczyt listy i przycinanie), `recipe_id` (kaskada przy twardym usunięciu
+przepisu) i `viewed_at` (nocne sprzątanie).
+
+Limit i czas życia (`kuking.ostatnio_ogladane.limit` = 10 różnych przepisów
+i `.dni` = 7; wartości z propozycji w issue, **do potwierdzenia przez
+właściciela** — wiersz w D-333) działają trzy razy: przy zapisie (przycięcie),
+przy ODCZYCIE (starsze i nadliczbowe pozycje są niewidoczne, zanim posprząta
+je zadanie) i w nocnym `kuking:sprzataj-ostatnio-ogladane` (02:15; kasuje też
+wizyty osób z wyłączoną funkcją). Zmiana wartości nie wymaga migracji.
+
+Zapis. `RecipeController::show()` po autoryzacji woła
+`OstatnioOgladane::zaplanujZapis()`: gość, autor własnego przepisu i osoba z
+wyłączoną funkcją nie robią nic, a pozostali odkładają zapis przez `defer()` na
+czas PO odpowiedzi, bez żadnego zapytania w ścieżce żądania (stan zgody jest w
+zalogowanym modelu). Odroczony zapis ponownie pyta Policy `view` jak o konto
+BEZ roli obsługi — wgląd moderacyjny nie jest wizytą — i robi `INSERT … ON
+CONFLICT DO UPDATE` z warunkiem zgody oraz `FOR SHARE` na wierszu konta, więc
+wyłączenie funkcji w trakcie żądania nie odtworzy historii. Strona przepisu
+gościa nie zmienia się ani o bajt (cache publiczny bez zmian); zalogowany ma
+`private, no-store`, a lista nie trafia do localStorage ani do cache
+service workera (`public/sw.js` nie trzyma stron).
+
+Odczyt. `OstatnioOgladane::lista()` zwraca tylko niewygasłe pozycje w limicie,
+ponownie filtruje je zakresem `Recipe::widoczneDla()` i Policy `view` (jak
+zwykły widz): przepis prywatny, usunięty, ukryty, zdjęty, od zablokowanej osoby
+albo z konta zbanowanego znika z listy, a jego tytuł, autor i zdjęcie nie
+opuszczają bazy. Ekran: `/ustawienia/ostatnio-ogladane`, odnośnik także w
+„Moje”. Wyłączenie („Wyłącz i usuń zapamiętane”) kasuje wiersze i zgodę w jednej
+transakcji; „Wyczyść listę” kasuje wiersze jednym kliknięciem.
+
+Czego lista NIE robi: nie zasila feedu, rekomendacji, statystyk ani
+powiadomień, nie zapisuje nic do zeszytu, planera, postępu gotowania ani
+`cooked_events` i nie sugeruje „Ugotowałem”. Pilnuje tego
+`OstatnioOgladaneNieWyciekajaPozaListeTest` (zamknięta lista plików, które mogą
+jej dotykać).
+
+Konto: paczka danych ma sekcję `ostatnio_ogladane` (tylko przepis i czas;
+tytuł tylko przy przepisie widocznym dla osoby) oraz `konto.ostatnio_ogladane_wlaczone_od`;
+`EraseAccountData` kasuje wiersze jawnie i zeruje zgodę (konta się anonimizuje).
+Wpis w rejestrze czynności: `docs/legal/REJESTR_CZYNNOSCI_PRZETWARZANIA.md`
+§3.31, w polityce prywatności wiersz „Lista ostatnio oglądanych przepisów”.
+
+Rollback (D-088): `down()` usuwa tabelę i kolumnę zgody, ale ODMAWIA, gdy w
+tabeli jest choć jedna wizyta (to dane o zachowaniu, których `up()` nie
+odtworzy). Na pustej tabeli i w CI przechodzi bez pytania; zdjęcie samej
+kolumny zgody jest bezpieczne w stronę prywatności (po cofnięciu nic się nie
+zapisuje). Wymuszenie po kopii tabeli:
+`KUKING_ROLLBACK_KASUJE_OSTATNIO_OGLADANE=1` (albo wcześniej
+`php artisan kuking:sprzataj-ostatnio-ogladane --wszystkie`). Test:
+`CofniecieMigracjiNieKasujeOstatnioOgladanychTest`.
 
 ## weekly_recipe_picks — „Ugotujmy razem” (F3, 30.09.2026)
 

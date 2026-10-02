@@ -1407,6 +1407,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('pantry.name.edit', $produktDoTerminu), [], [$W, $O, $O, $O, $O]);
         $dodaj('pantry.name.update', 'zmiana nazwy produktu z listy', 'put',
             route('pantry.name.update', $produktDoTerminu), ['nazwa' => 'jajka kurze', 'stara_nazwa' => 'jajka'], [$W, $O, $O, $O, $O]);
+        // Usunięcie JEDNEGO z dwóch opakowań (#2568): ta sama polityka co usunięcie produktu.
+        $produktZDwomaOpakowaniami = $wlasciciel->pantryItems()->create(['name' => 'ser']);
+        $dodaj('pantry.destroyOpakowanie', 'usunięcie jednego z dwóch opakowań produktu z listy', 'delete',
+            route('pantry.destroyOpakowanie', $produktZDwomaOpakowaniami), ['opakowanie' => 'pierwsze'], [$W, $O, $O, $O, $O]);
         // ZMIANA STATUSU WŁAŚCICIELA MA ZAWĘŻAĆ, NIGDY NIE ROZSZERZAĆ (#1092).
         //
         // Dwa wiersze na tej samej trasie, różniące się WYŁĄCZNIE flagą

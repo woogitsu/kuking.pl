@@ -6,6 +6,7 @@ namespace App\Domain\Import;
 
 use App\Domain\Recipes\BramkaPublikacjiSzkicu;
 use App\Models\ImportPrzepisu;
+use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use Illuminate\Validation\ValidationException;
 
@@ -33,6 +34,11 @@ final class BramkaPublikacjiOdczytu implements BramkaPublikacjiSzkicu
     public const KOMUNIKAT_SPRAWDZENIE = 'Zaznacz „Odczytany tekst jest sprawdzony ze zdjęciem”, zanim opublikujesz. '
         .'Porównaj każdą linijkę ze zdjęciem kartki — tekst odczytał komputer i mógł się pomylić.';
 
+    /** Gdy odczyt pominął lub uciął treść (#2521) — potwierdzenie mówi o tym wprost. */
+    public const KOMUNIKAT_SPRAWDZENIE_NIEPELNY = 'Ten odczyt jest niepełny: część przepisu została pominięta lub skrócona. '
+        .'Porównaj szkic ze zdjęciem kartki, dopisz brakujące pozycje i zaznacz '
+        .'„Odczytany tekst jest sprawdzony ze zdjęciem”, zanim opublikujesz.';
+
     /**
      * Implementacja kontraktu `App\Domain\Recipes\BramkaPublikacjiSzkicu`
      * (wołana z `PublishRecipe` przez `AppServiceProvider`, issue #971) —
@@ -53,6 +59,17 @@ final class BramkaPublikacjiOdczytu implements BramkaPublikacjiSzkicu
             ->exists();
     }
 
+    /** Co odczyt pominął lub uciął (#2521); `null` = kompletny. */
+    public static function pominiete(Recipe $przepis): ?PominieteWImporcie
+    {
+        return PrzepisZImportu::query()->find($przepis->getKey())?->pominieteWImporcie();
+    }
+
+    public static function komunikatSprawdzenia(Recipe $przepis): string
+    {
+        return self::pominiete($przepis) === null ? self::KOMUNIKAT_SPRAWDZENIE : self::KOMUNIKAT_SPRAWDZENIE_NIEPELNY;
+    }
+
     /**
      * @param  array<string, mixed>  $atrybuty
      * @param  list<array{ingredient_text: string}>  $skladniki  wiersze po `PublishRecipe::cleanIngredients()` (bez pustych)
@@ -69,7 +86,7 @@ final class BramkaPublikacjiOdczytu implements BramkaPublikacjiSzkicu
         $bledy = self::znaczniki($tytul, (string) ($atrybuty['summary'] ?? ''), array_column($skladniki, 'ingredient_text'), array_column($kroki, 'instruction'));
 
         if (! filter_var($atrybuty['odczyt_sprawdzony'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-            $bledy['odczyt_sprawdzony'] = self::KOMUNIKAT_SPRAWDZENIE;
+            $bledy['odczyt_sprawdzony'] = self::komunikatSprawdzenia($przepis);
         }
 
         if ($bledy !== []) {

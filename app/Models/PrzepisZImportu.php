@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Import\PominieteWImporcie;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -22,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property ?string $source_url
  * @property ?string $tekst_zrodla
  * @property ?Carbon $sprawdzone_at
+ * @property ?array{skladniki: int, kroki: int, obciete: list<string>} $pominiete liczby i nazwy pól, bez treści (#2521)
  */
 class PrzepisZImportu extends Model
 {
@@ -43,7 +45,7 @@ class PrzepisZImportu extends Model
 
     protected function casts(): array
     {
-        return ['sprawdzone_at' => 'datetime'];
+        return ['sprawdzone_at' => 'datetime', 'pominiete' => 'array'];
     }
 
     public function recipe(): BelongsTo
@@ -59,5 +61,21 @@ class PrzepisZImportu extends Model
     public function sprawdzony(): bool
     {
         return $this->sprawdzone_at !== null;
+    }
+
+    /**
+     * Czy publikacja wymaga „Sprawdziłem odczytany tekst” (D-300). Szkic ze
+     * zdjęcia ma własną bramkę (`BramkaPublikacjiOdczytu`); jego wiersz tutaj
+     * istnieje tylko po to, by pamiętać o pominiętych wierszach (#2521).
+     */
+    public function wymagaPotwierdzeniaOdczytu(): bool
+    {
+        return $this->zrodlo !== self::ZRODLO_ZDJECIE && ! $this->sprawdzony();
+    }
+
+    /** Co import pominął lub uciął (#2521); `null` = kompletny. */
+    public function pominieteWImporcie(): ?PominieteWImporcie
+    {
+        return PominieteWImporcie::zTablicy($this->pominiete);
     }
 }

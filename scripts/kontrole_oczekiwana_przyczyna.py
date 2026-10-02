@@ -36,6 +36,9 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 
 OCZEKUJ = {
     'Kolaż hero bez podpisu autora przy zdjęciu (#2708)': r'Kafel nie ma podpisu z nazwą dokładnie jednego autora',
+    'Lista ostatnio oglądanych sięga do analityki (#2553)': r'OSTATNIO_OGLADANE_2553_PRYWATNA_LISTA_POZA_ZAMKNIETA_LISTA',
+    'Lista ostatnio oglądanych pokazuje przepis konta zbanowanego (#2553)': r'OSTATNIO_OGLADANE_2553_TYTUL_NIEDOSTEPNEGO_PRZEPISU',
+    'Lista ostatnio oglądanych miesza konta (#2553)': r'OSTATNIO_OGLADANE_2553_KONTO_[AB]_WIDZI_LISTE_[AB]',
     'Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)': r'JIT_2291_SWIEZA_SESJA_WYMAGA_OFF',
     "Pusta linia Unicode tworzy składnik (#2621)": r'PUSTE_LINIE_2621_UNICODE',
     "Pusta linia Unicode skleja kroki po POST (#2621)": r'PUSTE_LINIE_2621_POST_KROKI',
@@ -87,6 +90,11 @@ OCZEKUJ = {
     'Odżywcze: masa razem mnożona przez puszki (#2487)': r'ODZYWCZE_2487_LACZNA_MASA_BEZ_MNOZENIA',
     'Odżywcze: sprzeczna masa wpada w domyślną miarę (#2487)': r'ODZYWCZE_2487_SPRZECZNY_NAWIAS_ODMAWIA',
     'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
+    'Pomiar panelu tylko w części 2 (#2446)': r'PANEL_2446_POMIAR_KAZDA_CZESC',
+    'Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)': r'DICTATION_AUTH_HEADER',
+    'Dyktowanie daje mikrofon gościowi (#2377 etap 2)': r'DICTATION_GUEST_HEADER',
+    'Dyktowanie daje mikrofon błędowi i JSON (#2377 etap 2)': r'DICTATION_NON_FORM_RESPONSE',
+    'Dyktowanie odblokowuje wszystkie trasy (#2377 etap 2)': r'DICTATION_OTHER_ROUTE',
     'Wspólna sesja traci zamiennik autora (#2485)': r'WSPOLNE_2485_ZAMIENNIK_PRZY_SKLADNIKU',
     'Wspólna sesja traci zdjęcie kroku (#2486)': r'WSPOLNE_2486_ZDJECIE_PRZY_KROKU',
     'Historia ignoruje wybór Bez ilości (#2449)': r'HISTORIA_BEZ_ILOSCI_ZMIANA',

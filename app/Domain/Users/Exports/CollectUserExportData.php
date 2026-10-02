@@ -26,6 +26,7 @@ use App\Models\Post;
 use App\Models\PostReaction;
 use App\Models\Profile;
 use App\Models\PrzepisZImportu;
+use App\Models\RecentRecipeView;
 use App\Models\Recipe;
 use App\Models\RecipeHint;
 use App\Models\RecipeServingPreference;
@@ -222,6 +223,8 @@ final class CollectUserExportData
             'postep_gotowania' => $this->postepGotowania($user),
             'wspolne_gotowanie' => $this->wspolneGotowanie($user),
             'dopiski_z_gotowania' => $this->dopiskiZGotowania($user),
+            // Prywatna lista ostatnio oglądanych przepisów (#2553): niewygasłe pozycje.
+            'ostatnio_ogladane' => $this->ostatnioOgladane($user),
             // Jawnie zapamiętane liczby porcji przy przepisach (#2602).
             'zapamietane_porcje' => $this->zapamietanePorcje($user),
             'ukryte' => $this->hides($user),
@@ -367,6 +370,8 @@ final class CollectUserExportData
             'moj_stol_wlaczony' => (bool) $user->moj_stol_enabled,
             // Skrót do własnego zeszytu w „Moje” (#2542): nazwa zeszytu
             // (paczka nie podaje identyfikatorów); `null` — skrótu nie ma.
+            // Lista ostatnio oglądanych (#2553): kiedy osoba ją włączyła; `null` — wyłączona.
+            'ostatnio_ogladane_wlaczone_od' => $this->date($user->ostatnio_ogladane_wlaczone_at),
             'zeszyt_skrot_w_moje' => $user->ulubiony_zeszyt_id === null
                 ? null
                 : $user->ulubionyZeszyt()->value('collections.name'),
@@ -1312,22 +1317,37 @@ final class CollectUserExportData
      */
     private function pantry(User $user): array
     {
-        return DB::table('pantry_items')
+        $produkty = DB::table('pantry_items')
             ->where('user_id', $user->getKey())
             ->orderBy('name')
             ->orderBy('id')
-            ->get(['name', 'created_at', 'expires_on', 'expiry_kind', 'quantity_note', 'frozen'])
-            ->map(fn (object $produkt): array => [
-                'produkt' => $produkt->name,
-                'dodano' => $this->date($produkt->created_at),
-                // #1903: termin z opakowania (data bez strefy), jego rodzaj
-                // (`use_by` = „Należy zużyć do”, `best_before` = „Najlepiej
-                // spożyć przed”), ilość jako tekst i oznaczenie „mrożone”.
-                'termin' => $produkt->expires_on,
-                'rodzaj_terminu' => $produkt->expiry_kind,
-                'ilosc' => $produkt->quantity_note,
-                'mrozone' => (bool) $produkt->frozen,
-            ])->all();
+            ->get(['id', 'name', 'created_at', 'expires_on', 'expiry_kind', 'quantity_note', 'frozen']);
+
+        // Drugie opakowanie (#2568): własny termin, rodzaj, ilość i „mrożone”.
+        // Tabela nie ma `user_id` — wiersze bierzemy przez produkty TEGO konta.
+        $drugie = DB::table('pantry_second_packages')
+            ->whereIn('pantry_item_id', $produkty->pluck('id')->all())
+            ->get(['pantry_item_id', 'created_at', 'expires_on', 'expiry_kind', 'quantity_note', 'frozen'])
+            ->keyBy('pantry_item_id');
+
+        return $produkty->map(fn (object $produkt): array => [
+            'produkt' => $produkt->name,
+            'dodano' => $this->date($produkt->created_at),
+            // #1903: termin z opakowania (data bez strefy), jego rodzaj
+            // (`use_by` = „Należy zużyć do”, `best_before` = „Najlepiej
+            // spożyć przed”), ilość jako tekst i oznaczenie „mrożone”.
+            'termin' => $produkt->expires_on,
+            'rodzaj_terminu' => $produkt->expiry_kind,
+            'ilosc' => $produkt->quantity_note,
+            'mrozone' => (bool) $produkt->frozen,
+            'drugie_opakowanie' => ($d = $drugie->get($produkt->id)) === null ? null : [
+                'dodano' => $this->date($d->created_at),
+                'termin' => $d->expires_on,
+                'rodzaj_terminu' => $d->expiry_kind,
+                'ilosc' => $d->quantity_note,
+                'mrozone' => (bool) $d->frozen,
+            ],
+        ])->all();
     }
 
     /**
@@ -1391,6 +1411,28 @@ final class CollectUserExportData
                 'tresc' => $dopisek->body,
                 'ostatnia_zmiana' => $this->date($dopisek->updated_at),
                 'wygasa' => $this->date($dopisek->expires_at),
+            ])->all();
+    }
+
+    /**
+     * Prywatna lista ostatnio oglądanych przepisów (#2553) — tylko niewygasłe
+     * pozycje (reszta jest dla serwisu nieistniejąca i czeka na sprzątanie).
+     * Tytuł przepisu tylko wtedy, gdy przepis widać dziś pod jego adresem
+     * (jak w `postepGotowania`); sam zapis zawiera wyłącznie przepis i czas.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function ostatnioOgladane(User $user): array
+    {
+        return $user->recentRecipeViews()
+            ->where('viewed_at', '>', now()->subDays(max(1, (int) config('kuking.ostatnio_ogladane.dni', 7))))
+            ->with('recipe')
+            ->orderByDesc('viewed_at')
+            ->limit(max(1, (int) config('kuking.ostatnio_ogladane.limit', 10)))
+            ->get()
+            ->map(fn (RecentRecipeView $pozycja): array => [
+                'przepis' => $this->granica->widzi($pozycja->recipe) ? $pozycja->recipe->title : self::TRESC_NIEDOSTEPNA,
+                'ostatnio_ogladano' => $this->date($pozycja->viewed_at),
             ])->all();
     }
 

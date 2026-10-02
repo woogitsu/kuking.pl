@@ -53,6 +53,7 @@ use App\Domain\Moderation\Actions\ZabezpieczDowodCsam;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Pantry\CoMamWDomu;
+use App\Domain\Pantry\DrugieOpakowanieProduktu;
 use App\Domain\Pantry\ZmienTerminProduktu;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
@@ -898,6 +899,25 @@ try {
 
             return app(ZmienTerminProduktu::class)
                 ->handle($produkt, (array) json_decode($argumenty['dane'], true), '2026-10-10') ? 'zapisano' : 'brak';
+        })(),
+
+        // Drugie opakowanie produktu (#2568): prawdziwe akcje domenowe. Model
+        // wczytujemy PRZED blokadą wiersza produktu, jak kontroler.
+        'zapisz-drugie-opakowanie-pantry' => (function () use ($argumenty): string {
+            $produkt = PantryItem::query()->findOrFail($argumenty['produkt']);
+
+            return app(DrugieOpakowanieProduktu::class)->zapisz(
+                $produkt,
+                (array) json_decode($argumenty['dane'], true),
+                $argumenty['opakowanie_id'] ?? null,
+                '2026-10-10',
+            ) ? 'zapisano' : 'brak';
+        })(),
+
+        'usun-opakowanie-pantry' => (function () use ($argumenty): string {
+            $produkt = PantryItem::query()->findOrFail($argumenty['produkt']);
+
+            return app(DrugieOpakowanieProduktu::class)->usun($produkt, $argumenty['cel'], $argumenty['odcisk'] ?? null);
         })(),
 
         // Zastąpienie wyboru redakcyjnego (#1027): prawdziwe akcje domenowe,

@@ -32,6 +32,9 @@ final class OdczytanyPrzepis
     /** @var list<string> */
     public readonly array $kroki;
 
+    /** Co pominięto albo ucięto przez granice formularza (#2521) — nic nie znika po cichu. */
+    public readonly PominieteWImporcie $pominiete;
+
     /**
      * @param  list<string>  $skladniki
      * @param  list<string>  $kroki
@@ -47,12 +50,44 @@ final class OdczytanyPrzepis
         /** `totalTime` ze źródła — zachowany osobno, nigdy dzielony na prep/cook (#2572). */
         public readonly ?int $lacznieMinut = null,
     ) {
-        $this->tytul = self::przytnij(trim($tytul), LimityTekstuPrzepisu::POLA['title']);
+        $obciete = [];
+
+        $tytul = trim($tytul);
+        $this->tytul = self::przytnij($tytul, LimityTekstuPrzepisu::POLA['title']);
+        if ($tytul !== $this->tytul) {
+            $obciete[] = 'tytul';
+        }
+
         $opis = $opis === null ? null : trim($opis);
         $this->opis = $opis === null || $opis === '' ? null : self::przytnij($opis, LimityTekstuPrzepisu::POLA['summary']);
+        if ($opis !== null && $this->opis !== $opis) {
+            $obciete[] = 'opis';
+        }
 
-        $this->skladniki = array_slice(self::czyste($skladniki, LimityTekstuPrzepisu::POLA['ingredients.*.text']), 0, Recipe::MAX_INGREDIENTS);
-        $this->kroki = array_slice(self::czyste($kroki, LimityTekstuPrzepisu::POLA['steps.*.instruction']), 0, Recipe::MAX_STEPS);
+        [$czysteSkladniki, $obcieteSkladniki] = self::czyste($skladniki, LimityTekstuPrzepisu::POLA['ingredients.*.text']);
+        [$czysteKroki, $obcieteKroki] = self::czyste($kroki, LimityTekstuPrzepisu::POLA['steps.*.instruction']);
+
+        $this->skladniki = array_slice($czysteSkladniki, 0, Recipe::MAX_INGREDIENTS);
+        $this->kroki = array_slice($czysteKroki, 0, Recipe::MAX_STEPS);
+
+        // Numery obciętych wierszy dotyczą tylko wierszy, które zostały.
+        foreach ($obcieteSkladniki as $nr) {
+            if ($nr <= Recipe::MAX_INGREDIENTS) {
+                $obciete[] = 'skladnik:'.$nr;
+            }
+        }
+
+        foreach ($obcieteKroki as $nr) {
+            if ($nr <= Recipe::MAX_STEPS) {
+                $obciete[] = 'krok:'.$nr;
+            }
+        }
+
+        $this->pominiete = new PominieteWImporcie(
+            max(0, count($czysteSkladniki) - Recipe::MAX_INGREDIENTS),
+            max(0, count($czysteKroki) - Recipe::MAX_STEPS),
+            $obciete,
+        );
     }
 
     public function pusty(): bool
@@ -68,21 +103,26 @@ final class OdczytanyPrzepis
 
     /**
      * @param  list<string>  $wiersze
-     * @return list<string>
+     * @return array{0: list<string>, 1: list<int>} wiersze bez pustych oraz numery (od 1) wierszy skróconych
      */
     private static function czyste(array $wiersze, int $limit): array
     {
         $wynik = [];
+        $obciete = [];
 
         foreach ($wiersze as $wiersz) {
             $wiersz = trim((string) preg_replace('/[ \t\x{00A0}]+/u', ' ', $wiersz));
 
             if ($wiersz !== '') {
                 $wynik[] = self::przytnij($wiersz, $limit);
+
+                if (mb_strlen($wiersz) > $limit) {
+                    $obciete[] = count($wynik);
+                }
             }
         }
 
-        return $wynik;
+        return [$wynik, $obciete];
     }
 
     private static function przytnij(string $tekst, int $limit): string

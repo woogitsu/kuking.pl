@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use App\Domain\Analytics\ZapiszSygnal;
 use App\Domain\Pantry\CoMamWDomu;
 use App\Domain\Pantry\CoUgotuje;
+use App\Domain\Pantry\DrugieOpakowanieProduktu;
+use App\Domain\Pantry\Opakowanie;
 use App\Domain\Pantry\PodpowiedziSkladnikow;
 use App\Domain\Pantry\PriorytetZuzycia;
 use App\Domain\Pantry\ZmienNazweProduktu;
@@ -45,7 +47,7 @@ class PantryController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $produkty = $user->pantryItems()->get();
+        $produkty = $user->pantryItems()->with('secondPackage')->get();
         $dzis = PriorytetZuzycia::dzis();
         $grupy = PriorytetZuzycia::pogrupuj($produkty, $dzis);
 
@@ -94,7 +96,7 @@ class PantryController extends Controller
 
     public function edit(Request $request, string $pantryItem): View|Response
     {
-        $produkt = PantryItem::query()->find($pantryItem);
+        $produkt = PantryItem::query()->with('secondPackage')->find($pantryItem);
 
         if ($produkt === null) {
             return $this->brakProduktu();
@@ -102,12 +104,21 @@ class PantryController extends Controller
 
         $this->authorize('update', $produkt);
 
+        // `?opakowanie=drugie` otwiera drugie opakowanie (istniejące albo nowe,
+        // puste); każda inna wartość to pierwsze (#2568).
+        $cel = $request->query('opakowanie') === Opakowanie::DRUGIE ? Opakowanie::DRUGIE : Opakowanie::PIERWSZE;
+        $opakowania = Opakowanie::zProduktu($produkt);
+        $opakowanie = $cel === Opakowanie::DRUGIE ? ($opakowania[1] ?? null) : $opakowania[0];
+
         return view('pages.pantry.termin', [
             'produkt' => $produkt,
-            'lata' => ZmienTerminProduktu::lataDoWyboru(null, $produkt->expires_on?->year),
+            'cel' => $cel,
+            'opakowanie' => $opakowanie,
+            'opakowania' => $opakowania,
+            'lata' => ZmienTerminProduktu::lataDoWyboru(null, $opakowanie?->expires_on?->year),
             'szybkie' => ZmienTerminProduktu::SZYBKIE,
             'rodzaje' => PriorytetZuzycia::RODZAJE,
-            'stan' => PriorytetZuzycia::opisStanu($produkt),
+            'stan' => $opakowanie !== null ? PriorytetZuzycia::opisStanu($opakowanie) : 'Drugiego opakowania jeszcze nie ma. Wpisz jego termin i ilość, a zostanie dodane. Pierwsze opakowanie zostaje bez zmian.',
             // Szybki przycisk bez rodzaju kończy się błędem; jego data wraca
             // na listy, żeby wystarczyło zaznaczyć rodzaj.
             'dataZPrzycisku' => $request->old('_formularz') === 'termin'
@@ -119,9 +130,9 @@ class PantryController extends Controller
         ]);
     }
 
-    public function update(Request $request, string $pantryItem, ZmienTerminProduktu $zmiana, ZapiszSygnal $sygnaly): RedirectResponse|Response
+    public function update(Request $request, string $pantryItem, ZmienTerminProduktu $zmiana, DrugieOpakowanieProduktu $drugie, ZapiszSygnal $sygnaly): RedirectResponse|Response
     {
-        $produkt = PantryItem::query()->find($pantryItem);
+        $produkt = PantryItem::query()->with('secondPackage')->find($pantryItem);
 
         if ($produkt === null) {
             return $this->brakProduktu();
@@ -134,31 +145,41 @@ class PantryController extends Controller
         // domenowej i mówi po polsku, co poprawić.
         $dane = $request->only(['rodzaj', 'termin_dzien', 'termin_miesiac', 'termin_rok', 'za', 'wyczysc', 'ilosc', 'mrozone']);
 
-        $terminPrzed = [$produkt->expires_on?->toDateString(), $produkt->expiry_kind];
+        $cel = $request->input('opakowanie') === Opakowanie::DRUGIE ? Opakowanie::DRUGIE : Opakowanie::PIERWSZE;
+        $opakowaniaPrzed = Opakowanie::zProduktu($produkt);
+        $przed = $cel === Opakowanie::DRUGIE ? ($opakowaniaPrzed[1] ?? null) : $opakowaniaPrzed[0];
+        $terminPrzed = [$przed?->expires_on?->toDateString(), $przed?->expiry_kind];
 
         try {
-            $zapisano = $zmiana->handle($produkt, $dane);
+            $zapisano = $cel === Opakowanie::DRUGIE
+                ? $drugie->zapisz($produkt, $dane, $this->tekst($request, 'opakowanie_id'))
+                : $zmiana->handle($produkt, $dane, null, $this->tekst($request, 'odcisk'));
         } catch (ValidationException $e) {
-            throw $e->redirectTo(route('pantry.edit', $produkt));
+            throw $e->redirectTo($cel === Opakowanie::DRUGIE
+                ? route('pantry.edit', ['pantryItem' => $produkt, 'opakowanie' => $cel])
+                : route('pantry.edit', $produkt));
         }
 
         if (! $zapisano) {
             return $this->brakProduktu();
         }
 
-        $produkt->refresh();
+        $produkt = $produkt->fresh(['secondPackage']) ?? $produkt;
+        $opakowania = Opakowanie::zProduktu($produkt);
+        $po = $cel === Opakowanie::DRUGIE ? ($opakowania[1] ?? null) : $opakowania[0];
         $nazwa = $produkt->name;
+        $ktore = count($opakowania) > 1 && $po !== null ? ' ('.mb_strtolower($po->etykieta()).')' : '';
 
         // Sygnał tylko gdy termin NAPRAWDĘ się zmienił (nowy albo inny): zapis
         // samej ilości czy „mrożone” z tym samym terminem niczego nie mierzy.
-        if ($produkt->expires_on !== null
-            && [$produkt->expires_on->toDateString(), $produkt->expiry_kind] !== $terminPrzed) {
+        if ($po?->expires_on !== null
+            && [$po->expires_on->toDateString(), $po->expiry_kind] !== $terminPrzed) {
             $sygnaly->handle(null, ZapiszSygnal::PANTRY_EXPIRY_SET);
         }
 
-        $komunikat = $produkt->expires_on !== null
-            ? "Zapisano termin: {$nazwa}, do ".PriorytetZuzycia::dataSlownie($produkt->expires_on).'.'
-            : "Zapisano: {$nazwa}, bez terminu.";
+        $komunikat = $po?->expires_on !== null
+            ? "Zapisano termin: {$nazwa}{$ktore}, do ".PriorytetZuzycia::dataSlownie($po->expires_on).'.'
+            : "Zapisano: {$nazwa}{$ktore}, bez terminu.";
 
         return redirect()->route('pantry.index')->with(Komunikat::sukces($komunikat));
     }
@@ -262,6 +283,28 @@ class PantryController extends Controller
         return redirect()->route('pantry.index')->with(Komunikat::sukces("Usunięto „{$nazwa}” z listy."));
     }
 
+    /**
+     * Usuwa JEDNO opakowanie produktu z dwoma opakowaniami (#2568); drugie
+     * zostaje. Cały produkt usuwa `destroy()`. Autoryzacja ta sama co przy
+     * usuwaniu produktu — decyduje właściciel wiersza, nie adres.
+     */
+    public function destroyOpakowanie(Request $request, PantryItem $pantryItem, DrugieOpakowanieProduktu $drugie): RedirectResponse
+    {
+        $this->authorize('delete', $pantryItem);
+
+        $cel = $this->tekst($request, 'opakowanie') ?? '';
+        $nazwa = $pantryItem->name;
+
+        $wynik = $drugie->usun($pantryItem, $cel, $this->tekst($request, 'odcisk'));
+
+        return redirect()->route('pantry.index')->with(match ($wynik) {
+            DrugieOpakowanieProduktu::USUNIETO => Komunikat::sukces("Usunięto jedno opakowanie: „{$nazwa}”. Drugie opakowanie zostało na liście."),
+            DrugieOpakowanieProduktu::JEDYNE => Komunikat::informacja("To jedyne opakowanie produktu „{$nazwa}”. Jeśli już go nie masz, usuń cały produkt z listy."),
+            DrugieOpakowanieProduktu::ZMIENILO_SIE => Komunikat::blad(DrugieOpakowanieProduktu::BLAD_ZMIENILO_SIE),
+            default => Komunikat::informacja("Tego opakowania („{$nazwa}”) już nie ma na liście. Niczego nie usunęliśmy."),
+        });
+    }
+
     public function podpowiedzi(Request $request, PodpowiedziSkladnikow $podpowiedzi): JsonResponse
     {
         /** @var User $user */
@@ -311,6 +354,13 @@ class PantryController extends Controller
         $id = $request->session()->get('pantry_nowy');
 
         return is_string($id) ? $produkty->firstWhere('id', $id) : null;
+    }
+
+    private function tekst(Request $request, string $pole): ?string
+    {
+        $wartosc = $request->input($pole);
+
+        return is_string($wartosc) && $wartosc !== '' ? $wartosc : null;
     }
 
     /** Produkt zniknął (usunięty równolegle, z innego okna): 404 z komunikatem po polsku. */

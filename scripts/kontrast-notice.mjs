@@ -9,14 +9,44 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
+import { wymagajStanu } from "./lib/stan-ustalony.mjs";
+
+// Fonty i przejścia sprawdzamy osobno: nierozstrzygnięte `fonts.ready` albo
+// `Animation.finished` nie mogą zatrzymać całego joba bez diagnozy.
+export async function ustalStylNotice(page) {
+    await wymagajStanu(page, {
+        opis: "NOTICE_FONTY",
+        limitMs: 10_000,
+        warunek: `() => document.fonts.status === 'loaded'`,
+        pomiar: `() => ({ status: document.fonts.status })`,
+    });
+    await wymagajStanu(page, {
+        opis: "NOTICE_PRZEJSCIA",
+        limitMs: 10_000,
+        warunek: `(_arg, przejscia) => {
+            const notices = [...document.querySelectorAll('.notice')];
+            const inne = document.getAnimations().filter(a => {
+                if (a instanceof CSSTransition || (a.playState !== 'running' && !a.pending)) return false;
+                const cel = a.effect?.target;
+                return cel && notices.some(notice => notice.contains(cel) || cel.contains?.(notice));
+            });
+            return przejscia().length === 0 && inne.length === 0;
+        }`,
+        pomiar: `(_arg, przejscia) => ({
+            przejscia: przejscia(),
+            animacjeNotice: document.getAnimations().filter(a => {
+                if (a instanceof CSSTransition || (a.playState !== 'running' && !a.pending)) return false;
+                const notices = [...document.querySelectorAll('.notice')];
+                const cel = a.effect?.target;
+                return cel && notices.some(notice => notice.contains(cel) || cel.contains?.(notice));
+            }).map(a => ({ stan: a.playState, oczekuje: a.pending, czas: Number.isFinite(a.effect?.getComputedTiming()?.endTime)
+                ? a.effect.getComputedTiming().endTime : null })),
+        })`,
+    });
+}
 /* Pomiar wywoływany po prawdziwym GET i ustaleniu motywu. */
 export async function sprawdzKontrastNotice(page, wymagane = []) {
-    await page.evaluate(async () => {
-        await document.fonts.ready;
-        await Promise.all(
-            document.getAnimations().map((a) => a.finished.catch(() => {})),
-        );
-    });
+    await ustalStylNotice(page);
     const rows = await page.locator(".notice a").evaluateAll((links) => {
         const rgb = (s) => s.match(/[\d.]+/g).map(Number);
         const lum = (c) =>
@@ -91,9 +121,7 @@ export async function sprawdzKontrastNotice(page, wymagane = []) {
 
 /** Pomiar obydwu krawędzi pierścienia po prawdziwym Tab i najechaniu. */
 export async function sprawdzFokusNotice(page, kind) {
-    await page.evaluate(async () => {
-        await Promise.all(document.activeElement.getAnimations().map(a => a.finished));
-    });
+    await ustalStylNotice(page);
     const result = await page.evaluate((kind) => {
         const el = document.activeElement;
         if (!el?.matches('.notice .btn-' + kind) || !el.matches(':focus-visible') || !el.matches(':hover')) {
@@ -125,6 +153,33 @@ export async function sprawdzFokusNotice(page, kind) {
     return result;
 }
 
+// Układ serwuje wygląd zapisany na koncie. Pomiar wariantu świadomie ustawia
+// atrybuty dopiero po GET, żeby późniejsza inicjalizacja strony ich nie cofnęła.
+export async function ustawWygladPomiaru(page, { dark, scale }) {
+    await page.evaluate(({ dark, scale }) => {
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        document.documentElement.dataset.textScale = String(scale);
+    }, { dark, scale });
+    try {
+        await page.waitForFunction(({ dark, scale }) => {
+            const root = document.documentElement.dataset;
+            const body = getComputedStyle(document.body);
+            return root.theme === (dark ? "dark" : "light") &&
+                root.textScale === String(scale) &&
+                body.color === (dark ? "rgb(244, 245, 241)" : "rgb(21, 23, 20)") &&
+                Math.abs(parseFloat(body.fontSize) - (18 * scale) / 100) < 0.15;
+        }, { dark, scale }, { timeout: 10_000 });
+    } catch (error) {
+        const stan = await page.evaluate(() => ({
+            theme: document.documentElement.dataset.theme ?? null,
+            scale: document.documentElement.dataset.textScale ?? null,
+            color: getComputedStyle(document.body).color,
+            fontSize: getComputedStyle(document.body).fontSize,
+        }));
+        throw new Error("NOTICE_WYGLAD_NIEZGODNY " + JSON.stringify({ dark, scale, ...stan }), { cause: error });
+    }
+}
+
 export async function sprawdzPodpowiedzi({
     browser,
     adres,
@@ -134,7 +189,8 @@ export async function sprawdzPodpowiedzi({
 }) {
     if (!["localhost", "127.0.0.1"].includes(new URL(adres).hostname))
         throw Error("NOTICE_LOKALNIE");
-    const started = Date.now();
+    const started = performance.now();
+    console.log("NOTICE_START etap=warianty");
     const wyniki = [];
     const fixture = (...args) =>
         execFileSync("php", ["scripts/fixtures/kontrast-notice.php", ...args], {
@@ -143,6 +199,7 @@ export async function sprawdzPodpowiedzi({
     const data = JSON.parse(fixture().toString());
     mkdirSync("storage/port-projektu/notice", { recursive: true });
     async function measure(width, dark, scale, kind, screenshot = false) {
+        console.log(`NOTICE_CASE_START width=${width} dark=${dark} scale=${scale} kind=${kind}`);
         const context = await browser.newContext({
             storageState: kind === "plain" ? undefined : sesja,
             viewport: { width, height: 900 },
@@ -150,33 +207,15 @@ export async function sprawdzPodpowiedzi({
         });
         try {
             const page = await context.newPage();
-            await page.addInitScript(
-                ({ dark, scale }) =>
-                    document.addEventListener("DOMContentLoaded", () => {
-                        document.documentElement.dataset.theme = dark
-                            ? "dark"
-                            : "light";
-                        document.documentElement.dataset.textScale =
-                            String(scale);
-                    }),
-                { dark, scale },
-            );
             const response = await page.goto(
                 adres + (kind === "secondary" ? data.szkice : data.wpis),
                 { waitUntil: "networkidle" },
             );
             if (response.status() !== 200)
                 throw Error("NOTICE_HTTP " + response.status());
-            await page.waitForFunction(
-                ({ dark, scale }) =>
-                    getComputedStyle(document.body).color ===
-                        (dark ? "rgb(244, 245, 241)" : "rgb(21, 23, 20)") &&
-                    Math.abs(
-                        parseFloat(getComputedStyle(document.body).fontSize) -
-                            (18 * scale) / 100,
-                    ) < 0.15,
-                { dark, scale },
-            );
+            console.log(`NOTICE_CASE_RESPONSE width=${width} dark=${dark} scale=${scale} kind=${kind}`);
+            await ustawWygladPomiaru(page, { dark, scale });
+            console.log(`NOTICE_CASE_WYGLAD width=${width} dark=${dark} scale=${scale} kind=${kind}`);
             wyniki.push({
                 stan: "normalny",
                 width,
@@ -238,7 +277,9 @@ export async function sprawdzPodpowiedzi({
                     for (const kind of ["primary", "secondary", "plain"]) {
                         await measure(width, dark, scale, kind, scale === 100);
                         count++;
+                        console.log(`NOTICE_PROGRESS warianty=${count}/24 czas_ms=${Math.round(performance.now() - started)}`);
                     }
+        console.log(`NOTICE_END etap=warianty status=ok czas_ms=${Math.round(performance.now() - started)}`);
         if (negatywy) {
             const mainRows = wyniki.length;
             const source = "resources/css/app.css",
@@ -268,6 +309,8 @@ export async function sprawdzPodpowiedzi({
                     text => text.replace(".notice .btn:focus-visible {", ".nieistniejaca-notice .btn:focus-visible {"),
                 ]),
             ]) {
+                const startMutacji = performance.now();
+                console.log(`NOTICE_START mutacja=${name}`);
                 const original = readFileSync(source, "utf8"),
                     mtime = statSync(source).mtimeMs;
                 if (!original.includes(selector))
@@ -307,6 +350,7 @@ export async function sprawdzPodpowiedzi({
                 console.log(
                     `NOTICE_NEGATIVE_OK ${name} backup=${backup} MD5=${before} mtime=${mtime} restored; ${error.message}`,
                 );
+                console.log(`NOTICE_END mutacja=${name} status=ok czas_ms=${Math.round(performance.now() - startMutacji)}`);
             }
         }
         writeFileSync(
@@ -314,7 +358,7 @@ export async function sprawdzPodpowiedzi({
             JSON.stringify(wyniki, null, 2),
         );
         console.log(
-            `NOTICE_OK ${count} konfiguracje normal/hover/focus; primary/secondary także hover+Tab czas_ms=${Date.now() - started}`,
+            `NOTICE_OK ${count} konfiguracje normal/hover/focus; primary/secondary także hover+Tab czas_ms=${Math.round(performance.now() - started)}`,
         );
     } finally {
         fixture("sprzataj", data.draft);

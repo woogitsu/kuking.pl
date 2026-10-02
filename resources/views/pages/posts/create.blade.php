@@ -124,6 +124,7 @@
             name="body"
             label="Napisz kilka słów"
             type="textarea"
+            dyktowanie
             :rows="5"
             :licznik-znakow="\App\Http\Requests\Posts\ZapisWpisuRequest::LIMIT_ZNAKOW_TRESCI"
             help="Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”"

@@ -358,6 +358,12 @@ class JakDobieramyWpisyMowiPrawdeTest extends TestCase
         $this->assertContains('posts', $tabele, 'Skan tabel nic nie widzi.');
 
         $podejrzane = preg_grep('/view|odslon|odsłon|impression|wyswietl|wyświetl|history|historia/iu', $tabele);
+        // Jedyny świadomy wyjątek: `recent_recipe_views` (#2553, D-333) —
+        // OPCJONALNA, domyślnie wyłączona, prywatna lista ostatnio oglądanych
+        // PRZEPISÓW (nie wpisów), widoczna tylko dla właściciela. Nie zasila
+        // feedu ani rekomendacji — pilnuje tego `OstatnioOgladaneNieWyciekajaPozaListeTest`.
+        // Każda inna tabela o takiej nazwie nadal zapala ten test.
+        $podejrzane = array_diff($podejrzane, ['recent_recipe_views']);
         $this->assertSame([], array_values($podejrzane), 'Tabela wyglądająca na dziennik odsłon: '.implode(', ', $podejrzane));
     }
 
