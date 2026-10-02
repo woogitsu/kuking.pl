@@ -11,6 +11,7 @@ use App\Domain\Media\KasujZdjecie;
 use App\Domain\Users\DawneNazwyProfilu;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\Import\MagazynPaczek;
+use App\Domain\Users\KoniecWspolnegoGotowania;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Domain\Zgody\PrzestawZgodeNaOdczytAi;
@@ -27,9 +28,11 @@ use App\Models\Media;
 use App\Models\PostReaction;
 use App\Models\ProductSignal;
 use App\Models\PrzepisZImportu;
+use App\Models\RecipeHint;
 use App\Models\User;
 use App\Models\WpisZgody;
 use App\Support\Storage\PlikTymczasowyImportu;
+use App\Support\ZabezpieczoneDowody;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -163,6 +166,17 @@ final class EraseAccountData
                 return false;
             }
 
+            // KONTO Z ZABEZPIECZONYM DOWODEM NIE ZOSTAJE WYMAZANE (ścieżka
+            // CSAM, D-333, 1.10.2026). Anonimizacja zabrałaby adres e-mail
+            // i dane profilu, o które zapyta organ przy zgłoszeniu
+            // (playbook §7.1 pkt 3, 6), a `usunTresci()` — sam dowód. Wniosek
+            // o usunięcie czeka w `pending_delete`; egzekutor ponawia go co noc
+            // i zrobi swoje dopiero, gdy rejestr przestanie mieć to konto. Kiedy
+            // to nastąpi, rozstrzyga prawnik (playbook §7.1a, pytanie 2).
+            if (ZabezpieczoneDowody::konto((string) $fresh->getKey())) {
+                return false;
+            }
+
             // Egzekutor przekazuje generację wniosku z materializowanej listy.
             // Cofnięcie i ponowne zgłoszenie może przywrócić pending_delete,
             // ale nie może skrócić NOWEJ karencji przez stary przebieg workera.
@@ -209,6 +223,10 @@ final class EraseAccountData
             // z nich były wspólne. Niezależnie od zakresu: członkostwa
             // i zaproszenia to relacje z innymi osobami, jak obserwowanie.
             app(KoniecWspolnychZeszytow::class)->przyWymazaniu($fresh);
+
+            // Wspólne gotowanie (#2385): sesje gospodarza, udziały pomocnika
+            // i podpisy odhaczeń. Niezależnie od zakresu usunięcia.
+            app(KoniecWspolnegoGotowania::class)->przyWymazaniu($fresh);
 
             if ($fresh->chceUsunacTresci()) {
                 $this->usunTresci($fresh);
@@ -311,6 +329,14 @@ final class EraseAccountData
             $fresh->cookedEvents()->whereNotNull('dzien_gotowania')->update(['dzien_gotowania' => null]);
 
             /*
+             * PRYWATNA LICZBA FAKTYCZNYCH PORCJI ZNIKA RAZEM Z KONTEM (#2540).
+             *
+             * Tak jak dzień gotowania wyżej: wykonanie przy zakresie `minimum`
+             * zostaje, a liczba, którą kucharz podał tylko dla siebie, nie.
+             */
+            $fresh->cookedEvents()->whereNotNull('faktyczne_porcje')->update(['faktyczne_porcje' => null]);
+
+            /*
              * „CO MAM W DOMU” ZNIKA RAZEM Z KONTEM (D-285).
              *
              * Lista produktów z kuchni to dana prywatna, której nikt poza
@@ -322,6 +348,17 @@ final class EraseAccountData
              * mają wspólnego wiersza (ten sam argument co `tag_follows`, D-093).
              */
             $fresh->pantryItems()->delete();
+
+            /*
+             * KOPIE ODZYSKANIA USUNIĘTYCH ZESZYTÓW ZNIKAJĄ RAZEM Z KONTEM (#2567).
+             *
+             * To dopiski i nazwy z prywatnych zeszytów, które osoba usunęła, a
+             * które czekają w oknie odzyskania. Po wymazaniu konta nie ma komu
+             * ich oddać, a spóźnione odzyskanie nie może ich odtworzyć. Jawnie,
+             * nie kaskadą: kont się nie kasuje, tylko anonimizuje (D-022).
+             * Wiersze kluczem `owner_id` tego jednego konta.
+             */
+            DB::table('deleted_collections')->where('owner_id', $fresh->getKey())->delete();
 
             /*
              * ZAPAMIĘTANY POSTĘP GOTOWANIA ZNIKA RAZEM Z KONTEM (#2016).
@@ -343,6 +380,31 @@ final class EraseAccountData
              * konta anonimizujemy (D-022), nie kasujemy.
              */
             $fresh->servingPreferences()->delete();
+
+            /*
+             * WSKAZÓWKI OD GOTUJĄCYCH ZNIKAJĄ RAZEM Z KONTEM KUCHARZA (#2352).
+             *
+             * Zgoda na pokazanie uwagi przy cudzym przepisie jest zgodą tej
+             * osoby; po wymazaniu konta nie ma kto jej podtrzymać, a podpis
+             * „osoba, która ugotowała" przy jej tekście byłby zgadywaniem, że
+             * ona by tego chciała. Dlatego — niezależnie od zakresu usunięcia
+             * (`minimum` zostawia samo wykonanie jako dorobek, ale wskazówka
+             * przy cudzym przepisie nie jest dorobkiem kucharza, tylko
+             * wyróżnieniem, na które się zgodził) — kasujemy wszystkie wiersze,
+             * w których to konto jest kucharzem: czekające prośby, przyjęte
+             * wskazówki i ślady odpowiedzi. Prośby WYSŁANE przez to konto jako
+             * autora przepisu, a jeszcze bez odpowiedzi, też znikają: kucharz
+             * nie ma odpowiadać osobie, której już nie ma. Przyjęte wskazówki
+             * przy przepisie zostającym po tym koncie (zakres `minimum`) stoją
+             * dalej — to treść kucharza, który się zgodził, a nie autora.
+             * Jawnie, a nie kaskadą: kont nie kasujemy, tylko anonimizujemy.
+             * Wiersze kluczem `cook_id` / `author_id` tego jednego konta.
+             */
+            RecipeHint::query()->where('cook_id', $fresh->getKey())->delete();
+            RecipeHint::query()
+                ->where('author_id', $fresh->getKey())
+                ->whereIn('status', [RecipeHint::STATUS_PROPOSED, RecipeHint::STATUS_CANCELLED])
+                ->delete();
 
             /*
              * PRYWATNE UKRYCIA (`hides`, #1810) ZNIKAJĄ RAZEM Z KONTEM

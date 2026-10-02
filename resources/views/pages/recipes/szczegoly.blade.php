@@ -33,6 +33,7 @@
         ? $recipe->steps->map(fn ($s) => [
             'id' => $s->getKey(),
             'instruction' => $s->instruction,
+            'section_name' => $s->section_name,
             // Baza trzyma sekundy (tego czyta tryb gotowania), człowiek
             // wpisuje minuty. Jeden przelicznik, ten sam co przy zapisie.
             'timer_minutes' => \App\Domain\Recipes\StepTimer::minutesFromSeconds($s->timer_seconds),
@@ -406,6 +407,7 @@
                            @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif
                            @error("ingredients.$i.text") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-text-error" @enderror>
                     @error("ingredients.$i.text")<span class="field-error" id="f-ingredients-{{ $i }}-text-error">{{ $message }}</span>@enderror
+                    <x-dyktowanie :cel="'f-ingredients-'.$i.'-text'" />
 
                     {{--
                         GRUPA SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
@@ -532,6 +534,23 @@
                          wiersza i po nieudanej walidacji. --}}
                     <input type="hidden" name="steps[{{ $i }}][id]" value="{{ $idKroku }}">
 
+                    {{-- Nazwa etapu (#2652) — nieobowiązkowa. Ręczna rozpiska z tego
+                         samego powodu co minutnik niżej: `name` z nawiasami, `id` i klucz
+                         błędu z kropkami. Bez tego pola ten formularz kasowałby przy
+                         zapisie etapy wpisane w kreatorze. --}}
+                    <div class="field">
+                        <label for="f-steps-{{ $i }}-section_name">Nazwa etapu nad tym krokiem <span class="meta">(nieobowiązkowe)</span></label>
+                        <span class="field-help" id="f-steps-{{ $i }}-section_name-help">
+                            Wpisz, żeby zacząć nowy etap, na przykład „Dzień 1: farsz”. Etap trwa do kroku z następną nazwą. Zostaw puste, jeśli ten krok należy do poprzedniego etapu.
+                        </span>
+                        <input class="field-input" id="f-steps-{{ $i }}-section_name"
+                               name="steps[{{ $i }}][section_name]" type="text" maxlength="120"
+                               value="{{ $oldSteps[$i]['section_name'] ?? '' }}"
+                               aria-describedby="f-steps-{{ $i }}-section_name-help{{ $errors->has('steps.'.$i.'.section_name') ? ' f-steps-'.$i.'-section_name-error' : '' }}"
+                               @error("steps.$i.section_name") aria-invalid="true" @enderror>
+                        @error("steps.$i.section_name")<span class="field-error" id="f-steps-{{ $i }}-section_name-error">{{ $message }}</span>@enderror
+                    </div>
+
                     <div class="field">
                         <label for="f-steps-{{ $i }}-instruction">Co się robi w tym kroku</label>
                         <textarea class="field-input" id="f-steps-{{ $i }}-instruction"
@@ -540,6 +559,7 @@
                                   @if($i === 0) placeholder="Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny." @endif
                         >{{ $oldSteps[$i]['instruction'] ?? '' }}</textarea>
                         @error("steps.$i.instruction")<span class="field-error" id="f-steps-{{ $i }}-instruction-error">{{ $message }}</span>@enderror
+                        <x-dyktowanie :cel="'f-steps-'.$i.'-instruction'" />
                     </div>
 
                     {{-- Ręczna rozpiska, a nie `x-field`, i to jest świadome.

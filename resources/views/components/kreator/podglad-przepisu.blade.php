@@ -100,8 +100,12 @@
         @if($previewSteps === [])
             <p class="field-error">Nie ma jeszcze żadnego kroku. Wróć do kroku 3 i opisz przynajmniej jeden.</p>
         @else
+            @foreach(\App\Domain\Recipes\EtapyPrzygotowania::grupy($previewSteps) as $previewEtap)
+            @if($previewEtap['nazwa'] !== null)
+                <h5 class="naglowek-grupy">{{ $previewEtap['nazwa'] }}</h5>
+            @endif
             <ol class="step-list">
-                @foreach($previewSteps as $previewIndex => $previewRow)
+                @foreach($previewEtap['kroki'] as $previewIndex => $previewRow)
                     <li>
                         <span class="step-number" aria-hidden="true">{{ $previewIndex + 1 }}</span>
                         <div>
@@ -122,6 +126,7 @@
                     </li>
                 @endforeach
             </ol>
+            @endforeach
         @endif
     </section>
 </article>

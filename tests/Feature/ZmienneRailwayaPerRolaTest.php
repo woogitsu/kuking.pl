@@ -209,6 +209,12 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             'powod' => 'Wejście bramki `kuking:bramka-r2` (`docs/infra/BRAMKA_R2.md`), uruchamianej `railway ssh` '
                 .'w serwisie WWW. Adresy różne per środowisko, więc Shared Variable.',
         ],
+        'KUKING_REGISTRATION_OPEN' => [
+            'role' => ['web'],
+            'powod' => 'Zamknięcie zakładania kont (`RejestracjaZamknieta`, `RegisterController`, wejście przez Google '
+                .'i Facebooka, ekran zaproszenia) — tylko żądania HTTP. Bez referencji zamknięcie w panelu '
+                .'zniknęłoby przy pierwszym apply i rejestracja otworzyłaby się po cichu. Pusto = otwarta.',
+        ],
         'KUKING_HOST_USER_ID' => [
             'role' => ['web', 'scheduler'],
             'powod' => '`HostUserResolver` (#1089, #1375). Web: `ZalozKonto` (auto-obserwowanie przy rejestracji, '

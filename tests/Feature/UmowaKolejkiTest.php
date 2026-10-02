@@ -13,6 +13,7 @@ use App\Jobs\ProcessUploadedImage;
 use App\Jobs\PrzeanalizujAwatar;
 use App\Jobs\PrzeanalizujTresc;
 use App\Jobs\PrzeliczPytaniaBezOdpowiedzi;
+use App\Jobs\PrzeniesPubliczneWariantyDowodu;
 use App\Jobs\PurgePublicMediaCache;
 use App\Jobs\WyslijPowiadomieniePush;
 use App\Models\Post;
@@ -79,6 +80,7 @@ class UmowaKolejkiTest extends TestCase
      */
     private const ZADANIA = [
         ProcessUploadedImage::class => 'media',
+        PrzeniesPubliczneWariantyDowodu::class => 'media',
         GenerateUserExport::class => 'low',
         NotifyUserExportReady::class => 'default', // jeden list — nie czeka w `low` za cudzą paczką
         PurgePublicMediaCache::class => null, // domyślna wystarcza — czyszczenie jest tanie
@@ -108,6 +110,7 @@ class UmowaKolejkiTest extends TestCase
     {
         return [
             ProcessUploadedImage::class => new ProcessUploadedImage('media-id'),
+            PrzeniesPubliczneWariantyDowodu::class => new PrzeniesPubliczneWariantyDowodu(['media-id']),
             GenerateUserExport::class => new GenerateUserExport('export-id'),
             NotifyUserExportReady::class => new NotifyUserExportReady('export-id'),
             PurgePublicMediaCache::class => new PurgePublicMediaCache(['https://example.test/a.webp']),

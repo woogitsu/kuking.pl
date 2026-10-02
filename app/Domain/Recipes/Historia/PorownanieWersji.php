@@ -57,7 +57,8 @@ final class PorownanieWersji
         [$pola, $bezDanych] = self::pola($a, $b, $zAlergenami);
         $stareSkladniki = $a->skladniki();
         $noweSkladniki = $b->skladniki();
-        $skladniki = self::skladniki($stareSkladniki, $noweSkladniki);
+        [$skladniki, $bezDanychSkladnikow] = self::skladniki($stareSkladniki, $noweSkladniki);
+        array_push($bezDanych, ...$bezDanychSkladnikow);
         $zmienionaKolejnoscSkladnikow = self::zmienionaKolejnoscSkladnikow($stareSkladniki, $noweSkladniki);
         $kroki = self::kroki($a->kroki(), $b->kroki());
 
@@ -198,9 +199,9 @@ final class PorownanieWersji
     }
 
     /**
-     * @param  list<array{group_name: ?string, text: string, note: ?string, substitutes: ?string}>  $stare
-     * @param  list<array{group_name: ?string, text: string, note: ?string, substitutes: ?string}>  $nowe
-     * @return list<array{rodzaj: string, przed: ?string, po: ?string}>
+     * @param  list<array{group_name: ?string, text: string, note: ?string, substitutes: ?string, no_amount: ?bool}>  $stare
+     * @param  list<array{group_name: ?string, text: string, note: ?string, substitutes: ?string, no_amount: ?bool}>  $nowe
+     * @return array{0: list<array{rodzaj: string, przed: ?string, po: ?string}>, 1: list<string>}
      */
     private static function skladniki(array $stare, array $nowe): array
     {
@@ -211,9 +212,10 @@ final class PorownanieWersji
         }
 
         $wynik = [];
+        $bezDanych = [];
         $sparowane = [];
 
-        foreach ($nowe as $n) {
+        foreach ($nowe as $pozycja => $n) {
             $klucz = self::klucz($n['text']);
 
             if (! empty($kolejka[$klucz])) {
@@ -221,6 +223,16 @@ final class PorownanieWersji
                 $sparowane[$i] = true;
                 $przed = self::opisSkladnika($stare[$i]);
                 $po = self::opisSkladnika($n);
+                $staryWybor = $stare[$i]['no_amount'];
+                $nowyWybor = $n['no_amount'];
+
+                if ($staryWybor !== null && $nowyWybor !== null && $staryWybor !== $nowyWybor) {
+                    // Nazwany wybór jest osobny od tekstu autora; nie dopisujemy „do smaku”.
+                    $przed .= self::opisWyboruBezIlosci($staryWybor);
+                    $po .= self::opisWyboruBezIlosci($nowyWybor);
+                } elseif (($staryWybor === null) !== ($nowyWybor === null)) {
+                    $bezDanych[] = 'wybór „Bez ilości” przy składniku '.($pozycja + 1).' („'.$n['text'].'”)';
+                }
 
                 if ($przed !== $po) {
                     $wynik[] = ['rodzaj' => self::ZMIENIONO, 'przed' => $przed, 'po' => $po];
@@ -238,12 +250,12 @@ final class PorownanieWersji
             }
         }
 
-        return $wynik;
+        return [$wynik, $bezDanych];
     }
 
     /**
-     * @param  list<array{instruction: string, timer_seconds: ?int}>  $stare
-     * @param  list<array{instruction: string, timer_seconds: ?int}>  $nowe
+     * @param  list<array{instruction: string, timer_seconds: ?int, section_name: ?string}>  $stare
+     * @param  list<array{instruction: string, timer_seconds: ?int, section_name: ?string}>  $nowe
      * @return list<array{rodzaj: string, numer: int, przed: ?string, po: ?string}>
      */
     private static function kroki(array $stare, array $nowe): array
@@ -275,12 +287,15 @@ final class PorownanieWersji
                 $lukaStare = [];
                 $lukaNowe = [];
 
-                if ($stare[$i]['timer_seconds'] !== $nowe[$j]['timer_seconds']) {
+                if ($stare[$i]['timer_seconds'] !== $nowe[$j]['timer_seconds']
+                    || $stare[$i]['section_name'] !== $nowe[$j]['section_name']) {
+                    $etapZmieniony = $stare[$i]['section_name'] !== $nowe[$j]['section_name'];
+                    $zMinutnikiem = $stare[$i]['timer_seconds'] !== null || $nowe[$j]['timer_seconds'] !== null;
                     $wynik[] = [
                         'rodzaj' => self::ZMIENIONO,
                         'numer' => $j + 1,
-                        'przed' => $stare[$i]['instruction'].self::opisMinutnika($stare[$i]['timer_seconds']),
-                        'po' => $nowe[$j]['instruction'].self::opisMinutnika($nowe[$j]['timer_seconds']),
+                        'przed' => self::opisPary($stare[$i], $zMinutnikiem, $etapZmieniony),
+                        'po' => self::opisPary($nowe[$j], $zMinutnikiem, $etapZmieniony),
                     ];
                 }
                 $i++;
@@ -307,8 +322,8 @@ final class PorownanieWersji
      *
      * @param  list<int>  $lukaStare  indeksy w starszej wersji
      * @param  list<int>  $lukaNowe  indeksy w nowszej wersji
-     * @param  list<array{instruction: string, timer_seconds: ?int}>  $stare
-     * @param  list<array{instruction: string, timer_seconds: ?int}>  $nowe
+     * @param  list<array{instruction: string, timer_seconds: ?int, section_name: ?string}>  $stare
+     * @param  list<array{instruction: string, timer_seconds: ?int, section_name: ?string}>  $nowe
      * @return list<array{rodzaj: string, numer: int, przed: ?string, po: ?string}>
      */
     private static function luka(array $lukaStare, array $lukaNowe, array $stare, array $nowe): array
@@ -325,8 +340,8 @@ final class PorownanieWersji
             $wynik[] = [
                 'rodzaj' => self::ZMIENIONO,
                 'numer' => $lukaNowe[$p] + 1,
-                'przed' => $staryKrok['instruction'].($zMinutnikiem ? self::opisMinutnika($staryKrok['timer_seconds']) : ''),
-                'po' => $nowyKrok['instruction'].($zMinutnikiem ? self::opisMinutnika($nowyKrok['timer_seconds']) : ''),
+                'przed' => self::opisPary($staryKrok, $zMinutnikiem, false),
+                'po' => self::opisPary($nowyKrok, $zMinutnikiem, false),
             ];
         }
         foreach (array_slice($lukaStare, $pary) as $i) {
@@ -342,11 +357,28 @@ final class PorownanieWersji
     /**
      * Krok dodany albo usunięty: czas tylko wtedy, gdy migawka go zapisała.
      *
-     * @param  array{instruction: string, timer_seconds: ?int}  $krok
+     * @param  array{instruction: string, timer_seconds: ?int, section_name: ?string}  $krok
      */
     private static function opisKroku(array $krok): string
     {
-        return $krok['instruction'].($krok['timer_seconds'] !== null ? self::opisMinutnika($krok['timer_seconds']) : '');
+        return self::opisPary($krok, $krok['timer_seconds'] !== null, false);
+    }
+
+    /**
+     * Treść kroku z nazwą etapu (#2652) i, jeśli trzeba, minutnikiem. Krok
+     * parowany po treści opisujemy zawsze z etapem, żeby zmiana samej nazwy
+     * etapu była widoczna po obu stronach; w pozostałych przypadkach etap
+     * dopisujemy tylko tam, gdzie krok go ma.
+     *
+     * @param  array{instruction: string, timer_seconds: ?int, section_name: ?string}  $krok
+     */
+    private static function opisPary(array $krok, bool $zMinutnikiem, bool $zawszeEtap): string
+    {
+        $etap = $krok['section_name'] !== null
+            ? '[Etap: '.$krok['section_name'].'] '
+            : ($zawszeEtap ? '[Bez etapu] ' : '');
+
+        return $etap.$krok['instruction'].($zMinutnikiem ? self::opisMinutnika($krok['timer_seconds']) : '');
     }
 
     private static function opisMinutnika(?int $sekundy): string
@@ -357,7 +389,7 @@ final class PorownanieWersji
     }
 
     /**
-     * @param  array{group_name: ?string, text: string, note: ?string, substitutes: ?string}  $s
+     * @param  array{group_name: ?string, text: string, note: ?string, substitutes: ?string, no_amount: ?bool}  $s
      */
     private static function opisSkladnika(array $s): string
     {
@@ -374,6 +406,11 @@ final class PorownanieWersji
         }
 
         return $opis;
+    }
+
+    private static function opisWyboruBezIlosci(bool $wybrane): string
+    {
+        return ' (wybór „Bez ilości”: '.($wybrane ? 'tak' : 'nie').')';
     }
 
     private static function klucz(string $tekst): string

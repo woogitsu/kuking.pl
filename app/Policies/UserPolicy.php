@@ -39,6 +39,17 @@ class UserPolicy
         return ! ($viewer !== null && $viewer->hasBlockRelationWith($target));
     }
 
+    /**
+     * „Mój rok w kuchni” (#2353): prywatne archiwum, ekran liczy się wyłącznie
+     * z danych osoby zalogowanej. Bramka jest ta sama co przy własnych treściach
+     * (`mozeCzytac()`): konto zawieszone dalej widzi swój dorobek
+     * („poprawne dane nigdy nie znikają”), zamknięte — nie.
+     */
+    public function viewMyYear(User $viewer): bool
+    {
+        return $viewer->mozeCzytac();
+    }
+
     public function follow(User $viewer, User $target): bool
     {
         return $viewer->getKey() !== $target->getKey()
@@ -170,6 +181,27 @@ class UserPolicy
             && $actor->hasTwoFactorConfirmed()
             && $author !== null
             && self::ranga($actor) > self::ranga($author);
+    }
+
+    /**
+     * „CSAM — natychmiast ukryj i zabezpiecz” (D-333, 1.10.2026).
+     *
+     * Czynny moderator albo administrator z POTWIERDZONYM 2FA — ta sama
+     * bramka co panel i „Zdejmij z urzędu”, powtórzona tu, bo przycisk
+     * rysuje się też poza panelem (przy wpisie, przepisie, komentarzu).
+     *
+     * ŚWIADOMIE BEZ REGUŁY RANGI AUTORA. `takeDownContentOf()` nie pozwala
+     * moderatorowi zdejmować z urzędu treści równego i wyższego rangą, bo
+     * tam moderator jest naraz tym, kto sprawę znalazł, i tym, kto ją
+     * rozstrzyga. Tu ukrycie i zabezpieczenie są odwracalne tylko ludzką
+     * decyzją poza panelem i nikogo nie karzą, a czekanie na „kogoś wyższego”
+     * z materiałem widocznym w serwisie jest gorsze niż pomyłka. Karę dla
+     * konta (blokadę) nadal rozstrzyga `sanctionAccount()` — zwykły moderator
+     * nie zablokuje administratora ani drugiego moderatora.
+     */
+    public function secureCsam(User $actor): bool
+    {
+        return $actor->isModerator() && $actor->hasTwoFactorConfirmed();
     }
 
     private static function ranga(User $user): int

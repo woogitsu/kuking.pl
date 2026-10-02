@@ -23,8 +23,15 @@
          ta sama półka „moje” — zwykły odnośnik, działa bez JavaScriptu. --}}
     <p class="mb-5 flex flex-wrap gap-3">
         <a class="btn btn-secondary" href="{{ route('collections.own-posts') }}">Moje wpisy</a>
+        <a class="btn btn-secondary" href="{{ route('collections.deleted-recipes') }}">Usunięte przepisy</a>
         <a class="btn btn-secondary" href="{{ route('planer.show') }}">Planer tygodnia</a>
         <a class="btn btn-secondary" href="{{ route('shopping.index') }}">Lista zakupów</a>
+        <a class="btn btn-secondary" href="{{ route('collections.deleted') }}">Usunięte zeszyty</a>
+        {{-- „Mój rok w kuchni” (#2353): prywatne, gaszone tym samym wyłącznikiem
+             co wspomnienia — przy wyłączonych nie podsuwamy odnośnika. --}}
+        @if(auth()->user()->memories_enabled)
+            <a class="btn btn-secondary" href="{{ route('moj-rok.show') }}" data-link-moj-rok>Mój rok w kuchni</a>
+        @endif
     </p>
 
     {{-- Błąd przy polu ORAZ w podsumowaniu (docs/UX_50_PLUS.md). Bez tego

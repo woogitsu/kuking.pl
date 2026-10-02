@@ -111,6 +111,10 @@
             <section class="cook-step" aria-label="Bieżący krok: {{ $aktywna['recipe']->title }}">
                 <h2 class="m-0 kolejka-tytul">{{ $aktywna['recipe']->title }}</h2>
                 <p class="cook-step-numer" aria-live="polite">Krok {{ $krokAktywny }} z {{ $totalAktywny }}</p>
+                @php($etapKroku = \App\Domain\Recipes\EtapyPrzygotowania::nazwaDlaKroku($aktywna['recipe']->steps, $krokAktywny - 1))
+                @if($etapKroku !== null)
+                    <p class="cook-step-etap">Etap: {{ $etapKroku }}</p>
+                @endif
                 <p class="cook-step-tekst">{{ $krokModel->instruction }}</p>
 
                 @if($etykietaMinutnika)

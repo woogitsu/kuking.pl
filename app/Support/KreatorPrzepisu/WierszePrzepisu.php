@@ -43,6 +43,7 @@ final class WierszePrzepisu
         'ingredients.*.note',
         'ingredients.*.substitutes',
         'steps.*.instruction',
+        'steps.*.section_name',
         'steps.*.timer_minutes',
     ];
 
@@ -53,6 +54,7 @@ final class WierszePrzepisu
         'ingredients.*.note' => 'Ta uwaga jest za długa. Zostaw najwyżej 300 znaków.',
         'ingredients.*.substitutes' => 'Ten zamiennik jest za długi. Zostaw najwyżej 300 znaków, na przykład „margaryna albo olej”.',
         'steps.*.instruction' => 'Ten krok jest za długi. Zostaw najwyżej 4000 znaków albo podziel go na dwa kroki.',
+        'steps.*.section_name' => 'Nazwa etapu jest za długa. Zostaw najwyżej 120 znaków, na przykład „Dzień 1: farsz”.',
     ];
 
     /**
@@ -89,6 +91,10 @@ final class WierszePrzepisu
         foreach ($wiersze as $index => $row) {
             if (mb_strlen(trim((string) ($row['instruction'] ?? ''))) > self::limit('steps.*.instruction')) {
                 $bledy["steps.{$index}.instruction"] = self::KOMUNIKATY['steps.*.instruction'];
+            }
+
+            if (mb_strlen(trim((string) ($row['section_name'] ?? ''))) > self::limit('steps.*.section_name')) {
+                $bledy["steps.{$index}.section_name"] = self::KOMUNIKATY['steps.*.section_name'];
             }
 
             // Minutnik sprawdzamy TĄ SAMĄ bramką, która go potem przelicza
@@ -137,18 +143,28 @@ final class WierszePrzepisu
 
     /**
      * @param  array<array-key, array<string, mixed>>  $wiersze
-     * @return list<array{id: null, instruction: string, timer_minutes: string, media_id: ?string}>
+     * @return list<array{id: null, instruction: string, timer_minutes: string, media_id: ?string, section_name: ?string}>
      */
     public static function kroki(array $wiersze): array
     {
         $clean = [];
+        // Nazwa etapu z wiersza bez treści (pominiętego) przechodzi na
+        // następny krok, który nie ma własnej — nazwa wpisana przez autora
+        // nie znika po cichu razem z pustym wierszem (#2652).
+        $oczekujaca = null;
 
         foreach ($wiersze as $row) {
             $instruction = trim((string) ($row['instruction'] ?? ''));
+            $etap = PodgladPrzepisu::tekstLubNull($row['section_name'] ?? null);
 
             if ($instruction === '') {
+                $oczekujaca = $etap ?? $oczekujaca;
+
                 continue;
             }
+
+            $etap ??= $oczekujaca;
+            $oczekujaca = null;
 
             $clean[] = [
                 // `id` ZAWSZE null, i to jest świadome.
@@ -163,6 +179,7 @@ final class WierszePrzepisu
                 'id' => null,
                 'instruction' => mb_substr($instruction, 0, self::limit('steps.*.instruction')),
                 'timer_minutes' => (string) ($row['timer_minutes'] ?? ''),
+                'section_name' => $etap === null ? null : mb_substr($etap, 0, self::limit('steps.*.section_name')),
                 // Brak `mediaId` znaczy tu „bez zdjęcia" wprost: nie ma `id`,
                 // z którego dałoby się cokolwiek odziedziczyć.
                 'media_id' => $row['mediaId'] ?? null,
@@ -170,6 +187,27 @@ final class WierszePrzepisu
         }
 
         return $clean;
+    }
+
+    /**
+     * Usunięcie kroku z kreatora. Jeśli usuwany krok zaczynał etap, a
+     * następny nie ma własnej nazwy, nazwa przechodzi na następny — usunięcie
+     * kroku nie kasuje nagłówka, który autor mógł chcieć zachować (#2652).
+     *
+     * @param  list<array<string, mixed>>  $wiersze
+     * @return list<array<string, mixed>>
+     */
+    public static function bezKroku(array $wiersze, int $indeks): array
+    {
+        $etap = PodgladPrzepisu::tekstLubNull($wiersze[$indeks]['section_name'] ?? null);
+        $wynik = self::bezWiersza($wiersze, $indeks);
+
+        if ($etap !== null && isset($wynik[$indeks])
+            && PodgladPrzepisu::tekstLubNull($wynik[$indeks]['section_name'] ?? null) === null) {
+            $wynik[$indeks]['section_name'] = $etap;
+        }
+
+        return $wynik;
     }
 
     /**

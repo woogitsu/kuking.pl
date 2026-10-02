@@ -3,6 +3,15 @@
 21.09.2026. Poprzednie sześć wersji były analizą kodu. **Ta ma wyniki.**
 Instrukcja operacyjna, nie porada prawna.
 
+> Aktualizacja panelu z 1.10.2026 (paczka V, D-333): poniższy pomiar i sekcja
+> „Co moderator robi DZIŚ” opisują stan z 21 września. Aktualna instrukcja jest
+> w `docs/legal/MODERATION_PLAYBOOK.md` §7.1: dla wpisu, przepisu i komentarza
+> użyj „CSAM — natychmiast ukryj i zabezpiecz”. Akcja zapisuje własną decyzję
+> o blokadzie także przy wcześniejszej karze, jeśli pozwalają na to uprawnienia.
+> Odwołanie od powiązanej blokady pozostaje otwarte; panel odmawia jego uznania
+> i kieruje sprawę do osobnej ręcznej procedury właściciela. Stary pomiar
+> nie potwierdza odcięcia pliku przez nową akcję na produkcyjnym R2/CDN.
+
 ## Odpowiedź na pytanie, o które chodziło przez cały dzień
 
 **Czy po usunięciu treści i banie konta plik jest jeszcze dostępny? TAK, dwiema

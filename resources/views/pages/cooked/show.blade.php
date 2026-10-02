@@ -14,6 +14,8 @@
 <x-layout :title="$tytulStrony" :noindex="true">
     <x-cooked-card :event="$event" :showRecipe="true" :przepisZaBlokada="$przepisZaBlokada" />
 
+    {{-- Wskazówki od gotujących (#2352): prośba o zgodę dla kucharza, „Poproś o zgodę" dla autora przepisu. --}}
+    <x-wskazowka-przy-wykonaniu :event="$event" :wskazowka="$wskazowka" :przepisZaBlokada="$przepisZaBlokada" />
     {{-- Wersja przepisu z tego gotowania (#2378) — wyłącznie dla kucharza.
          Publiczna karta wyżej nic o niej nie mówi. --}}
     @if(($maPrzypietaWersje ?? false))
@@ -28,12 +30,25 @@
         </section>
     @endif
 
+    {{-- Prywatna liczba faktycznych porcji (#2540) — wyłącznie kucharz.
+         Poprawa i usunięcie bez tworzenia nowego wykonania. --}}
     @if(auth()->id() === $event->user_id)
+        <section class="sekcja-strony" aria-labelledby="porcje-wykonania">
+            <h2 id="porcje-wykonania">Ile porcji wyszło</h2>
+            @if($event->faktyczne_porcje !== null)
+                <p>{{ \App\Domain\Recipes\Gotowanie\PorcjeWykonania::etykieta($event->faktyczne_porcje) }}. Widzisz to tylko Ty.</p>
+                <p><a class="btn btn-secondary" href="{{ route('cooked.porcje.edit', $event) }}">Popraw lub usuń liczbę porcji</a></p>
+            @else
+                <p>Nie podano. Jeśli gotowano na inną liczbę porcji niż w przepisie, możesz ją zapisać dla siebie. Widzisz to tylko Ty.</p>
+                <p><a class="btn btn-secondary" href="{{ route('cooked.porcje.edit', $event) }}">Dodaj liczbę porcji</a></p>
+            @endif
+        </section>
+
         <div class="danger-zone">
             <x-confirm-button
                 :action="route('cooked.destroy', $event)"
                 label="Usuń to wykonanie"
-                question="Na pewno usunąć? Zniknie także zdjęcie." />
+                :question="'Na pewno usunąć? Zniknie także zdjęcie.'.($wskazowka?->jestPrzyjeta() ? ' Zniknie też wskazówka przy przepisie, na którą się zgodzono.' : '')" />
         </div>
     @endif
 

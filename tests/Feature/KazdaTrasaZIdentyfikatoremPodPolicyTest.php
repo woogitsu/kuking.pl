@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Collections\Odzyskiwanie\UsunZeszyt;
 use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
+use App\Domain\Recipes\Gotowanie\Wspolne\SesjaWspolnegoGotowania;
+use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
 use App\Domain\UgotujmyRazem\TydzienGotowania;
 use App\Models\Appeal;
 use App\Models\Collection;
@@ -21,6 +24,8 @@ use App\Models\Notification;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
+use App\Models\RecipeStep;
 use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\ShoppingListItem;
@@ -29,6 +34,7 @@ use App\Models\TagHighlight;
 use App\Models\TagPromotion;
 use App\Models\User;
 use App\Models\WeeklyRecipePick;
+use App\Models\ZabezpieczenieDowodu;
 use App\Support\ParametryUuidTras;
 use Illuminate\Contracts\Routing\UrlRoutable;
 use Illuminate\Database\Eloquent\Concerns\HasUniqueStringIds;
@@ -119,6 +125,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
      * @var array<string, string>
      */
     private const BEZ_IDENTYFIKATORA_OBIEKTU = [
+        'moj-rok.rok' => 'Parametr {rok} to liczba z zakresu bieżący rok − 10 lat…bieżący rok (poza nim 404), nie identyfikator obiektu. Ekran liczy się zawsze z danych ZALOGOWANEJ osoby i nie ma w adresie ani w zapytaniu miejsca na konto (MojRokTest::test_cudze_dane_nie_wchodza_do_mojego_podsumowania_a_adres_nie_przyjmuje_konta); wejście idzie przez `UserPolicy::viewMyYear` (#2353).',
         'password.reset' => 'Parametr {token} to jednorazowy token resetu hasła, nie identyfikator obiektu.',
         'login.link.confirm' => 'Parametr {token} to jednorazowy token logowania linkiem (D-056).',
         'facebook.link.confirm' => 'Parametr {token} to jednorazowy dowód kontroli nad obecnym kontem Kuking, związany z sesją i Facebookiem (#2085).',
@@ -128,6 +135,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         'collections.link.show' => 'Parametr {token} to jednorazowy token linku-zaproszenia do wspólnego zeszytu (#1743); w bazie leży jego SHA-256, a przyjęcie odmawia przy blokadzie między stronami.',
         'collections.link.accept' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
         'collections.link.decline' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
+        'wspolne-gotowanie.link.show' => 'Parametr {token} to jednorazowy token linku-zaproszenia do wspólnego gotowania (#2385); w bazie leży jego skrót, a ekran pokazuje przepis dopiero po `RecipePolicy::view` i odmawia przy blokadzie między stronami (WspolneGotowanieTest).',
+        'wspolne-gotowanie.link.accept' => 'Jak wspolne-gotowanie.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu; przyjęcie idzie przez `ZaproszenieDoGotowania::dolacz` (blokada, widoczność przepisu, jedno miejsce).',
         'terms.version' => 'Parametr {data} to data wersji regulaminu (RRRR-MM-DD) — nazwa pliku z repozytorium (`resources/legal/archiwum/`), publicznego jak `/regulamin`; nie wskazuje niczyjego zasobu ani danych (#2220).',
         'terms.version.download' => 'Jak terms.version: {data} to data publicznej wersji regulaminu, plik z repozytorium, bez danych osobowych (#2220).',
         'privacy.version' => 'Parametr {data} to data wersji polityki prywatności (RRRR-MM-DD) — nazwa pliku z repozytorium (`resources/legal/archiwum/`), publicznego jak `/prywatnosc`; nie wskazuje niczyjego zasobu ani danych (#2220).',
@@ -629,6 +638,19 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
 
         // Osobny wpis dla „Zdejmij z urzędu” (G31) — udany POST go zdejmuje.
         $wpisZUrzedu = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
+        // „CSAM — natychmiast ukryj i zabezpiecz” (D-333): udany POST ukrywa
+        // wpis i BLOKUJE konto autora, więc autor jest osobnym kontem — blokada
+        // nie może zmienić wyniku pozostałych wierszy tej tabeli.
+        $autorCsam = User::factory()->create();
+        $wpisCsamForm = Post::factory()->create(['author_id' => $autorCsam->getKey()]);
+        $wpisCsamZapis = Post::factory()->create(['author_id' => $autorCsam->getKey()]);
+        $wpisCsamWynik = Post::factory()->create(['author_id' => $autorCsam->getKey()]);
+        $dowodCsam = (new ZabezpieczenieDowodu)->forceFill([
+            'target_type' => 'post',
+            'target_id' => $wpisCsamWynik->getKey(),
+            'subject_user_id' => $autorCsam->getKey(),
+        ]);
+        $dowodCsam->save();
         // Ukrycie właściciela (#1810) — cel `settings.hidden.*`.
         $ukrycieWlasciciela = new Hide;
         $ukrycieWlasciciela->forceFill([
@@ -640,6 +662,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $przepis = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $przepisPrywatny = Recipe::factory()->create(['author_id' => $wlasciciel->getKey(), 'visibility' => 'private']);
         $przepisDoKasacji = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
+        $szkicDoOdlozenia = Recipe::factory()->draft()->create(['author_id' => $wlasciciel->getKey()]);
+        // Omyłkowo usunięty przepis właściciela (#2620) — cel „Odzyskaj przepis”.
+        $przepisUsuniety = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
+        $przepisUsuniety->delete();
         // Historia wersji (#2024) idzie tą samą bramką co przepis: dwie wersje,
         // żeby ekran porównania miał z czym porównywać.
         foreach ([1, 2] as $numerWersji) {
@@ -659,6 +685,62 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'user_id' => $wlasciciel->getKey(),
             'recipe_id' => $przepis->getKey(),
         ]);
+
+        // Wskazówki od gotujących (#2352). PROŚBĘ wysyła autor przepisu, więc
+        // wykonanie jest cudze (kucharz = `$przedmiot`) pod przepisem
+        // właściciela; ODPOWIADA kucharz, więc w trzech pozostałych
+        // przypadkach właściciel jest kucharzem pod cudzym przepisem.
+        $wykonanieDoProsby = CookedEvent::factory()->create([
+            'user_id' => $przedmiot->getKey(),
+            'recipe_id' => $przepis->getKey(),
+            'note' => 'Uwaga, którą autor chce pokazać.',
+        ]);
+        $cudzyPrzepis = Recipe::factory()->create(['author_id' => $przedmiot->getKey()]);
+        $wskazowkaDoZgody = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga do zgody.',
+        ]))->create();
+        $wskazowkaDoOdmowy = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga do odmowy.',
+        ]))->create();
+        $wskazowkaDoWycofania = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga do wycofania.',
+        ]), RecipeHint::STATUS_ACCEPTED)->create();
+
+        // Zgłoszenie SAMEJ wskazówki (#2352, `RecipeHintPolicy::report`): zgłasza
+        // każdy, kto ją widzi w sekcji przy przepisie. Kucharz (właściciel)
+        // przechodzi bramkę jak przy każdej własnej treści; osoba zablokowana
+        // przez kucharza i gość nie. Wskazówka ukryta przez moderację jest dla
+        // wszystkich 404 — zgłoszenie nie zdradza jej istnienia.
+        $wskazowkaDoZgloszenia = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga do zgłoszenia.',
+        ]), RecipeHint::STATUS_ACCEPTED)->create();
+        $wskazowkaUkryta = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga ukryta.',
+        ]), RecipeHint::STATUS_ACCEPTED)->ukrytaPrzezModeracje()->create();
+
+        // „Przywróć wskazówkę” (#2352): ukryta przez moderację, z decyzją `hide`
+        // w rejestrze (bez niej moderacja niczego nie cofa). Kucharz jest
+        // właścicielem, autor przepisu — `$przedmiot`; moderator jest osobą
+        // trzecią, więc może przywrócić.
+        $wskazowkaDoPrzywrocenia = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $wlasciciel->getKey(), 'recipe_id' => $cudzyPrzepis->getKey(), 'note' => 'Uwaga do przywrócenia.',
+        ]), RecipeHint::STATUS_ACCEPTED)->ukrytaPrzezModeracje()->create();
+        ModerationAction::create([
+            'moderator_id' => $moderator->getKey(),
+            'report_id' => null,
+            'target_type' => 'recipe_hint',
+            'target_id' => $wskazowkaDoPrzywrocenia->getKey(),
+            'subject_user_id' => $wlasciciel->getKey(),
+            'action' => ModerationAction::ACTION_HIDE,
+            'reason_code' => 'cudze-dane-osobowe',
+            'user_message' => 'W uwadze jest numer telefonu.',
+        ]);
+
+        // Anulowanie czekającej prośby: anuluje wyłącznie AUTOR przepisu, więc
+        // tu właściciel jest autorem, a kucharzem — `$przedmiot`.
+        $wskazowkaDoAnulowania = RecipeHint::factory()->dlaWykonania(CookedEvent::factory()->create([
+            'user_id' => $przedmiot->getKey(), 'recipe_id' => $przepis->getKey(), 'note' => 'Uwaga do anulowania.',
+        ]))->create();
 
         $komentarz = Comment::factory()->create([
             'author_id' => $wlasciciel->getKey(),
@@ -698,6 +780,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'name' => 'Zeszyt na próbę',
             'visibility' => 'private',
         ]);
+        // Omyłkowo usunięty prywatny zeszyt właściciela (#2567) — cel „Odzyskaj zeszyt”.
+        $zeszytUsuniety = Collection::create([
+            'owner_id' => $wlasciciel->getKey(),
+            'name' => 'Zeszyt usunięty przez pomyłkę',
+            'visibility' => 'private',
+        ]);
+        app(UsunZeszyt::class)->handle($wlasciciel, $zeszytUsuniety);
         // Pozycja, przy której właściciel pisze prywatną notatkę (#978).
         $zeszyt->recipes()->attach($przepis->getKey());
 
@@ -892,6 +981,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             [$O, $O, $O, $W, $O]);
         $dodaj('admin.reports.restore', 'przywrócenie treści', 'post',
             route('admin.reports.restore', $zgloszenieDoPrzywrocenia), [], [$O, $O, $O, $W, $O]);
+        // „Przywróć wskazówkę” (#2352): wyłącznie czynna moderacja i nie w sprawie,
+        // w której jest stroną (`RecipeHintPolicy::restore`). Właściciel (kucharz)
+        // i obca osoba dostają odmowę, moderator — kontrolę dodatnią.
+        $dodaj('admin.hints.restore', 'przywrócenie ukrytej wskazówki', 'post',
+            route('admin.hints.restore', $wskazowkaDoPrzywrocenia),
+            ['reason_code' => 'pomylka_moderacji', 'user_message' => 'Sprawdziliśmy ponownie.'],
+            [$O, $O, $O, $W, $O]);
         // „Zdejmij z urzędu” (G31, D-251): wyłącznie moderacja, przez
         // `removeExOfficio` — autor własnej treści tędy nie wchodzi.
         $dodaj('admin.z-urzedu.create', 'zdjęcie z urzędu — formularz', 'get',
@@ -900,6 +996,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('admin.z-urzedu.store', ['typ' => 'post', 'id' => $wpisZUrzedu->getKey()]),
             ['reason_code' => 'spam-reklama', 'user_message' => 'Wpis jest reklamą, nie ma nic wspólnego z gotowaniem.'],
             [$O, $O, $O, $W, $O]);
+        // CSAM (D-333): wyłącznie moderacja z 2FA (`secureCsam`); autor treści
+        // tędy nie wchodzi, obcy i gość nie widzą nawet, że trasa istnieje.
+        $dodaj('admin.csam.create', 'CSAM — ekran potwierdzenia', 'get',
+            route('admin.csam.create', ['typ' => 'post', 'id' => $wpisCsamForm->getKey()]), [], [$O, $O, $O, $W, $O]);
+        $dodaj('admin.csam.store', 'CSAM — ukryj i zabezpiecz', 'post',
+            route('admin.csam.store', ['typ' => 'post', 'id' => $wpisCsamZapis->getKey()]),
+            ['potwierdzam' => '1'], [$O, $O, $O, $W, $O]);
+        $dodaj('admin.csam.wynik', 'CSAM — wynik i instrukcja zgłoszenia', 'get',
+            route('admin.csam.wynik', $dowodCsam), [], [$O, $O, $O, $W, $O]);
         // Moderator ma tu ODMOWĘ świadomie: rozstrzyga administrator
         // (`UserPolicy::resolveAppeals`, A-4). Kontrola dodatnia dla admina
         // stoi w osobnym teście wyżej.
@@ -1114,6 +1219,53 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooking.sync.skladniki', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.sync.porcje', 'zapis liczby porcji prywatnego przepisu', 'post',
             route('cooking.sync.porcje', $przepisPrywatny), ['wybor' => '6'], [$W, $O, $O, $O, $O]);
+        // Wspólne gotowanie (#2385). UUID sesji w adresie NIE jest autoryzacją:
+        // sesję widzi wyłącznie gospodarz i pomocnik, każdy inny (także
+        // moderator) dostaje 404. Dlatego przy gospodarzu `wolno`, a reszta
+        // ról — odmowa. Zakładanie sesji idzie przez `RecipePolicy::view`
+        // (zablokowany przez autora przepisu nie założy). Każdy wiersz ma
+        // własną sesję, bo kończenie i odwoływanie zmieniają jej stan.
+        $sesje = app(SesjaWspolnegoGotowania::class);
+        $zaproszeniaGotowania = app(ZaproszenieDoGotowania::class);
+        $przepisZKrokami = function () use ($wlasciciel): Recipe {
+            $r = Recipe::factory()->create(['author_id' => $wlasciciel->getKey(), 'visibility' => 'public']);
+            RecipeStep::create(['recipe_id' => $r->getKey(), 'position' => 0, 'instruction' => 'Krok pierwszy.']);
+
+            return $r;
+        };
+        $przepisDoZalozenia = $przepisZKrokami();
+        $przepisSesjiGlownej = $przepisZKrokami();
+        $sesjaGlowna = $sesje->zaloz($wlasciciel, $przepisSesjiGlownej);
+        $krokSesji = RecipeStep::query()->where('recipe_id', $przepisSesjiGlownej->getKey())->firstOrFail();
+        $sesjaZPomocnikiem = $sesje->zaloz($wlasciciel, $przepisZKrokami());
+        // Pomocnik to osoba, której żaden wiersz tej tabeli nie blokuje (blokada kończy wspólne gotowanie).
+        $pomocnikGotowania = $this->user('pomocnikgotowania');
+        $zaproszeniaGotowania->dolacz($pomocnikGotowania, $zaproszeniaGotowania->utworz($wlasciciel, $sesjaZPomocnikiem)[1]);
+        // Tu pomocnikiem jest rola „obcy”: tylko ona może stąd wyjść.
+        $sesjaObcegoPomocnika = $sesje->zaloz($wlasciciel, $przepisZKrokami());
+        $zaproszeniaGotowania->dolacz($obcy, $zaproszeniaGotowania->utworz($wlasciciel, $sesjaObcegoPomocnika)[1]);
+        $sesjaDoZakonczenia = $sesje->zaloz($wlasciciel, $przepisZKrokami());
+
+        $dodaj('wspolne-gotowanie.zaloz', 'założenie sesji dla publicznego przepisu', 'post',
+            route('wspolne-gotowanie.zaloz', $przepisDoZalozenia->slug), [], [$W, $W, $O, $W, $O]);
+        $dodaj('wspolne-gotowanie.show', 'ekran sesji wspólnego gotowania', 'get',
+            route('wspolne-gotowanie.show', $sesjaGlowna), [], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.stan', 'numer rewizji sesji', 'get',
+            route('wspolne-gotowanie.stan', $sesjaGlowna), [], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.krok', 'odhaczenie kroku we wspólnej sesji', 'post',
+            route('wspolne-gotowanie.krok', $sesjaGlowna), ['krok_id' => $krokSesji->getKey(), 'zrobiono' => '1'], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.link.store', 'utworzenie linku-zaproszenia', 'post',
+            route('wspolne-gotowanie.link.store', $sesjaGlowna), [], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.link.destroy', 'odwołanie linku-zaproszenia', 'delete',
+            route('wspolne-gotowanie.link.destroy', $sesjaGlowna), [], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.od-poczatku', 'czyszczenie odhaczeń sesji', 'post',
+            route('wspolne-gotowanie.od-poczatku', $sesjaGlowna), [], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.pomocnik.destroy', 'usunięcie pomocnika z sesji', 'delete',
+            route('wspolne-gotowanie.pomocnik.destroy', [$sesjaZPomocnikiem, $pomocnikGotowania->getKey()]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.leave', 'wyjście pomocnika z sesji (pomocnikiem jest rola „obcy”)', 'delete',
+            route('wspolne-gotowanie.leave', $sesjaObcegoPomocnika), [], [$O, $W, $O, $O, $O]);
+        $dodaj('wspolne-gotowanie.destroy', 'zakończenie sesji przez gospodarza', 'delete',
+            route('wspolne-gotowanie.destroy', $sesjaDoZakonczenia), [], [$W, $O, $O, $O, $O]);
         // Prywatny roboczy dopisek (#2587): wiersz wybiera para „ta osoba + przepis”,
         // więc przepis prywatny zamyka oba zapisy.
         $dodaj('cooking.dopisek.zapisz', 'zapis roboczego dopisku do prywatnego przepisu', 'post',
@@ -1136,6 +1288,16 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.unsave', $przepisPrywatny), [], [$W, $W, $W, $W, $O]);
         $dodaj('recipes.destroy', 'usunięcie przepisu', 'delete',
             route('recipes.destroy', $przepisDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // „Odłóż na później” własnego szkicu (#2550): tylko autor; szkic jest
+        // wyłącznie jego, więc moderator też dostaje odmowę (`RecipePolicy::postpone`).
+        $dodaj('recipes.drafts.postpone', 'odłożenie własnego szkicu na później', 'post',
+            route('recipes.drafts.postpone', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.drafts.resume', 'powrót do pracy nad odłożonym szkicem', 'delete',
+            route('recipes.drafts.resume', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
+        // Odzyskanie własnego, usuniętego przepisu (#2620): TYLKO autor z aktywnym
+        // kontem. Moderator nie ma tu furtki — cudzy „kosz” jest prywatny.
+        $dodaj('collections.deleted-recipes.recover', 'odzyskanie usuniętego przepisu', 'post',
+            route('collections.deleted-recipes.recover', $przepisUsuniety->getKey()), [], [$W, $O, $O, $O, $O]);
 
         // ─── WYKONANIA („Ugotowałem") ────────────────────────────────────
         $dodaj('cooked.show', 'wykonanie publicznego przepisu', 'get',
@@ -1157,8 +1319,38 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // więc to samo wykonanie wystarcza dla wszystkich ról.
         $dodaj('wspomnienia.ukryj-wykonanie', 'ukrycie wspomnienia z wykonania', 'post',
             route('wspomnienia.ukryj-wykonanie', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        // #2540: prywatna liczba faktycznych porcji — poprawia wyłącznie kucharz
+        // (`CookedEventPolicy::poprawPorcje`), także autor przepisu dostaje odmowę.
+        $dodaj('cooked.porcje.edit', 'ekran poprawy prywatnej liczby porcji', 'get',
+            route('cooked.porcje.edit', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooked.porcje.update', 'poprawa prywatnej liczby porcji', 'put',
+            route('cooked.porcje.update', $wykonanie), ['faktyczne_porcje' => '8'], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.destroy', 'usunięcie wykonania', 'delete',
             route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // Wskazówki od gotujących (#2352): prosi wyłącznie autor przepisu
+        // (`RecipeHintPolicy::propose`), odpowiada wyłącznie kucharz (`answer`).
+        // Moderator nie proponuje i nie odpowiada za nikogo.
+        $dodaj('hints.propose', 'prośba o zgodę na wskazówkę z cudzego wykonania', 'post',
+            route('hints.propose', $wykonanieDoProsby), [], [$W, $O, $O, $O, $O]);
+        $dodaj('hints.accept', '„Zgadzam się” na wskazówkę', 'post',
+            route('hints.accept', $wskazowkaDoZgody), [], [$W, $O, $O, $O, $O]);
+        $dodaj('hints.decline', '„Nie” na wskazówkę', 'post',
+            route('hints.decline', $wskazowkaDoOdmowy), [], [$W, $O, $O, $O, $O]);
+        $dodaj('hints.withdraw', 'wycofanie zgody na wskazówkę', 'post',
+            route('hints.withdraw', $wskazowkaDoWycofania), [], [$W, $O, $O, $O, $O]);
+        $dodaj('hints.cancel', 'anulowanie własnej czekającej prośby o wskazówkę', 'post',
+            route('hints.cancel', $wskazowkaDoAnulowania), [], [$W, $O, $O, $O, $O]);
+
+        // Zgłoszenie wskazówki (#2352): kontrola dodatnia (widoczna wskazówka)
+        // i ujemna (ukryta przez moderację — 404 dla każdego, także moderatora).
+        $dodaj('reports.create', 'zgłoszenie wskazówki od gotujących — formularz', 'get',
+            route('reports.create', ['type' => 'recipe_hint', 'id' => $wskazowkaDoZgloszenia->getKey()]), [], [$W, $W, $O, $W, $O]);
+        $dodaj('reports.store', 'zgłoszenie wskazówki od gotujących — zapis', 'post',
+            route('reports.store', ['type' => 'recipe_hint', 'id' => $wskazowkaDoZgloszenia->getKey()]), ['reason' => 'spam'], [$W, $W, $O, $W, $O]);
+        $dodaj('reports.create', 'zgłoszenie wskazówki ukrytej przez moderację — formularz', 'get',
+            route('reports.create', ['type' => 'recipe_hint', 'id' => $wskazowkaUkryta->getKey()]), [], [$O, $O, $O, $O, $O]);
+        $dodaj('reports.store', 'zgłoszenie wskazówki ukrytej przez moderację — zapis', 'post',
+            route('reports.store', ['type' => 'recipe_hint', 'id' => $wskazowkaUkryta->getKey()]), ['reason' => 'spam'], [$O, $O, $O, $O, $O]);
 
         // ─── KOMENTARZE ──────────────────────────────────────────────────
         $dodaj('comments.update', 'poprawienie komentarza', 'put',
@@ -1183,6 +1375,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.print', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.destroy', 'usunięcie zeszytu', 'delete',
             route('collections.destroy', $zeszytDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // Odzyskanie własnego, usuniętego zeszytu (#2567): TYLKO właściciel z aktywnym
+        // kontem. Moderator nie ma tu furtki — cudzy „kosz” jest prywatny.
+        $dodaj('collections.deleted.recover', 'odzyskanie usuniętego zeszytu', 'post',
+            route('collections.deleted.recover', $zeszytUsuniety->getKey()), [], [$W, $O, $O, $O, $O]);
 
         // ─── „CO MAM W DOMU” (D-285) ─────────────────────────────────────
         // Lista prywatna: produkt usuwa wyłącznie właściciel — moderator
@@ -1244,6 +1440,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('collections.note', 'notatka przy zapisie', 'patch',
             route('collections.note', ['collection' => $zeszyt, 'typ' => 'przepis', 'pozycja' => $przepis->getKey()]),
             ['note' => 'Mniej soli'], [$W, $O, $O, $O, $O]);
+        // Ręczna kolejność przepisów (#2544) — wyłącznie właściciel własnego,
+        // prywatnego zeszytu bez zaproszonych osób (`CollectionPolicy::reorder`).
+        $dodaj('collections.recipes.move', 'przesunięcie przepisu w zeszycie', 'post',
+            route('collections.recipes.move', ['collection' => $zeszyt, 'pozycja' => $przepis->getKey()]),
+            ['kierunek' => 'wyzej'], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.recipes.order-reset', 'powrót do kolejności zapisu', 'post',
+            route('collections.recipes.order-reset', $zeszyt), [], [$W, $O, $O, $O, $O]);
         // Skrót do własnego zeszytu w „Moje” (#2542) — wyłącznie właściciel.
         $dodaj('collections.shortcut.store', 'ustawienie skrótu do zeszytu', 'post',
             route('collections.shortcut.store', $zeszyt), [], [$W, $O, $O, $O, $O]);
@@ -1311,6 +1514,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // Prywatne „Zrobione” (#2593): tylko właściciel pozycji.
         $dodaj('planer.done', 'oznaczenie „Zrobione” pozycji planera', 'patch',
             route('planer.done', $pozycjaPlanu), ['zrobione' => '1', 'stan' => ''], [$W, $O, $O, $O, $O]);
+        $dodaj('planer.note', 'dopisek przy przepisie w planerze', 'patch',
+            route('planer.note', $pozycjaPlanu), ['note' => 'Kolacja', 'stan' => ''], [$W, $O, $O, $O, $O]);
         $dodaj('planer.destroy', 'pozycja planera tygodnia', 'delete',
             route('planer.destroy', $pozycjaPlanu), [], [$W, $O, $O, $O, $O]);
 

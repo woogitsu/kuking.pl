@@ -76,6 +76,19 @@ class Media extends Model
     public const STATUS_DELETED = 'deleted';
 
     /**
+     * Zdjęcie ZABEZPIECZONE JAKO DOWÓD (ścieżka CSAM, D-333, 1.10.2026).
+     *
+     * Plik zostaje w magazynie, ale nikt go nie widzi przez aplikację —
+     * także właściciel i moderator — i nic go nie kasuje (`KasujZdjecie`,
+     * wymazanie konta, sprzątanie osieroconych). Nie jest `ready`, więc
+     * wypada z eksportu danych, odczytu przez AI i kolaży. Stan sprzed
+     * zabezpieczenia pamięta `zabezpieczenia_dowodow.previous_media_status`.
+     * Wiersz zdejmuje człowiek po decyzji prawnika — nie ma na to drogi
+     * w panelu.
+     */
+    public const STATUS_SECURED = 'secured';
+
+    /**
      * Klucze plików, które `ProcessUploadedImage` DOPIERO ZAPISUJE (#601).
      *
      * `KasujZdjecie` chodzi po `metadata.variants`, a ta tablica powstaje
@@ -89,6 +102,17 @@ class Media extends Model
      * może jeszcze nie istnieć.
      */
     public const METADANE_WARIANTY_W_TRAKCIE = 'warianty_w_trakcie';
+
+    /**
+     * Gdzie trafiły publiczne warianty zdjęcia zabezpieczonego jako dowód
+     * (`PrzeniesPubliczneWariantyDowodu`): mapa „dawny klucz publiczny →
+     * klucz w prywatnym magazynie”. `metadata.variants` zostaje nietknięte,
+     * żeby prawnik mógł je odtworzyć; nic z tej mapy nie jest serwowane.
+     */
+    public const METADANE_WARIANTY_ZABEZPIECZONE = 'warianty_zabezpieczone';
+
+    /** Trwały ślad, że worker zakończył przenoszenie wariantów dowodu (#2437). */
+    public const METADANE_WARIANTY_DOWODU_PRZENIESIONE_AT = 'warianty_dowodu_przeniesione_at';
 
     protected $fillable = [
         'owner_id',
@@ -168,6 +192,10 @@ class Media extends Model
      * je pokazać, a pokazanie go jest bliżej prawdy niż zdanie „nie udało
      * się przygotować" pod obrazkiem, który istnieje.
      *
+     * `secured` (dowód zabezpieczony przez moderację) NIE PRZECHODZI NIGDY
+     * i dla NIKOGO — to jest ta sama bramka, przez którą idzie
+     * `DostepDoZdjecia`, więc trasa zdjęcia odpowiada 404 także moderatorowi.
+     *
      * `deleted` NIE PRZECHODZI NIGDY, nawet z kompletem wariantów. Ten status
      * znaczy „kasowanie trwa" (D-083): pliki właśnie znikają, wiersz jest
      * tylko uchwytem do ponowienia. Serwis powiedział już komuś „skasowane"
@@ -175,7 +203,7 @@ class Media extends Model
      */
     public function maWariantDoPokazania(string $variant = 'feed'): bool
     {
-        return $this->status !== self::STATUS_DELETED
+        return ! in_array($this->status, [self::STATUS_DELETED, self::STATUS_SECURED], true)
             && $this->wariantDoSerwowania($variant) !== null;
     }
 

@@ -118,6 +118,9 @@ class Report extends Model
         // Konkretna wersja z historii zmian przepisu (#2390). Ukrywa ją moderacja
         // z urzędu (#2270) albo po zgłoszeniu osoby trzeciej.
         'recipe_version' => 'wersja przepisu (historia zmian)',
+        // Wskazówka od gotujących przy przepisie (#2352). Zgłoszenie dotyczy
+        // samej wskazówki, nie wykonania, z którego pochodzi uwaga.
+        'recipe_hint' => 'wskazówka od gotujących',
     ];
 
     /**

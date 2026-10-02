@@ -84,6 +84,18 @@ class RecipePolicy
     }
 
     /**
+     * „Odłóż na później” / „Wróć do pracy” (#2550): wyłącznie autor własnego
+     * szkicu. Przepis opublikowany albo zamrożony przez moderację (`hidden`,
+     * `removed`) nie ma czego odkładać — oznaczenie nie zmienia widoczności.
+     */
+    public function postpone(User $user, Recipe $recipe): bool
+    {
+        return $user->getKey() === $recipe->author_id
+            && $recipe->status === Recipe::STATUS_DRAFT
+            && $recipe->published_at === null;
+    }
+
+    /**
      * Zwykłe usunięcie (`DELETE` ze strony treści) — wyłącznie autor.
      *
      * Issue #932: moderator NIE usuwa tędy cudzej treści, nawet z 2FA.
@@ -94,6 +106,25 @@ class RecipePolicy
     public function delete(User $user, Recipe $recipe): bool
     {
         return $user->getKey() === $recipe->author_id;
+    }
+
+    /**
+     * Lista „Usunięte przepisy" i odzyskanie własnego, omyłkowo usuniętego
+     * przepisu przed końcem retencji (#2620). Wyłącznie autor z AKTYWNYM
+     * kontem: odzyskanie to pisanie, a zawieszenie odcina od pisania.
+     * Moderator nie ma tu żadnej furtki — cudzy „kosz" jest prywatny, a
+     * treść zdjętą moderacyjnie cofa się przez `RestoreContent` i odwołanie.
+     * Czy konkretny przepis wolno odzyskać (termin, nagrobek, sprawa
+     * moderacyjna), rozstrzyga `OdzyskajUsunietyPrzepis` pod blokadą.
+     */
+    public function odzyskaj(User $user, Recipe $recipe): bool
+    {
+        return $user->isActive() && $user->getKey() === $recipe->author_id;
+    }
+
+    public function odzyskajListe(User $user): bool
+    {
+        return $user->isActive();
     }
 
     /**

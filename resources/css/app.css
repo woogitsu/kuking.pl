@@ -864,7 +864,14 @@
   }
 
   /*
-   * NAPIS LOGOTYPU ZNIKA, GDY NIE MA JAK SIĘ ZMIEŚCIĆ — zostaje sam garnek.
+   * NAPIS LOGOTYPU SCHODZI POD GARNEK, GDY NIE MA JAK SIĘ ZMIEŚCIĆ.
+   *
+   * Decyzja właściciela z 1.10.2026: napis zostaje WIDOCZNY. Dawniej w tym
+   * stanie znikał (`display: none`) i zostawał sam garnek; teraz znak i napis
+   * układają się w kolumnę (garnek nad napisem), a rozmiar napisu wciąż
+   * ogranicza `min(…, 10vw)`, więc „KuKing.pl" mieści się w oknie 320 px.
+   * Nagłówek robi się wyższy — to zamierzone. Pomiary poniżej opisują stary
+   * wariant (ukrycie); próg w `rem` i jego uzasadnienie zostają prawdziwe.
    *
    * „KuKing.pl" to jeden nierozdzielny token: nie ma w nim spacji, więc nie
    * ma gdzie się złamać, a `min-width: 0` na rodzicu nic tu nie daje —
@@ -896,7 +903,11 @@
    * wyrazu („KuKin / g.pl") — brzydziej niż sam znak.
    */
   @media (max-width: 12rem) {
-    .wordmark > span[aria-hidden] { display: none; }
+    .wordmark {
+      flex-direction: column;
+      gap: 0;
+      text-align: center;
+    }
   }
 
   /* --- Dolna nawigacja (mobile) ---
@@ -5097,6 +5108,47 @@
     align-items: center;
 }
 
+/* Wyjaśnienia terminów pod krokiem (#2343). Tekst nie mniejszy niż treść
+   strony, nagłówek rozwijania z celem dotyku min. 48 px, bez hovera. */
+.cook-terminy {
+    margin-top: var(--spacing-4);
+    background-color: var(--color-surface-raised);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-2) var(--spacing-5);
+    font-size: var(--text-body);
+}
+
+.cook-terminy > summary {
+    cursor: pointer;
+    font-size: var(--text-body-lg);
+    font-weight: 800;
+    min-height: var(--control-height-min);
+    display: flex;
+    align-items: center;
+}
+
+.cook-terminy-lista {
+    margin: 0 0 var(--spacing-3);
+}
+
+.cook-terminy-lista dt {
+    font-weight: 800;
+    margin-top: var(--spacing-3);
+}
+
+.cook-terminy-lista dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Uwaga pod słownikiem: celowo NIE `.meta` (16 px) — tekst czytany ma ≥ 18 px. */
+.cook-terminy-uwaga {
+    margin: 0 0 var(--spacing-3);
+    font-size: var(--text-body);
+    overflow-wrap: anywhere;
+}
+
 .cook-ingredients .ingredient-list {
     margin: 0 0 var(--spacing-3);
 }
@@ -5191,6 +5243,16 @@
     font-weight: 800;
     color: var(--color-brand);
     margin: 0 0 var(--spacing-4);
+}
+
+/* Nazwa etapu przygotowania (#2652) nad treścią kroku w trybie gotowania.
+   Tylko tokeny: --color-ink ma kontrast w obu motywach. Pod numerem kroku,
+   więc margines górny cofa dolny odstęp numeru. */
+.cook-step-etap {
+    font-size: var(--text-title-sm);
+    font-weight: 700;
+    color: var(--color-ink);
+    margin: calc(-1 * var(--spacing-2)) 0 var(--spacing-4);
 }
 
 .cook-step-tekst {
@@ -6498,6 +6560,47 @@
   text-decoration: none;
 }
 
+/* Cała karta przepisu w układzie wiersza jest jednym celem dotyku
+   (decyzja właściciela z 1.10.2026): sam tytuł ma ok. 21 px wysokości, a
+   wymagane jest co najmniej 48 px. Wzorzec „stretched link": `::after`
+   linku tytułu rozciąga się na kartę (`position: relative`), wygląd tytułu
+   i wysokość karty zostają bez zmian. Czytnik ekranu widzi jeden odnośnik
+   z tytułem — nie ma drugiego linku na miniaturze. Każdy inny element
+   interaktywny na karcie musi leżeć NAD nakładką, stąd `z-index`. */
+.recipe-card-wiersz {
+  position: relative;
+}
+
+.recipe-card-wiersz .link-tytul::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+
+.recipe-card-wiersz a:not(.link-tytul),
+.recipe-card-wiersz button,
+.recipe-card-wiersz summary {
+  position: relative;
+  z-index: 1;
+}
+
+/* Fokus linku tytułu obrysowuje całą kartę, nie tylko jeden wiersz tekstu. */
+.recipe-card-wiersz .link-tytul:focus-visible {
+  outline: none;
+}
+
+.recipe-card-wiersz .link-tytul:focus-visible::after {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  .recipe-card-wiersz .link-tytul:focus-visible::after {
+    outline-color: Highlight;
+  }
+}
+
 /* Wiersz listy w panelu gospodarza: kreska pod spodem zamiast ramki dookoła.
    Ramka przy kilkunastu wierszach z rzędu daje kratkę, w której nie widać,
    gdzie kończy się jedna pozycja. */
@@ -7108,4 +7211,60 @@
     font-weight: 700;
     overflow-wrap: anywhere;
   }
+}
+
+/* Dyktowanie przy polu przepisu (issue #2377). Host jest pusty, dopóki
+   skrypt nie dorysuje w nim interfejsu (D-053). `.btn` ma
+   `display: inline-flex`, które wygrałoby z samym `[hidden]`. */
+.dyktowanie {
+  margin-top: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
+}
+
+.dyktowanie:empty {
+  display: none;
+}
+
+.dyktowanie-akcje {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.dyktowanie-akcje .btn[hidden],
+.dyktowanie [hidden] {
+  display: none;
+}
+
+.dyktowanie-start {
+  gap: var(--spacing-2);
+}
+
+.dyktowanie-zdanie {
+  margin-top: var(--spacing-2);
+  margin-bottom: 0;
+  /* Zdanie o dostawcy stoi samo, więc ma rozmiar tekstu podstawowego
+     (nie `.meta` — 16 px). */
+  font-size: var(--text-body);
+  color: var(--color-ink-muted);
+}
+
+.dyktowanie-etykieta {
+  margin: var(--spacing-3) 0 var(--spacing-1);
+  font-weight: 700;
+}
+
+.dyktowanie-podglad {
+  margin: 0 0 var(--spacing-2);
+  padding: var(--spacing-3);
+  min-height: 3rem;
+  font-size: 1.125rem;
+  border: 1px dashed currentColor;
+  border-radius: var(--radius-lg);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.dyktowanie-blad {
+  margin-top: var(--spacing-2);
 }

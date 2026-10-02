@@ -26,7 +26,7 @@ class BudzetOdzyskiwaniaTest extends TestCase
                 }
             } elseif (str_starts_with($name, 'steps.')) {
                 for ($i = 0; $i < Recipe::MAX_STEPS; $i++) {
-                    $dane['steps'][$i]['instruction'] = $value;
+                    $dane['steps'][$i][substr($name, strrpos($name, '.') + 1)] = $value;
                     $dane['steps'][$i]['id'] = '019a52f0-0000-4000-8000-000000000001';
                     $dane['steps'][$i]['timer_minutes'] = '10080';
                     $dane['steps'][$i]['remove_photo'] = '1';
@@ -38,8 +38,9 @@ class BudzetOdzyskiwaniaTest extends TestCase
         foreach (['recipes.store', 'recipes.update'] as $route) {
             $form = $this->form($dane, $route);
             $this->assertFalse($form->obciete);
-            // 847 = 727 + 120 pól zamiennika składnika (D-284, jedno na wiersz).
-            $this->assertCount(847, $form->pola);
+            // 907 = 727 + 120 pól zamiennika składnika (D-284, jedno na wiersz)
+            // + 60 pól nazwy etapu kroku (#2652, jedno na krok).
+            $this->assertCount(907, $form->pola);
             $this->assertSame(str_repeat('"', 3999).'ą', collect($form->pola)->firstWhere('nazwa', 'steps[59][instruction]')['wartosc']);
             $this->assertSame(str_repeat('"', 299).'ą', collect($form->pola)->firstWhere('nazwa', 'ingredients[119][note]')['wartosc']);
             $this->assertSame(str_repeat('"', 299).'ą', collect($form->pola)->firstWhere('nazwa', 'ingredients[119][substitutes]')['wartosc']);
@@ -94,7 +95,7 @@ class BudzetOdzyskiwaniaTest extends TestCase
 
     public function test_budzet_bajtow_obejmuje_takze_escapowany_adres_akcji(): void
     {
-        $request = Request::create('http://localhost/'.str_repeat('"', 1100000), 'POST', ['title' => 'Zupa']);
+        $request = Request::create('http://localhost/'.str_repeat('"', 1300000), 'POST', ['title' => 'Zupa']);
         $request->setRouteResolver(fn () => (new Route('POST', '/dodaj/przepis', fn () => null))->name('recipes.store'));
         $form = OdzyskanyFormularz::zZadania($request);
         $this->assertTrue($form->obciete);

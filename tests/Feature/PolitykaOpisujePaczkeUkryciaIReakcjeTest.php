@@ -42,6 +42,8 @@ class PolitykaOpisujePaczkeUkryciaIReakcjeTest extends TestCase
         'hero_picks.curator_id' => 'czynności wykonane przez Twoje konto w tej roli',
         'moderation_actions.moderator_id' => 'czynności wykonane przez Twoje konto w tej roli',
         'reports.resolved_by' => 'czynności wykonane przez Twoje konto w tej roli',
+        'zabezpieczenia_dowodow.secured_by' => 'czynności wykonane przez Twoje konto w tej roli',
+        'zabezpieczenia_dowodow.subject_user_id' => 'rejestr treści zabezpieczonych w związku z podejrzeniem przestępstwa',
         'weekly_recipe_picks.chosen_by' => 'przepisy tygodnia w „Ugotujmy razem”, które wskazało Twoje konto jako gospodarza',
     ];
 

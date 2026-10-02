@@ -20,16 +20,21 @@ declare(strict_types=1);
  * o WYNIK KROKU, a nie o to, czy narzędzie się nie wywróciło.
  */
 
+use App\Domain\Collections\Actions\PrzesunPrzepisWZeszycie;
 use App\Domain\Collections\Actions\RemoveUnavailableFromCollection;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Collections\Actions\UpdateCollectionItemNote;
+use App\Domain\Collections\KierunekPrzesuniecia;
+use App\Domain\Collections\Odzyskiwanie\OdzyskajUsunietyZeszyt;
+use App\Domain\Collections\Odzyskiwanie\PrzedawnioneUsunieteZeszyty;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Domain\Collections\Wspoldzielenie\DostepDoZeszytu;
 use App\Domain\Collections\Wspoldzielenie\OdpowiedzNaZaproszenie;
 use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Compliance\PrzedawnioneUsunieteTresci;
 use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
@@ -40,9 +45,11 @@ use App\Domain\Import\LimitImportu;
 use App\Domain\Import\Rezerwacja;
 use App\Domain\Import\ZlecImportPrzepisu;
 use App\Domain\Moderation\Actions\NotifyReporterDecisionChanged;
+use App\Domain\Moderation\Actions\PrzywrocWskazowke;
 use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Moderation\Actions\ResolveAppeal;
 use App\Domain\Moderation\Actions\RestoreContent;
+use App\Domain\Moderation\Actions\ZabezpieczDowodCsam;
 use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Pantry\CoMamWDomu;
@@ -52,16 +59,26 @@ use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
 use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
+use App\Domain\Recipes\Gotowanie\Wspolne\PostepWspolnegoGotowania;
+use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
+use App\Domain\Recipes\OdzyskajUsunietyPrzepis;
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Social\Actions\UnfollowUser;
 use App\Domain\Tags\Actions\MergeTags;
+use App\Domain\Tags\Actions\ResolveTagsForPost;
 use App\Domain\Tags\Actions\UpdateTagFollows;
 use App\Domain\Tags\PromowaneTagi;
 use App\Domain\Users\Actions\ChangeUserRole;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\RequestAccountDeletion;
+use App\Domain\Wskazowki\AnulujProsbeOWskazowke;
+use App\Domain\Wskazowki\OdrzucWskazowke;
+use App\Domain\Wskazowki\PrzyjmijWskazowke;
+use App\Domain\Wskazowki\WycofajWskazowke;
+use App\Domain\Wskazowki\ZaproponujWskazowke;
 use App\Domain\Wydania\Actions\ZarejestrujWdrozenie;
 use App\Domain\Zakupy\ListaZakupow;
 use App\Http\Controllers\Admin\ModerationController;
@@ -73,12 +90,15 @@ use App\Models\Collection;
 use App\Models\CollectionInvitation;
 use App\Models\Comment;
 use App\Models\ContactMessage;
+use App\Models\CookedEvent;
 use App\Models\CookingProgress;
+use App\Models\CookingSession;
 use App\Models\ImportPrzepisu;
 use App\Models\PantryItem;
 use App\Models\PendingEmailChange;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Models\Report;
 use App\Models\Tag;
 use App\Models\User;
@@ -313,6 +333,25 @@ try {
             return ($argumenty['transakcja'] ?? '0') === '1' ? DB::transaction($save) : $save();
         })(),
 
+        // Ręczna kolejność przepisów (#2544): prawdziwa akcja domenowa
+        // (zamek zeszytu, odcisk układu) i dopisanie przepisu do TEGO zeszytu.
+        'przesun-przepis-2544' => (function () use ($argumenty): string {
+            $wynik = app(PrzesunPrzepisWZeszycie::class)->handle(
+                User::query()->findOrFail($argumenty['kto']),
+                Collection::query()->findOrFail($argumenty['zeszyt']),
+                $argumenty['przepis'],
+                KierunekPrzesuniecia::from($argumenty['kierunek']),
+                $argumenty['odcisk'],
+            );
+
+            return $wynik->tytul.':'.$wynik->pozycja;
+        })(),
+        'zapisz-przepis-do-zeszytu-2544' => (string) app(SaveRecipeToCollection::class)->handle(
+            User::query()->findOrFail($argumenty['kto']),
+            Recipe::query()->findOrFail($argumenty['przepis']),
+            Collection::query()->findOrFail($argumenty['zeszyt']),
+        )->getKey(),
+
         // Egzekucja karencji jednego konta (Z-2, D-093).
         'kasowanie' => app(EraseAccountData::class)->handle(
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),
@@ -365,6 +404,16 @@ try {
             User::query()->whereKey($argumenty['kogo'])->firstOrFail(),
         ),
 
+        // „Przestań obserwować" (#2404).
+        'przestan-obserwowac' => (function () use ($argumenty): bool {
+            app(UnfollowUser::class)->handle(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                User::query()->whereKey($argumenty['kogo'])->firstOrFail(),
+            );
+
+            return true;
+        })(),
+
         // Scalenie tagu SUROWYM `UPDATE` (#996). Świadomie z pominięciem
         // `MergeTags`: mierzymy barierę w PostgreSQL, która ma działać na
         // KAŻDEJ drodze zapisu — `MergeTags` i tak serializuje się własną
@@ -389,6 +438,17 @@ try {
         // razem — przepisany do testu SQL byłby zielony także po zmianie
         // kolejności w `PublishRecipe`.
         'edytuj-przepis' => (function () use ($argumenty): string {
+            if (isset($argumenty['bariera_2427'])) {
+                $zatrzymany = false;
+                DB::listen(static function (QueryExecuted $query) use (&$zatrzymany): void {
+                    if (! $zatrzymany && str_contains($query->sql, 'from "media"')
+                        && str_contains(strtolower($query->sql), 'for update')) {
+                        $zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2427, 1)');
+                    }
+                });
+            }
+
             $zapisz = static function () use ($argumenty): string {
                 $przepis = app(PublishRecipe::class)->handle(
                     author: User::query()->whereKey($argumenty['autor'])->firstOrFail(),
@@ -396,6 +456,7 @@ try {
                         'title' => $argumenty['tytul'],
                         'visibility' => 'public',
                         'source_type' => Recipe::SOURCE_OWN,
+                        'hero_media_id' => $argumenty['zdjecie'] ?? null,
                     ],
                     ingredients: [['text' => $argumenty['skladnik']]],
                     steps: [['instruction' => 'Gotuj do miękkości.']],
@@ -421,6 +482,31 @@ try {
             }
 
             return $zapisz();
+        })(),
+
+        // Dwa równoległe nowe przepisy o tym samym tytule (#2403, DB-004).
+        // Prawdziwa akcja `PublishRecipe`. Bariera stoi w zdarzeniu `creating`,
+        // czyli PO wyliczeniu slugu przez `exists()` i PRZED insertem — dokładnie
+        // w oknie wyścigu. Blokada współdzielona: oba procesy przechodzą ją
+        // razem, gdy test zwolni barierę (wyłączną).
+        'nowy-przepis-z-bariera' => (function () use ($argumenty): string {
+            Recipe::creating(static function (): void {
+                DB::select('SELECT pg_advisory_xact_lock_shared(2403, 1)');
+            });
+
+            $przepis = app(PublishRecipe::class)->handle(
+                author: User::query()->whereKey($argumenty['autor'])->firstOrFail(),
+                attributes: [
+                    'title' => $argumenty['tytul'],
+                    'visibility' => 'public',
+                    'source_type' => Recipe::SOURCE_OWN,
+                ],
+                ingredients: [['text' => 'sól']],
+                steps: [['instruction' => 'Gotuj do miękkości.']],
+                publish: true,
+            );
+
+            return (string) $przepis->slug;
         })(),
 
         // Samodzielne oznaczenie alergenów (#1902): prawdziwa akcja, bo mierzymy
@@ -585,6 +671,23 @@ try {
             return $po === null ? -1 : $po->revision;
         })(),
 
+        // #2567: właściciel odzyskuje własny, usunięty zeszyt. Prawdziwa akcja,
+        // pod blokadą konta i kopii.
+        'odzyskaj-zeszyt-2567' => (function () use ($argumenty): array {
+            $wynik = app(OdzyskajUsunietyZeszyt::class)->handle(
+                User::query()->whereKey($argumenty['konto'])->firstOrFail(),
+                $argumenty['zeszyt'],
+            );
+
+            return ['juz' => $wynik->juzOdzyskany];
+        })(),
+
+        // #2567: nocne sprzątanie kopii usuniętych zeszytów z NIŻSZYM progiem niż
+        // okno odzyskania — symulacja rozjazdu zegarów między serwerem WWW i
+        // workerem, czyli jedyny sposób, w jaki kandydat sprzątania może jeszcze
+        // zostać odzyskany.
+        'sprzataj-zeszyty-2567' => app(PrzedawnioneUsunieteZeszyty::class)->posprzataj((int) $argumenty['dni']),
+
         // Etap 2 (#2016): dwa urządzenia zaznaczają RÓŻNE składniki „przygotowane” naraz.
         'postep-skladnik' => (function () use ($argumenty): int {
             $postep = CookingProgress::query()->whereKey($argumenty['postep'])->firstOrFail();
@@ -633,6 +736,72 @@ try {
             Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail(),
             User::query()->whereKey($argumenty['czlonek'])->firstOrFail(),
         ) ? 'odebrano' : 'nie-bylo',
+
+        // Wskazówki od gotujących (#2352): prośba, odpowiedź i wycofanie zgody
+        // na prawdziwych akcjach domenowych.
+        'zaproponuj-wskazowke' => (string) app(ZaproponujWskazowke::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            CookedEvent::query()->whereKey($argumenty['wykonanie'])->firstOrFail(),
+        )->getKey(),
+        'przyjmij-wskazowke' => (string) app(PrzyjmijWskazowke::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            RecipeHint::query()->whereKey($argumenty['wskazowka'])->firstOrFail(),
+        )->status,
+        'odrzuc-wskazowke' => (string) app(OdrzucWskazowke::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            RecipeHint::query()->whereKey($argumenty['wskazowka'])->firstOrFail(),
+        )->status,
+        'anuluj-prosbe-o-wskazowke' => (string) app(AnulujProsbeOWskazowke::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            RecipeHint::query()->whereKey($argumenty['wskazowka'])->firstOrFail(),
+        )->status,
+        'wycofaj-wskazowke' => (string) app(WycofajWskazowke::class)->handle(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            RecipeHint::query()->whereKey($argumenty['wskazowka'])->firstOrFail(),
+        )->status,
+
+        // „Przywróć wskazówkę” przez moderatora (#2352): prawdziwa akcja domenowa,
+        // ten sam zamek co ukrycie (konta posortowane, potem wiersz wskazówki).
+        'przywroc-wskazowke' => (function () use ($argumenty): string {
+            $wynik = app(PrzywrocWskazowke::class)->handle(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                $argumenty['wskazowka'],
+                'pomylka_moderacji',
+                'Decyzja z testu wyścigu.',
+            );
+
+            return $wynik['widoczna'] ? 'widoczna' : 'wycofana';
+        })(),
+
+        // Wspólne gotowanie (#2385): dwie osoby odhaczają TEN SAM krok naraz
+        // i dwie osoby przyjmują TEN SAM wielorazowy link naraz. Wołamy akcje
+        // domenowe, nie przepisany SQL — test ma pęknąć, jeśli zniknie blokada
+        // wiersza sesji albo zamek pary w `ZaproszenieDoGotowania`.
+        'wspolne-krok' => app(PostepWspolnegoGotowania::class)->ustaw(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            CookingSession::query()->whereKey($argumenty['sesja'])->firstOrFail(),
+            $argumenty['krok'],
+            true,
+        ) ? 'zmieniono' : 'bez-zmiany',
+        'wspolne-dolacz' => (string) app(ZaproszenieDoGotowania::class)->dolacz(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            $argumenty['token'],
+        )->getKey(),
+        // Gospodarz tworzy nowy link (unieważnia stary) w chwili, gdy ktoś przyjmuje stary.
+        'wspolne-utworz-link' => app(ZaproszenieDoGotowania::class)->utworz(
+            User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            CookingSession::query()->whereKey($argumenty['sesja'])->firstOrFail(),
+        )[0]->status,
+
+        // Gospodarz odwołuje link w chwili, gdy ktoś go przyjmuje.
+        'wspolne-odwolaj-link' => (function () use ($argumenty): string {
+            app(ZaproszenieDoGotowania::class)->odwolaj(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                CookingSession::query()->whereKey($argumenty['sesja'])->firstOrFail(),
+            );
+
+            return 'odwolano';
+        })(),
 
         // Dwa równoległe uruchomienia przypomnień o urodzinach (#2318).
         // Cisza nocna wyłączona (od = do), żeby wynik nie zależał od godziny.
@@ -805,6 +974,22 @@ try {
                 ? new NowaDecyzja($argumenty['nowa_akcja'], $argumenty['podstawa'], $argumenty['wiadomosc'])
                 : null,
         )->status,
+
+        // „CSAM — natychmiast ukryj i zabezpiecz” (D-333): prawdziwa akcja,
+        // bo mierzymy kolejność blokad `users` → treść → zdjęcia.
+        'zabezpiecz-csam' => (function () use ($argumenty): string {
+            config([
+                'queue.default' => 'database',
+                'queue.connections.database.connection' => config('database.default'),
+                'queue.connections.database.after_commit' => false,
+            ]);
+
+            return (string) app(ZabezpieczDowodCsam::class)->handle(
+                User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+                $argumenty['typ'],
+                $argumenty['id'],
+            )->zabezpieczenieId;
+        })(),
 
         'zmien-role' => app(ChangeUserRole::class)->handle(
             User::query()->whereKey($argumenty['kto'])->firstOrFail(),
@@ -1069,6 +1254,39 @@ try {
             }
 
             return app(ImportujWartosciOdzywcze::class)->handle($argumenty['katalog']);
+        })(),
+
+        // #2620: autor odzyskuje własny, usunięty przepis. Prawdziwa akcja,
+        // pod blokadą konta i przepisu.
+        'odzyskaj-przepis-2620' => (function () use ($argumenty): array {
+            $wynik = app(OdzyskajUsunietyPrzepis::class)->handle(
+                User::query()->whereKey($argumenty['konto'])->firstOrFail(),
+                $argumenty['przepis'],
+            );
+
+            return ['juz' => $wynik->juzOdzyskany, 'zdjecia' => $wynik->zdjeciaNieWrocily];
+        })(),
+
+        // #2620: nocne sprzątanie usuniętych treści z NIŻSZYM progiem niż okno
+        // odzyskania — to symuluje rozjazd zegarów między serwerem WWW i
+        // workerem, czyli jedyny sposób, w jaki kandydat sprzątania może
+        // jeszcze zostać odzyskany.
+        'sprzataj-usuniete-2620' => app(PrzedawnioneUsunieteTresci::class)->posprzataj((int) $argumenty['dni']),
+
+        // Dwa równoległe wpisy z tym samym NOWYM tagiem albo z nazwami o wspólnym
+        // slugu (ta sama akcja co publikacja wpisu). Bariera stoi w zdarzeniu
+        // `creating` tagu, czyli PO wyliczeniu slugu i PRZED insertem.
+        'rozwiaz-tagi-z-bariera' => (function () use ($argumenty): string {
+            Tag::creating(static function (): void {
+                DB::select('SELECT pg_advisory_xact_lock_shared(2404, 1)');
+            });
+
+            $tagi = app(ResolveTagsForPost::class)->handle([$argumenty['nazwa']]);
+
+            return json_encode(array_map(
+                static fn (Tag $tag): array => ['id' => (string) $tag->getKey(), 'slug' => $tag->slug],
+                $tagi,
+            ), JSON_THROW_ON_ERROR);
         })(),
 
         // Prawdziwa komenda używana przez obie ścieżki wdrożenia (#2082).

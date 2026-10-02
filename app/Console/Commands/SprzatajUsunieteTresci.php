@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domain\Collections\Odzyskiwanie\PrzedawnioneUsunieteZeszyty;
 use App\Domain\Compliance\PrzedawnioneUsunieteTresci;
 use Illuminate\Console\Command;
 
@@ -20,7 +21,7 @@ class SprzatajUsunieteTresci extends Command
 
     protected $description = 'Kasuje na stałe treści usunięte przez autora po okresie z konfiguracji, razem ze zdjęciami (audyt B5).';
 
-    public function handle(PrzedawnioneUsunieteTresci $sprzataj): int
+    public function handle(PrzedawnioneUsunieteTresci $sprzataj, PrzedawnioneUsunieteZeszyty $zeszyty): int
     {
         $dni = $this->option('dni') !== null
             ? max(1, (int) $this->option('dni'))
@@ -29,10 +30,13 @@ class SprzatajUsunieteTresci extends Command
         $naSucho = (bool) $this->option('na-sucho');
 
         $w = $sprzataj->posprzataj($dni, $naSucho);
+        // Kopie odzyskania usuniętych zeszytów (#2567) — to samo okno.
+        $kopie = $zeszyty->posprzataj($dni, $naSucho);
 
         $this->info(($naSucho ? 'Do skasowania' : 'Skasowano')
             ." (usunięte ponad {$w['dni']} dni temu): wpisy {$w['wpisy']}, przepisy {$w['przepisy']}, "
-            ."przepisy opróżnione do nagrobka {$w['nagrobki']}, komentarze {$w['komentarze']}"
+            ."przepisy opróżnione do nagrobka {$w['nagrobki']}, komentarze {$w['komentarze']}, "
+            ."kopie usuniętych zeszytów {$kopie}"
             .($naSucho ? '.' : ", zdjęcia {$w['zdjecia']}."));
 
         return self::SUCCESS;

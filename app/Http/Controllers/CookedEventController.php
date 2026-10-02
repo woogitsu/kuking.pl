@@ -7,11 +7,13 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\KomentujWykonanie;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Notifications\Actions\OtworzKomusWyszlo;
+use App\Domain\Recipes\Actions\PoprawPorcjeWykonania;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Domain\Recipes\Actions\UsunWykonanie;
 use App\Domain\Recipes\Actions\ZapiszWykonanieZFormularza;
 use App\Domain\Recipes\Actions\ZbierzZdjeciaWykonania;
 use App\Domain\Recipes\Gotowanie\JakWyszlo;
+use App\Domain\Recipes\Gotowanie\PorcjeWykonania;
 use App\Domain\Recipes\Gotowanie\RoboczyDopisek;
 use App\Domain\Recipes\Gotowanie\WersjaWykonania;
 use App\Domain\Recipes\Historia\MigawkaWersji;
@@ -24,6 +26,7 @@ use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Support\Komunikat;
 use App\Support\OdpowiedziWatku;
 use App\Support\StaryAdresPrzepisu;
@@ -66,6 +69,7 @@ class CookedEventController extends Controller
         private readonly KomentujWykonanie $komentuj,
         private readonly OtworzKomusWyszlo $otworzKomusWyszlo,
         private readonly UsunWykonanie $usunWykonanie,
+        private readonly PoprawPorcjeWykonania $poprawPorcje,
     ) {}
 
     public function create(Request $request, string $recipe): View|RedirectResponse
@@ -292,8 +296,16 @@ class CookedEventController extends Controller
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
         OdpowiedziWatku::uzupelnij($komentarze, $request, ['author.profile.avatar', 'cookedEvent.recipe']);
 
+        // Wskazówka (#2352) interesuje tylko dwie osoby: kucharza (odpowiada)
+        // i autora przepisu (prosi). Dla reszty nie pytamy bazy wcale.
+        $widz = $request->user();
+        $wskazowka = $widz !== null && ($widz->getKey() === $cookedEvent->user_id || $widz->getKey() === $cookedEvent->recipe?->author_id)
+            ? RecipeHint::query()->where('cooked_event_id', $cookedEvent->getKey())->with(['author', 'recipe'])->first()
+            : null;
+
         return view('pages.cooked.show', [
             'event' => $cookedEvent,
+            'wskazowka' => $wskazowka,
             // Tylko dla kucharza (#2378): przypięta wersja albo `null`.
             // Obcy nie dostaje nawet informacji, że wskaźnik istnieje.
             'wersjaWykonania' => $cookedEvent->user_id === $request->user()?->getKey()
@@ -413,6 +425,38 @@ class CookedEventController extends Controller
         }
 
         return back()->with(Komunikat::sukces('Komentarz dodany.'));
+    }
+
+    /**
+     * Prywatna liczba faktycznych porcji (#2540): ekran poprawy. Obcy dostaje
+     * 403 z Policy — adres z UUID nie jest autoryzacją.
+     */
+    public function edytujPorcje(Request $request, CookedEvent $cookedEvent): View
+    {
+        $this->authorize('poprawPorcje', $cookedEvent);
+
+        return view('pages.cooked.porcje', ['event' => $cookedEvent->loadMissing('recipe')]);
+    }
+
+    public function zapiszPorcje(Request $request, CookedEvent $cookedEvent): RedirectResponse
+    {
+        $this->authorize('poprawPorcje', $cookedEvent);
+
+        $wpisane = $request->input('faktyczne_porcje');
+
+        if ($wpisane !== null && ! is_string($wpisane)) {
+            return back()->withInput()->withErrors(['faktyczne_porcje' => PorcjeWykonania::KOMUNIKAT_NIEZROZUMIALY]);
+        }
+
+        try {
+            $zapisana = $this->poprawPorcje->handle($cookedEvent, $wpisane);
+        } catch (BladDlaCzlowieka $e) {
+            return back()->withInput()->withErrors(['faktyczne_porcje' => $e->getMessage()]);
+        }
+
+        return redirect()->route('cooked.show', $cookedEvent)->with(Komunikat::sukces(
+            $zapisana === null ? 'Usunęliśmy liczbę porcji z tego wykonania.' : 'Zapisaliśmy liczbę porcji: '.PorcjeWykonania::etykieta($zapisana).'.',
+        ));
     }
 
     public function destroy(Request $request, CookedEvent $cookedEvent): RedirectResponse

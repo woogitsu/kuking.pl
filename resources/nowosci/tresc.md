@@ -30,11 +30,48 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Odłóż szkic na później
+
+Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.
+
+### Odzyskanie usuniętego zeszytu
+
+Usunęliście zeszyt przez pomyłkę? Jeśli był prywatny i nie dzieliliście go
+z nikim, możecie go odzyskać. W Zeszycie jest teraz przycisk „Usunięte
+zeszyty”: zobaczycie na liście nazwę zeszytu, liczbę zapisów, datę usunięcia
+i dokładny termin, do kiedy da się go odzyskać. Przycisk „Odzyskaj zeszyt”
+przywraca go jako prywatny, razem z zapisami, Waszymi dopiskami i datami
+zapisania. Nikt nie dostaje o tym powiadomienia. Jeśli któryś przepis albo
+wpis został w międzyczasie usunięty, nie wróci, a ekran powie, ile zapisów
+brakuje. Zeszytów publicznych i wspólnych nie da się odzyskać, o czym
+informuje komunikat po usunięciu. Po upływie terminu zeszyt jest usuwany na
+stałe, tak samo po usunięciu konta.
+
 ### Przeliczanie miar przy składniku
 
 Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrach, szklankach, łyżkach albo łyżeczkach znajdziecie rozwijany napis „Przelicz”. Po dotknięciu pokazuje to samo w innej jednostce, na przykład 25 dag to 250 g, a pół szklanki to około 125 ml. Przeliczamy tylko wagę na wagę i objętość na objętość — gramów nie zamieniamy na szklanki, bo zależy to od produktu. Przelicznik bierze ilość z wybranej liczby porcji, a tekst przepisu zostaje taki, jak napisał autor.
 
 Tu pojawią się funkcje, które jeszcze nie mają numeru wydania.
+
+### Ile porcji wyszło przy „Ugotowałem”
+
+Przepis był na cztery porcje, a Wy ugotowaliście na osiem? W formularzu
+„Ugotowałem” jest teraz nieobowiązkowe pole „Ile porcji wyszło (tylko dla
+Ciebie)”. Wpiszcie liczbę, na przykład 8 albo 2,5, albo zostawcie pole puste —
+niczego nie podstawiamy za Was. Liczbę zobaczycie przy własnym wykonaniu,
+a na stronie wykonania możecie ją poprawić albo usunąć. Widzicie ją tylko Wy:
+inni, także autor przepisu, jej nie widzą, a przepis i powiadomienie zostają
+takie jak dotąd.
+
+### Zapytaj o ten krok
+
+Coś w kroku przepisu jest niejasne, na przykład „mieszaj aż zgęstnieje”?
+Pod krokiem jest przycisk „Zapytaj o ten krok”. Prowadzi do pola komentarza
+pod przepisem, w którym czeka już początek tego kroku, a Wy dopisujecie pytanie.
+Ten początek możecie poprawić albo usunąć, a nic nie wyśle się samo, dopóki
+nie dotkniecie „Wyślij komentarz”. To zwykły komentarz, więc autor dostaje
+powiadomienie jak zawsze. Gdy autor później zmieni krok, Wasze pytanie zostaje
+takie, jakie wysłaliście.
 
 ### Dzień gotowania przy „Ugotowałem”
 
@@ -46,6 +83,18 @@ własnym wykonaniu jako „Gotowane”, obok daty dodania. Widzicie go tylko Wy:
 inni, także autor przepisu, dalej widzą dzień, w którym wykonanie dodano,
 a kolejność wpisów i powiadomienie dla autora przepisu zostają takie jak
 dotąd. Nie można wybrać dnia z przyszłości.
+
+### Własna kolejność przepisów w zeszycie
+
+W swoim prywatnym zeszycie możecie sami ułożyć przepisy, na przykład niedzielny
+obiad od zupy przez danie główne do deseru. Na stronie zeszytu wybierzcie
+„Ułóż kolejność przepisów” — pod każdym przepisem pojawią się przyciski
+„Wyżej”, „Niżej”, „Na początek” i „Na koniec”, bez przeciągania. Kolejność
+zostaje po zamknięciu strony i obowiązuje też na wydruku zeszytu oraz w paczce
+danych. Nowy przepis staje na końcu. Przesuwanie niczego nie zmienia w datach
+zapisu ani w notatkach i nikogo nie powiadamia. Gdy zechcecie wrócić do dawnego
+porządku, od najnowszego zapisu, służy do tego „Wróć do kolejności zapisu”.
+Na razie dotyczy to zeszytów prywatnych, do których nie zaproszono nikogo.
 
 ### Szukaj w moich planach
 
@@ -94,6 +143,85 @@ a to, co dopisaliście w międzyczasie, zostaje. Pamiętamy tylko ostatnie
 usunięcie, a po 15 minutach kopia znika. Pytanie przed usunięciem zostaje
 jak było.
 
+### Wskazówki od osób, które ugotowały przepis
+
+Gdy przy czyimś wykonaniu Waszego przepisu stoi pożyteczna uwaga —
+na przykład „chrzan do wywaru, wyszło lepiej” — możecie poprosić tę osobę,
+żeby jej uwaga stanęła przy przepisie jako wskazówka. Na stronie takiego
+wykonania jest przycisk „Poproś o zgodę”. Osoba, która ugotowała, dostaje
+powiadomienie, a na stronie swojego wykonania widzi dokładnie ten tekst i dwa
+przyciski: „Zgadzam się” albo „Nie”. **Bez jej odpowiedzi nic się nie
+pokaże.** Jeśli odpowie „Nie”, nie dostaniecie o tym wiadomości, a prośby nie
+można ponowić.
+
+Kto się zgodził, może zgodę wycofać w każdej chwili przyciskiem „Wycofaj
+zgodę” — wskazówka od razu znika z przepisu, a uwaga zostaje pod jego
+wykonaniem. Na stronie przepisu wskazówki stoją w sekcji „Wskazówki od
+gotujących”, w kolejności, w jakiej ludzie się zgodzili, każda z nazwą osoby
+i dniem ugotowania. Nic ich nie układa według popularności. Pod każdą wskazówką
+jest przycisk „Zgłoś”. Moderacja może ukryć samą wskazówkę — wtedy znika
+z przepisu, a wykonanie i uwaga pod nim zostają. Osoba, która ją napisała,
+dostaje wiadomość z uzasadnieniem i może się odwołać.
+
+Prośba, na którą nikt nie odpowie, wygasa po 30 dniach — wtedy nic się nie
+dzieje, a ta osoba nie dostaje przypomnienia ani drugiej prośby o to samo
+wykonanie. Jeśli wyślecie prośbę przez pomyłkę, możecie ją anulować
+przyciskiem „Anuluj prośbę” na stronie tego wykonania, dopóki nikt nie
+odpowiedział. A gdy ktoś się zgodzi, dostaniecie o tym powiadomienie — o
+odmowie, wycofaniu zgody ani wygaśnięciu prośby nie dostaniecie żadnej
+wiadomości.
+
+### Gotujemy razem z innymi
+
+W trybie gotowania jest przycisk „Gotuj z kimś”. Zakłada wspólną sesję jednego
+przepisu: wysyłacie link, a każda zaproszona osoba — po zalogowaniu
+i potwierdzeniu — widzi ten sam przepis i te same odhaczone kroki co Wy.
+W sesji może być gospodarz i do trzech pomocników; zapraszacie jednym linkiem,
+który wpuści do trzech osób. Każdy, kto dostanie ten link, może dołączyć, więc
+wysyłajcie go tylko tym, których zapraszacie. Przy każdym kroku jest duży przycisk „Zrobione”
+(i „Cofnij”), a obok widać, kto go odhaczył i o której. Wszyscy w sesji widzą
+nawzajem swoje nazwy. Osoby, z których któraś zablokowała drugą, nie trafią do
+jednej sesji. Pomocników zaprasza i usuwa oraz sesję kończy tylko gospodarz;
+pomocnik może w każdej chwili wyjść. Link działa przez dobę, a gospodarz może
+go odwołać. Nie otworzy przepisu nikomu, kto nie mógłby go zobaczyć w Kuking
+(na przykład przepisu prywatnego). Nie ma tu wiadomości ani publikowania —
+tylko wspólna lista kroków. Gdy ktoś z sesji coś zmieni, wystarczy kliknąć
+„Odśwież”. Sesja trwa najwyżej 24 godziny i znika razem z odhaczeniami;
+działa przy połączeniu z internetem. Minutniki zostają osobne dla każdej osoby.
+
+### Wyjaśnienia słów kulinarnych przy gotowaniu
+
+Gdy w kroku trybu „Gotuję” trafi się słowo, którego nie znacie — na przykład
+„zasmażka”, „zahartuj”, „zredukuj” albo „szumowiny” — pod tekstem kroku
+zobaczycie przycisk „Wyjaśnij to”. Dotknijcie go, a rozwinie się krótkie
+objaśnienie po polsku. Nic się przy tym nie zapisuje i nie zmienia: przepis
+zostaje taki, jak napisał autor, a krok bez trudnych słów nie ma przycisku.
+Objaśnienia napisali ludzie, nie sztuczna inteligencja.
+
+### Mój rok w kuchni
+
+W zakładce „Moje” jest przycisk „Mój rok w kuchni”. Prowadzi do spokojnej
+strony tylko dla Was: ile dań opublikowaliście w danym roku, ile razy
+zaznaczyliście „Ugotowałem” i które przepisy gotowaliście najczęściej.
+Można przełączyć się na wcześniejsze lata. Nie ma tu porównań z innymi
+osobami, rankingów, odznak ani udostępniania — nikt poza Wami tej strony
+nie otworzy. Przepis, który usuniecie albo który przestanie być dla Was
+dostępny, znika z podsumowania od razu. Jeśli w ustawieniach prywatności
+wyłączycie wspomnienia, wyłączy się też ta strona; nic się wtedy nie
+kasuje.
+
+### Dyktowanie składników i kroków
+
+W kreatorze przepisu, przy polach składników i kroków, możecie teraz dyktować
+zamiast pisać. Naciśnijcie „Dyktuj” i powiedzcie, co dopisać. Podyktowany tekst
+pojawia się najpierw w osobnym polu pod spodem — do przepisu trafia dopiero po
+„Wstaw do przepisu”, a „Anuluj” go wyrzuca. Tekst, który już wpisaliście,
+zostaje nietknięty: dyktowanie dopisuje na końcu. Przycisk widzicie tylko wtedy,
+gdy Wasza przeglądarka umie rozpoznawać mowę, a mikrofon włącza dopiero po
+Waszym pozwoleniu. Mowę rozpoznaje przeglądarka i może wysyłać dźwięk do swojego
+dostawcy (na przykład Google albo Apple). Kuking nie nagrywa dźwięku i go nie
+dostaje — dostajemy tylko tekst, który sami wstawicie.
+
 ### Prywatny dopisek podczas gotowania
 
 W trybie gotowania jest teraz zwijany obszar „Prywatny dopisek z gotowania
@@ -130,6 +258,32 @@ jak przy porcjach: 24 na 36 to półtora raza więcej. Działa bez
 JavaScriptu, a link z wybraną liczbą możecie wysłać rodzinie. Wybieracie
 albo porcje, albo sztuki — nigdy oba naraz. Przepisy, w których autor
 nie podał sztuk, wyglądają tak jak dotąd.
+
+### Dopisek przy przepisie w Planerze
+
+Przy przepisie w planie możesz dopisać krótką, prywatną uwagę, na przykład „kolacja” albo „na niedzielę z rodziną”. Po powrocie do planu od razu widzisz, które danie było na co, bez osobnego wpisu. Dopisek ma najwyżej 80 znaków, widzisz go tylko Ty i możesz go w każdej chwili zmienić albo usunąć. Nie zmienia przepisu ani planu, a przycisk „Skopiuj poprzedni tydzień” przenosi go razem z pozycją.
+
+### Etapy przygotowania
+
+Robicie pierogi przez dwa dni? Przy kroku przepisu możecie teraz wpisać nazwę
+etapu, na przykład „Dzień 1: farsz” albo „Dzień 2: lepienie”. Nazwa pojawia się
+nad kolejnymi krokami na stronie przepisu i na wydruku, a w trybie gotowania
+nad bieżącym krokiem stoi „Etap: Dzień 2: lepienie”, więc po przerwie od razu
+wiadomo, gdzie jesteście. Etap trwa do kroku z następną nazwą. Nazwa nie jest
+krokiem do odhaczenia: numery kroków, minutniki i to, co już zrobiliście,
+zostają tak samo jak wcześniej. Przepis bez nazw wygląda jak dotąd — pole jest
+nieobowiązkowe.
+
+### Odzyskanie własnego przepisu
+
+Usunięty przez pomyłkę przepis można odzyskać. W Zeszycie jest teraz przycisk
+„Usunięte przepisy”: zobaczycie na liście swoje przepisy usunięte w ostatnim
+czasie, datę usunięcia i dokładny termin, do kiedy da się je odzyskać. Przycisk
+„Odzyskaj przepis” przywraca przepis jako szkic, który widzicie tylko Wy.
+Niczego nie publikuje: sprawdzicie tekst, składniki i kroki, a o publikacji
+zdecydujecie sami. Jeśli któregoś zdjęcia nie da się już użyć, ekran powie
+o tym wprost. Po upływie terminu przepis jest usuwany na stałe i nie ma już
+drogi powrotu, tak samo po wymazaniu konta.
 
 ## Alfa 0.78
 
