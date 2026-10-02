@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Plan z Planera w Waszym kalendarzu
+
+Chcecie widzieć zaplanowany obiad także w kalendarzu w telefonie? W Planerze jest przycisk „Plan do kalendarza (plik)”. Zaznaczacie pozycje z jednego tygodnia, widzicie dokładnie, jaka nazwa i jaka data trafią do pliku, i pobieracie go. Plik otwieracie w swoim kalendarzu jak zwykły załącznik. To jednorazowa kopia: bez godzin, składników i Waszych dopisków, bez żadnego stałego adresu czy synchronizacji. Pamiętajcie, że po zaimportowaniu kopia żyje już w Waszym kalendarzu (może być w jego chmurze) i nie zmieni się, gdy zmienicie plan w Kuking.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

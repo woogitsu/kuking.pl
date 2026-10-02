@@ -1218,6 +1218,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/planer', [PlanerController::class, 'store'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.store');
+    // Plik kalendarza (#2529): wybór pozycji (GET) i jednorazowe pobranie (POST,
+    // prywatna odpowiedź bez stałego adresu i bez tokenu).
+    Route::get('/planer/kalendarz', [PlanerController::class, 'calendar'])
+        ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
+        ->name('planer.calendar');
+    Route::post('/planer/kalendarz', [PlanerController::class, 'calendarDownload'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.calendar.download');
     Route::post('/planer/kopiuj-tydzien', [PlanerController::class, 'copy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.copy');
