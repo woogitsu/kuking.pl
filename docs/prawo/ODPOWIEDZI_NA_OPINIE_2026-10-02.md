@@ -49,6 +49,22 @@ Ten plik zestawia każdą odpowiedź z tym, co jest dziś w kodzie i na produkcj
    Termin naprawy to **teraz, a nie dzień publicznego otwarcia**. Regułę „obowiązek
    powstaje przy pierwszej osobie spoza bety” trzeba usunąć z dokumentów wewnętrznych. **TY**.
 
+## Decyzje właściciela z 2.10.2026 (zapis w D-333)
+
+1. **Cloudflare Web Analytics: zostaje.** To decyzja wbrew zaleceniu analizy, z
+   przyjęciem ryzyka z PKE. Polityka i tak nie może twierdzić, że brak ciasteczek
+   oznacza brak potrzeby zgody (pytanie 15).
+2. **Moderacja OpenAI: zostaje.** Właściciel sprawdza 2.10.2026 w panelu OpenAI
+   organizację, DPA i region (pytanie 9).
+3. **Wersjonowanie polityki: bez zmian.** Drobne poprawki idą bez nowej daty, a
+   archiwum z 30.09 jest identyczne z bieżącym plikiem. To decyzja wbrew zaleceniu
+   analizy (pytanie 6, §6.4).
+4. **Beta: tylko osoby pełnoletnie, znane właścicielowi** (pytanie 12). Regulamin
+   zostaje przy 16+.
+
+Punkty oznaczone wyżej jako DECYZJA przy pytaniach 6, 9, 12 i 15 są tym rozstrzygnięte.
+Otwarta zostaje data wejścia regulaminu dla bety (pytanie 4).
+
 ## 1. Odpowiedzi na pytania 1–18
 
 ### 1. Licencja na treści i kolaż
