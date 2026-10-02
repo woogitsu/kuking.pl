@@ -1312,6 +1312,12 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    ("PDF: ilość dziesiętna staje się numerem listy (#2614)",
+     "app/Domain/Import/ParserTekstuPrzepisu.php",
+     "ImportParseryTest::test_tekst_pdf_zachowuje_dziesietne_ilosci_a_usuwa_tylko_jednoznaczna_numeracje",
+     lambda s: replace_once(s,
+                            r"(?:[•*·▪●◦]\s*|[-–—](?:\h+|(?!\d))|\d{1,2}\)\s*|\d{1,2}\.\h+)",
+                            r"([-–—•*·▪●◦]|\d{1,2}[.)])\s*")),
     ("Spiżarnia usuwa bez pytania (#2467)", "resources/views/pages/pantry/_produkty.blade.php",
      "test_pierwszy_klik_w_spizarni_rozwija_pytanie_zamiast_kasowac_produkt", spizarnia_bez_potwierdzenia),
     ("Planer usuwa bez pytania (#2468)", "resources/views/pages/planer/show.blade.php",

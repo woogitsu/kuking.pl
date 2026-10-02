@@ -2,6 +2,7 @@
 
 ## Nieopublikowane
 
+- Naprawione (#2614): import przepisu z tekstowego PDF zachowuje ilości `1.5 kg` i `0.5 l` w prywatnym szkicu; prawdziwe numery listy nadal usuwa bez zmiany cyfr składnika.
 - Naprawione (#2467): usunięcie produktu z „Co mam w domu” najpierw pokazuje pytanie z jego nazwą. „Anuluj” zamyka je bez kasowania ilości lub terminu, także bez JavaScriptu.
 - Naprawione (#2468): usunięcie pozycji z Planera najpierw pokazuje pytanie z dniem i nazwą; dopiero osobne potwierdzenie usuwa wpis. Zamknięcie pytania zostawia plan bez zmian, a niedostępny przepis nie ujawnia tytułu.
 - Naprawione (#2502): po zmianie liczby porcji składnik nie pozostaje automatycznie oznaczony jako „Przygotowane” przy nowej ilości, także gdy wrócisz do poprzedniej liczby. Ekran prosi o sprawdzenie i ponowne zaznaczenie składników; odhaczenia kroków i minutniki zostają. Stary formularz z drugiego urządzenia nie przywróci dawnych składników po takim powrocie.
