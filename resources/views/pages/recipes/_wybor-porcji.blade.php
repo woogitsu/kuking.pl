@@ -30,11 +30,14 @@
         ], fn ($wartosc) => $wartosc !== null)).'#skladniki';
         $mniej = $wyborPorcji->mniej();
         $wiecej = $wyborPorcji->wiecej();
-        // Błędnie wpisany tekst zostaje w polu (Blade go zakodowuje); poprawna
-        // liczba wraca z przecinkiem. Tekst obcinamy, by nie rozpychał strony.
+        // Błędnie wpisany tekst zostaje w polu, żeby było widać, co poprawić —
+        // ale tylko zwykły tekst (cyfry, litery, spacja, przecinek, kropka,
+        // minus). Cokolwiek innego z adresu nie wraca na stronę (wstrzyknięcie
+        // przez link, WydrukDlaPomocnikaTest); wtedy pole jest puste.
+        // Poprawna liczba wraca z przecinkiem. Tekst obcinamy do 30 znaków.
         $wpisane = request()->query('porcje');
-        $wartoscPola = $wyborPorcji->odrzucone && is_string($wpisane)
-            ? \Illuminate\Support\Str::limit($wpisane, 30, '')
+        $wartoscPola = $wyborPorcji->odrzucone
+            ? (is_string($wpisane) && preg_match('/^[\p{L}\p{N} ,.\-]{1,30}$/u', $wpisane) === 1 ? $wpisane : '')
             : \App\Domain\Recipes\Porcje\WyborPorcji::doPola((float) $wyborPorcji->wybrane);
     @endphp
     <div class="porcje-wybor" role="group" aria-labelledby="porcje-wybor-tytul">
