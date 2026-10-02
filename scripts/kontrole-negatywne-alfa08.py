@@ -1333,6 +1333,10 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    # #2291: regresja domyślnej konfiguracji ma zapalić odczyt `SHOW jit` na
+    # rzeczywistym nowym połączeniu PostgreSQL, nie tylko test tekstu configu.
+    ("Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)", "config/database.php", "PolaczenieBazyMaWylaczonyJitTest::swieze_polaczenie_aplikacji_ma_jit_off",
+     lambda s: replace_once(s, "'server_options' => ['jit' => env('DB_JIT') ?: 'off'],", "'server_options' => ['jit' => env('DB_JIT') ?: 'on'],")),
     ("Pusta linia Unicode tworzy składnik (#2621)", "app/Domain/Recipes/TekstNaWiersze.php",
      "test_niewidoczne_spacje_na_pustych_liniach_nie_tworza_skladnika_i_rozdzielaja_kroki",
      skladniki_nie_rozpoznaja_nierozdzielajacej_spacji),
