@@ -162,6 +162,16 @@
         <x-field name="actual_minutes" label="Ile Ci to zajęło (w minutach)" type="number"
                  inputmode="numeric" :min="0" :max="10080" />
 
+        {{-- PRYWATNY DZIEŃ GOTOWANIA (#2583). Zwykłe pole daty, bez
+             JavaScriptu, domyślnie PUSTE: nie wypełniamy go ze zdjęcia ani
+             z planera. Serwer zapisuje wykonanie z dzisiejszą datą dodania
+             (to na niej stoi feed i „Ugotujmy razem"); ten dzień zobaczy
+             tylko osoba, która go podała. Formularz ma `novalidate`, więc
+             błąd pokazuje serwer — przy polu i w podsumowaniu. --}}
+        <x-field name="dzien_gotowania" label="Dzień gotowania (tylko dla Ciebie)" type="date"
+                 :min="\App\Domain\Recipes\Gotowanie\DzienGotowania::NAJWCZESNIEJSZY" :max="\App\Support\Czas::dzisiajData()"
+                 help="Wypełnij, jeśli gotowanie było innego dnia niż dziś. Ten dzień zobaczysz tylko Ty — wykonanie zapiszemy z dzisiejszą datą dodania." />
+
         {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
              wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
         <fieldset class="border-0 p-0 mt-6" id="f-would_make_again"

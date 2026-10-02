@@ -567,6 +567,10 @@ final class CollectUserExportData
                 ? ($this->plikiWlasnychPrzepisow[(string) $event->recipe_id] ?? null)
                 : null,
             'kiedy' => $this->date($event->cooked_at),
+            // Prywatny dzień gotowania podany przez samą osobę (#2583) — sam
+            // dzień `RRRR-MM-DD`; `null` = nie podano. Osobny od `kiedy`
+            // (chwili zgłoszenia).
+            'dzien_gotowania_podany_przeze_mnie' => $event->dzien_gotowania?->format('Y-m-d'),
             // Numer wersji przepisu otwartej przy gotowaniu (#2378) — sam numer,
             // bez treści wersji; `null` = nie wiadomo (wykonanie sprzed zmiany
             // albo wersja usunięta retencją).
