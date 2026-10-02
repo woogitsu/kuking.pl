@@ -39,7 +39,7 @@ class SpisKrokowWTrybieGotowaniaTest extends TestCase
         $spis = $xpath->query('//details[@data-spis-krokow]')->item(0);
         $this->assertInstanceOf(DOMElement::class, $spis);
         $this->assertFalse($spis->hasAttribute('open'), 'Spis ma być domyślnie zwinięty.');
-        $this->assertSame('Spis kroków (12)', trim($xpath->query('./summary', $spis)->item(0)?->textContent ?? ''));
+        $this->assertSame('Spis kroków (12)', trim((string) $xpath->query('./summary', $spis)->item(0)?->textContent));
 
         $linki = $xpath->query('.//ol[@class="cook-spis-lista"]//a', $spis);
         $this->assertSame(12, $linki->length);
