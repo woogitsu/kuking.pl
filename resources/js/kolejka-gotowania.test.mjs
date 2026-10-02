@@ -250,6 +250,16 @@ test('adres kolejki niesie slugi, kroki i aktywną potrawę', () => {
     assert.equal(adresKolejki('/gotuj-kilka', pozycje), '/gotuj-kilka?p=zupa:2,kotlet:1');
 });
 
+test('aktywny przepis spoza wzorca sluga nie trafia do adresu kolejki', () => {
+    const pozycje = [{slug: 'zupa', krok: 2}];
+
+    assert.equal(adresKolejki('/gotuj-kilka', pozycje, 'javascript:alert(1)'), '/gotuj-kilka?p=zupa:2');
+    assert.equal(adresKolejki('/gotuj-kilka', pozycje, 'zupa&p=x'), '/gotuj-kilka?p=zupa:2');
+    assert.equal(adresKolejki('/gotuj-kilka', pozycje, '<b>'), '/gotuj-kilka?p=zupa:2');
+    assert.equal(adresKolejki('/gotuj-kilka', pozycje, 'zupa'), '/gotuj-kilka?p=zupa:2&a=zupa');
+});
+
+
 test('minutniki potraw A i B mają osobne klucze i nie mieszają się z cudzymi', () => {
     assert.notEqual(kluczStanu('zupa', 1), kluczStanu('kotlet', 1));
 
