@@ -72,6 +72,11 @@ final class PowiadomieniaKosztPlanuTest extends TestCase
             ->assertOk()
             // Przycisk dalej wie, że gdzieś niżej jest nieprzeczytane.
             ->assertSee('Oznacz wszystkie jako przeczytane');
+        // Zakres „Nieprzeczytane” (#2442) idzie tym samym filtrem plus `read_at IS NULL`:
+        // jego zapytania też nie mogą przekroczyć progu JIT.
+        $this->actingAs($ja)->get(route('notifications.index', ['zakres' => 'nieprzeczytane']))
+            ->assertOk()
+            ->assertSee('Oznacz wszystkie jako przeczytane');
 
         $najdrozsze = ['koszt' => 0.0, 'sql' => ''];
         foreach ($zapytania as [$sql, $parametry]) {

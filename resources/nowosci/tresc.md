@@ -30,6 +30,10 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Powiadomienia: tylko nieprzeczytane
+
+Plakietka pokazuje, że czeka nieprzeczytane powiadomienie, ale po kilku nowszych, już przeczytanych, trudno je było znaleźć? Nad listą powiadomień są teraz dwa linki: „Wszystkie” i „Nieprzeczytane”. Drugi pokazuje tylko te, których jeszcze nie otworzyliście, w tej samej kolejności, a pierwszy wraca do całej historii. Samo wejście na listę, przełączenie i przejście na następną stronę niczego nie oznaczają jako przeczytane; „Oznacz wszystkie jako przeczytane” działa jak dotąd.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie

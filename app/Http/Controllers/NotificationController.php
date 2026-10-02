@@ -19,6 +19,9 @@ use Illuminate\View\View;
 class NotificationController extends Controller
 {
     /** Karta i komunikat po kliknięciu — to samo zdanie, jak przy #1034 (issue #1994). */
+    /** Wartość `?zakres=` dla listy samych nieprzeczytanych (#2442). */
+    public const ZAKRES_NIEPRZECZYTANE = 'nieprzeczytane';
+
     public const WPIS_SMAKOWICIE_NIEDOSTEPNY = 'Ten wpis został usunięty albo nie jest już dostępny.';
 
     public function index(Request $request, QuestionNotificationContext $questionContext, OdczytPowiadomien $odczyt): View
@@ -31,10 +34,19 @@ class NotificationController extends Controller
         // (`User::unreadNotificationsCount()`); gdyby chodził tylko tutaj,
         // w belce świeciłoby „3 nieprzeczytane" nad pustą listą. Ta sama
         // klasa dociąga zbiorczo stan wykonań (#771) i przepisów (#1034).
-        $notifications = $odczyt->strona($user);
+        // Zakres listy (#2442): „wszystkie” (domyślnie) albo „nieprzeczytane”.
+        // Każda inna wartość to zwykła pełna lista; zakres przechodzi w adresie
+        // następnej strony, a zmiana zakresu zaczyna od pierwszej.
+        $tylkoNieprzeczytane = $request->query('zakres') === self::ZAKRES_NIEPRZECZYTANE;
+        $notifications = $odczyt->strona($user, OdczytPowiadomien::NA_STRONE, $tylkoNieprzeczytane);
+        if ($tylkoNieprzeczytane) {
+            $notifications->appends(['zakres' => self::ZAKRES_NIEPRZECZYTANE]);
+        }
 
         return view('pages.notifications', [
             'notifications' => $notifications,
+            'tylkoNieprzeczytane' => $tylkoNieprzeczytane,
+            'numerStrony' => $notifications->currentPage(),
             // ISSUE #1402: „Oznacz wszystkie" tylko wtedy, gdy JEST co
             // oznaczyć — liczone na tym samym zbiorze co lista i licznik
             // (`visibleTo`), po wszystkich stronach, nie po bieżącej.
