@@ -16,6 +16,8 @@ use App\Models\WczytanaZPaczki;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\MessageBag;
+use Illuminate\Support\ViewErrorBag;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -133,10 +135,10 @@ class WczytanieDanychEkranTest extends TestCase
         $this->assertSame([], Storage::disk('local')->allFiles('import-paczek'));
     }
 
-    public function test_sufit_bajtow_i_budzet_struktury_sa_jawne_przy_limicie_pamieci_php(): void
+    public function test_sufit_danych_pozostaje_bezpieczny_dla_limitu_pamieci_php(): void
     {
         // Rzeczywiste wykonanie parsera w 256M mierzy BudzetStrukturyPaczkiTest.
-        $this->assertSame(12 * 1024 * 1024, PodgladPaczkiEksportu::MAX_DANE_BAJTOW);
+        $this->assertSame(12 * 1024 * 1024, PodgladPaczkiEksportu::MAX_DANE_BAJTOW, 'BUDZET_1985_DANE_MAX_12_MB');
         $this->assertSame(150_000, PodgladPaczkiEksportu::MAX_KONTENEROW_JSON);
         $this->assertSame(1_000_000, PodgladPaczkiEksportu::MAX_SEPARATOROW_JSON);
         $this->assertStringContainsString('memory_limit=256M', (string) file_get_contents(base_path('docker/php.ini')));
@@ -165,9 +167,20 @@ class WczytanieDanychEkranTest extends TestCase
                 'plik' => new UploadedFile($sciezka, 'paczka.zip', 'application/zip', null, true),
             ]);
 
+        $bledy = self::sesjaPrzekierowania($odpowiedz)->get('errors');
+        $worek = is_array($bledy) ? ($bledy['default'] ?? $bledy) : null;
+        $blad = is_array($worek) ? ($worek['plik'] ?? null) : null;
+        $komunikat = match (true) {
+            $bledy instanceof ViewErrorBag, $bledy instanceof MessageBag => $bledy->first('plik'),
+            $worek instanceof ViewErrorBag, $worek instanceof MessageBag => $worek->first('plik'),
+            is_array($blad) => $blad[0] ?? null,
+            is_string($blad) => $blad,
+            default => null,
+        };
+
         $this->assertSame(
             'Ta paczka ma zbyt wiele drobnych części, żeby bezpiecznie ją wczytać. Pobierz paczkę z Kuking jeszcze raz. Jeśli problem się powtórzy, napisz do nas przez formularz kontaktowy.',
-            $odpowiedz->getSession()->get('errors')?->first('plik'),
+            $komunikat,
             'BUDZET_2611_HTTP_ODMOWA: nadmierna struktura musi odmówić przed zapisem podglądu.',
         );
         $odpowiedz->assertRedirect(route('settings.data.import'));
