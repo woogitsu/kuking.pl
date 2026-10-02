@@ -3375,6 +3375,25 @@
     color: var(--color-ink-muted);
   }
 
+  /* „Przelicz” przy składniku (#2533): rozwijany blok bez JS, summary ≥ 48 px,
+     tekst 18 px. */
+  .skladnik-przelicz {
+    margin-top: var(--spacing-1);
+    font-size: var(--text-body);
+  }
+
+  .skladnik-przelicz > summary {
+    cursor: pointer;
+    min-height: var(--control-height-min);
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+  }
+
+  .skladnik-przelicz p {
+    margin: 0 0 var(--spacing-2);
+  }
+
   /* Wybór liczby porcji nad listą składników (D-284). Przyciski mają
      wysokość z `.btn` (≥ 48 px); zawijają się pod siebie przy 320 px
      i przy 200 % powiększenia, zamiast wychodzić poza ekran. */

@@ -136,6 +136,30 @@ final class JednostkaKuchenna
         return new self($jednostka, self::JEDNOSTKI[$jednostka][0], $skrot);
     }
 
+    /** Ile gramów albo mililitrów mieści jedna taka jednostka (g 1, dag 10, kg 1000, ml 1, l 1000). */
+    public function wspolczynnikBazowy(): float
+    {
+        return match ($this->klucz) {
+            'dag' => 10.0,
+            'kg', 'l' => 1000.0,
+            default => 1.0,
+        };
+    }
+
+    /**
+     * Wielkość, którą mierzy jednostka — dwie ilości tej samej wielkości
+     * obok siebie to suma („1 kg i 200 g”, „1 szklanka i 2 łyżki”).
+     * Inna jednostka to inna wielkość, więc zwraca własny klucz.
+     */
+    public function wielkosc(): string
+    {
+        return match ($this->klucz) {
+            'g', 'dag', 'kg' => 'masa',
+            'ml', 'l', 'szklanka', 'lyzka', 'lyzeczka', 'filizanka', 'kieliszek' => 'objetosc',
+            default => $this->klucz,
+        };
+    }
+
     /**
      * Forma słowa dla pokazywanej liczby. Skrót zostaje taki, jaki napisał
      * autor — „200 g” po przeliczeniu to „300 g”, nie „300 gramów”.
