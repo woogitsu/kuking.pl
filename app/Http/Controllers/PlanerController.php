@@ -10,6 +10,7 @@ use App\Domain\Planer\Actions\PrzeniesPozycjePlanu;
 use App\Domain\Planer\Actions\SkopiujDzienPlanu;
 use App\Domain\Planer\Actions\SkopiujPoprzedniTydzien;
 use App\Domain\Planer\Actions\ZapiszDopisekPlanu;
+use App\Domain\Planer\Actions\ZmienTekstPozycjiPlanu;
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Planer\ZakresDatPlanu;
 use App\Domain\Search\SearchQuery;
@@ -461,6 +462,68 @@ class PlanerController extends Controller
                 ->with(Komunikat::informacja("Ta pozycja już jest w planie na {$kiedy}. Nic nie zostało zmienione.")),
             PrzeniesPozycjePlanu::KONFLIKT => redirect()->route('planer.show', ['tydzien' => $wpis->day->toDateString()])
                 ->with(Komunikat::blad('Ta pozycja została w innym oknie przeniesiona na inny dzień, więc nic nie zmieniliśmy. Sprawdź, gdzie stoi teraz (poniżej, w planie) i w razie potrzeby przenieś ją jeszcze raz.')),
+            default => redirect()->route('planer.show')
+                ->with(Komunikat::blad('Tej pozycji juÅ¼ nie ma w planie. OdÅwieÅ¼ stronÄ.')),
+        };
+    }
+
+    /**
+     * Ekran „Zmień tekst” (#2454): zwykły formularz z obecnym tekstem. Niesie
+     * znacznik tekstu, który człowiek widzi — z niego akcja pozna, że ktoś
+     * w innym oknie zmienił go wcześniej.
+     */
+    public function editText(MealPlanEntry $wpis): View|RedirectResponse
+    {
+        $this->authorize('update', $wpis);
+
+        if ($wpis->recipe_id !== null || $wpis->label === null) {
+            return redirect()->route('planer.show', ['tydzien' => $wpis->day->toDateString()])
+                ->with(Komunikat::blad('Tę pozycję nie da się poprawić, bo to nie jest własny wpis. Przepis możesz usunąć z planu i dodać inny.'));
+        }
+
+        return view('pages.planer.tekst', [
+            'wpis' => $wpis,
+            'dzien' => CarbonImmutable::instance($wpis->day),
+            'znacznik' => ZmienTekstPozycjiPlanu::znacznik($wpis),
+            'maxZnakow' => ZmienTekstPozycjiPlanu::MAX_ZNAKOW,
+        ]);
+    }
+
+    public function updateText(Request $request, MealPlanEntry $wpis, ZmienTekstPozycjiPlanu $zmien): RedirectResponse
+    {
+        $this->authorize('update', $wpis);
+
+        $wracaDoFormularza = route('planer.text.edit', $wpis);
+
+        try {
+            $dane = $request->validate([
+                'label' => ['required', 'string'],
+                'stan' => ['required', 'string', 'max:64'],
+            ], [
+                'label.required' => 'Wpisz, co planujesz na ten dzień, np. „obiad u mamy”.',
+                'label.string' => 'Wpisz zwykły tekst, np. „obiad u mamy”.',
+                'stan.required' => 'Ta strona jest nieaktualna. Wróć do planera i otwórz poprawianie jeszcze raz.',
+                'stan.string' => 'Ta strona jest nieaktualna. Wróć do planera i otwórz poprawianie jeszcze raz.',
+                'stan.max' => 'Ta strona jest nieaktualna. Wróć do planera i otwórz poprawianie jeszcze raz.',
+            ]);
+
+            $wynik = $zmien->handle($request->user(), (string) $wpis->getKey(), $dane['label'], $dane['stan']);
+        } catch (ValidationException $e) {
+            throw $e->redirectTo($wracaDoFormularza);
+        }
+
+        $tydzien = route('planer.show', ['tydzien' => $wpis->day->toDateString()]).'#dzien-'.$wpis->day->toDateString();
+
+        return match ($wynik) {
+            ZmienTekstPozycjiPlanu::ZASTOSOWANO => redirect($tydzien)
+                ->with(Komunikat::sukces('Tekst poprawiony. Pozycja zostaje na '.PlanerTygodnia::naDzien($wpis->day).'.')),
+            ZmienTekstPozycjiPlanu::JUZ_TAK_BYLO => redirect($tydzien)
+                ->with(Komunikat::informacja('Ta pozycja ma już taki tekst. Nic nie zostało zmienione.')),
+            // Wpisany tekst wraca do pola, a nad nim stoi aktualny tekst z planu.
+            ZmienTekstPozycjiPlanu::KONFLIKT => redirect($wracaDoFormularza)->withInput($request->only('label'))
+                ->with(Komunikat::blad('Tekst tej pozycji zmienił się w innym oknie, więc nic nie zapisaliśmy. Poniżej widzisz aktualny tekst, a Twoja poprawka została w polu — jeśli nadal ją chcesz, kliknij „Zapisz” jeszcze raz.')),
+            ZmienTekstPozycjiPlanu::NIE_WLASNY => redirect($tydzien)
+                ->with(Komunikat::blad('Tę pozycję nie da się poprawić, bo to nie jest własny wpis.')),
             default => redirect()->route('planer.show')
                 ->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),
         };

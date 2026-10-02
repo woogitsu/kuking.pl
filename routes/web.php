@@ -1214,6 +1214,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::patch('/planer/{wpis}/dzien', [PlanerController::class, 'move'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.move');
+    Route::get('/planer/{wpis}/tekst', [PlanerController::class, 'editText'])
+        ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
+        ->name('planer.text.edit');
+    Route::patch('/planer/{wpis}/tekst', [PlanerController::class, 'updateText'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.text.update');
     Route::delete('/planer/{wpis}', [PlanerController::class, 'destroy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.destroy');

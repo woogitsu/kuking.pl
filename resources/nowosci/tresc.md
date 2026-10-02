@@ -67,6 +67,15 @@ dodane, co już tam jest i co pominięto, bo przepis jest niedostępny. Dopiero
 a to, co już stoi w dniu docelowym, nie jest zastępowane. Jeśli nowy dzień nie
 mieści całego zestawu, nie kopiujemy nic i podpowiadamy, co zrobić.
 
+### Poprawianie własnego tekstu w Planerze
+
+Skopiowaliście tydzień, a „obiad u mamy” trzeba zmienić na „obiad u Kasi o 14”?
+Przy własnym wpisie w Planerze jest przycisk „Zmień tekst”. Pokazuje obecny
+tekst w polu – poprawiacie go i klikacie „Zapisz”. Pozycja zostaje na tym
+samym dniu, więc nie trzeba jej usuwać i dopisywać od nowa. Gdy coś się nie
+uda, na przykład tekst jest pusty albo taki sam wpis już jest tego dnia,
+zobaczycie, co poprawić, a to, co wpisaliście, zostanie w polu.
+
 ### Przeliczanie miar przy składniku
 
 Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrach, szklankach, łyżkach albo łyżeczkach znajdziecie rozwijany napis „Przelicz”. Po dotknięciu pokazuje to samo w innej jednostce, na przykład 25 dag to 250 g, a pół szklanki to około 125 ml. Przeliczamy tylko wagę na wagę i objętość na objętość — gramów nie zamieniamy na szklanki, bo zależy to od produktu. Przelicznik bierze ilość z wybranej liczby porcji, a tekst przepisu zostaje taki, jak napisał autor.
