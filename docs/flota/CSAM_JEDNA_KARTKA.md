@@ -3,6 +3,15 @@
 21.09.2026. Poprzednie sześć wersji były analizą kodu. **Ta ma wyniki.**
 Instrukcja operacyjna, nie porada prawna.
 
+> Aktualizacja panelu z 1.10.2026 (paczka V, D-333): poniższy pomiar i sekcja
+> „Co moderator robi DZIŚ” opisują stan z 21 września. Aktualna instrukcja jest
+> w `docs/legal/MODERATION_PLAYBOOK.md` §7.1: dla wpisu, przepisu i komentarza
+> użyj „CSAM — natychmiast ukryj i zabezpiecz”. Akcja zapisuje własną decyzję
+> o blokadzie także przy wcześniejszej karze, jeśli pozwalają na to uprawnienia.
+> Odwołanie od powiązanej blokady pozostaje otwarte; panel odmawia jego uznania
+> i kieruje sprawę do osobnej ręcznej procedury właściciela. Stary pomiar
+> nie potwierdza odcięcia pliku przez nową akcję na produkcyjnym R2/CDN.
+
 ## Odpowiedź na pytanie, o które chodziło przez cały dzień
 
 **Czy po usunięciu treści i banie konta plik jest jeszcze dostępny? TAK, dwiema
@@ -107,8 +116,15 @@ pośrednik.
    jedynej widocznej treści ani usunięcia obu treści przed banem. Traktuj więc ban
    jako czynność odcinającą **tam, gdzie zdjęcie wisi jeszcze gdzie indziej**,
    i rób go bez zwłoki.
-5. **Zgłoś**: Dyżurnet.pl, oraz/lub **Policja (997 albo 112)**. Przy zagrożeniu
-   suicydalnym **116 123**.
+5. **Zgłoś — najpierw Policja albo prokuratura, bez zbędnej zwłoki** (art. 18 DSA;
+   nie czekaj na zwykłą kolejkę i nie tylko przy zagrożeniu „teraz”). Podaj fakty,
+   adres treści, identyfikatory, czas ze strefą i kontakt do siebie; zapisz numer
+   sprawy. **Dodatkowo** zgłoś lokalizację w Dyżurnet.pl — to kanał uzupełniający,
+   nie zamiennik zawiadomienia. Bezpośrednie zagrożenie życia: **112**. Przy
+   zagrożeniu suicydalnym **116 123**. **Plików nie przesyłaj** (e-mail, Discord,
+   czat, repozytorium, telefon, inny model AI), nie pobieraj ich i nie rób zrzutów;
+   przekazanie tylko drogą uzgodnioną z organem. Źródło: analiza z 2.10.2026,
+   pytanie 17 ([`ODPOWIEDZI_NA_OPINIE_2026-10-02.md`](../prawo/ODPOWIEDZI_NA_OPINIE_2026-10-02.md)).
 6. **Okno dla adresów wydanych przed decyzją NIE jest "co najmniej 5 minut".**
    Podpis zachowuje **pozostały** czas ważności, liczony **od wystawienia**:
    wydany cztery minuty przed banem daje około minuty. Zależy więc od tego, kiedy

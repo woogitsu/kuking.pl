@@ -7,14 +7,20 @@ namespace App\Domain\Moderation\Actions;
 use App\Domain\Moderation\CofniecieUkryciaWersji;
 use App\Domain\Moderation\ModeratedContent;
 use App\Domain\Moderation\NowaDecyzja;
+use App\Domain\Moderation\PodstawaDecyzji;
+use App\Domain\Moderation\TrescZabezpieczonaJakoDowod;
 use App\Domain\Moderation\WlasnejTresciNiePrzywracasz;
 use App\Domain\Users\ZamekUprzywilejowanegoAktora;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Appeal;
 use App\Models\AuditLogEntry;
 use App\Models\ModerationAction;
+use App\Models\RecipeHint;
 use App\Models\User;
+use App\Models\ZabezpieczenieDowodu;
+use App\Support\ZabezpieczoneDowody;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -72,6 +78,9 @@ final class ResolveAppeal
 
     public const KONTO_ZOSTAJE_ZAWIESZONE = 'Tę decyzję cofnęliśmy. Twoje konto pozostaje jednak zawieszone '
         .'na podstawie późniejszej, osobnej decyzji. Od niej możesz odwołać się osobno.';
+
+    public const BLOKADA_Z_DOWODEM = 'Tej blokady nie można cofnąć w panelu, bo została nałożona razem z zabezpieczeniem dowodu. '
+        .'Pozostaw odwołanie otwarte i przekaż sprawę właścicielowi serwisu albo prawnikowi do ręcznego rozpatrzenia.';
 
     public function __construct(
         private readonly RestoreContent $przywroc,
@@ -169,6 +178,12 @@ final class ResolveAppeal
         // treść (`RestoreContent`) albo konto. Nikt inny nie bierze blokady
         // odwołania, więc ta kolejność nie ma z kim się odwrócić. Pomiar:
         // `tests/Dwa/RozpatrzenieOdwolaniaNaDwochPolaczeniachTest.php`.
+        // Wskazówka od gotujących (#2352): cofnięcie albo nowa decyzja blokuje
+        // konta kucharza i autora przepisu, więc idą z aktorem jednym przebiegiem
+        // rosnąco po `id` (jak „Wycofaj zgodę”).
+        $pierwotna = ModerationAction::query()->whereKey($odwolanie->moderation_action_id)->first(['id', 'target_type', 'target_id']);
+        $konta = $pierwotna?->target_type === 'recipe_hint' ? RecipeHint::kontaDoBlokady($pierwotna->target_id) : [];
+
         return ZamekUprzywilejowanegoAktora::wykonaj($moderator, function (User $swiezy) use ($odwolanie, $wynik, $uzasadnienie, $ip, $nowaDecyzja): Appeal {
             Gate::forUser($swiezy)->authorize('resolveAppeals', User::class);
 
@@ -239,7 +254,7 @@ final class ResolveAppeal
             );
 
             return $zablokowane;
-        });
+        }, $konta);
     }
 
     private function sprawdzKarencje(User $moderator, ModerationAction $decyzja): void
@@ -272,6 +287,14 @@ final class ResolveAppeal
     private function cofnij(User $moderator, ModerationAction $decyzja, string $uzasadnienie, ?string $ip, ?string &$dopisekWersji = null): ?string
     {
         if (in_array($decyzja->action, [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true)) {
+            // Ban z procedury CSAM ma własną decyzję, powiązaną w `note`
+            // z decyzją o zabezpieczeniu treści. Rejestr dowodu potwierdza
+            // ten konkretny związek — sam kod podstawy albo inne dowody
+            // dotyczące konta nie mogą blokować zwykłego odwołania.
+            if ($decyzja->action === ModerationAction::ACTION_BAN && $this->blokadaZDowodem($decyzja)) {
+                throw new BladDlaCzlowieka(self::BLOKADA_Z_DOWODEM);
+            }
+
             return $this->zdejmijKareKonta($decyzja);
         }
 
@@ -279,6 +302,17 @@ final class ResolveAppeal
             // `warn` nie zrobiło nic z treścią ani z kontem — cofnięcie jest
             // w całości treścią odpowiedzi.
             return null;
+        }
+
+        // TREŚĆ ZABEZPIECZONA JAKO DOWÓD NIE WRACA (ścieżka CSAM, D-333),
+        // więc odwołania od takiej decyzji nie da się uznać w panelu.
+        // Sprawdzamy PRZED `RestoreContent` i poza `try`: odmowa stamtąd
+        // byłaby połknięta niżej jak „już widoczna”, odwołanie zamknęłoby się
+        // jako uznane z uzasadnieniem „cofnięto”, a treść dalej byłaby ukryta
+        // — nieprawdziwa odpowiedź (DSA art. 20). Transakcja się wycofuje,
+        // odwołanie zostaje otwarte, moderator dostaje czytelny błąd.
+        if ($this->zabezpieczona($decyzja)) {
+            throw new TrescZabezpieczonaJakoDowod;
         }
 
         // Wersja przepisu (#2270): nie ma `status`, więc `RestoreContent`
@@ -295,6 +329,14 @@ final class ResolveAppeal
             } catch (BladDlaCzlowieka) {
                 // Wersji już nie ma — odwołanie i tak dostaje odpowiedź.
             }
+
+            return null;
+        }
+
+        // Wskazówka od gotujących (#2352): wraca przez `moderation_hidden_at`, nie
+        // przez `status` (to zgoda kucharza i `RestoreContent` jej nie ruszy).
+        if ($decyzja->target_type === 'recipe_hint') {
+            $this->przywrocWskazowke($moderator, $decyzja, $uzasadnienie, $ip);
 
             return null;
         }
@@ -318,6 +360,9 @@ final class ResolveAppeal
                 // Odpowiedź na odwołanie idzie osobno i mówi to samo lepiej.
                 zPowiadomieniem: false,
             );
+        } catch (TrescZabezpieczonaJakoDowod $odmowa) {
+            // Zabezpieczony dowód wykryty dopiero pod blokadą (wyścig z zabezpieczeniem).
+            throw $odmowa;
         } catch (WlasnejTresciNiePrzywracasz $odmowa) {
             // Własnej treści nie przywracasz nawet z odwołania (#1479).
             // Połknięcie zamknęłoby odwołanie jako „cofam" przy treści, która
@@ -332,6 +377,89 @@ final class ResolveAppeal
         }
 
         return null;
+    }
+
+    private function blokadaZDowodem(ModerationAction $decyzja): bool
+    {
+        if ($decyzja->target_type !== 'user'
+            || $decyzja->subject_user_id === null
+            || $decyzja->target_id !== $decyzja->subject_user_id
+            || $decyzja->reason_code !== PodstawaDecyzji::KRZYWDZENIE_DZIECI
+            || preg_match('/\ABlokada razem z zabezpieczeniem dowodu \(decyzja ([0-9a-f-]{36})\)\.\z/u', (string) $decyzja->note, $trafienia) !== 1) {
+            return false;
+        }
+
+        return ZabezpieczenieDowodu::query()
+            ->where('moderation_action_id', $trafienia[1])
+            ->where('subject_user_id', $decyzja->subject_user_id)
+            ->exists();
+    }
+
+    /** Czy treść tej decyzji (także wersja przepisu i zdjęcie) jest zabezpieczona jako dowód. */
+    private function zabezpieczona(ModerationAction $decyzja): bool
+    {
+        if ($decyzja->target_type === CofniecieUkryciaWersji::TYP) {
+            $przepisId = DB::table('recipe_versions')->where('id', $decyzja->target_id)->value('recipe_id');
+
+            return is_string($przepisId) && ZabezpieczoneDowody::przepis($przepisId);
+        }
+
+        return ZabezpieczoneDowody::dotyczy($decyzja->target_type, $decyzja->target_id);
+    }
+
+    /**
+     * Cofnięcie ukrycia wskazówki po uznanym odwołaniu kucharza (#2352).
+     *
+     * Zdejmuje wyłącznie ślad moderacji. Jeśli kucharz w międzyczasie wycofał
+     * zgodę, wskazówka zostaje wycofana — jego decyzja jest ważniejsza niż
+     * decyzja moderacji. Zapis `unhide` i wpis w dzienniku jak przy każdym
+     * przywróceniu; powiadomienia nie ma, bo odpowiedź na odwołanie mówi to
+     * samo lepiej. Własnej wskazówki moderator nie przywraca (#1479).
+     *
+     * Tak jak przy innych treściach „nie ma czego cofać” (wskazówki już nie ma,
+     * nie była ukryta) NIE blokuje odpowiedzi na odwołanie.
+     *
+     * @throws WlasnejTresciNiePrzywracasz gdy rozpatrujący jest autorem uwagi
+     */
+    private function przywrocWskazowke(User $moderator, ModerationAction $decyzja, string $uzasadnienie, ?string $ip): void
+    {
+        $wskazowka = RecipeHint::zablokujDoDecyzji((string) $decyzja->target_id);
+
+        if ($wskazowka === null) {
+            return;
+        }
+
+        if ($wskazowka->cook_id === $moderator->getKey()) {
+            throw new WlasnejTresciNiePrzywracasz;
+        }
+
+        if (! $wskazowka->zdejmijUkrycieModeracji()) {
+            return;
+        }
+
+        $przywrocenie = ModerationAction::create([
+            'moderator_id' => $moderator->getKey(),
+            'report_id' => null,
+            'target_type' => 'recipe_hint',
+            'target_id' => $wskazowka->getKey(),
+            'subject_user_id' => $wskazowka->cook_id,
+            'action' => ModerationAction::ACTION_UNHIDE,
+            'previous_status' => null,
+            'reason_code' => 'appeal_overturned',
+            'note' => 'Cofnięte po odwołaniu.',
+            'user_message' => $uzasadnienie,
+        ]);
+
+        AuditLogEntry::record(
+            action: 'moderation.restored',
+            actor: $moderator,
+            subject: $przywrocenie,
+            metadata: [
+                'target_type' => 'recipe_hint',
+                'target_id' => (string) $wskazowka->getKey(),
+            ],
+            ip: $ip,
+        );
     }
 
     /**

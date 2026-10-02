@@ -668,6 +668,21 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
                 );
             }
 
+            if ($plik === 'regulamin.md') {
+                // Art. 206 § 1 KSH (analiza z 2.10.2026, pyt. 14): spółka podaje
+                // sąd rejestrowy i kapitał zakładowy tam, gdzie mówi, kto
+                // prowadzi serwis.
+                foreach (['sąd rejestrowy' => 'kuking.podmiot.sad_rejestrowy', 'kapitał zakładowy' => 'kuking.podmiot.kapital_zakladowy'] as $nazwa => $klucz) {
+                    $wartosc = (string) config($klucz);
+                    $this->assertNotSame('', $wartosc, "Konfiguracja nie podaje pozycji „{$nazwa}”.");
+                    $this->assertStringContainsString(
+                        $wartosc,
+                        $tresc,
+                        "Regulamin nie podaje pozycji „{$nazwa}” ({$wartosc}) z config/kuking.php — wymaga jej art. 206 § 1 KSH.",
+                    );
+                }
+            }
+
             $this->assertStringNotContainsString(
                 'prowadzi osoba fizyczna',
                 $tresc,

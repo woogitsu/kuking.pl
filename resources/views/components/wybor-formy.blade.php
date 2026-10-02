@@ -25,6 +25,10 @@
 @php
     $zaznaczone = old('form_of_address', $profile->formOfAddressChoice());
     $imie = $profile->display_name;
+    // #2405: błąd ma stały id i jest wskazany przez KAŻDE radio razem z pomocą,
+    // a radia dostają `aria-invalid`. Bez tego czytnik ogłaszał tylko pomoc.
+    $maBlad = $errors->has('form_of_address');
+    $opisRadia = $maBlad ? 'forma-zwracania-pomoc f-form_of_address-error' : 'forma-zwracania-pomoc';
 @endphp
 @if(\App\Support\Forma::wyborDostepny())
 <form method="POST" action="{{ $akcja }}" class="wybor-formy" id="forma-zwracania">
@@ -44,7 +48,8 @@
             <label class="choice">
                 <input type="radio" name="form_of_address" id="f-form_of_address"
                        value="{{ \App\Models\Profile::FORM_FEMININE }}"
-                       aria-describedby="forma-zwracania-pomoc"
+                       aria-describedby="{{ $opisRadia }}"
+                       @if($maBlad) aria-invalid="true" @endif
                        @checked($zaznaczone === \App\Models\Profile::FORM_FEMININE)>
                 <span>
                     <span class="choice-label">Forma żeńska</span>
@@ -55,7 +60,8 @@
             <label class="choice">
                 <input type="radio" name="form_of_address"
                        value="{{ \App\Models\Profile::FORM_MASCULINE }}"
-                       aria-describedby="forma-zwracania-pomoc"
+                       aria-describedby="{{ $opisRadia }}"
+                       @if($maBlad) aria-invalid="true" @endif
                        @checked($zaznaczone === \App\Models\Profile::FORM_MASCULINE)>
                 <span>
                     <span class="choice-label">Forma męska</span>
@@ -66,7 +72,8 @@
             <label class="choice">
                 <input type="radio" name="form_of_address"
                        value="{{ \App\Models\Profile::FORM_NEUTRAL }}"
-                       aria-describedby="forma-zwracania-pomoc"
+                       aria-describedby="{{ $opisRadia }}"
+                       @if($maBlad) aria-invalid="true" @endif
                        @checked($zaznaczone === \App\Models\Profile::FORM_NEUTRAL)>
                 <span>
                     <span class="choice-label">Forma neutralna</span>
@@ -74,7 +81,7 @@
                 </span>
             </label>
         </div>
-        @error('form_of_address')<span class="field-error">{{ $message }}</span>@enderror
+        @error('form_of_address')<span class="field-error" id="f-form_of_address-error">{{ $message }}</span>@enderror
     </fieldset>
 
     <div class="form-actions">

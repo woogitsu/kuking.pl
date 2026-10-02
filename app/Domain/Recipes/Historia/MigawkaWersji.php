@@ -140,9 +140,10 @@ final class MigawkaWersji
 
     /**
      * Składniki w kolejności zapisu. Widać dziś: tekst, dopisek, zamiennik
-     * i nazwę grupy; ilość i jednostka siedzą w tekście autora.
+     * i nazwę grupy; ilość i jednostka siedzą w tekście autora. Osobny wybór
+     * `no_amount` służy porównaniu, nie dopiskowi na stronie przepisu (D-232).
      *
-     * @return list<array{group_name: ?string, text: string, note: ?string, substitutes: ?string}>
+     * @return list<array{group_name: ?string, text: string, note: ?string, substitutes: ?string, no_amount: ?bool}>
      */
     public function skladniki(): array
     {
@@ -157,11 +158,15 @@ final class MigawkaWersji
                 continue;
             }
 
+            $bezIlosci = $wiersz['no_amount'] ?? null;
+
             $wynik[] = [
                 'group_name' => self::tekst($wiersz['group_name'] ?? null),
                 'text' => $tekst,
                 'note' => self::tekst($wiersz['note'] ?? null),
                 'substitutes' => self::tekst($wiersz['substitutes'] ?? null),
+                // Starsze migawki nie miały tego klucza. Brak nie oznacza false.
+                'no_amount' => is_bool($bezIlosci) ? $bezIlosci : null,
             ];
         }
 
@@ -169,7 +174,7 @@ final class MigawkaWersji
     }
 
     /**
-     * @return list<array{instruction: string, timer_seconds: ?int}>
+     * @return list<array{instruction: string, timer_seconds: ?int, section_name: ?string}>
      */
     public function kroki(): array
     {
@@ -188,6 +193,8 @@ final class MigawkaWersji
                 'timer_seconds' => isset($wiersz['timer_seconds']) && is_numeric($wiersz['timer_seconds'])
                     ? (int) $wiersz['timer_seconds']
                     : null,
+                // Nazwa etapu (#2652); migawki sprzed tej funkcji nie mają klucza.
+                'section_name' => self::tekst($wiersz['section_name'] ?? null),
             ];
         }
 

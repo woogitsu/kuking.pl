@@ -35,6 +35,7 @@
             <x-field :name="'ingredients.'.$index.'.text'" :label="'Składnik '.($index + 1)"
                      :wire="'ingredients.'.$index.'.text'" :value="$row['text'] ?? ''"
                      :placeholder="$index === 0 ? '1 kurczak, najlepiej zagrodowy' : null" />
+            <x-dyktowanie :cel="'f-ingredients-'.$index.'-text'" />
 
             <div class="siatka-pol-szeroka">
                 <x-field :name="'ingredients.'.$index.'.group_name'" label="Grupa składników"

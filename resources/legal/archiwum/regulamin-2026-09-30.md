@@ -20,7 +20,7 @@ Kuking to serwis, w którym pokazujesz, co gotujesz, zapisujesz swoje przepisy i
 
 ## 1. Kto prowadzi Kuking
 
-Serwis Kuking.pl prowadzi **SAMSUFI Spółka z ograniczoną odpowiedzialnością** z siedzibą w Knyszynie, ul. Jagiellońska 4A, 19-120 Knyszyn, Polska, wpisana do rejestru przedsiębiorców Krajowego Rejestru Sądowego pod numerem **KRS 0000901262**, NIP **5423435334**, REGON **388971059**.
+Serwis Kuking.pl prowadzi **SAMSUFI Spółka z ograniczoną odpowiedzialnością** z siedzibą w Knyszynie, ul. Jagiellońska 4A, 19-120 Knyszyn, Polska, wpisana do rejestru przedsiębiorców Krajowego Rejestru Sądowego pod numerem **KRS 0000901262**, prowadzonego przez Sąd Rejonowy w Białymstoku, XII Wydział Gospodarczy Krajowego Rejestru Sądowego, NIP **5423435334**, REGON **388971059**, kapitał zakładowy 5 000,00 zł.
 
 Kontakt: **biuro@samsufi.pl** — na ten adres odpowiada człowiek, nie automat. W sprawach dotyczących Twojego konta i treści w serwisie możesz też pisać na **kontakt@kuking.pl**.
 

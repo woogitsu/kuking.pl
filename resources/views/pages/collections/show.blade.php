@@ -140,12 +140,69 @@
     @else
         @if($recipes->count() > 0)
             <h2>Przepisy</h2>
+            {{-- RĘCZNA KOLEJNOŚĆ (#2544): osobna, świadoma czynność właściciela
+                 prywatnego zeszytu. Bez niej lista wygląda jak dotąd. Przyciski
+                 to zwykłe formularze POST z podpisami — bez przeciągania i JS. --}}
+            @if($mozeUkladac && $recipes->total() > 1)
+                <div class="kolejnosc-zeszytu mb-5" data-kolejnosc-zeszytu>
+                    @if($trybUkladania)
+                        <div class="notice" role="status">
+                            <p class="m-0"><strong>Układasz kolejność przepisów.</strong> Pod każdym przepisem są przyciski „Wyżej”, „Niżej”, „Na początek” i „Na koniec”. Kolejność zostaje po zamknięciu strony i obowiązuje na wydruku i w paczce danych. Nowo zapisany przepis staje na końcu.</p>
+                        </div>
+                        <div class="form-actions mt-3">
+                            <a class="btn btn-primary" href="{{ route('collections.show', $collection) }}">Gotowe</a>
+                            @if($jestUlozony)
+                                <x-confirm-button
+                                    method="POST"
+                                    :action="route('collections.recipes.order-reset', $collection)"
+                                    label="Wróć do kolejności zapisu"
+                                    question="Wrócić do kolejności zapisu? Ułożona przez Ciebie kolejność zostanie zapomniana, a przepisy staną od najnowszego zapisu. Same przepisy, notatki i daty zapisów zostają."
+                                    :fields="[\App\Http\Controllers\CollectionRecipeOrderController::POLE_ODCISKU => $odciskUkladu]" />
+                            @endif
+                        </div>
+                    @else
+                        <p class="m-0">
+                            <a class="btn btn-secondary" href="{{ route('collections.show', ['collection' => $collection, 'uloz' => 1]) }}">Ułóż kolejność przepisów</a>
+                        </p>
+                        @if($jestUlozony)
+                            <p class="meta mt-2">Przepisy są w kolejności, którą ułożono ręcznie.</p>
+                        @endif
+                    @endif
+                </div>
+            @endif
             <div class="marka-zeszyt-przepisy" id="lista-przepisow">
                 @foreach($recipes as $recipe)
                     {{-- Opakowanie jest pozycją siatki: pod kartą właściciel
                          ma swoją notatkę (#978). --}}
-                    <div class="marka-zeszyt-pozycja">
+                    <div class="marka-zeszyt-pozycja" id="przepis-{{ $recipe->getKey() }}">
                         <x-recipe-card :recipe="$recipe" uklad="kafel" />
+                        @if($trybUkladania && $recipes->total() > 1)
+                            @php
+                                $miejsce = ($recipes->currentPage() - 1) * \App\Domain\Collections\KolejnoscPrzepisow::NA_STRONE + $loop->iteration;
+                                $pierwszy = $miejsce === 1;
+                                $ostatni = $miejsce === $recipes->total();
+                            @endphp
+                            <form class="kolejnosc-przepisu" method="POST" action="{{ route('collections.recipes.move', ['collection' => $collection, 'pozycja' => $recipe->getKey()]) }}" data-kolejnosc-przepisu>
+                                @csrf
+                                <input type="hidden" name="{{ \App\Http\Controllers\CollectionRecipeOrderController::POLE_ODCISKU }}" value="{{ $odciskUkladu }}">
+                                <input type="hidden" name="strona" value="{{ $recipes->currentPage() }}">
+                                <p class="kolejnosc-przepisu-miejsce m-0"><strong>Miejsce {{ $miejsce }} z {{ $recipes->total() }}</strong></p>
+                                <div class="kolejnosc-przepisu-przyciski">
+                                    @unless($pierwszy)
+                                        <button class="btn btn-secondary" type="submit" name="kierunek" value="wyzej">Wyżej</button>
+                                    @endunless
+                                    @unless($ostatni)
+                                        <button class="btn btn-secondary" type="submit" name="kierunek" value="nizej">Niżej</button>
+                                    @endunless
+                                    @unless($pierwszy)
+                                        <button class="btn btn-quiet" type="submit" name="kierunek" value="poczatek">Na początek</button>
+                                    @endunless
+                                    @unless($ostatni)
+                                        <button class="btn btn-quiet" type="submit" name="kierunek" value="koniec">Na koniec</button>
+                                    @endunless
+                                </div>
+                            </form>
+                        @endif
                         @if($wspolny)
                             <p class="meta mt-2" data-kto-dodal>Dodane przez: {{ $podpisyDodania[(string) $recipe->pivot->added_by_id] ?? 'osoba, która usunęła konto' }}</p>
                             <form method="POST" action="{{ route('collections.unsave', $recipe->slug) }}" class="mt-2">

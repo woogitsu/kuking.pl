@@ -915,6 +915,16 @@ def zakupy_usun_bez_pytania(source):
     return source[:od] + dawny_formularz + source[do:]
 
 
+WYBOR_FORMY_WIDOK = "resources/views/components/wybor-formy.blade.php"
+DOSTEPNOSC_FORMY_TEST = "DostepnoscFormyIOnboardinguTest"
+
+
+def replace_wszystkie(source, old, new, ile):
+    if source.count(old) != ile:
+        raise RuntimeError("Kontrola nie znalazła oczekiwanej liczby miejsc mutacji.")
+    return source.replace(old, new)
+
+
 def remove_notice(source):
     start = source.index("@if($collectionError)")
     end = source.index("@endif", start) + len("@endif")
@@ -1305,7 +1315,9 @@ def planer_bez_potwierdzenia(source):
     """Przywróć bezpośredni formularz DELETE sprzed #2468."""
     poczatek = '                                <details class="confirm planer-potwierdzenie">'
     koniec = '                                </details>'
-    if source.count(poczatek) != 1 or source.count(koniec) != 1:
+    # Zamknięcie szukamy od początku potwierdzenia: na tym samym wcięciu stoją
+    # też inne `<details>` pozycji (np. dopisek z #2549).
+    if source.count(poczatek) != 1 or koniec not in source[source.find(poczatek):]:
         raise RuntimeError('Nie znaleziono dokładnie jednego potwierdzenia Planera.')
     od = source.index(poczatek)
     do = source.index(koniec, od) + len(koniec)
@@ -1333,6 +1345,23 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Wspólna sesja traci zamiennik autora (#2485)", "resources/views/pages/wspolne-gotowanie/show.blade.php",
+     "test_zamienniki_i_zdjecia_sa_przy_wlasciwych_elementach_dla_obu_rol",
+     lambda s: replace_once(s, '@if($skladnik->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $skladnik->substitutes }}</span>@endif', '')),
+    ("Wspólna sesja traci zdjęcie kroku (#2486)", "resources/views/pages/wspolne-gotowanie/show.blade.php",
+     "test_zamienniki_i_zdjecia_sa_przy_wlasciwych_elementach_dla_obu_rol",
+     lambda s: replace_once(s, '@if($krok->media)', '@if(false)')),
+    # #2449: osobno wykrycie jawnej zmiany i odmowa zgadywania starego wyboru.
+    ("Historia ignoruje wybór Bez ilości (#2449)", "app/Domain/Recipes/Historia/PorownanieWersji.php",
+     "test_jawna_zmiana_bez_ilosci_w_obie_strony_jest_widoczna_bez_zmiany_tekstu_autora",
+     lambda s: replace_once(s,
+         "if ($staryWybor !== null && $nowyWybor !== null && $staryWybor !== $nowyWybor) {",
+         "if (false) {")),
+    ("Historia zgaduje wybór w starej migawce (#2449)", "app/Domain/Recipes/Historia/PorownanieWersji.php",
+     "test_stara_migawka_bez_wyboru_nie_staje_sie_nie_a_pozostale_zmiany_sa_widoczne",
+     lambda s: replace_once(s,
+         "} elseif (($staryWybor === null) !== ($nowyWybor === null)) {",
+         "} elseif (false) {")),
     # #2650: rollback `recipe_shares` ma ODMÓWIĆ przy istniejących udostępnieniach (D-088).
     ("Rollback udostępnień przepisów kasuje bez pytania (#2650)", "database/migrations/2026_10_03_120000_create_recipe_shares_table.php",
      "test_rollback_odmawia_przy_udostepnieniach_i_przechodzi_na_pustej_tabeli",
@@ -1576,6 +1605,37 @@ checks = [
      lambda s: replace_once(s,
          "@if($recipe->source_note || $recipe->source_person || $recipe->source_url || $recipe->family_since_year)",
          "@if($recipe->source_note || $recipe->source_person || $recipe->source_url)")),
+    # #2455: bez gałęzi liczby grupowanej parser zostawia ilość bez zmiany.
+    # Data provider wymaga prawidłowego wyniku także dla NBSP i zakresów.
+    ("Grupowanie tysięcy rozbite na fragmenty (#2455)", "app/Domain/Recipes/Porcje/PrzeliczSkladnik.php", "test_grupowanie_tysiecy_przelicza_cala_ilosc",
+     lambda s: replace_once(s, "|'.self::GRUPOWANA.'|", "|")),
+    # #2343, decyzje właściciela z 2.10.2026: „Pasteryzować” jest poza
+    # słownikiem do przeglądu ze źródłem i datą (#2434); rdzenie nie łapią
+    # oparzenia ani przetworów; karmel z cukru i cebula to dwa hasła.
+    ("Pasteryzacja wraca do słownika bez przeglądu (#2434)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_krok_z_pasteryzacja_nie_pokazuje_objasnienia_do_czasu_przegladu",
+     lambda s: replace_once(s, "        [\n            'haslo' => 'Podpiec',", "        [\n            'haslo' => 'Pasteryzować',\n            'rdzenie' => ['pasteryz', 'spasteryz'],\n            'wyjasnienie' => 'Ogrzewać przetwory, by ograniczyć drobnoustroje.',\n        ],\n        [\n            'haslo' => 'Podpiec',")),
+    ("Uwaga słownika gwarantuje parametry autora (#2434)", "resources/views/components/terminy-kroku.blade.php", "test_uwaga_pod_objasnieniami_nie_obiecuje_oceny_bezpieczenstwa_ani_parametrow_autora",
+     lambda s: replace_once(s, "To objaśnienie słowa, nie ocena bezpieczeństwa przepisu. Przy przetworach korzystaj z przebadanych zaleceń dla konkretnego produktu.", "To ogólne wyjaśnienie, nie część przepisu — w razie wątpliwości trzymaj się tego, co napisał autor.")),
+    ("Sparzyć znów łapie oparzenie (#2343)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_rdzenie_nie_lapia_oparzenia_ani_przetworow",
+     lambda s: replace_once(s, "'sparz* pomidor', ", "'sparz', ")),
+    ("Zaprawić zupę znów łapie przetwory (#2343)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_rdzenie_nie_lapia_oparzenia_ani_przetworow",
+     lambda s: replace_once(s, "'zapraw* zup', ", "'zaprawi', ")),
+    ("Karmelizowana cebula trafia w karmel z cukru (#2343)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_karmel_z_cukru_i_cebula_karmelizowana_to_osobne_hasla",
+     lambda s: replace_once(s, "'karmeliz* cuk', 'skarmeliz* cuk', ", "'karmeliz', ")),
+    ("Marynowanie bez lodówki (#2343)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_objasnienia_maja_ostrzezenia_z_decyzji_wlasciciela",
+     lambda s: replace_once(s, "na noc, mięso i rybę w lodówce.", "na noc.")),
+    # #2421: w oknie <= 16rem przy tekście 125/140% pasek górny odpina się,
+    # bo kolumnowy znak robi go wyższym niż rezerwa nad nim (WCAG 2.4.11).
+    ("Pasek przy kolumnowym znaku znowu przypięty", "resources/css/marka-rama.css", "PasekPrzyKolumnowymZnakuTest",
+     lambda s: replace_once(s, 'html:is([data-text-scale="125"], [data-text-scale="140"]) [data-marka] .marka-topbar { position: relative; top: 0; }', "")),
+    # #2343, recenzja paczki V: uwaga pod słownikiem terminów wróciłaby do
+    # .meta, czyli 16 px zamiast tekstu czytanego.
+    ("Uwaga słownika terminów wraca do .meta", "resources/views/components/terminy-kroku.blade.php", "test_uwaga_pod_slownikiem_ma_rozmiar_tekstu_czytanego_nie_meta",
+     lambda s: replace_once(s, '<p class="cook-terminy-uwaga">', '<p class="meta">')),
+    # Droga do bety: bez referencji ctx.shared zamknięcie rejestracji
+    # ustawione w panelu znika przy pierwszym `apply`.
+    ("Przełącznik rejestracji bez Shared Variable", ".railway/railway.ts", "ZamkniecieRejestracjiPrzezyjeApplyTest",
+     lambda s: replace_once(s, "KUKING_REGISTRATION_OPEN: ctx.shared.KUKING_REGISTRATION_OPEN,", "KUKING_REGISTRATION_OPEN: 'true',")),
     # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
     # wróciłby do zielonej plakietki także dla odmowy.
     ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",
@@ -1960,7 +2020,7 @@ checks = [
      lambda s: replace_once(s, 'href="{{ $adresDruku(false) }}" rel="nofollow" data-drukuj-przepis',
                             'href="{{ route(\'recipes.show\', [\'recipe\' => $recipe->slug, \'druk\' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis')),
     ("Strona przepisu gubi czas kroku (#2484)", DRUK_PORCJE_WIDOK, CZAS_KROKU_STRONA_TEST,
-     lambda s: replace_once(s, '                                    @if($step->timerLabel())\n                                        <p class="m-0">Czas kroku: {{ $step->timerLabel() }}</p>\n                                    @endif\n', '')),
+     lambda s: replace_once(s, '                                        @if($step->timerLabel())\n                                            <p class="m-0">Czas kroku: {{ $step->timerLabel() }}</p>\n                                        @endif\n', '')),
     ("Wydruk zeszytu gubi czas kroku (#2484)", CZAS_KROKU_WIDOK_ZESZYTU, CZAS_KROKU_ZESZYT_TEST,
      lambda s: replace_once(s, '                                    @if($krok->timerLabel())\n                                        <p class="m-0">Czas kroku: {{ $krok->timerLabel() }}</p>\n                                    @endif\n', '')),
     ("Ściągawka do wydruku z pismem poniżej 16 pt (F4)", WYDRUK_CSS, SCIAGAWKA_TEST,
@@ -2258,6 +2318,30 @@ checks = [
      lambda s: replace_once(s, "                    'label' => $pozycja['wpis']->label,\n", "                    'label' => $pozycja['wpis']->label,\n                    'done_at' => $pozycja['wpis']->done_at,\n")),
     ("Zrobione w Planerze: rollback nie odmawia przy oznaczeniach (#2593)", "database/migrations/2026_10_02_190200_add_done_at_to_meal_plan_entries.php", "PlanerZrobioneTest",
      lambda s: replace_once(s, "        if ($oznaczone > 0) {", "        if (false) {")),
+    # #2549: dopisek przy przepisie w Planerze — własność, konflikt kart, kopia tygodnia, rollback i polityka.
+    ("Dopisek w Planerze: policy wpuszcza cudzą osobę (#2549)", "app/Policies/MealPlanEntryPolicy.php", "test_cudza_pozycja_nie_zmienia_sie_i_nie_ujawnia_dopisku",
+     lambda s: replace_once(s, "    public function editNote(User $user, MealPlanEntry $entry): bool\n    {\n        return $user->getKey() === $entry->user_id;", "    public function editNote(User $user, MealPlanEntry $entry): bool\n    {\n        return true;")),
+    ("Dopisek w Planerze: domena nie sprawdza własności (#2549)", "app/Domain/Planer/Actions/ZapiszDopisekPlanu.php", "test_cudza_pozycja_nie_zmienia_sie_i_nie_ujawnia_dopisku",
+     lambda s: replace_once(s, "                ->where('user_id', $swiezy->getKey())\n", "")),
+    ("Dopisek w Planerze: stara karta nadpisuje nowszy dopisek (#2549)", "app/Domain/Planer/Actions/ZapiszDopisekPlanu.php", "test_stary_znacznik_nie_wyczysci_nowszego_dopisku",
+     lambda s: replace_once(s, "            if (self::znacznik($wpis) !== ($widzianyZnacznik ?? '')) {", "            if (false) {")),
+    ("Dopisek w Planerze: kopia tygodnia gubi dopisek (#2549)", "app/Domain/Planer/Actions/SkopiujPoprzedniTydzien.php", "test_kopia_tygodnia_przenosi_dopisek_i_nie_nadpisuje_istniejacego",
+     lambda s: replace_once(s, "                    'note' => $pozycja['wpis']->note,\n", "")),
+    ("Dopisek w Planerze: rollback nie odmawia przy dopiskach (#2549)", "database/migrations/2026_10_03_130000_add_note_to_meal_plan_entries.php", "test_cofniecie_migracji_odmawia_przy_dopiskach_i_przechodzi_bez_nich",
+     lambda s: replace_once(s, "        if ($zDopiskiem > 0) {", "        if (false) {")),
+    ("Dopisek w Planerze: polityka bez wiersza o dopisku (#2549)", POLITYKA_TEKST, "test_dopisek_w_planie_ma_wiersz_w_polityce_z_limitem_z_kodu",
+     lambda s: replace_once(s, "| Dopisek przy przepisie w planie |", "| Notatka przy planie |")),
+    # #2550: „Odłóż na później” szkicu — własność, bieżąca lista, publikacja i rollback.
+    ("Odłożenie szkicu: policy wpuszcza cudzą osobę (#2550)", "app/Policies/RecipePolicy.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "        return $user->getKey() === $recipe->author_id\n            && $recipe->status === Recipe::STATUS_DRAFT", "        return true\n            && $recipe->status === Recipe::STATUS_DRAFT")),
+    ("Odłożenie szkicu: domena nie sprawdza autorstwa (#2550)", "app/Domain/Recipes/Actions/OdlozSzkicPrzepisu.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "                ->where('author_id', $swiezy->getKey())\n", "")),
+    ("Odłożenie szkicu: bieżąca lista pokazuje też odłożone (#2550)", "app/Http/Controllers/RecipeController.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "($odlozone ? $zapytanie->whereNotNull('odlozony_at') : $zapytanie->whereNull('odlozony_at'))", "$zapytanie")),
+    ("Odłożenie szkicu: publikacja nie zdejmuje oznaczenia (#2550)", "app/Domain/Recipes/Actions/PublishRecipe.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "                        $recipe->forceFill(['odlozony_at' => null]);\n", "")),
+    ("Odłożenie szkicu: rollback nie odmawia przy odłożonych (#2550)", "database/migrations/2026_10_03_150000_add_odlozony_at_to_recipes.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "        if ($odlozone > 0) {", "        if (false) {")),
     # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
     # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
     ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,
@@ -2531,6 +2615,20 @@ checks = [
      lambda s: replace_once(s,
          "@if(($recipe->source_note || $recipe->source_person || $recipe->sourceScan) && ! $dlaPomocnika)",
          "@if(($recipe->source_note || $recipe->source_person) && ! $dlaPomocnika)")),
+    # #2405 (UX-001): błąd wyboru formy ma być powiązany z radiami.
+    ("Błąd wyboru formy bez stabilnego id (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, '<span class="field-error" id="f-form_of_address-error">', '<span class="field-error">')),
+    ("Radia formy nie wskazują błędu w aria-describedby (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, "'forma-zwracania-pomoc f-form_of_address-error'", "'forma-zwracania-pomoc'")),
+    ("Radia formy bez aria-invalid (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_wszystkie(s, '@if($maBlad) aria-invalid="true" @endif', '', 3)),
+    # #2406 (UX-002): onboarding oznacza bieżący krok.
+    ("Onboarding bez aria-current na bieżącym kroku (#2406)", "resources/views/pages/onboarding/interests.blade.php", DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, '<span class="wizard-steps-current" aria-current="step">', '<span class="wizard-steps-current">')),
+    ("Onboarding bez grupy z nazwą kroków (#2406)", "resources/views/pages/onboarding/people.blade.php", DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, ' role="group" aria-label="Postęp zakładania konta"', '')),
+    ("Odwołanie od blokady CSAM bez ochrony decyzji (#2427)", "app/Domain/Moderation/Actions/ResolveAppeal.php", "OdwolanieOdBlokadyCsamTest",
+     lambda s: replace_once(s, "&& $this->blokadaZDowodem($decyzja)", "&& false")),
     ("Fixture wspomnienia znika po północy w Polsce", "scripts/fixtures/rocznice-wykonania-s.php",
      "test_fixture_pomiaru_pokazuje_wspomnienie_po_polnocy_w_polsce",
      lambda s: replace_once(s, "$dzis->copy()->addDay()->subYear()", "$dzis->copy()->subYear()")),
@@ -2547,6 +2645,20 @@ checks = [
      lambda s: replace_once(s,
          "                    ->where('p.frozen', false)\n                    ->whereRaw(PriorytetZuzycia::DOSTEPNY_SQL, [$dzis]);",
          "                    ->where('p.frozen', false);")),
+    # 2.10.2026 (D-333): CI na draft PR-ach skrócone. Ciężki job bez warunku
+    # `pelny`, kontrole negatywne na drafcie, bramka skracająca push i agregat
+    # panelu zielony z pominiętych części na pełnym przebiegu.
+    ("Build obrazu biegnie na drafcie (D-333, 2.10.2026)", CI_WORKFLOW, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, "needs.zakres.outputs.obraz == 'true' && needs.zakres.outputs.pelny == 'true'\n",
+                            "needs.zakres.outputs.obraz == 'true'\n")),
+    ("Kontrole negatywne na drafcie (D-333, 2.10.2026)", CI_WORKFLOW, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, "\"kontrole_czesc\":3}]' || '[]') }}",
+                            "\"kontrole_czesc\":3}]' || '[{\"czesc\":\"kontrole\",\"kontrole_czesc\":1}]') }}")),
+    ("Agregat panelu zielony bez części na pełnym przebiegu (D-333, 2.10.2026)", CI_WORKFLOW, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, '            && [ "${PELNY}" = "false" ]; then\n', '            ; then\n')),
+    ("Bramka skraca także push z DRAFT=true (D-333, 2.10.2026)", BRAMKA_SKRYPT, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, 'if [ "${ZDARZENIE:-}" = "pull_request" ] && [ "${DRAFT:-}" = "true" ]; then',
+                            'if [ "${DRAFT:-}" = "true" ]; then')),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

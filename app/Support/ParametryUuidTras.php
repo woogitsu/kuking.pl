@@ -45,11 +45,13 @@ final class ParametryUuidTras
         'post',
         'report',
         'urzadzenie',
+        'usuniety',
         'user',
         'wiadomosc',
         'wpis',
         'wybor',
         'wyroznienie',
+        'zeszytUsuniety',
     ];
 
     /** @return array<string, string> nazwa parametru => wzorzec */

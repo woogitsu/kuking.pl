@@ -18,6 +18,7 @@ use App\Domain\Notifications\Push\TransportWebPush;
 use App\Domain\Questions\PytaniaBezOdpowiedzi;
 use App\Domain\Recipes\Actions\ZapiszSzkicZPaczki;
 use App\Domain\Recipes\BramkaPublikacjiSzkicu;
+use App\Domain\Recipes\Gotowanie\Wspolne\KoniecWspolnegoGotowaniaImpl;
 use App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu;
 use App\Domain\Recipes\StrazPochodzeniaPrzepisu;
 use App\Domain\Recipes\Udostepnienia\ZerwijUdostepnieniaPrzepisow;
@@ -27,6 +28,7 @@ use App\Domain\Social\ListyWidza;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Domain\Users\Import\ZapisSzkicuZPaczki;
 use App\Domain\Users\KoniecUdostepnienPrzepisow;
+use App\Domain\Users\KoniecWspolnegoGotowania;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Domain\Users\ObserwowanieGospodarza;
 use App\Http\Support\BlokadyWZadaniu;
@@ -106,6 +108,10 @@ class AppServiceProvider extends ServiceProvider
         // Koniec udostępnień przepisów (#2650): ten sam wzór — kontrakt
         // w `Users`, implementacja w `Recipes` (bez cyklu `Social ↔ Recipes`).
         $this->app->bind(KoniecUdostepnienPrzepisow::class, ZerwijUdostepnieniaPrzepisow::class);
+
+        // Koniec wspólnego gotowania przy blokadzie i wymazaniu konta (#2385):
+        // ten sam wzór — kontrakt w `Users`, implementacja w `Recipes`.
+        $this->app->bind(KoniecWspolnegoGotowania::class, KoniecWspolnegoGotowaniaImpl::class);
 
         // Import przepisu z adresu strony (D-300): DNS przez kontrakt, żeby
         // testy podstawiały własną mapę nazw i nie pytały prawdziwej sieci.

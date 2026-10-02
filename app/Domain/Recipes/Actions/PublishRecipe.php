@@ -26,6 +26,7 @@ use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
 use App\Models\Unit;
 use App\Models\User;
+use App\Support\LimityTekstuPrzepisu;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -105,7 +106,7 @@ final class PublishRecipe
     /**
      * @param  array<string, mixed>  $attributes
      * @param  list<array{text: string, group_name?: ?string, quantity?: mixed, unit_id?: ?string, note?: ?string, substitutes?: ?string, no_amount?: bool}>  $ingredients
-     * @param  list<array{instruction: string, id?: ?string, timer_minutes?: mixed, media_id?: ?string, remove_media?: bool}>  $steps
+     * @param  list<array{instruction: string, id?: ?string, timer_minutes?: mixed, section_name?: ?string, media_id?: ?string, remove_media?: bool}>  $steps
      *
      * `timer_minutes` to MINUTY — dokładnie to, co wpisał człowiek, bez
      * przeliczania po drodze. Zamiana na sekundy `recipe_steps.timer_seconds`
@@ -411,11 +412,15 @@ final class PublishRecipe
             if ($existing === null) {
                 $payload['author_id'] = $author->getKey();
                 $payload['klucz_wyslania'] = $klucz;
-                $payload['slug'] = $this->slugs->handle($title);
                 $payload['status'] = $publish ? Recipe::STATUS_PUBLISHED : Recipe::STATUS_DRAFT;
                 $payload['published_at'] = $publish ? now() : null;
 
-                $recipe = Recipe::create($payload);
+                // Slug i insert razem, z ponowieniem przy równoległym zajęciu
+                // tego samego adresu (#2403).
+                $recipe = $this->slugs->zapisz(
+                    $title,
+                    static fn (string $slug): Recipe => Recipe::create([...$payload, 'slug' => $slug]),
+                );
             } else {
                 /*
                  * WIERSZ PRZEPISU POD BLOKADĄ, I DOPIERO POD NIĄ PYTAMY O STAN
@@ -511,9 +516,7 @@ final class PublishRecipe
 
                 // Slug zmieniamy tylko dla szkicu. Po publikacji adres
                 // przepisu jest obietnicą — ludzie go zapisują i wysyłają.
-                if (! $recipe->isPublished()) {
-                    $payload['slug'] = $this->slugs->handle($title, $recipe->getKey());
-                }
+                $zmienSlug = ! $recipe->isPublished();
 
                 // O zmianie statusu decyduje macierz przejść, nie pytanie
                 // „czy przepis jest już opublikowany" (audyt A08). Tamto
@@ -529,12 +532,28 @@ final class PublishRecipe
                     $payload['published_at'] = $docelowy === Recipe::STATUS_PUBLISHED
                         ? ($recipe->published_at ?? now())
                         : null;
+
+                    // Opublikowany przepis nie jest „odłożony” (#2550). Zdejmujemy
+                    // oznaczenie TYLKO tutaj, w tym samym UPDATE co publikację;
+                    // zwykły zapis szkicu (autozapis) go nie rusza.
+                    if ($docelowy === Recipe::STATUS_PUBLISHED) {
+                        $recipe->forceFill(['odlozony_at' => null]);
+                    }
                 }
 
                 $byloUdostepnione = $recipe->isPublished() && $recipe->visibility !== 'private';
 
                 $recipe->forceFill(['content_revision' => $recipe->content_revision + 1]);
-                $recipe->update($payload);
+
+                if ($zmienSlug) {
+                    $this->slugs->zapisz(
+                        $title,
+                        static fn (string $slug): bool => $recipe->update([...$payload, 'slug' => $slug]),
+                        $recipe->getKey(),
+                    );
+                } else {
+                    $recipe->update($payload);
+                }
             }
 
             $skladnikiPrzed = $existing === null ? [] : $this->odciskSkladnikowDlaAlergenow(
@@ -934,6 +953,9 @@ final class PublishRecipe
     private function cleanSteps(array $steps): array
     {
         $clean = [];
+        // Nazwa etapu z pominiętego (pustego) wiersza przechodzi na następny
+        // krok bez własnej nazwy — usunięcie treści nie kasuje nagłówka (#2652).
+        $oczekujacyEtap = null;
 
         foreach ($steps as $row) {
             $instruction = trim((string) ($row['instruction'] ?? ''));
@@ -942,8 +964,13 @@ final class PublishRecipe
             // i ze zdjęciem. Krok, który nie mówi, co zrobić, nie jest krokiem,
             // a minutnik bez czynności nie ma czego odliczać.
             if ($instruction === '') {
+                $oczekujacyEtap = $this->nazwaEtapu($row['section_name'] ?? null) ?? $oczekujacyEtap;
+
                 continue;
             }
+
+            $etap = $this->nazwaEtapu($row['section_name'] ?? null) ?? $oczekujacyEtap;
+            $oczekujacyEtap = null;
 
             $clean[] = [
                 // Tożsamość kroku, nie jego pozycja (patrz komentarz klasy).
@@ -952,11 +979,24 @@ final class PublishRecipe
                 // Minuty od człowieka → sekundy do bazy, w JEDNYM miejscu.
                 'timer_seconds' => StepTimer::secondsFromMinutes($row['timer_minutes'] ?? null),
                 'media_id' => $this->nullIfBlank($row['media_id'] ?? null),
+                'section_name' => $etap,
                 'remove_media' => (bool) ($row['remove_media'] ?? false),
             ];
         }
 
         return $clean;
+    }
+
+    /**
+     * Nazwa etapu (#2652): zwykły tekst (widoki go escapują), obcięty do granicy pola;
+     * pusta albo same spacje = brak nagłówka (NULL, nigdy pusty tekst).
+     */
+    private function nazwaEtapu(mixed $value): ?string
+    {
+        $nazwa = trim((string) $value);
+        $nazwa = trim((string) preg_replace('/\s+/u', ' ', $nazwa));
+
+        return $nazwa === '' ? null : mb_substr($nazwa, 0, LimityTekstuPrzepisu::POLA['steps.*.section_name']);
     }
 
     /**
@@ -1158,6 +1198,7 @@ final class PublishRecipe
                 'position' => $position,
                 'instruction' => $row['instruction'],
                 'timer_seconds' => $row['timer_seconds'],
+                'section_name' => $row['section_name'] ?? null,
                 'media_id' => $this->stepMediaId($author, $istniejace, $row, $doPrzypiecia),
             ];
 

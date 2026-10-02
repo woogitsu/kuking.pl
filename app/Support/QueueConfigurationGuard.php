@@ -16,6 +16,16 @@ use LogicException;
  */
 final class QueueConfigurationGuard
 {
+    /** Akcje, których stan i zadanie MUSZĄ zatwierdzić się razem. */
+    public static function assertAtomicDatabaseQueue(): void
+    {
+        if (config('queue.default') !== 'database') {
+            throw new LogicException('Zabezpieczenie dowodu wymaga kolejki database, aby zadanie zatwierdzić razem ze stanem.');
+        }
+
+        self::assertCompatible();
+    }
+
     public static function assertCompatible(): void
     {
         if (config('queue.default') !== 'database') {

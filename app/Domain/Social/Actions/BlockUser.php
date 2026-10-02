@@ -8,6 +8,7 @@ use App\Domain\Social\BlokadyZmienione;
 use App\Domain\Social\ListyWidza;
 use App\Domain\Social\ZamekPary;
 use App\Domain\Users\KoniecUdostepnienPrzepisow;
+use App\Domain\Users\KoniecWspolnegoGotowania;
 use App\Domain\Users\KoniecWspolnychZeszytow;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
@@ -108,6 +109,10 @@ final class BlockUser
             // członkostwo nie przeżyje obok blokady. Przez kontrakt `Users`,
             // nie przez moduł `Collections` — graf modułów bez cykli (#971).
             app(KoniecWspolnychZeszytow::class)->miedzy($blokujacy, $blokowany);
+
+            // Wspólne gotowanie (#2385) kończy się tak samo, w obie strony:
+            // pomocnik traci dostęp do sesji gospodarza w tej samej transakcji.
+            app(KoniecWspolnegoGotowania::class)->miedzy($blokujacy, $blokowany);
 
             // Udostępnione przepisy też, w obie strony (#2650). Odblokowanie
             // ich nie przywraca — autor udostępnia od nowa, jeśli zechce.

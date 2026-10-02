@@ -222,7 +222,7 @@ final class OdczytPowiadomien
         foreach ($powiadomienia as $powiadomienie) {
             $id = $powiadomienie->data['cooked_event_id'] ?? null;
 
-            if ($powiadomienie->type === Notification::TYPE_COOKED && is_string($id) && Str::isUuid($id)) {
+            if (in_array($powiadomienie->type, [Notification::TYPE_COOKED, Notification::TYPE_HINT_PROPOSED], true) && is_string($id) && Str::isUuid($id)) {
                 $doSprawdzenia[$id][] = $powiadomienie;
             }
         }
@@ -258,7 +258,7 @@ final class OdczytPowiadomien
         foreach ($powiadomienia as $powiadomienie) {
             $id = $powiadomienie->data['recipe_id'] ?? null;
 
-            if ($powiadomienie->type === Notification::TYPE_SAVED && is_string($id) && Str::isUuid($id)) {
+            if (in_array($powiadomienie->type, [Notification::TYPE_SAVED, Notification::TYPE_HINT_ACCEPTED], true) && is_string($id) && Str::isUuid($id)) {
                 $doSprawdzenia[$id][] = $powiadomienie;
             }
         }

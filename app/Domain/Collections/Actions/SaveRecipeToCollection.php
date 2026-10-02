@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Collections\Actions;
 
+use App\Domain\Collections\KolejnoscPrzepisow;
 use App\Domain\Collections\PowrotPoWyjeciu;
 use App\Domain\Collections\WynikWyjeciaZZeszytu;
 use App\Domain\Collections\WynikZapisuDoZeszytu;
@@ -146,6 +147,9 @@ final class SaveRecipeToCollection
                 'created_at' => now(),
                 // Kto dodał — widać przy pozycji we wspólnym zeszycie (D-302).
                 'added_by_id' => $user->getKey(),
+                // Ułożony zeszyt (#2544): nowy przepis staje na końcu. Zeszyt
+                // nieułożony dostaje `null` i idzie „od najnowszego" jak dawniej.
+                'position' => KolejnoscPrzepisow::nastepnaPozycja($collection),
             ]));
         } catch (UniqueConstraintViolationException) {
             // Dwa kliknięcia potrafią wejść RÓWNOCZEŚNIE — wtedy oba przechodzą
@@ -323,6 +327,8 @@ final class SaveRecipeToCollection
                                 'note' => $pozycja['note'] ?? null,
                                 'created_at' => $pozycja['created_at'] ?? now(),
                                 'added_by_id' => array_key_exists('added_by_id', $pozycja) ? $pozycja['added_by_id'] : $swiezy->getKey(),
+                                // Przywrócony przepis wraca na koniec ułożonego zeszytu (#2544).
+                                'position' => KolejnoscPrzepisow::nastepnaPozycja($cel),
                             ]));
                             $dodano = true;
                             $swiezyKucharz = $swiezy;

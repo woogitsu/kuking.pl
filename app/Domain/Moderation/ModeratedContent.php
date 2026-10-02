@@ -11,6 +11,7 @@ use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Models\RecipeVersion;
 use App\Models\Report;
 use App\Models\User;
@@ -69,6 +70,13 @@ final class ModeratedContent
         // odwołaniu przez kontrakt `CofniecieUkryciaWersji`, nie przez
         // `RestoreContent`.
         RecipeVersion::class => CofniecieUkryciaWersji::TYP,
+
+        // WSKAZÓWKA OD GOTUJĄCYCH (#2352). Ukrywa ją `moderation_hidden_at`,
+        // nie `status` (status to zgoda kucharza). ŚWIADOMIE BEZ WPISU W `UKRYTY`:
+        // ukrycie i przywrócenie idą własną drogą w `RozstrzygnijZgloszenie`,
+        // `DecyzjaPoOdwolaniu` i `ResolveAppeal` (`RecipeHint::ukryjPrzezModeracje()`),
+        // bo `RestoreContent` ustawiałby `status`, którego tu ruszać nie wolno.
+        RecipeHint::class => 'recipe_hint',
     ];
 
     /**
@@ -162,6 +170,12 @@ final class ModeratedContent
             $zapytanie->with('recipe.author');
         }
 
+        // Autorem uwagi we wskazówce jest kucharz (`osoba()`), przepis potrzebny
+        // jest do tytułu w powiadomieniu — bez tego lazy loading w trybie ścisłym.
+        if ($klasa === RecipeHint::class) {
+            $zapytanie->with(['cook', 'recipe']);
+        }
+
         if ($zUsunietymi && method_exists($klasa, 'bootSoftDeletes')) {
             $zapytanie->withTrashed();
         }
@@ -185,6 +199,13 @@ final class ModeratedContent
         // to on dostaje powiadomienie i on się odwołuje.
         if ($model instanceof RecipeVersion) {
             return $model->recipe?->author;
+        }
+
+        // Uwagę napisał kucharz. `author` we wskazówce to AUTOR PRZEPISU, który
+        // o zgodę prosi — pętla niżej wzięłaby go za autora treści i ukarałaby
+        // niewłaściwą osobę.
+        if ($model instanceof RecipeHint) {
+            return $model->cook;
         }
 
         foreach (['author', 'user', 'owner'] as $relacja) {
@@ -212,6 +233,11 @@ final class ModeratedContent
     {
         if (method_exists($model, 'trashed') && $model->trashed()) {
             return true;
+        }
+
+        // Wskazówka, której nie ma przy przepisie (ukryta, wycofana, odrzucona).
+        if ($model instanceof RecipeHint) {
+            return ! $model->jestPokazywana();
         }
 
         return $model instanceof Comment && $model->body_removed_at !== null;

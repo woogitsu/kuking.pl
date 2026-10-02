@@ -56,7 +56,7 @@
         @endif
         @if($obcieto)
             <div class="notice mt-4" role="status">
-                <p class="m-0">Ten zeszyt ma więcej przepisów, niż mieści jeden wydruk. Poniżej jest pierwszych {{ $limit }} w kolejności alfabetycznej. Resztę możesz wydrukować pojedynczo, przyciskiem „Drukuj przepis” na stronie przepisu.</p>
+                <p class="m-0">Ten zeszyt ma więcej przepisów, niż mieści jeden wydruk. Poniżej jest pierwszych {{ $limit }} {{ $kolejnoscReczna ? 'w kolejności ułożonej w zeszycie' : 'w kolejności alfabetycznej' }}. Resztę możesz wydrukować pojedynczo, przyciskiem „Drukuj przepis” na stronie przepisu.</p>
             </div>
         @endif
         <p class="mt-6 mb-3">Tak będzie wyglądać książka:</p>
@@ -167,8 +167,12 @@
                 @if($przepis->steps->isEmpty())
                     <p class="meta">Autor nie opisał przygotowania.</p>
                 @else
+                    @foreach(\App\Domain\Recipes\EtapyPrzygotowania::grupy($przepis->steps) as $etap)
+                    @if($etap['nazwa'] !== null)
+                        <h4 class="naglowek-grupy">{{ $etap['nazwa'] }}</h4>
+                    @endif
                     <ol class="step-list">
-                        @foreach($przepis->steps as $krok)
+                        @foreach($etap['kroki'] as $krok)
                             <li>
                                 <span class="step-number" aria-hidden="true">{{ $krok->position + 1 }}</span>
                                 <div>
@@ -181,6 +185,7 @@
                             </li>
                         @endforeach
                     </ol>
+                    @endforeach
                 @endif
 
                 @if($notatka !== null && trim($notatka) !== '')

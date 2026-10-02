@@ -45,6 +45,15 @@ class CookedEventPolicy
         return $user->getKey() === $event->user_id;
     }
 
+    /**
+     * Prywatna liczba faktycznych porcji (#2540): poprawić albo wyczyścić
+     * może wyłącznie kucharz. Ani autor przepisu, ani moderator.
+     */
+    public function poprawPorcje(User $user, CookedEvent $event): bool
+    {
+        return $user->getKey() === $event->user_id;
+    }
+
     private function dostep(?User $user, CookedEvent $event, bool $doKomentarza): bool
     {
         // 1. Blokada — pierwsza, bezwarunkowa, w obie strony (`AGENTS.md` §4).

@@ -88,6 +88,29 @@ class Notification extends Model
     public const TYPE_FORKED = 'recipe.forked';
 
     /**
+     * Prośba o zgodę na wskazówkę przy przepisie (#2352, D-333). Idzie do
+     * KUCHARZA — osoby, której uwagę z wykonania autor przepisu chce pokazać
+     * przy swoim przepisie; aktorem jest autor. `data.hint_id`,
+     * `data.cooked_event_id`, `data.recipe_id` i `data.recipe_title`.
+     * To zdarzenie, nie stan (nie jest na liście wyciszanych w oknie), a
+     * odpowiedź kucharza („Zgadzam się", „Nie") nie powiadamia nikogo:
+     * odmowa nie może być naciskiem na kucharza ani wiadomością dla autora.
+     * Tylko w serwisie — bez Web Push (`KanalPush::dotyczy`).
+     */
+    public const TYPE_HINT_PROPOSED = 'recipe_hint.proposed';
+
+    /**
+     * Kucharz zgodził się na wskazówkę (#2352, decyzja właściciela z 1.10.2026).
+     * Idzie do AUTORA PRZEPISU, aktorem jest kucharz; `data.hint_id`,
+     * `data.cooked_event_id`, `data.recipe_id` i `data.recipe_title`.
+     * Powstaje WYŁĄCZNIE przy „Zgadzam się": odpowiedź „Nie” i wycofanie
+     * zgody nie powiadamiają autora NIGDY (żadnej presji na kucharza i żadnej
+     * wiadomości „ktoś Ci odmówił”). Zdarzenie, nie stan; tylko w serwisie,
+     * bez Web Push (`KanalPush::TYPY`).
+     */
+    public const TYPE_HINT_ACCEPTED = 'recipe_hint.accepted';
+
+    /**
      * Autor pokazał odbiorcy jeden swój przepis (#2650, decyzja właściciela
      * z 2.10.2026, D-333). WYŁĄCZNIE W SERWISIE: nie ma go w
      * `KanalPush::TYPY` i nie idzie listem.
@@ -357,7 +380,7 @@ class Notification extends Model
     {
         $id = $this->data['cooked_event_id'] ?? null;
 
-        if ($this->type !== self::TYPE_COOKED || ! is_string($id) || $id === '') {
+        if (! in_array($this->type, [self::TYPE_COOKED, self::TYPE_HINT_PROPOSED], true) || ! is_string($id) || $id === '') {
             return false;
         }
 

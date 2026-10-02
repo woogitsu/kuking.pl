@@ -14,6 +14,7 @@ use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Koszt\SzacunekKosztuZCen;
 use App\Domain\Recipes\MojaWersja;
+use App\Domain\Recipes\OdzyskajUsunietyPrzepis;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Domain\Recipes\Porcje\WyborSztuk;
 use App\Domain\Recipes\Porcje\ZapamietanePorcje;
@@ -24,9 +25,12 @@ use App\Http\Requests\Recipes\ZapisPrzepisuRequest;
 use App\Models\Comment;
 use App\Models\Post;
 use App\Models\Recipe;
+use App\Models\RecipeHint;
 use App\Models\Unit;
+use App\Support\CytatKroku;
 use App\Support\Komunikat;
 use App\Support\KursorListy;
+use App\Support\Odmiana;
 use App\Support\OdpowiedziWatku;
 use App\Support\PaginationLinks;
 use App\Support\StaryAdresPrzepisu;
@@ -191,9 +195,11 @@ class RecipeController extends Controller
     /** Prywatna lista autora; skróty na „Dodaj” nie zastępują dostępu do starszych szkiców. */
     public function drafts(Request $request): View
     {
+        // Odłożone na później (#2550) to ta sama lista, osobny widok: `?odlozone=1`.
+        $odlozone = $request->query('odlozone') === '1';
+        $zapytanie = $request->user()->recipes()->where('status', Recipe::STATUS_DRAFT);
         $drafts = KursorListy::strona(
-            $request->user()->recipes()
-                ->where('status', Recipe::STATUS_DRAFT)
+            ($odlozone ? $zapytanie->whereNotNull('odlozony_at') : $zapytanie->whereNull('odlozony_at'))
                 ->orderByDesc('updated_at')
                 ->orderByDesc('id'),
             20,
@@ -203,7 +209,16 @@ class RecipeController extends Controller
             $this->authorize('view', $draft);
         }
 
-        return view('pages.recipes.drafts', ['drafts' => $drafts]);
+        $liczbaOdlozonych = $request->user()->recipes()
+            ->where('status', Recipe::STATUS_DRAFT)
+            ->whereNotNull('odlozony_at')
+            ->count();
+
+        return view('pages.recipes.drafts', [
+            'drafts' => $drafts,
+            'odlozone' => $odlozone,
+            'liczbaOdlozonych' => $liczbaOdlozonych,
+        ]);
     }
 
     private function wizard(Request $request, Recipe $recipe): View
@@ -213,6 +228,7 @@ class RecipeController extends Controller
             'drafts' => $request->user()
                 ->recipes()
                 ->where('status', Recipe::STATUS_DRAFT)
+                ->whereNull('odlozony_at')
                 ->orderByDesc('updated_at')
                 ->limit(5)
                 ->get(),
@@ -506,6 +522,27 @@ class RecipeController extends Controller
         $wersje = MojaWersja::wersjeDlaWidza($model, $request->user())
             ->paginate(6, ['*'], 'wersje');
 
+        // „Wskazówki od gotujących" (#2352, D-333) — wyłącznie PRZYJĘTE, tylko
+        // z wykonań, które ten widz może zobaczyć (blokady, zbanowani
+        // kucharze: `CookedEvent::widoczneDla`), w kolejności zgód, bez
+        // rankingu. Limit 10 pilnuje PRÓŚB (`ZaproponujWskazowke`), a przywrócenie
+        // ukrytej wskazówki wolno ponad nim, więc strona pokazuje do
+        // `na_stronie_max` (sufit techniczny, domyślnie 20): ponad limit przepisu
+        // da się wejść tylko przywróceniem przez moderację, więc w praktyce
+        // zobaczymy 10 plus garść przywróconych, a sufit chroni stronę przed
+        // wskazówkami, których nie przewidzieliśmy (np. wielokrotne ukrycia
+        // i przywrócenia).
+        // Jedno zapytanie o wskazówki z kucharzem, profilem i awatarem; numer najnowszej wersji dopiero, gdy jest co oznaczać.
+        $wskazowki = RecipeHint::query()
+            ->przyjeteDlaPrzepisu($model)
+            ->whereHas('cookedEvent', fn ($wykonanie) => $wykonanie->widoczneDla($request->user()))
+            ->with(['cookedEvent.user.profile.avatar'])
+            ->limit((int) config('kuking.wskazowki.na_stronie_max'))
+            ->get();
+        $najnowszaWersja = $wskazowki->isEmpty()
+            ? null
+            : $model->versions()->reorder()->max('version_number');
+
         foreach ([$komentarze, $cookedEvents, $wersje] as $cel) {
             foreach ([$komentarze, $cookedEvents, $wersje] as $inna) {
                 if ($cel !== $inna) {
@@ -528,8 +565,20 @@ class RecipeController extends Controller
         $wyborZapamietanych = app(ZapamietanePorcje::class)->wybor($model, $request->user(), $request->query('porcje'));
         $wyborSztuk = WyborSztuk::dla($model, $request->query('sztuki'));
 
+        // „Zapytaj o ten krok” (#2556): link tylko dla konta, które może użyć
+        // zwykłego formularza komentarza (aktywne, nie autor przepisu), a cytat
+        // w polu tylko wtedy, gdy to konto naprawdę zobaczy formularz. Gość i konto
+        // zawieszone dostają stronę bez zmian — też z kopii brzegowej (#610).
+        $mozeZapytacOKrok = $request->user() !== null
+            && $request->user()->isActive()
+            && $request->user()->getKey() !== $model->author_id;
+
         return view('pages.recipes.show', [
             'recipe' => $model,
+            'mozeZapytacOKrok' => $mozeZapytacOKrok,
+            'tekstStartowyPytania' => $request->user() !== null && $request->user()->isActive()
+                ? CytatKroku::tekstStartowy($model, $request->query(CytatKroku::PARAMETR))
+                : null,
             // Na ile porcji pokazać ilości (D-284). Wybór żyje w adresie
             // (`?porcje=6`), przeliczenie w `App\Domain\Recipes\Porcje`.
             // Wybór SZTUK (#2645) wygrywa z `?porcje=` i z zapamiętaną liczbą
@@ -558,6 +607,8 @@ class RecipeController extends Controller
             // jak na karcie i stronie wpisu (D-281, D-309). `total()`
             // stronicowania liczy same wątki, więc zostaje do paginacji.
             'komentarzyRazem' => Comment::policzRozmowe($model->comments(), $request->user()),
+            'wskazowki' => $wskazowki,
+            'najnowszaWersja' => $najnowszaWersja,
             'cookedEvents' => $cookedEvents,
             // LICZNIK LICZY DOKŁADNIE TO, CO POKAZUJE GALERIA WYŻEJ.
             //
@@ -694,6 +745,11 @@ class RecipeController extends Controller
         // a nie czekają w bazie na trwałe usunięcie wiersza.
         app(OdbierzDostepDoPrzepisu::class)->wszystkieDlaPrzepisu($model);
 
-        return redirect()->route('home')->with(Komunikat::sukces('Przepis usunięty.'));
+        $dni = OdzyskajUsunietyPrzepis::dniOkna();
+
+        return redirect()->route('home')->with(Komunikat::sukces(
+            'Przepis usunięty. Jeśli to pomyłka, przez '.$dni.' '.Odmiana::rzeczownik($dni, 'dzień', 'dni', 'dni')
+            .' możesz go odzyskać w „Zeszyt”, w „Usunięte przepisy”.',
+        ));
     }
 }

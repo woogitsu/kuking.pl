@@ -28,6 +28,13 @@
                     Dodano: {{ \App\Support\Czas::data($event->cooked_at, 'j F Y') }}.
                 </p>
             @endif
+            {{-- Prywatna liczba faktycznych porcji (#2540): tylko kucharz.
+                 Inni, w tym autor przepisu, nie dostają nawet wzmianki. --}}
+            @if($event->faktyczne_porcje !== null && auth()->id() === $event->user_id)
+                <p class="meta m-0">
+                    Ugotowano (widzisz tylko Ty): {{ \App\Domain\Recipes\Gotowanie\PorcjeWykonania::etykieta($event->faktyczne_porcje) }}.
+                </p>
+            @endif
         </div>
     </div>
 

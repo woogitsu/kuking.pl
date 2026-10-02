@@ -32,12 +32,18 @@ trap 'rm -rf "$TMP"' EXIT
 
 # uruchom SKRYPT ZDARZENIE FLAGA -> "kod uruchom poziom"; pełne wyjścia w ${TMP}/{wyj,out,sum}
 # FLAGA "-" = zmienna nieustawiona (pusta); ZDARZENIE "-" = brak.
+# ZDARZENIE z przyrostkiem `@draft` = DRAFT=true, `@nie-draft` = DRAFT=false
+# (bez przyrostka DRAFT jest puste, jak poza PR-em).
 uruchom() {
-    local skrypt="$1" zd="$2" flaga="$3" kod uruchom poziom
+    local skrypt="$1" zd="$2" flaga="$3" kod uruchom poziom draft=""
+    case "$zd" in
+        *@draft) draft=true; zd="${zd%@draft}" ;;
+        *@nie-draft) draft=false; zd="${zd%@nie-draft}" ;;
+    esac
     [ "$zd" = - ] && zd=""
     [ "$flaga" = - ] && flaga=""
     : > "${TMP}/out"; : > "${TMP}/sum"
-    ZDARZENIE="$zd" FLAGA="$flaga" GITHUB_OUTPUT="${TMP}/out" GITHUB_STEP_SUMMARY="${TMP}/sum" \
+    ZDARZENIE="$zd" FLAGA="$flaga" DRAFT="$draft" GITHUB_OUTPUT="${TMP}/out" GITHUB_STEP_SUMMARY="${TMP}/sum" \
         bash "$skrypt" > "${TMP}/wyj" 2>&1
     kod=$?
     uruchom="$(sed -n 's/^uruchom=//p' "${TMP}/out")"
@@ -57,6 +63,9 @@ pull_request|true |0 false warning|true ze spacją = pominięcie GŁOŚNE
 workflow_dispatch|true|0 false notice|nie pull_request = nie dotyczy, nawet przy true
 push|-|0 false notice|push bez flagi = nie dotyczy
 -|true|2 - error|brak zdarzenia = błąd wejścia
+pull_request@draft|true|0 false notice|draft PR = pominięcie z powodem nawet przy true (2.10.2026)
+pull_request@nie-draft|true|0 true notice|PR nie-draft przy true = uruchom
+push@draft|true|0 false notice|push z DRAFT=true = nadal nie dotyczy
 KONIEC
 )
 
@@ -88,6 +97,9 @@ grep -q 'Decyzja: \*\*uruchomiony\*\*' "${TMP}/sum" || { echo "Podsumowanie nie 
 # Poza Actions (bez plików wyjścia) skrypt też działa.
 ZDARZENIE=pull_request FLAGA=true env -u GITHUB_OUTPUT -u GITHUB_STEP_SUMMARY bash "$SKRYPT" >/dev/null 2>&1 \
   || { echo "Skrypt bez GITHUB_OUTPUT/GITHUB_STEP_SUMMARY nie działa"; exit 1; }
+uruchom "$SKRYPT" pull_request@draft true >/dev/null
+grep -q '^powod=.*POMINIĘTY: draft PR — zakres skrócony.*ready_for_review' "${TMP}/out" || { echo "Wyjście powod nie mówi o drafcie"; exit 1; }
+grep -q 'Decyzja: \*\*pominięty\*\*' "${TMP}/sum" || { echo "Podsumowanie na drafcie nie mówi, że test pominięto"; exit 1; }
 echo "Uzasadnienie: powód w wyjściu, podsumowaniu i adnotacji"
 
 # --- 3. Wartość zmiennej nie wycieka do komunikatu --------------------------
@@ -132,6 +144,9 @@ fi
 
 uruchom=false' || exit 1
 mutuj "pominięcie bez wyjścia uruchom" 'echo "uruchom=${uruchom}"' 'echo "uruchom=true"' || exit 1
+
+mutuj "draft uruchamia" 'elif [ "$draft" = true ]; then' 'elif [ "$draft" = nigdy ]; then' || exit 1
+mutuj "nie-draft pomijany" 'elif [ "$draft" = true ]; then' 'elif [ "$draft" != x ]; then' || exit 1
 
 echo "Kontrola ujemna: wszystkie reguły pilnowane"
 echo "Bramka preview: OK"

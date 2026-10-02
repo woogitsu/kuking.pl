@@ -309,6 +309,7 @@ return [
         'ingredients.*.substitutes' => 'zamiennik składnika',
         'steps' => 'kroki przygotowania',
         'steps.*.instruction' => 'treść kroku',
+        'steps.*.section_name' => 'nazwa etapu przygotowania',
         'details' => 'to, co chcesz dopisać',
         'outcome' => 'rozstrzygnięcie',
         'decision_note' => 'uzasadnienie decyzji',

@@ -88,8 +88,14 @@
 
     @if($recipe->steps->isNotEmpty())
         <h2>Jak to zrobić</h2>
-        <ol class="kroki">
-            @foreach($recipe->steps as $step)
+        {{-- Nazwane etapy (#2652): `<h3>` nad osobną listą, jak grupy składników.
+             `start` zachowuje numer instrukcji w całym przepisie. --}}
+        @foreach(\App\Domain\Recipes\EtapyPrzygotowania::grupy($recipe->steps) as $etap)
+        @if($etap['nazwa'] !== null)
+            <h3>{{ $etap['nazwa'] }}</h3>
+        @endif
+        <ol class="kroki" @if(array_key_first($etap['kroki']) > 0) start="{{ array_key_first($etap['kroki']) + 1 }}" @endif>
+            @foreach($etap['kroki'] as $indeksKroku => $step)
                 <li>
                     {{ $step->instruction }}
                     @if($step->timer_seconds)
@@ -100,11 +106,12 @@
                          opisem zdjęcia (issue #1304): własny opis autora,
                          a bez niego jawny kontekst „Zdjęcie do kroku N”. --}}
                     @if($stepPhotos[$step->getKey()] ?? null)
-                        <img class="zdjecie" src="{{ $stepPhotos[$step->getKey()] }}" alt="{{ $step->media?->alt_text ?: 'Zdjęcie do kroku '.$loop->iteration }}">
+                        <img class="zdjecie" src="{{ $stepPhotos[$step->getKey()] }}" alt="{{ $step->media?->alt_text ?: 'Zdjęcie do kroku '.($indeksKroku + 1) }}">
                     @endif
                 </li>
             @endforeach
         </ol>
+        @endforeach
     @endif
 
     @if($recipe->source_note || $recipe->source_person || $recipe->source_url || $recipe->family_since_year)

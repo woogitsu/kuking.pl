@@ -91,6 +91,22 @@ class CollectionPolicy
     }
 
     /**
+     * Ręczne układanie kolejności przepisów (#2544, pilot V2).
+     *
+     * NAJWĘŻSZY ZAKRES: tylko właściciel, tylko jego PRYWATNY zeszyt i tylko
+     * bez zaproszonych osób. Zeszyt wspólny jest poza pilotem — układ jednej
+     * osoby zmieniałby widok pozostałych, a nowych uprawnień dla członków nie
+     * nadajemy bez decyzji. Reszta warunków (aktywne konto albo zawieszone na
+     * zeszycie prywatnym) to dokładnie `update()`.
+     */
+    public function reorder(User $user, Collection $collection): bool
+    {
+        return $this->update($user, $collection)
+            && ! $collection->isPublic()
+            && ! $collection->members()->exists();
+    }
+
+    /**
      * Dopisanie pozycji do zeszytu („Zapisuję", notatka przy pozycji).
      *
      * Właściciel — dokładnie jak `update()` (zawieszony tylko do prywatnego,

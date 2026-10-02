@@ -89,10 +89,9 @@ final class ZrobWlasnaWersje
                 return $istniejacy;
             }
 
-            $wersja = new Recipe([
+            $atrybuty = [
                 'author_id' => $user->getKey(),
                 'title' => $oryginal->title,
-                'slug' => $this->slugs->handle($oryginal->title),
                 'summary' => $oryginal->summary,
                 'servings' => $oryginal->servings,
                 'yield_count' => $oryginal->yield_count,
@@ -104,11 +103,19 @@ final class ZrobWlasnaWersje
                 'status' => Recipe::STATUS_DRAFT,
                 'source_type' => Recipe::SOURCE_ADAPTATION,
                 'published_at' => null,
-            ]);
-            $wersja->forceFill([
-                'forked_from_id' => $oryginal->getKey(),
-                'forked_at' => now(),
-            ])->save();
+            ];
+
+            // Slug i insert razem, z ponowieniem przy równoległym zajęciu
+            // tego samego adresu (#2403).
+            $wersja = $this->slugs->zapisz($oryginal->title, static function (string $slug) use ($atrybuty, $oryginal): Recipe {
+                $nowa = new Recipe([...$atrybuty, 'slug' => $slug]);
+                $nowa->forceFill([
+                    'forked_from_id' => $oryginal->getKey(),
+                    'forked_at' => now(),
+                ])->save();
+
+                return $nowa;
+            });
 
             foreach ($oryginal->ingredients()->get() as $skladnik) {
                 RecipeIngredient::create([
@@ -136,6 +143,7 @@ final class ZrobWlasnaWersje
                     'instruction' => $krok->instruction,
                     'media_id' => null,
                     'timer_seconds' => $krok->timer_seconds,
+                    'section_name' => $krok->section_name,
                 ]);
             }
 

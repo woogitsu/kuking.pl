@@ -184,3 +184,17 @@
   inset: 0;
   border-radius: var(--radius-lg);
 }
+
+/* Ręczna kolejność przepisów (#2544): pod kartą numer miejsca i przyciski
+   z podpisami. Cele dotyku dają same `.btn`; tu tylko układ. */
+.kolejnosc-przepisu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.kolejnosc-przepisu-przyciski {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}

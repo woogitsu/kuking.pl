@@ -55,10 +55,17 @@ class Collection extends Model
      */
     public function recipes(): BelongsToMany
     {
+        // RĘCZNA KOLEJNOŚĆ (#2544): przepisy z pozycją idą pierwsze, rosnąco;
+        // bez pozycji (`NULL`) — jak zawsze, od najnowszego zapisu. W zeszycie,
+        // którego nikt nie układał, wszystkie pozycje są `NULL`, więc wynik
+        // jest dokładnie dawny. Przepis dopisany do ułożonego zeszytu dostaje
+        // pozycję na końcu już przy zapisie (`KolejnoscPrzepisow`).
+        //
         // `orderByDesc('recipes.id')` rozstrzyga remisy `created_at` na
         // złączeniu — uzasadnienie: `Recipe::cookedEvents()`.
         return $this->belongsToMany(Recipe::class, 'collection_items')
-            ->withPivot(['note', 'created_at', 'added_by_id'])
+            ->withPivot(['note', 'created_at', 'added_by_id', 'position'])
+            ->orderByRaw('collection_items.position ASC NULLS LAST')
             ->orderByPivot('created_at', 'desc')
             ->orderByDesc('recipes.id');
     }

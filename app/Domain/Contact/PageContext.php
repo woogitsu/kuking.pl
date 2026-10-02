@@ -34,6 +34,9 @@ final class PageContext
         'appeals.reporter',
         // Link-zaproszenie do wspólnego zeszytu niesie jednorazowy token (#1743).
         'collections.link.show',
+        // Link do wspólnego gotowania niesie jednorazowy token (#2385); POST
+        // przyjęcia ma ten sam adres, więc jeden wpis maskuje oba.
+        'wspolne-gotowanie.link.show',
     ];
 
     /** Kontekst diagnostyczny nie jest miejscem na dane uwierzytelniające. */

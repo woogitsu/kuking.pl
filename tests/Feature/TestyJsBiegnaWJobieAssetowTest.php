@@ -38,7 +38,10 @@ class TestyJsBiegnaWJobieAssetowTest extends TestCase
         $job = $this->job('assets');
 
         $this->assertMatchesRegularExpression('/^        run: npm run build\s*$/m', $job, 'Job `assets` nie robi pełnego `npm run build` — testy JS nie biegną nigdzie w CI (#2299).');
-        $this->assertMatchesRegularExpression("/^    if: needs\\.zakres\\.outputs\\.kod == 'true'\\s*$/m", $job, 'Job `assets` ma węższy warunek niż joby z samym Vite (#2299).');
+        // Od 2.10.2026 (D-333) `assets` nie biegnie na draft PR-ze (`pelny`).
+        // Poza tym warunek zostaje taki jak był: KAŻDA zmiana kodu — bez
+        // filtra widoku czy obrazu, które zawężałyby go względem jobów Vite.
+        $this->assertMatchesRegularExpression("/^    if: needs\\.zakres\\.outputs\\.kod == 'true' && needs\\.zakres\\.outputs\\.pelny == 'true'\\s*$/m", $job, 'Job `assets` ma węższy warunek niż joby z samym Vite (#2299).');
         $this->assertMatchesRegularExpression('/^    needs: zakres\s*$/m', $job);
         $this->assertDoesNotMatchRegularExpression('/^    continue-on-error/m', $job);
         $this->assertStringNotContainsString('build:assets', $job);
@@ -56,6 +59,13 @@ class TestyJsBiegnaWJobieAssetowTest extends TestCase
                 "/^    if: needs\\.zakres\\.outputs\\.kod == 'true'( && .+)?\\s*$/m",
                 $job,
                 "Job `{$nazwa}` buduje sam Vite, ale nie wymaga `kod == 'true'` — mógłby ruszyć bez joba `assets`, czyli bez testów JS (#2299).",
+            );
+            // `assets` nie biegnie na drafcie (2.10.2026), więc job z samym
+            // Vite też nie może — inaczej na drafcie ruszyłby bez testów JS.
+            $this->assertMatchesRegularExpression(
+                "/^    if: .*&& needs\\.zakres\\.outputs\\.pelny == 'true'\\s*$/m",
+                $job,
+                "Job `{$nazwa}` buduje sam Vite, ale biegnie na drafcie, gdzie `assets` (testy JS) jest pominięty.",
             );
         }
 

@@ -152,6 +152,44 @@ znaczyć dla starego kodu i będą wyglądać jak zwykłe osierocone zdjęcia �
 stary sprzątacz podejmie je normalnie, po wieku, więc nie zablokują się
 w bazie. Nic nie trzeba backfillować.
 
+#### `status = 'secured'` — zdjęcie ZABEZPIECZONE JAKO DOWÓD
+
+Migracja `2026_10_01_150100_allow_secured_media_status` (ścieżka CSAM w panelu
+moderacji, D-333, 1.10.2026). **Zmiana schematu:** `media_status_check`
+dopuszcza teraz `pending, processing, ready, rejected, deleted, secured`.
+CHECK zmieniony wzorcem `NOT VALID` + `VALIDATE` poza transakcją (AGENTS.md §6);
+nowy CHECK jest szerszy od starego, więc walidacja nie może się nie udać.
+
+```sql
+-- JEDEN ALTER TABLE: DROP i ADD w jednej instrukcji (bez okna bez ograniczenia).
+ALTER TABLE media
+    DROP CONSTRAINT IF EXISTS media_status_check,
+    ADD CONSTRAINT media_status_check
+    CHECK (status IN ('pending','processing','ready','rejected','deleted','secured')) NOT VALID;
+ALTER TABLE media VALIDATE CONSTRAINT media_status_check;
+```
+
+Znaczenie: **plik zostaje w magazynie jako dowód, a aplikacja nie pokazuje go
+nikomu** — ani autorowi, ani moderatorowi (`Media::maWariantDoPokazania()`,
+a przez nią `DostepDoZdjecia` i trasa zdjęcia → 404). `secured` nie jest
+`ready`, więc zdjęcie wypada z każdego zapytania „status = ready” (eksport
+danych, odczyt przez AI, kolaże, ponowne przetwarzanie). `KasujZdjecie`
+odmawia skasowania zabezpieczonego zdjęcia (sprzątanie osieroconych, wymazanie
+konta, usunięcie treści). Stan sprzed zabezpieczenia pamięta
+`zabezpieczenia_dowodow.previous_media_status`.
+
+Publiczne warianty (miniatura, podgląd, feed, large) przenosi do prywatnego
+dysku oryginału zadanie `PrzeniesPubliczneWariantyDowodu` (po zatwierdzeniu
+zabezpieczenia; kopia, sprawdzenie, dopiero usunięcie z publicznego dysku;
+oryginał nietknięty) i zleca czyszczenie CDN. Mapa „dawny klucz → nowy klucz”
+leży w `media.metadata.warianty_zabezpieczone`; `metadata.variants` zostaje.
+Bez zmiany schematu (klucz w istniejącej kolumnie JSONB).
+
+**Rollback (D-088): ODMAWIA**, gdy w `media` jest choć jedno zdjęcie
+`secured` — stary CHECK go nie dopuszcza, a zmiana statusu zdjęłaby
+zabezpieczenie. Na bazie bez takich wierszy `down()` przywraca stary CHECK.
+Test odmowy i kontrola dodatnia: `tests/Feature/CofniecieMigracjiZabezpieczonychDowodowOdmawiaTest.php`.
+
 ### posts + post_media
 Najprostszy content społecznościowy.
 
