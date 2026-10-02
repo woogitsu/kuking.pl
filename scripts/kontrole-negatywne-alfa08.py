@@ -1467,6 +1467,13 @@ checks = [
     ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/CollectUserExportData.php",
      "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",
      lambda s: replace_once(s, "                'bez_ilosci' => (bool) $item->no_amount,\n", "")),
+    # #2639: własne wykonanie musi wskazać istniejący własny plik tej paczki.
+    ("Eksport gubi relację wykonania z własnym przepisem (#2639)", "app/Domain/Users/Exports/CollectUserExportData.php",
+     "test_dwa_wlasne_przepisy_o_tym_samym_tytule_maja_odrebne_prawdziwe_cele_w_paczce",
+     lambda s: replace_once(s,
+         "            'plik_wlasnego_przepisu' => $this->granica->widzi($event->recipe)\n"
+         "                ? ($this->plikiWlasnychPrzepisow[(string) $event->recipe_id] ?? null)\n"
+         "                : null,\n", "")),
     # #2479: wrócenie do nazywania hidden szkicem ma oblać na rzeczywistym ZIP-ie.
     ("Ukryty przepis nazwany szkicem w eksporcie (#2479)", "app/Domain/Users/Exports/RecipeArchiveStatus.php",
      "test_ukryty_po_publikacji_nie_jest_szkicem_w_karcie_ani_spisie",

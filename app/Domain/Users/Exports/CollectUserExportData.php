@@ -56,6 +56,9 @@ final class CollectUserExportData
     /** Granica cudzych danych dla tej jednej paczki — patrz `GranicaCudzychDanych`. */
     private GranicaCudzychDanych $granica;
 
+    /** @var array<string, string> Pliki przepisów rzeczywiście zebranych do tej paczki. */
+    private array $plikiWlasnychPrzepisow = [];
+
     /**
      * Klucze z `notifications.data`, które wolno przepisać do eksportu.
      *
@@ -80,6 +83,8 @@ final class CollectUserExportData
     {
         // Ta sama granica, którą plan zdjęć liczył nazwy plików (#2312, #2313).
         $this->granica = $photos->granicaDla($user);
+
+        $this->plikiWlasnychPrzepisow = [];
 
         $user->loadMissing('profile.avatar');
 
@@ -410,6 +415,12 @@ final class CollectUserExportData
             ->orderByRaw('coalesce(published_at, created_at)')
             ->get();
 
+        // Mapa powstaje z dokładnie tych rekordów, które trafią do `przepisy`.
+        // Wykonania nie szukają receptury po tytule ani w niezależnym zapytaniu.
+        $this->plikiWlasnychPrzepisow = $recipes
+            ->mapWithKeys(fn (Recipe $recipe): array => [(string) $recipe->getKey() => 'przepisy/'.ExportFileNames::recipeFile($recipe)])
+            ->all();
+
         return $recipes->map(fn (Recipe $recipe): array => [
             'tytul' => $recipe->title,
             'adres_w_serwisie' => $recipe->slug,
@@ -542,6 +553,11 @@ final class CollectUserExportData
             // zdanie, że przepis jest niedostępny. Moja notatka zostaje.
             'przepis' => $this->granica->widzi($event->recipe) ? $event->recipe->title : self::TRESC_NIEDOSTEPNA,
             'autor_przepisu' => $this->granica->widzi($event->recipe) ? $event->recipe->author?->displayName() : null,
+            // Odnośnik tylko do WŁASNEGO pliku rzeczywiście obecnego w tej
+            // paczce. Cudzy, skasowany lub dziś niedostępny przepis: null.
+            'plik_wlasnego_przepisu' => $this->granica->widzi($event->recipe)
+                ? ($this->plikiWlasnychPrzepisow[(string) $event->recipe_id] ?? null)
+                : null,
             'kiedy' => $this->date($event->cooked_at),
             // Numer wersji przepisu otwartej przy gotowaniu (#2378) — sam numer,
             // bez treści wersji; `null` = nie wiadomo (wykonanie sprzed zmiany

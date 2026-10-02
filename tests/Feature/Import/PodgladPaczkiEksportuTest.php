@@ -11,6 +11,7 @@ use App\Domain\Users\Import\PodgladPaczkiEksportu;
 use App\Domain\Users\Import\PozycjaPodgladu;
 use App\Jobs\GenerateUserExport;
 use App\Models\Collection;
+use App\Models\CookedEvent;
 use App\Models\DataExport;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -65,17 +66,23 @@ class PodgladPaczkiEksportuTest extends TestCase
     public function test_prawdziwy_eksport_jest_czytany_a_eksport_niesie_numer_formatu(): void
     {
         $basia = $this->user('basia');
-        $this->przepisZeSkladnikami($basia, 'Rosół z kury');
+        $przepis = $this->przepisZeSkladnikami($basia, 'Rosół z kury');
+        CookedEvent::factory()->create(['user_id' => $basia->getKey(), 'recipe_id' => $przepis->getKey()]);
         Post::factory()->for($basia, 'author')->create(['body' => 'Dzisiejszy obiad u Basi.']);
 
         $sciezka = $this->sciezkaEksportu($basia);
+        $dane = $this->daneZPaczki($sciezka);
 
         $podglad = (new PodgladPaczkiEksportu)->czytaj($this->user('zenek'), $sciezka);
 
         $this->assertSame(WersjaFormatuPaczki::AKTUALNA, $podglad->wersjaFormatu);
         $this->assertSame(
             WersjaFormatuPaczki::AKTUALNA,
-            $this->daneZPaczki($sciezka)['o_tym_pliku']['wersja_formatu'],
+            $dane['o_tym_pliku']['wersja_formatu'],
+        );
+        $this->assertSame(
+            $dane['przepisy'][0]['plik_do_czytania'],
+            $dane['ugotowalem'][0]['plik_wlasnego_przepisu'],
         );
         $this->assertNotNull($podglad->wygenerowano);
         $this->assertSame(['Rosół z kury'], array_map(fn ($p) => $p->tytul, $podglad->przepisy));
