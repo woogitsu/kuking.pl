@@ -66,6 +66,43 @@ class NajgorszyPrzypadekTerminowWygasaniaTest extends TestCase
         }
     }
 
+    public function test_archiwum_polityki_z_30_09_jest_identyczne_z_biezaca(): void
+    {
+        $this->assertSame(
+            file_get_contents(resource_path('legal/polityka-prywatnosci.md')),
+            file_get_contents(resource_path('legal/archiwum/polityka-prywatnosci-2026-09-30.md')),
+            'Bieżąca polityka i archiwum z 30.09 mają być identyczne (decyzja właściciela z 2.10.2026).',
+        );
+    }
+
+    public function test_polityka_podaje_gorny_termin_usuniecia_zgodny_z_terminem_i_dobowym_sprzataniem(): void
+    {
+        $polityka = (string) file_get_contents(resource_path('legal/polityka-prywatnosci.md'));
+
+        // Sprzątanie biegnie raz na dobę, więc górny termin usunięcia = termin + 24 h.
+        $wiersze = [
+            'Zapamiętany postęp w trybie gotowania' => (int) config('kuking.cooking_progress.retention_hours'),
+            'Wspólne gotowanie' => (int) config('kuking.wspolne_gotowanie.retencja_godziny'),
+            'Prywatny dopisek z gotowania' => (int) config('kuking.cooking_note.retention_hours'),
+            'Założenie i prowadzenie konta' => (int) config('kuking.account.email_change_ttl_hours'),
+            'Zaproszenie do założenia konta' => (int) config('kuking.login_link.zaproszenia.waznosc_godzin'),
+        ];
+        foreach ($wiersze as $poczatek => $godzin) {
+            $gorny = $godzin + 24;
+            $this->assertMatchesRegularExpression(
+                '/^\| '.preg_quote($poczatek, '/').'.*najpóźniej po około \*{0,2}'.$gorny.' godzin/mu',
+                $polityka,
+                "Polityka nie podaje górnego terminu usunięcia ({$gorny} godzin) w wierszu „{$poczatek}”.",
+            );
+        }
+
+        $this->assertMatchesRegularExpression(
+            '/^\| Wczytanie paczki z danymi z Kuking .*najpóźniej w nocy po tym terminie, czyli w ciągu doby/mu',
+            $polityka,
+            'Polityka nie podaje górnego terminu usunięcia paczki importu.',
+        );
+    }
+
     public function test_postep_gotowania_zalozony_tuz_po_przebiegu_nie_dziala_po_dobie_i_znika_przy_drugim_przebiegu(): void
     {
         $godzin = (int) config('kuking.cooking_progress.retention_hours');

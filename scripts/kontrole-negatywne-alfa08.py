@@ -2564,6 +2564,8 @@ checks = [
      lambda s: replace_once(s, "| Plan na tydzień |", "| Planowanie posiłków |")),
     ("Nowa sekcja paczki bez opisu w polityce", "app/Domain/Users/Exports/InwentarzDanychKonta.php", "PolitykaOpisujeKazdaSekcjePaczkiTest",
      lambda s: replace_once(s, "'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],", "'meal_plan_entries.user_id' => [self::EKSPORT, 'planer_nowy'],")),
+    ("Polityka bez górnego terminu usunięcia wspólnego gotowania (#2708)", POLITYKA_TEKST, "test_polityka_podaje_gorny_termin_usuniecia_zgodny_z_terminem_i_dobowym_sprzataniem",
+     lambda s: replace_once(s, "najpóźniej po około 48 godzinach od założenia.", "najpóźniej po około 72 godzinach od założenia.")),
     ("Postęp gotowania z terminem niezgodnym z konfiguracją", POLITYKA_TEKST, "test_terminy_nowych_wierszy_zgadzaja_sie_z_konfiguracja",
      lambda s: replace_once(s, "**24 godziny** od ostatniej zmiany — potem postęp", "**48 godzin** od ostatniej zmiany — potem postęp")),
     # Z6 (#2282): Cloudflare jako pośrednik całego ruchu ma własny wiersz.
