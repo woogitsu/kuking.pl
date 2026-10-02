@@ -205,21 +205,24 @@ final class KolejnoscPrzepisowWZeszycieTest extends TestCase
 
         // Druga karta: C na początek.
         $this->przesun('C', 'poczatek')->assertRedirect();
-        $this->assertSame(['C', 'A', 'B'], $this->kolejnosc());
+        $poDrugiejKarcie = $this->kolejnosc();
+        $this->assertSame(['C', 'A', 'B'], $poDrugiejKarcie);
 
         // Pierwsza karta (stara) klika "B wyżej" — nie wolno przesunąć niczego.
         $this->przesun('B', 'wyzej', $staryOdcisk)
             ->assertRedirect()
             ->assertSessionHas('status', fn (string $tekst): bool => str_contains($tekst, 'Nic nie zostało przesunięte'))
             ->assertSessionHas('status_rodzaj', 'blad');
-        $this->assertSame(['C', 'A', 'B'], $this->kolejnosc());
+        $poStarejKarcie = $this->kolejnosc();
+        $this->assertSame(['C', 'A', 'B'], $poStarejKarcie);
 
         // Bez odcisku (własny klient, stary formularz) — też konflikt.
         $this->actingAs($this->halina)->post(
             route('collections.recipes.move', ['collection' => $this->zeszyt, 'pozycja' => $this->przepisy['B']->getKey()]),
             ['kierunek' => 'wyzej'],
         )->assertSessionHas('status_rodzaj', 'blad');
-        $this->assertSame(['C', 'A', 'B'], $this->kolejnosc());
+        $bezOdcisku = $this->kolejnosc();
+        $this->assertSame(['C', 'A', 'B'], $bezOdcisku);
     }
 
     public function test_podwojne_klikniecie_tego_samego_przycisku_przesuwa_tylko_raz(): void

@@ -1958,7 +1958,7 @@ checks = [
      lambda s: replace_once(s, 'href="{{ $adresDruku(false) }}" rel="nofollow" data-drukuj-przepis',
                             'href="{{ route(\'recipes.show\', [\'recipe\' => $recipe->slug, \'druk\' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis')),
     ("Strona przepisu gubi czas kroku (#2484)", DRUK_PORCJE_WIDOK, CZAS_KROKU_STRONA_TEST,
-     lambda s: replace_once(s, '                                    @if($step->timerLabel())\n                                        <p class="m-0">Czas kroku: {{ $step->timerLabel() }}</p>\n                                    @endif\n', '')),
+     lambda s: replace_once(s, '                                        @if($step->timerLabel())\n                                            <p class="m-0">Czas kroku: {{ $step->timerLabel() }}</p>\n                                        @endif\n', '')),
     ("Wydruk zeszytu gubi czas kroku (#2484)", CZAS_KROKU_WIDOK_ZESZYTU, CZAS_KROKU_ZESZYT_TEST,
      lambda s: replace_once(s, '                                    @if($krok->timerLabel())\n                                        <p class="m-0">Czas kroku: {{ $krok->timerLabel() }}</p>\n                                    @endif\n', '')),
     ("Ściągawka do wydruku z pismem poniżej 16 pt (F4)", WYDRUK_CSS, SCIAGAWKA_TEST,
