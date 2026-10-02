@@ -182,7 +182,7 @@ try {
     await karta.goto(`${adres}/login`, { waitUntil: 'domcontentloaded' });
     await karta.fill('input[name="login"]', KONTO);
     await karta.fill('input[name="password"]', HASLO);
-    await karta.click('button[type="submit"]');
+    await karta.click('form[action$="/login"] button[type="submit"]');
     await karta.waitForLoadState('domcontentloaded');
     await karta.close();
   }

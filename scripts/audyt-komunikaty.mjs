@@ -109,7 +109,7 @@ async function stanZalogowanego(przegladarka) {
   await strona.fill('input[name="password"]', HASLO);
   await Promise.all([
     strona.waitForURL((u) => !u.pathname.endsWith('/login'), { timeout: 20000 }),
-    strona.click('button[type="submit"]'),
+    strona.click('form[action$="/login"] button[type=submit]'),
   ]);
   const stan = await kontekst.storageState();
   await kontekst.close();

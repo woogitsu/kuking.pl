@@ -489,7 +489,7 @@ try {
   await s.goto(adres + '/login');
   await s.fill('input[name="login"]', przepisy.konto);
   await s.fill('input[name="password"]', HASLO_KONTA);
-  await Promise.all([s.waitForURL(u => !u.pathname.endsWith('/login')), s.click('button[type="submit"]')]);
+  await Promise.all([s.waitForURL(u => !u.pathname.endsWith('/login')), s.click('form[action$="/login"] button[type="submit"]')]);
   const sesjaAutora = await logowanie.storageState();
   await logowanie.close();
 
