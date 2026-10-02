@@ -89,25 +89,126 @@ class TerminyKulinarneWTrybieGotowaniaTest extends TestCase
             'bezokolicznik' => ['Pasteryzować przetwory.'],
             'rzeczownik' => ['Metoda pasteryzacji zależy od produktu.'],
             'dokonane' => ['Spasteryzuj przetwory.'],
+            'mleko w kroku' => ['Wlej do garnka mleko pasteryzowane.'],
         ];
     }
 
+    /**
+     * Decyzja właściciela z 2.10.2026 (D-333, #2343): hasło „Pasteryzować”
+     * jest usunięte do czasu przeglądu merytorycznego ze źródłem i datą
+     * (#2434). Krok z pasteryzacją albo z „mlekiem pasteryzowanym” nie
+     * pokazuje żadnego objaśnienia.
+     */
     #[DataProvider('odmianaPasteryzacji')]
-    public function test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora(string $instruction): void
+    public function test_krok_z_pasteryzacja_nie_pokazuje_objasnienia_do_czasu_przegladu(string $instruction): void
     {
+        $this->assertSame([], SlownikTerminow::wTekscie($instruction), 'PASTERYZACJA_USUNIETA_DO_PRZEGLADU');
+        $this->assertNotContains('Pasteryzować', array_column(SlownikTerminow::HASLA, 'haslo'), 'PASTERYZACJA_USUNIETA_DO_PRZEGLADU');
+
         $recipe = $this->przepisZKrokiem($instruction);
         $html = (string) $this->get(route('cooking.show', $recipe->slug))->assertOk()->getContent();
 
-        $this->assertSame(1, preg_match('/<details class="cook-terminy".*?<\/details>/s', $html, $block));
-        $this->assertStringContainsString('Pasteryzować', $block[0]);
-        $this->assertStringContainsString('Nie utrwalaj napełnionych słoików w zwykłym piekarniku.', $block[0], 'PASTERYZACJA_BEZ_PIEKARNIKA');
-        $this->assertStringNotContainsString('w gorącej wodzie lub piekarniku', $block[0], 'PASTERYZACJA_BEZ_PIEKARNIKA');
-        $this->assertStringContainsString('przebadanych zaleceń dla konkretnego produktu i składu', $block[0], 'PASTERYZACJA_BEZ_PIEKARNIKA');
-        $this->assertStringContainsString('Sama gorąca woda nie wystarcza dla wszystkich przetworów.', $block[0], 'PASTERYZACJA_BEZ_PIEKARNIKA');
-        $this->assertStringNotContainsString('Temperaturę i czas podaje autor przepisu', $block[0], 'PASTERYZACJA_BEZ_PIEKARNIKA');
-        $this->assertStringContainsString('To objaśnienie słowa, nie ocena bezpieczeństwa przepisu.', $block[0], 'PASTERYZACJA_UWAGA_NIE_GWARANTUJE');
-        $this->assertStringNotContainsString('trzymaj się tego, co napisał autor', $block[0], 'PASTERYZACJA_UWAGA_NIE_GWARANTUJE');
+        $this->assertStringNotContainsString('cook-terminy', $html, 'PASTERYZACJA_USUNIETA_DO_PRZEGLADU');
         $this->assertStringContainsString($instruction, $html, 'Treść przepisu użytkownika ma pozostać bez zmian.');
+    }
+
+    public function test_uwaga_pod_objasnieniami_nie_obiecuje_oceny_bezpieczenstwa_ani_parametrow_autora(): void
+    {
+        $recipe = $this->przepisZKrokiem('Zahartuj śmietanę.');
+        $html = (string) $this->get(route('cooking.show', $recipe->slug))->assertOk()->getContent();
+
+        $this->assertSame(1, preg_match('/<details class="cook-terminy".*?<\/details>/s', $html, $block));
+        $this->assertStringContainsString('To objaśnienie słowa, nie ocena bezpieczeństwa przepisu.', $block[0], 'PASTERYZACJA_UWAGA_NIE_GWARANTUJE');
+        $this->assertStringContainsString('Przy przetworach korzystaj z przebadanych zaleceń dla konkretnego produktu.', $block[0], 'PASTERYZACJA_UWAGA_NIE_GWARANTUJE');
+        $this->assertStringNotContainsString('trzymaj się tego, co napisał autor', $block[0], 'PASTERYZACJA_UWAGA_NIE_GWARANTUJE');
+    }
+
+    private function wyjasnienie(string $haslo): string
+    {
+        foreach (SlownikTerminow::HASLA as $wpis) {
+            if ($wpis['haslo'] === $haslo) {
+                return $wpis['wyjasnienie'];
+            }
+        }
+
+        $this->fail("Brak hasła „{$haslo}” w słowniku.");
+    }
+
+    /**
+     * Decyzje właściciela z 2.10.2026 (D-333, #2343): marynowanie mięsa
+     * i ryby w lodówce, jajka w deserach niepieczonych, dłuższe ostrzeżenie
+     * przy flambirowaniu.
+     */
+    public function test_objasnienia_maja_ostrzezenia_z_decyzji_wlasciciela(): void
+    {
+        $this->assertStringContainsString('na kilka godzin lub na noc, mięso i rybę w lodówce.', $this->wyjasnienie('Marynować'), 'SLOWNIK_MARYNOWANIE_W_LODOWCE');
+        $this->assertStringContainsString('W deserach, których się nie piecze, używaj jajek pasteryzowanych albo z pewnego źródła.', $this->wyjasnienie('Sztywna piana'), 'SLOWNIK_PIANA_JAJKA');
+        $flambir = $this->wyjasnienie('Flambirować');
+        foreach (['wyłącz okap i wentylator nad płytą', 'odsuń ręczniki i zasłony', 'nie rób tego przy dzieciach', 'Odsuń twarz', 'trzymaj pod ręką przykrywkę'] as $ostrzezenie) {
+            $this->assertStringContainsString($ostrzezenie, $flambir, 'SLOWNIK_FLAMBIR_OSTRZEZENIE');
+        }
+    }
+
+    /**
+     * Decyzja właściciela z 2.10.2026 (D-333): „sparzyć się” i „oparzyć” to
+     * oparzenie, nie technika; „zaprawić ogórki” i „zaprawiać słoiki” to
+     * przetwory, nie zupa.
+     *
+     * @return array<string, array{0: string, 1: list<string>}>
+     */
+    public static function rdzenieZInnymZnaczeniem(): array
+    {
+        return [
+            'sparz pomidory' => ['Sparz pomidory i obierz ze skórki.', ['Sparzyć']],
+            'sparzone pomidory' => ['Sparzone pomidory pokrój w kostkę.', ['Sparzyć']],
+            'migdały sparzyć' => ['Migdały sparzyć wrzątkiem.', ['Sparzyć']],
+            'sparzyć się' => ['Uważaj, żeby się nie sparzyć parą.', []],
+            'sparz się' => ['Nie sparz się przy odcedzaniu.', []],
+            'oparzyć' => ['Gorący garnek może oparzyć dłonie.', []],
+            'zaprawić zupę' => ['Zaprawić zupę śmietaną.', ['Zaprawić zupę']],
+            'zupę zaprawić' => ['Zupę zaprawić mąką rozmieszaną z wodą.', ['Zaprawić zupę']],
+            'zapraw sos' => ['Zapraw sos śmietaną.', ['Zaprawić zupę']],
+            'zaprawić ogórki' => ['Zaprawić ogórki w słoikach.', []],
+            'zaprawiać słoiki' => ['Zaprawiać słoiki wieczorem.', []],
+        ];
+    }
+
+    /** @param list<string> $oczekiwane */
+    #[DataProvider('rdzenieZInnymZnaczeniem')]
+    public function test_rdzenie_nie_lapia_oparzenia_ani_przetworow(string $tekst, array $oczekiwane): void
+    {
+        $this->assertSame($oczekiwane, array_column(SlownikTerminow::wTekscie($tekst), 'haslo'), 'SLOWNIK_RDZEN_INNE_ZNACZENIE');
+    }
+
+    /**
+     * Decyzja właściciela z 2.10.2026 (D-333): karmel z cukru i cebula
+     * karmelizowana to dwa hasła; ostrzeżenie o oparzeniu ma tylko karmel.
+     *
+     * @return array<string, array{0: string, 1: list<string>}>
+     */
+    public static function karmelizowanie(): array
+    {
+        return [
+            'skarmelizuj cebulę' => ['Skarmelizuj cebulę na maśle.', ['Cebula karmelizowana']],
+            'cebulę karmelizuj' => ['Cebulę karmelizuj przez 20 minut.', ['Cebula karmelizowana']],
+            'karmelizowana cebula' => ['Dodaj karmelizowaną cebulę.', ['Cebula karmelizowana']],
+            'karmelizuj cukier' => ['Karmelizuj cukier na złoty kolor.', ['Karmel z cukru']],
+            'skarmelizuj cukier' => ['Skarmelizuj cukier w rondlu.', ['Karmel z cukru']],
+            'polej karmelem' => ['Polej deser karmelem.', ['Karmel z cukru']],
+        ];
+    }
+
+    /** @param list<string> $oczekiwane */
+    #[DataProvider('karmelizowanie')]
+    public function test_karmel_z_cukru_i_cebula_karmelizowana_to_osobne_hasla(string $tekst, array $oczekiwane): void
+    {
+        $this->assertSame($oczekiwane, array_column(SlownikTerminow::wTekscie($tekst), 'haslo'), 'SLOWNIK_KARMEL_ROZDZIELONY');
+    }
+
+    public function test_ostrzezenie_o_oparzeniu_ma_tylko_karmel_z_cukru(): void
+    {
+        $this->assertStringContainsString('mocno oparza', $this->wyjasnienie('Karmel z cukru'), 'SLOWNIK_KARMEL_ROZDZIELONY');
+        $this->assertStringNotContainsString('oparza', $this->wyjasnienie('Cebula karmelizowana'), 'SLOWNIK_KARMEL_ROZDZIELONY');
     }
 
     public function test_slownik_ma_poprawna_budowe_i_zasady_tekstow(): void

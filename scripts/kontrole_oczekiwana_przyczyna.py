@@ -91,7 +91,11 @@ OCZEKUJ = {
     'Historia ignoruje wybór Bez ilości (#2449)': r'HISTORIA_BEZ_ILOSCI_ZMIANA',
     'Historia zgaduje wybór w starej migawce (#2449)': r'HISTORIA_BEZ_ILOSCI_BRAK_DANYCH',
     'Grupowanie tysięcy rozbite na fragmenty (#2455)': r'GRUPOWANIE_TYSIECY_WYNIK',
-    'Pasteryzacja znów zaleca piekarnik (#2434)': r'PASTERYZACJA_BEZ_PIEKARNIKA',
+    'Pasteryzacja wraca do słownika bez przeglądu (#2434)': r'PASTERYZACJA_USUNIETA_DO_PRZEGLADU',
+    'Sparzyć znów łapie oparzenie (#2343)': r'SLOWNIK_RDZEN_INNE_ZNACZENIE',
+    'Zaprawić zupę znów łapie przetwory (#2343)': r'SLOWNIK_RDZEN_INNE_ZNACZENIE',
+    'Karmelizowana cebula trafia w karmel z cukru (#2343)': r'SLOWNIK_KARMEL_ROZDZIELONY',
+    'Marynowanie bez lodówki (#2343)': r'SLOWNIK_MARYNOWANIE_W_LODOWCE',
     'Uwaga słownika gwarantuje parametry autora (#2434)': r'PASTERYZACJA_UWAGA_NIE_GWARANTUJE',
     # Paczka V: kontrole dodatnie trzech strażników tekstu.
     'Pasek przy kolumnowym znaku znowu przypięty': r'Przy progu układu kolumnowego znaku pasek ma przestać być przypięty\.',

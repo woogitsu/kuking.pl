@@ -1,6 +1,20 @@
 # Objaśnienie pasteryzacji — poprawka #2434
 
-## Błąd i zakres
+## Stan od 2.10.2026: hasło usunięte
+
+Decyzją właściciela z 2.10.2026 (wiersz #2343 w D-333) hasła „Pasteryzować”
+**nie ma w słowniku** do czasu przeglądu merytorycznego z jawnie zapisanym
+źródłem i datą. Krok z „pasteryzować” albo z „mlekiem pasteryzowanym” nie
+pokazuje żadnego objaśnienia. Pilnuje tego
+`TerminyKulinarneWTrybieGotowaniaTest::test_krok_z_pasteryzacja_nie_pokazuje_objasnienia_do_czasu_przegladu`
+(marker `PASTERYZACJA_USUNIETA_DO_PRZEGLADU`), a kontrola ujemna
+„Pasteryzacja wraca do słownika bez przeglądu (#2434)” dopisuje hasło
+z powrotem. Uwaga pod słownikiem zostaje bez zmian
+(`test_uwaga_pod_objasnieniami_nie_obiecuje_oceny_bezpieczenstwa_ani_parametrow_autora`,
+marker `PASTERYZACJA_UWAGA_NIE_GWARANTUJE`). Niżej opis poprawki z 1.10.2026,
+zostawiony jako historia.
+
+## Błąd i zakres (1.10.2026)
 
 Przegląd z 1.10.2026 wykazał, że hasło „Pasteryzować” polecało zwykły
 piekarnik i uznawało parametry dowolnego autora przepisu za wystarczające.

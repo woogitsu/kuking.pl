@@ -24,7 +24,11 @@ namespace App\Domain\Recipes\Gotowanie;
  * w mianowniku), `rdzenie` (początki słów, liczone od granicy słowa — łapią
  * odmianę: „zasmaż” trafi w „zasmażkę”, „zasmażyć” i „zasmażce”),
  * `wyjasnienie` (do {@see self::MAKS_DLUGOSC_WYJASNIENIA} znaków, bez rodzaju
- * gramatycznego wobec czytającego). Rdzeń ma być na tyle długi, żeby nie łapać
+ * gramatycznego wobec czytającego). Gwiazdka w rdzeniu zastępuje resztę słowa
+ * („sparz* pomidor” trafi w „sparz pomidory” i „sparzone pomidory”) — tak
+ * zawężamy hasła, których samo słowo ma też inne znaczenie: „sparzyć się”
+ * to oparzenie, a „zaprawić ogórki” to przetwory (decyzja właściciela
+ * z 2.10.2026, D-333). Rdzeń ma być na tyle długi, żeby nie łapać
  * innych słów („zważ” to także „zważ mąkę”, więc „zważyć się” jest poza
  * słownikiem). Pilnuje tego `SlownikTerminowTest`.
  */
@@ -64,7 +68,7 @@ final class SlownikTerminow
         [
             'haslo' => 'Flambirować',
             'rdzenie' => ['flambuj', 'flambir', 'flambow'],
-            'wyjasnienie' => 'Polać potrawę mocnym alkoholem i krótko podpalić, żeby alkohol się spalił. To otwarty ogień: odsuń twarz, nie lej alkoholu wprost z butelki nad patelnią i trzymaj pod ręką przykrywkę.',
+            'wyjasnienie' => 'Polać potrawę mocnym alkoholem i krótko podpalić, żeby alkohol się spalił. To otwarty ogień: wyłącz okap i wentylator nad płytą, odsuń ręczniki i zasłony, nie rób tego przy dzieciach. Odsuń twarz, nie lej alkoholu z butelki nad patelnią i trzymaj pod ręką przykrywkę.',
         ],
         [
             'haslo' => 'Hartowanie',
@@ -72,14 +76,19 @@ final class SlownikTerminow
             'wyjasnienie' => 'Powolne ocieplanie zimnego składnika, na przykład śmietany albo jajek: dodajesz do niego po łyżce gorącego płynu z garnka i mieszasz. Dzięki temu po wlaniu do całości nie zważy się ani nie zetnie.',
         ],
         [
-            'haslo' => 'Karmelizować',
-            'rdzenie' => ['karmeliz'],
-            'wyjasnienie' => 'Podgrzewać cukier albo cebulę, aż zbrązowieje i nabierze słodkiego, lekko palonego smaku. Gorący karmel mocno oparza, więc uważaj na rozpryski.',
+            'haslo' => 'Karmel z cukru',
+            'rdzenie' => ['karmeliz* cuk', 'skarmeliz* cuk', 'cuk* karmeliz', 'cuk* skarmeliz', 'karmel* z cuk', 'karmelu', 'karmelem'],
+            'wyjasnienie' => 'Cukier podgrzewany w rondlu, aż się roztopi i zbrązowieje do koloru bursztynu. Gorący karmel jest dużo gorętszy od wrzątku i mocno oparza: nie dotykaj go i nie próbuj palcem, a płyn dolewaj powoli, bo pryska.',
+        ],
+        [
+            'haslo' => 'Cebula karmelizowana',
+            'rdzenie' => ['karmeliz* cebul', 'skarmeliz* cebul', 'cebul* karmeliz', 'cebul* skarmeliz'],
+            'wyjasnienie' => 'Cebula smażona powoli na małym ogniu, czasem z odrobiną cukru, aż zmięknie, zbrązowieje i zrobi się słodka. Trwa to zwykle od kilkunastu minut do pół godziny. Mieszaj od czasu do czasu, żeby się nie przypaliła.',
         ],
         [
             'haslo' => 'Marynować',
             'rdzenie' => ['marynu', 'marynow', 'zamarynuj'],
-            'wyjasnienie' => 'Zostawić mięso, rybę lub warzywa w przyprawionym płynie albo oleju na kilka godzin lub na noc. Składniki robią się bardziej aromatyczne, a mięso kruchsze.',
+            'wyjasnienie' => 'Zostawić mięso, rybę lub warzywa w przyprawionym płynie albo oleju na kilka godzin lub na noc, mięso i rybę w lodówce. Składniki robią się bardziej aromatyczne, a mięso kruchsze.',
         ],
         [
             'haslo' => 'Obtoczyć',
@@ -90,11 +99,6 @@ final class SlownikTerminow
             'haslo' => 'Panierować',
             'rdzenie' => ['panier', 'spanier'],
             'wyjasnienie' => 'Obtoczyć kolejno w mące, rozbitym jajku i bułce tartej, a dopiero potem smażyć. Panierka tworzy chrupiącą skorupkę, a w środku mięso zostaje soczyste.',
-        ],
-        [
-            'haslo' => 'Pasteryzować',
-            'rdzenie' => ['pasteryz', 'spasteryz'],
-            'wyjasnienie' => 'Ogrzewać przetwory, by ograniczyć drobnoustroje. Metodę, czas i temperaturę dobierz z przebadanych zaleceń dla konkretnego produktu i składu. Nie utrwalaj napełnionych słoików w zwykłym piekarniku. Sama gorąca woda nie wystarcza dla wszystkich przetworów.',
         ],
         [
             'haslo' => 'Podpiec',
@@ -118,13 +122,16 @@ final class SlownikTerminow
         ],
         [
             'haslo' => 'Sparzyć',
-            'rdzenie' => ['sparz'],
+            'rdzenie' => [
+                'sparz* pomidor', 'sparz* brzoskwin', 'sparz* morel', 'sparz* migdał', 'sparz* kapust', 'sparz* liść', 'sparz* liści', 'sparz* warzyw', 'sparz* owoc', 'sparz* wrzątk',
+                'pomidor* sparz', 'brzoskwin* sparz', 'migdał* sparz', 'kapust* sparz', 'warzyw* sparz', 'owoc* sparz', 'wrzątk* sparz',
+            ],
             'wyjasnienie' => 'Zalać wrzątkiem na krótką chwilę, a potem odlać. Tak robi się na przykład z pomidorami, żeby łatwo zeszła z nich skórka.',
         ],
         [
             'haslo' => 'Sztywna piana',
             'rdzenie' => ['sztywna pian', 'sztywną pian', 'sztywnej pian', 'sztywnych pian', 'na sztywno'],
-            'wyjasnienie' => 'Ubijać, aż piana trzyma kształt i nie spływa, gdy odwrócisz miskę do góry dnem. Naczynie i trzepaczka mają być suche i czyste, a w białku nie może być nawet odrobiny żółtka.',
+            'wyjasnienie' => 'Ubijać, aż piana trzyma kształt i nie spływa, gdy odwrócisz miskę do góry dnem. Naczynie i trzepaczka mają być suche i czyste, a w białku nie może być nawet odrobiny żółtka. W deserach, których się nie piecze, używaj jajek pasteryzowanych albo z pewnego źródła.',
         ],
         [
             'haslo' => 'Szumowiny',
@@ -148,7 +155,10 @@ final class SlownikTerminow
         ],
         [
             'haslo' => 'Zaprawić zupę',
-            'rdzenie' => ['zaprawi', 'zaprawia'],
+            'rdzenie' => [
+                'zapraw* zup', 'zapraw* sos', 'zapraw* barszcz', 'zapraw* żur', 'zapraw* śmietan', 'zapraw* mąk',
+                'zup* zapraw', 'sos* zapraw', 'barszcz* zapraw', 'żur* zapraw',
+            ],
             'wyjasnienie' => 'Dodać do gorącej zupy lub sosu śmietanę albo mąkę rozmieszaną z zimnym płynem, żeby go zagęścić i wzbogacić. Śmietanę najpierw zahartuj, wtedy zupa się nie zważy.',
         ],
         [
@@ -177,7 +187,7 @@ final class SlownikTerminow
         foreach (self::HASLA as $indeks => $haslo) {
             $pozycja = null;
             foreach ($haslo['rdzenie'] as $rdzen) {
-                $wzor = '/(?<![\p{L}\p{N}])'.preg_quote($rdzen, '/').'/u';
+                $wzor = '/(?<![\p{L}\p{N}])'.str_replace('\\*', '\p{L}*', preg_quote($rdzen, '/')).'/u';
                 if (preg_match($wzor, $male, $wynik, PREG_OFFSET_CAPTURE) === 1) {
                     $miejsce = (int) $wynik[0][1];
                     $pozycja = $pozycja === null ? $miejsce : min($pozycja, $miejsce);

@@ -1603,10 +1603,21 @@ checks = [
     # Data provider wymaga prawidłowego wyniku także dla NBSP i zakresów.
     ("Grupowanie tysięcy rozbite na fragmenty (#2455)", "app/Domain/Recipes/Porcje/PrzeliczSkladnik.php", "test_grupowanie_tysiecy_przelicza_cala_ilosc",
      lambda s: replace_once(s, "|'.self::GRUPOWANA.'|", "|")),
-    ("Pasteryzacja znów zaleca piekarnik (#2434)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora",
-     lambda s: replace_once(s, "Ogrzewać przetwory, by ograniczyć drobnoustroje. Metodę, czas i temperaturę dobierz z przebadanych zaleceń dla konkretnego produktu i składu. Nie utrwalaj napełnionych słoików w zwykłym piekarniku. Sama gorąca woda nie wystarcza dla wszystkich przetworów.", "Podgrzewać zamknięte słoiki z zawartością w gorącej wodzie lub piekarniku, żeby przetwory dłużej się trzymały. Temperaturę i czas podaje autor przepisu, więc trzymaj się dokładnie jego wskazówek.")),
-    ("Uwaga słownika gwarantuje parametry autora (#2434)", "resources/views/components/terminy-kroku.blade.php", "test_objasnienie_pasteryzacji_nie_poleca_piekarnika_ani_dowolnych_parametrow_autora",
+    # #2343, decyzje właściciela z 2.10.2026: „Pasteryzować” jest poza
+    # słownikiem do przeglądu ze źródłem i datą (#2434); rdzenie nie łapią
+    # oparzenia ani przetworów; karmel z cukru i cebula to dwa hasła.
+    ("Pasteryzacja wraca do słownika bez przeglądu (#2434)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_krok_z_pasteryzacja_nie_pokazuje_objasnienia_do_czasu_przegladu",
+     lambda s: replace_once(s, "        [\n            'haslo' => 'Podpiec',", "        [\n            'haslo' => 'Pasteryzować',\n            'rdzenie' => ['pasteryz', 'spasteryz'],\n            'wyjasnienie' => 'Ogrzewać przetwory, by ograniczyć drobnoustroje.',\n        ],\n        [\n            'haslo' => 'Podpiec',")),
+    ("Uwaga słownika gwarantuje parametry autora (#2434)", "resources/views/components/terminy-kroku.blade.php", "test_uwaga_pod_objasnieniami_nie_obiecuje_oceny_bezpieczenstwa_ani_parametrow_autora",
      lambda s: replace_once(s, "To objaśnienie słowa, nie ocena bezpieczeństwa przepisu. Przy przetworach korzystaj z przebadanych zaleceń dla konkretnego produktu.", "To ogólne wyjaśnienie, nie część przepisu — w razie wątpliwości trzymaj się tego, co napisał autor.")),
+    ("Sparzyć znów łapie oparzenie (#2343)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_rdzenie_nie_lapia_oparzenia_ani_przetworow",
+     lambda s: replace_once(s, "'sparz* pomidor', ", "'sparz', ")),
+    ("Zaprawić zupę znów łapie przetwory (#2343)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_rdzenie_nie_lapia_oparzenia_ani_przetworow",
+     lambda s: replace_once(s, "'zapraw* zup', ", "'zaprawi', ")),
+    ("Karmelizowana cebula trafia w karmel z cukru (#2343)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_karmel_z_cukru_i_cebula_karmelizowana_to_osobne_hasla",
+     lambda s: replace_once(s, "'karmeliz* cuk', 'skarmeliz* cuk', ", "'karmeliz', ")),
+    ("Marynowanie bez lodówki (#2343)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_objasnienia_maja_ostrzezenia_z_decyzji_wlasciciela",
+     lambda s: replace_once(s, "na noc, mięso i rybę w lodówce.", "na noc.")),
     # #2421: w oknie <= 16rem przy tekście 125/140% pasek górny odpina się,
     # bo kolumnowy znak robi go wyższym niż rezerwa nad nim (WCAG 2.4.11).
     ("Pasek przy kolumnowym znaku znowu przypięty", "resources/css/marka-rama.css", "PasekPrzyKolumnowymZnakuTest",
