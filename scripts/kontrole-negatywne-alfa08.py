@@ -2681,6 +2681,12 @@ checks = [
     ("Bramka skraca także push z DRAFT=true (D-333, 2.10.2026)", BRAMKA_SKRYPT, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
      lambda s: replace_once(s, 'if [ "${ZDARZENIE:-}" = "pull_request" ] && [ "${DRAFT:-}" = "true" ]; then',
                             'if [ "${DRAFT:-}" = "true" ]; then')),
+    # #2708 (pyt. 8): runbook odtworzenia kazał wymazać konta DOPIERO po podpięciu
+    # odtworzonej bazy do serwisu — okno, w którym serwis pokazuje wymazane osoby.
+    ("Runbook odtworzenia stosuje rejestr usunięć po podpięciu bazy (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_runbook_kaze_zastosowac_rejestr_usuniec_przed_podpieciem_bazy_do_serwisu",
+     lambda s: replace_once(s, "# 4. NAJPIERW rejestr usunięć",
+                            'railway variables --set "DB_URL=<nowy_DATABASE_URL>"\n# 4. NAJPIERW rejestr usunięć')),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
