@@ -312,21 +312,73 @@ async function sprawdzMutacjeMartwychElementow(strona) {
 }
 
 async function sprawdzMutacjeCiemnejRamy(strona) {
-  const poprzedniStyl = await strona.evaluate(() => document.documentElement.getAttribute('style'));
-  try {
-    await strona.evaluate(() => {
-      document.documentElement.style.setProperty('background-color', '#000', 'important');
-      document.documentElement.style.setProperty('color-scheme', 'dark', 'important');
+  // Zmieniamy tę samą deklarację, która wybiela wydruk. Mutacja inline
+  // nie zmieniła mierzonego tła w CI.
+  const zmieniono = await strona.evaluate(() => {
+    const znajdz = reguly => {
+      for (const regula of reguly) {
+        if (regula.selectorText?.includes('html:has(')
+          && regula.selectorText.includes('.przepis-uklad')
+          && regula.selectorText.includes('.sciagawka')
+          && regula.selectorText.includes('.zeszyt-druk')
+          && regula.style.getPropertyValue('background')) return regula;
+        if (regula.cssRules) {
+          const wewnatrz = znajdz(regula.cssRules);
+          if (wewnatrz) return wewnatrz;
+        }
+      }
+      return null;
+    };
+    const reguly = [...document.styleSheets].flatMap(arkusz => {
+      try { return [...arkusz.cssRules]; } catch { return []; }
     });
+    const regula = znajdz(reguly);
+    if (!regula) return false;
+    window.__drukMutacjaCiemnejRamy = {
+      regula,
+      wartosc: regula.style.getPropertyValue('background'),
+      priorytet: regula.style.getPropertyPriority('background'),
+    };
+    regula.style.setProperty('background', '#000', 'important');
+    return true;
+  });
+  if (!zmieniono) throw new Error('Kontrola ujemna #2600 nie znalazła rzeczywistej reguły białego korzenia wydruku');
+  try {
     const bledy = await bledyKorzeniaDruku(strona);
     if (!bledy.some(blad => blad.includes('tło korzenia wydruku nie jest białe'))) return false;
   } finally {
-    await strona.evaluate(styl => {
-      if (styl === null) document.documentElement.removeAttribute('style');
-      else document.documentElement.setAttribute('style', styl);
-    }, poprzedniStyl);
+    await strona.evaluate(() => {
+      const { regula, wartosc, priorytet } = window.__drukMutacjaCiemnejRamy;
+      regula.style.setProperty('background', wartosc, priorytet);
+      delete window.__drukMutacjaCiemnejRamy;
+    });
   }
   return (await bledyKorzeniaDruku(strona)).length === 0;
+}
+
+async function sprawdzMutacje2600WOsobnejStronie(strona) {
+  // Próba jest osobną stroną tego samego kontekstu: mutacja stylów nie może
+  // zabarwić PDF generowanego chwilę później z głównej strony.
+  const proba = await strona.context().newPage();
+  try {
+    const rozmiar = strona.viewportSize();
+    if (rozmiar) await proba.setViewportSize(rozmiar);
+    const odp = await proba.goto(strona.url(), { waitUntil: 'load' });
+    if (odp.status() !== 200) throw new Error(`Kontrola ujemna #2600: HTTP ${odp.status()}`);
+    const motyw = await strona.evaluate(() => document.documentElement.dataset.theme ?? null);
+    await proba.evaluate(wartosc => {
+      if (wartosc === null) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = wartosc;
+    }, motyw);
+    await proba.emulateMedia({ media: 'print' });
+    if ((await bledyKorzeniaDruku(proba)).length) throw new Error('Kontrola ujemna #2600: nowa strona ma błędny stan bazowy');
+    return {
+      martwe: await sprawdzMutacjeMartwychElementow(proba),
+      korzen: await sprawdzMutacjeCiemnejRamy(proba),
+    };
+  } finally {
+    await proba.close();
+  }
 }
 
 // Kontrola ujemna linku: usunięcie parametru z href musi zostać wykryte.
@@ -499,12 +551,13 @@ try {
           try { await zmierzWybranePorcjeNaKartce(strona, ile, link); } catch (blad) { wynik.bledy.push(blad.message); }
           if (dlugosc === 'dlugi') wynik.bledy.push(...await zmierzCzasKroku(strona));
           if (dlugosc === 'krotki' && ile === 2 && motyw === 'jasny' && kto === 'gosc') {
-            if (await sprawdzMutacjeMartwychElementow(strona)) {
+            const kontrole = await sprawdzMutacje2600WOsobnejStronie(strona);
+            if (kontrole.martwe) {
               console.log('✓ kontrola ujemna #2600: odnośnik i zwijacz wykryte, stan przywrócony');
             } else {
               wynik.bledy.push('kontrola ujemna #2600: martwy odnośnik lub zwijacz nie został wykryty');
             }
-            if (await sprawdzMutacjeCiemnejRamy(strona)) {
+            if (kontrole.korzen) {
               console.log('✓ kontrola ujemna #2600: ciemny korzeń wykryty, stan przywrócony');
             } else {
               wynik.bledy.push('kontrola ujemna #2600: ciemny korzeń kartki nie został wykryty');
