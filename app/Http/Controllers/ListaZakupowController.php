@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Domain\Zakupy\ListaZakupow;
 use App\Models\Recipe;
 use App\Models\ShoppingListItem;
@@ -93,6 +94,9 @@ class ListaZakupowController extends Controller
         }
 
         return view('pages.zakupy.potwierdz', [
+            // Przeliczone porcje (#2489) przechodzą przez ostrzeżenie bez zmian.
+            'porcje' => $this->porcjeZAdresu($request, $recipe),
+            'odcisk' => $this->odciskZAdresu($request),
             'recipe' => $recipe,
             'kiedy' => Czas::data(Carbon::parse($pierwsze), 'j F'),
             'ile' => ShoppingListItem::query()
@@ -100,6 +104,53 @@ class ListaZakupowController extends Controller
                 ->where('recipe_id', $recipe->getKey())
                 ->count(),
         ]);
+    }
+
+    /**
+     * Podgląd „Dodaj składniki na wybraną liczbę porcji” (#2489). GET, bez
+     * zapisu: pokazuje linie autora obok tego, co trafi na listę, i które
+     * linie zostają oryginalne. Zatwierdzenie to POST `storeRecipe` z odciskiem.
+     */
+    public function previewScaled(Request $request, string $recipe, ListaZakupow $lista): View|RedirectResponse
+    {
+        $model = Recipe::where('slug', $recipe)->first();
+        if ($model === null) {
+            return StaryAdresPrzepisu::przekieruj($request, $recipe, 'shopping.recipe.scaled', 'view');
+        }
+        $this->authorize('view', $model);
+
+        $wybor = WyborPorcji::dla($model, $request->query('porcje'));
+
+        // Bez przeliczenia (brak podstawy porcji, zła albo równa autorowi liczba)
+        // nie ma co podglądać: wracamy do przepisu z wyjaśnieniem.
+        if (! $wybor->przeliczone() || $wybor->odrzucone) {
+            return redirect()->route('recipes.show', $model->slug)->with(Komunikat::informacja(
+                'Wybierz na stronie przepisu inną liczbę porcji niż w przepisie, a potem „Dodaj składniki na wybraną liczbę porcji”. Przycisk „Dodaj składniki do listy zakupów” dodaje ilości autora.',
+            ));
+        }
+
+        $podglad = $lista->podgladPorcji($model, $wybor);
+
+        return view('pages.zakupy.porcje-podglad', [
+            'recipe' => $model,
+            'wybor' => $wybor,
+            'porcje' => (string) $wybor->doAdresu((float) $wybor->wybrane),
+            ...$podglad,
+        ]);
+    }
+
+    private function porcjeZAdresu(Request $request, Recipe $recipe): ?string
+    {
+        $wybor = WyborPorcji::dla($recipe, $request->query('porcje'));
+
+        return $wybor->przeliczone() && ! $wybor->odrzucone ? (string) $wybor->doAdresu((float) $wybor->wybrane) : null;
+    }
+
+    private function odciskZAdresu(Request $request): ?string
+    {
+        $odcisk = $request->query('odcisk');
+
+        return is_string($odcisk) && preg_match('/^[0-9a-f]{64}$/', $odcisk) === 1 ? $odcisk : null;
     }
 
     public function storeRecipe(Request $request, Recipe $recipe, ListaZakupow $lista): RedirectResponse
@@ -114,10 +165,29 @@ class ListaZakupowController extends Controller
         $dane = $request->validate([
             'potwierdzam' => ['nullable', 'boolean'],
             'z_planera' => ['nullable', 'boolean'],
+            'porcje' => ['nullable', 'string', 'max:12'],
+            'odcisk' => ['nullable', 'string', 'size:64'],
+        ], [
+            'porcje.max' => 'Nie rozpoznajemy tej liczby porcji. Wybierz ją jeszcze raz na stronie przepisu.',
+            'odcisk.size' => 'Podgląd jest nieaktualny. Otwórz podgląd jeszcze raz.',
         ]);
 
+        // Przeliczone porcje (#2489): liczba musi przejść ten sam `WyborPorcji`
+        // co strona przepisu; zła wartość NIE zapisuje po cichu innych ilości.
+        $porcje = null;
+        if (filled($dane['porcje'] ?? null)) {
+            $wybor = WyborPorcji::dla($recipe, $dane['porcje']);
+            if (! $wybor->przeliczone() || $wybor->odrzucone) {
+                return redirect()->route('recipes.show', $recipe->slug)->with(Komunikat::blad(
+                    'Nie rozpoznajemy tej liczby porcji, więc niczego nie dodaliśmy. Wybierz liczbę porcji jeszcze raz na stronie przepisu.',
+                ));
+            }
+            $porcje = (float) $wybor->wybrane;
+        }
+        $odcisk = $porcje !== null ? ($dane['odcisk'] ?? null) : null;
+
         try {
-            $wynik = $lista->dodajSkladniki($user, $recipe, (bool) ($dane['potwierdzam'] ?? false));
+            $wynik = $lista->dodajSkladniki($user, $recipe, (bool) ($dane['potwierdzam'] ?? false), $porcje, $odcisk);
         } catch (ValidationException $e) {
             // Strona przepisu, planer i ekran „dodać jeszcze raz?” nie mają
             // pola `text` ani podsumowania błędów przy tym przycisku — błąd
@@ -129,10 +199,21 @@ class ListaZakupowController extends Controller
             ));
         }
 
+        if ($wynik['wynik'] === ListaZakupow::WYNIK_ZMIENIONY) {
+            return redirect()->route('shopping.recipe.scaled', [
+                'recipe' => $recipe->slug,
+                'porcje' => $dane['porcje'] ?? null,
+            ])->with(Komunikat::informacja(
+                'Składniki przepisu zmieniły się od chwili podglądu, więc niczego nie dodaliśmy. Sprawdź aktualny podgląd i zatwierdź jeszcze raz.',
+            ));
+        }
+
         if ($wynik['wynik'] === ListaZakupow::WYNIK_JUZ_JEST) {
             return redirect()->route('shopping.recipe.confirm', [
                 'recipe' => $recipe->slug,
                 ...($request->boolean('z_planera') ? ['z_planera' => 1] : []),
+                // Zaakceptowana liczba porcji i podgląd przechodzą przez ostrzeżenie (#2489).
+                ...($porcje !== null ? ['porcje' => $dane['porcje'], 'odcisk' => $odcisk] : []),
             ]);
         }
 
@@ -143,11 +224,17 @@ class ListaZakupowController extends Controller
         }
 
         $ile = $wynik['dodano'];
+        $komunikat = 'Dodane do listy zakupów: '.$ile.' '.Odmiana::rzeczownik($ile, 'składnik', 'składniki', 'składników')
+            .' z przepisu „'.$recipe->title.'”.';
 
-        return redirect()->route('shopping.index')->with(Komunikat::sukces(
-            'Dodane do listy zakupów: '.$ile.' '.Odmiana::rzeczownik($ile, 'składnik', 'składniki', 'składników')
-            .' z przepisu „'.$recipe->title.'”.',
-        ));
+        if ($porcje !== null) {
+            $komunikat .= ' Ilości przeliczone na '.WyborPorcji::etykieta($porcje).': '.$wynik['przeliczono'].'.';
+            if ($wynik['bez_przeliczenia'] > 0) {
+                $komunikat .= ' Bez przeliczenia, takie jak napisał autor: '.$wynik['bez_przeliczenia'].' — sprawdź je samodzielnie.';
+            }
+        }
+
+        return redirect()->route('shopping.index')->with(Komunikat::sukces($komunikat));
     }
 
     public function toggle(Request $request, ShoppingListItem $pozycja, ListaZakupow $lista): RedirectResponse

@@ -1210,6 +1210,7 @@ final class CollectUserExportData
 
             return [
                 'pozycja' => $pozycja->text,
+                'przeliczona_na_porcje' => $pozycja->scaled_servings,
                 'pochodzenie' => $pozycja->source === ShoppingListItem::SOURCE_RECIPE ? 'z_przepisu' : 'reczna',
                 'przepis' => $przepis?->title,
                 'adres_przepisu' => $przepis !== null ? route('recipes.show', $przepis->slug) : null,

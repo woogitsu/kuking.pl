@@ -16,6 +16,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * przepis (`recipe_id`), właściciel (`user_id`), kolejność i stan odhaczenia
  * ustawia akcja domenowa (`ListaZakupow`) jawnym przypisaniem, nigdy żądanie
  * (AGENTS.md §7: pola sterujące i klucze właściciela poza `$fillable`).
+ *
+ * `scaled_servings` (#2489): NULL = dosłowna linia autora albo ręczny wpis;
+ * liczba = ilość w `text` policzył Kuking z linii autora na tyle porcji.
+ * Poza `$fillable`, ustawia wyłącznie `ListaZakupow`. Kolumnę dodaje
+ * migracja surowym SQL-em, którego Larastan nie odczyta — stąd deklaracja.
+ *
+ * @property float|null $scaled_servings
  */
 class ShoppingListItem extends Model
 {
@@ -34,6 +41,7 @@ class ShoppingListItem extends Model
         return [
             'position' => 'integer',
             'checked_at' => 'datetime',
+            'scaled_servings' => 'float',
         ];
     }
 

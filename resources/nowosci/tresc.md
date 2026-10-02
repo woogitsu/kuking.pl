@@ -62,6 +62,10 @@ Zebraliście w zeszycie zupę, pieczeń i deser na niedzielny obiad? Na stronie 
 
 Ten sam przepis na środę dla dwóch osób i na niedzielę dla sześciu? W Planerze przy przepisie jest nieobowiązkowy przycisk „Ustaw porcje”. Wpisujecie liczbę porcji dla danego dnia, a link z Planera otwiera przepis od razu przeliczony na tę liczbę. Pusta wartość usuwa wybór i wracają ilości autora. Widzicie to tylko Wy, a sam przepis autora się nie zmienia.
 
+### Zakupy na wybraną liczbę porcji
+
+Przepis jest na 4 porcje, a gotujecie dla 2 osób? Po wybraniu liczby porcji na stronie przepisu obok zwykłego przycisku jest „Dodaj składniki na 2 porcje do listy zakupów”. Najpierw zobaczycie podgląd: ilości autora obok przeliczonych, a linie, których nie da się przeliczyć („do smaku”, bez ilości), zostają takie, jak napisał autor — wymagają Waszego sprawdzenia. Dopiero po zatwierdzeniu trafiają na listę, z adnotacją, że ilość jest przeliczona. Zwykły przycisk nadal dodaje ilości autora.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.
