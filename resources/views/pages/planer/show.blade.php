@@ -227,6 +227,8 @@
                             </li>
                         @endforeach
                     </ul>
+                    {{-- Powtórzenie zestawu dnia na inną datę (#2494): osobny ekran z podglądem. --}}
+                    <p class="mt-3"><a class="btn btn-secondary" href="{{ route('planer.copyday', ['dzien' => $dataDnia]) }}">Skopiuj ten dzień<span class="visually-hidden">: {{ PlanerTygodnia::nazwaDnia($dzien['dzien']) }}</span></a></p>
                 @endif
 
                 @if(count($dzien['pozycje']) < $wpisowNaDzien)

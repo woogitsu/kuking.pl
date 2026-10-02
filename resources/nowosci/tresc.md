@@ -57,6 +57,16 @@ na dawnym dniu pozycji nie będzie. Jeśli dzień jest już pełny albo ta sama
 pozycja już tam stoi, nic się nie zmieni, a komunikat powie, co zrobić.
 Lista zakupów zostaje taka, jaka była.
 
+### Kopiowanie jednego dnia w Planerze
+
+Niedzielny obiad składa się z zupy, drugiego dania i ciasta, a za dwa tygodnie
+chcecie go powtórzyć? Przy dniu w Planerze jest przycisk „Skopiuj ten dzień”.
+Wybieracie dzień, na który kopiujecie, i najpierw widzicie podgląd: co zostanie
+dodane, co już tam jest i co pominięto, bo przepis jest niedostępny. Dopiero
+„Skopiuj” coś zapisuje. Dzień, z którego kopiujecie, zostaje taki, jaki był,
+a to, co już stoi w dniu docelowym, nie jest zastępowane. Jeśli nowy dzień nie
+mieści całego zestawu, nie kopiujemy nic i podpowiadamy, co zrobić.
+
 ### Przeliczanie miar przy składniku
 
 Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrach, szklankach, łyżkach albo łyżeczkach znajdziecie rozwijany napis „Przelicz”. Po dotknięciu pokazuje to samo w innej jednostce, na przykład 25 dag to 250 g, a pół szklanki to około 125 ml. Przeliczamy tylko wagę na wagę i objętość na objętość — gramów nie zamieniamy na szklanki, bo zależy to od produktu. Przelicznik bierze ilość z wybranej liczby porcji, a tekst przepisu zostaje taki, jak napisał autor.
