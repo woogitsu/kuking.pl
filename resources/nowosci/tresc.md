@@ -93,6 +93,7 @@ skąd pochodziły i z odhaczeniem, które miały — odhaczone wracają odhaczon
 a to, co dopisaliście w międzyczasie, zostaje. Pamiętamy tylko ostatnie
 usunięcie, a po 15 minutach kopia znika. Pytanie przed usunięciem zostaje
 jak było.
+
 ### Prywatny dopisek podczas gotowania
 
 W trybie gotowania jest teraz zwijany obszar „Prywatny dopisek z gotowania
@@ -103,6 +104,7 @@ powiadamia. Trzymamy go 24 godziny od ostatniej zmiany albo do zapisania
 wykonania; można go też usunąć przyciskiem. Gdy później zapiszecie „Ugotowałem”,
 formularz tylko zaproponuje wstawienie dopisku do pola „Coś po swojemu?” —
 nic nie wchodzi tam samo, a to, co już wpisaliście, zostaje nietknięte.
+
 ### Własna liczba porcji przy przepisie
 
 Gotujecie zwykle ten sam rodzinny obiad dla dwojga, choć autor napisał go na
@@ -113,6 +115,7 @@ przyciskiem, a „Pokaż ilości z przepisu” pokaże ilości autora bez kasowa
 ustawienia. Zapisujemy tylko jedną liczbę przy jednym przepisie, tylko wtedy,
 gdy sami o to poprosicie, i widzicie ją tylko Wy. Liczba z adresu strony
 zawsze wygrywa z zapamiętaną.
+
 ### Ile sztuk wychodzi z przepisu
 
 Przy pierogach, bułkach czy ciasteczkach liczy się nie liczba porcji, tylko
