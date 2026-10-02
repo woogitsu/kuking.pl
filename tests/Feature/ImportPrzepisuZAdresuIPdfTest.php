@@ -186,6 +186,44 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
             && ! str_contains(json_encode($r->data()), 'https://przepisy.example.pl/blog'));
     }
 
+    public function test_import_http_nie_przekazuje_zagniezdzonych_komentarzy_do_fragmentow_ani_szkicu(): void
+    {
+        $this->modelTestowy();
+        $autor = $this->user();
+        $html = '<html><body><h1>Sernik domowy</h1><p>1 kg twarogu</p>'
+            .'<div id="comments"><div>Komentarz pierwszy.</div><p>Obcy składnik z komentarza.</p></div>'
+            .'<p>Piecz godzinę.</p></body></html>';
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
+            'https://przepisy.example.pl/blog' => Http::response($html, 200, ['Content-Type' => 'text/html']),
+            'api.openai.com/*' => Http::response($this->odpowiedzModelu(['fragmenty' => [
+                ['do' => 1, 'etykieta' => 'tytul'],
+                ['do' => 2, 'etykieta' => 'skladnik'],
+                ['do' => 3, 'etykieta' => 'krok'],
+            ]])),
+        ]);
+
+        $this->actingAs($autor)->post(route('recipes.import.url.store'), [
+            'adres' => 'https://przepisy.example.pl/blog', 'zgoda_ai' => '1', InformacjaTekstuZrodlaAi::POLE => InformacjaTekstuZrodlaAi::WERSJA,
+        ])->assertRedirect();
+
+        $this->assertSame(1, Recipe::query()->where('author_id', $autor->getKey())->count(), 'IMPORT_2640_HTTP_BEZ_KOMENTARZY');
+        $przepis = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
+        $this->assertSame('Sernik domowy', $przepis->title, 'IMPORT_2640_HTTP_BEZ_KOMENTARZY');
+        $this->assertSame(['1 kg twarogu'], $przepis->ingredients()->pluck('ingredient_text')->all(), 'IMPORT_2640_HTTP_BEZ_KOMENTARZY');
+        $this->assertSame(['Piecz godzinę.'], $przepis->steps()->pluck('instruction')->all(), 'IMPORT_2640_HTTP_BEZ_KOMENTARZY');
+        $this->assertSame(Recipe::STATUS_DRAFT, $przepis->status);
+        $model = Http::recorded()->filter(fn (array $para): bool => str_contains($para[0]->url(), 'openai.com'));
+        $this->assertCount(1, $model, 'IMPORT_2640_HTTP_BEZ_KOMENTARZY');
+        $para = $model->first();
+        $this->assertIsArray($para);
+        $zadanie = $para[0];
+        $this->assertInstanceOf(Request::class, $zadanie);
+        $daneModelu = (string) json_encode($zadanie->data(), JSON_UNESCAPED_UNICODE);
+        $this->assertStringContainsString('Piecz godzinę.', $daneModelu, 'IMPORT_2640_HTTP_BEZ_KOMENTARZY');
+        $this->assertStringNotContainsString('Obcy składnik z komentarza.', $daneModelu, 'IMPORT_2640_HTTP_BEZ_KOMENTARZY');
+    }
+
     public function test_strona_bez_json_ld_przy_wyczerpanym_budzecie_nie_wysyla_modelu(): void
     {
         $this->modelTestowy();

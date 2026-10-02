@@ -1312,6 +1312,16 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    ("Import URL: regex zostawia potomka komentarzy (#2640)",
+     "app/Domain/Import/Url/TekstStrony.php",
+     "ImportParseryTest::test_zagniezdzone_komentarze_znikaja_z_calym_poddrzewem_a_przepis_zostaje",
+     lambda s: replace_once(s, "$html = self::bezKomentarzyCzytelnikow($html);",
+         r"""$html = (string) preg_replace('#<(section|div|ol|ul)\b[^>]*\b(id|class)\s*=\s*["\'][^"\']*\bcomments?\b[^"\']*["\'][^>]*>.*?</\1\s*>#is', "\n", $html);""")),
+    ("Import URL HTTP: regex wysyła komentarz do fragmentów (#2640)",
+     "app/Domain/Import/Url/TekstStrony.php",
+     "ImportPrzepisuZAdresuIPdfTest::test_import_http_nie_przekazuje_zagniezdzonych_komentarzy_do_fragmentow_ani_szkicu",
+     lambda s: replace_once(s, "$html = self::bezKomentarzyCzytelnikow($html);",
+         r"""$html = (string) preg_replace('#<(section|div|ol|ul)\b[^>]*\b(id|class)\s*=\s*["\'][^"\']*\bcomments?\b[^"\']*["\'][^>]*>.*?</\1\s*>#is', "\n", $html);""")),
     ("PDF: ilość dziesiętna staje się numerem listy (#2614)",
      "app/Domain/Import/ParserTekstuPrzepisu.php",
      "ImportParseryTest::test_tekst_pdf_zachowuje_dziesietne_ilosci_a_usuwa_tylko_jednoznaczna_numeracje",

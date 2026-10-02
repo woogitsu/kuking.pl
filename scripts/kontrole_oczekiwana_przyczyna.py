@@ -35,6 +35,8 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Import URL: regex zostawia potomka komentarzy (#2640)': r'IMPORT_2640_CALE_PODDRZEWO',
+    'Import URL HTTP: regex wysyła komentarz do fragmentów (#2640)': r'IMPORT_2640_HTTP_BEZ_KOMENTARZY',
     'PDF: ilość dziesiętna staje się numerem listy (#2614)': r'PDF_2614_ILOSC_DZIESIETNA_NIE_JEST_NUMEREM_LISTY',
     'Identyfikator JSON-LD udaje krok (#2582)': r'JSONLD_ID_KROKU_NIE_JEST_TEKSTEM',
     'ListItem.item nie trafia do szkicu importu (#2570)': r'JSONLD_LISTITEM_ITEM_ZAPISUJE_KROKI',
