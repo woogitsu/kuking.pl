@@ -16,6 +16,8 @@
 
 - Naprawione (#2589): jeśli autor przestawi, zmieni albo usunie krok podczas gotowania, działający minutnik zachowuje pierwotny termin i czas. Nie pokazuje nowej czynności jako tej, dla której został uruchomiony; można go anulować, a alarm nadal zabrzmi. Dotyczy pojedynczego gotowania i kolejki w tej samej karcie.
 - Naprawione (#2605): orientacyjny koszt nie używa ceny kaszy gryczanej dla mąki gryczanej. Gdy brakuje ceny mąki, szacunek uwzględnia ten brak zamiast przedstawiać kwotę za inny produkt.
+- Naprawione (#2607): mąka z ciecierzycy bez własnej pozycji w tabeli wartości odżywczych pozostaje nieznanym składnikiem zamiast udawać mąkę pszenną. Znana masa nadal liczy się do całego przepisu, a pełne aliasy działają jak dotąd.
+- Naprawione (#2563): szacunek wartości odżywczych nie traktuje ugotowanego ryżu lub makaronu jak surowego tylko dlatego, że słownik zna krótszą nazwę. Gdy brakuje zgodnej pozycji, składnik pozostaje nieznany; pełne aliasy produktów gotowanych i neutralne opisy nadal działają.
 - Wewnętrzne (#2598): test dwóch połączeń przy zapisie do zeszytu czeka na właściwą barierę transakcji. Wcześniejsza, obca blokada nie daje fałszywej czerwieni; osobny przeplot i kontrola ujemna sprawdzają ten warunek w CI.
 - Wewnętrzne (#2596): lokalny serwer testu checklisty składników przyjmuje tylko dodatnią liczbę porcji. Nie odbija tekstu z adresu w HTML; test HTTP i kontrola ujemna pilnują tego w CI.
 - Naprawione (#2467): usunięcie produktu z „Co mam w domu” najpierw pokazuje pytanie z jego nazwą. „Anuluj” zamyka je bez kasowania ilości lub terminu, także bez JavaScriptu.
