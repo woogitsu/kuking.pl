@@ -53,6 +53,10 @@
         @if($maksMinut !== null)
             <input type="hidden" name="czas" value="{{ $maksMinut }}">
         @endif
+        @if($obserwowani)
+            {{-- Wybór „Od osób, które obserwuję” (#2440) przeżywa nowe wyszukanie frazy. --}}
+            <input type="hidden" name="obserwowani" value="1">
+        @endif
 
         {{--
             FILTR ALERGENÓW (#1902, D-333) — tylko przy włączonej fladze.
@@ -110,6 +114,9 @@
         // Wybór alergenów zostaje przy zakresach przepisów, tak jak czas.
         $alergenyWAdresie = $bezAlergenow === [] ? [] : ['bez' => $bezAlergenow];
         $nazwyWybranych = \App\Domain\Recipes\Alergeny\Alergen::nazwyZKodow($bezAlergenow);
+        // „Od osób, które obserwuję” (#2440) zostaje przy zakresach przepisów, tak jak czas i alergeny.
+        $obserwowaniWAdresie = $obserwowani ? ['obserwowani' => 1] : [];
+        $czasWAdresie = $maksMinut !== null ? ['czas' => $maksMinut] : [];
     @endphp
     <nav class="chipsy mt-6" aria-label="Co przeszukujemy">
         @foreach([
@@ -122,7 +129,7 @@
                  „Wszystko" i „Ludzie" go gubią, bo ludzie nie mają czasu
                  przygotowania (SearchController, #1997). --}}
             <a class="chip"
-               href="{{ route('search', $bazaZakresu + ['sekcja' => $klucz] + (in_array($klucz, ['przepisy', 'tanie'], true) && $maksMinut !== null ? ['czas' => $maksMinut] : []) + (in_array($klucz, ['przepisy', 'tanie'], true) ? $alergenyWAdresie : [])) }}"
+               href="{{ route('search', $bazaZakresu + ['sekcja' => $klucz] + (in_array($klucz, ['przepisy', 'tanie'], true) && $maksMinut !== null ? ['czas' => $maksMinut] : []) + (in_array($klucz, ['przepisy', 'tanie'], true) ? $alergenyWAdresie + $obserwowaniWAdresie : [])) }}"
                @if($section === $klucz) aria-current="page" @endif>{{ $etykieta }}</a>
         @endforeach
     </nav>
@@ -150,17 +157,43 @@
         <p class="mt-4 mb-0 font-semibold" id="czas-przepisu-etykieta">Ile masz czasu?</p>
         <nav class="chipsy chipsy-czasu" aria-labelledby="czas-przepisu-etykieta">
             <a class="chip"
-               href="{{ route('search', $bazaZakresu + ['sekcja' => $section] + $alergenyWAdresie) }}"
+               href="{{ route('search', $bazaZakresu + ['sekcja' => $section] + $alergenyWAdresie + $obserwowaniWAdresie) }}"
                @if($maksMinut === null) aria-current="page" @endif>Bez limitu czasu</a>
             @foreach($progiCzasu as $minuty => [$etykieta])
                 <a class="chip"
-                   href="{{ route('search', $bazaZakresu + ['sekcja' => $section === 'wszystko' ? 'przepisy' : $section, 'czas' => $minuty] + $alergenyWAdresie) }}"
+                   href="{{ route('search', $bazaZakresu + ['sekcja' => $section === 'wszystko' ? 'przepisy' : $section, 'czas' => $minuty] + $alergenyWAdresie + $obserwowaniWAdresie) }}"
                    @if($maksMinut === $minuty) aria-current="page" @endif>{{ $etykieta }}</a>
             @endforeach
         </nav>
         @if($maksMinut !== null)
             <p class="meta">Liczymy przygotowanie i gotowanie razem. Przepis, przy którym autor nie podał czasu, tu nie trafia.</p>
         @endif
+    @endif
+
+    {{--
+        CZYJE PRZEPISY (#2440, D-275). Jawny wybór zalogowanej osoby, nie dobór
+        przez serwis: tylko zwęża wyniki do przepisów osób, które ona obserwuje
+        (`follows.follower_id` = ona), kolejność zostaje ta sama. Zwykłe odnośniki
+        jak zakresy i czas; w adresie wyłącznie `obserwowani=1`.
+    --}}
+    @auth
+        @if($section !== 'ludzie')
+            <p class="mt-4 mb-0 font-semibold" id="autorzy-przepisu-etykieta">Czyje przepisy?</p>
+            <nav class="chipsy" aria-labelledby="autorzy-przepisu-etykieta">
+                <a class="chip"
+                   href="{{ route('search', $bazaZakresu + ['sekcja' => $section] + $czasWAdresie + $alergenyWAdresie) }}"
+                   @if(! $obserwowani) aria-current="page" @endif>Wszyscy autorzy</a>
+                <a class="chip"
+                   href="{{ route('search', $bazaZakresu + ['sekcja' => $section === 'wszystko' ? 'przepisy' : $section, 'obserwowani' => 1] + $czasWAdresie + $alergenyWAdresie) }}"
+                   @if($obserwowani) aria-current="page" @endif>Od osób, które obserwuję</a>
+            </nav>
+        @endif
+    @endauth
+    @if($obserwowaniGosc)
+        <p class="notice mt-4" role="status">
+            Wybór „Od osób, które obserwuję” działa po zalogowaniu, bo to Twoja lista. Pokazujemy przepisy wszystkich autorów.
+            <a href="{{ route('login') }}">Zaloguj się</a>, jeśli chcesz go użyć.
+        </p>
     @endif
 
     @if($phrase === '')
@@ -214,7 +247,16 @@
                 gotowe brzmienie, nie tylko przykład.
             --}}
             <x-empty-state title="Nic nie znaleźliśmy">
-                @if($bezAlergenow !== [])
+                @if($obserwowani)
+                    {{-- „Od osób, które obserwuję” (#2440): dwa różne powody pustego wyniku
+                         i zawsze droga do wszystkich autorów — wyników nie poszerzamy po cichu. --}}
+                    @if(! $obserwujeKogos)
+                        Nie obserwujesz jeszcze nikogo, więc nie mamy czyich przepisów przeszukać. Obserwuj osoby na ich profilach albo pokaż przepisy wszystkich autorów.
+                    @else
+                        Żadna z osób, które obserwujesz, nie ma przepisu pasującego do „{{ $phrase }}”{{ $maksMinut !== null || $bezAlergenow !== [] ? ' przy wybranych dodatkowych ograniczeniach' : '' }}.
+                        Wpisz krócej albo pokaż przepisy wszystkich autorów.
+                    @endif
+                @elseif($bezAlergenow !== [])
                     {{-- Filtr alergenów (#1902): przepisy niesprawdzone są pominięte,
                          więc „nic" nie znaczy „wszystkie zawierają" — trzeba to powiedzieć. --}}
                     Nie ma przepisów do „{{ $phrase }}”, w których autor zaznaczył brak: {{ $nazwyWybranych }}.
@@ -251,6 +293,12 @@
                 @endif
             </x-empty-state>
 
+            @if($obserwowani)
+                <p class="text-center">
+                    <a class="btn btn-primary" href="{{ route('search', $bazaZakresu + ['sekcja' => $section] + $czasWAdresie + $alergenyWAdresie) }}">Pokaż przepisy wszystkich autorów</a>
+                </p>
+            @endif
+
             {{--
                 Droga dalej, nie ślepy zaułek (SOUL.md 4.11, IMPLEMENTATION_GUIDE
                 etap D). Kto szuka przepisu — może go dodać. Każdy, niezależnie
@@ -281,6 +329,13 @@
 
         @if($szukaPrzepisow && $recipes->isNotEmpty())
             <h2 class="mt-6">{{ $maksMinut !== null ? $progiCzasu[$maksMinut][0] : 'Przepisy' }}</h2>
+
+            @if($obserwowani)
+                <p class="meta" role="note">
+                    Pokazujemy tylko przepisy osób, które obserwujesz.
+                    <a href="{{ route('search', $bazaZakresu + ['sekcja' => $section] + $czasWAdresie + $alergenyWAdresie) }}">Pokaż przepisy wszystkich autorów</a>
+                </p>
+            @endif
 
             @if($bezAlergenow !== [])
                 <p class="notice" role="note">

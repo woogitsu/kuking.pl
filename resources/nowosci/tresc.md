@@ -42,6 +42,10 @@ Gotujecie zupę i sos naraz, a w kroku sosu trzeba sprawdzić, ile mleka? Na ekr
 
 Zupa i drugie danie zaplanowane na niedzielę? Przy dniu w Planerze zaznaczcie potrawy i naciśnijcie „Dodaj zaznaczone do kolejki”, a przejdziecie od razu do ekranu „Gotuję kilka potraw naraz”. To, co było już w kolejce, zostaje z bieżącym krokiem. Jeśli zaznaczone potrawy nie mieszczą się w czterech miejscach, nic się nie zmienia, a komunikat podpowiada, co odznaczyć.
 
+### Szukaj tylko wśród osób, które obserwujecie
+
+Pamiętacie zupę od osoby, którą obserwujecie, ale nie jej imię? W „Szukaj” jest nowy wybór „Czyje przepisy?”: „Wszyscy autorzy” albo „Od osób, które obserwuję”. Po drugim wyborze pokazujemy tylko przepisy osób z Waszej listy obserwowanych, w tej samej kolejności co zawsze. Nic nie jest ukryte po cichu: gdy nic nie pasuje, mówimy dlaczego i jednym przyciskiem wracacie do wszystkich autorów.
+
 ### Odłóż szkic na później
 
 Macie kilka rozpoczętych przepisów, a pracujecie teraz nad jednym lub dwoma? Na liście „Wszystkie szkice” przy każdym szkicu jest przycisk „Odłóż na później”. Odłożony szkic nie zajmuje skrótów na ekranie „Dodaj”, ale nic z niego nie znika: zostaje cała treść, zdjęcia i adres. Znajdziecie go w zakładce „Odłożone na później” i przyciskiem „Wróć do pracy” przywrócicie go do bieżących. Nic się nie publikuje, nikt nie dostaje powiadomienia, a odłożone szkice widzicie tylko Wy.

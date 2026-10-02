@@ -139,6 +139,18 @@ class SearchController extends Controller
         if ($bezAlergenow !== [] && $section === 'wszystko') {
             $section = 'przepisy';
         }
+        // „OD OSÓB, KTÓRE OBSERWUJĘ” (#2440, D-275): jawny wybór zalogowanej
+        // osoby, w adresie tylko `obserwowani=1` (żadnych identyfikatorów ani
+        // listy osób). Warunek NA PRZEPISY jak czas i alergeny: „Wszystko"
+        // z wyborem staje się „Przepisy", a na „Ludziach" jest pomijany.
+        // Gość nie ma kogo obserwować: wybór nie włącza żadnego zapytania
+        // o konto, a ekran mówi to wprost (`$obserwowaniGosc`).
+        $obserwowaniWAdresie = $request->query('obserwowani') === '1' && $section !== 'ludzie';
+        $obserwowani = $obserwowaniWAdresie && $request->user() !== null;
+        $obserwowaniGosc = $obserwowaniWAdresie && $request->user() === null;
+        if ($obserwowani && $section === 'wszystko') {
+            $section = 'przepisy';
+        }
         // „Do 20 zł" to przepisy z kosztem wg autora (D-286).
         $maksKosztZl = $section === 'tanie' ? KosztPrzepisu::TANIE_DO : null;
         $szukaPrzepisow = in_array($section, ['wszystko', 'przepisy', 'tanie'], true);
@@ -178,6 +190,7 @@ class SearchController extends Controller
         $poOsobie = $odOsoby > 0 ? $this->kursor($request, 'po_osobie') : null;
         $parametry = array_filter(['q' => $phrase, 'sekcja' => $section, 'czas' => $maksMinut,
             'bez' => $bezAlergenow === [] ? null : $bezAlergenow,
+            'obserwowani' => $obserwowani ? 1 : null,
             'ile_przepisow' => $ilePrzepisow, 'ile_osob' => $ileOsob,
             'od_przepisu' => $odPrzepisu, 'od_osoby' => $odOsoby,
             'po_przepisie' => $poPrzepisie, 'po_osobie' => $poOsobie], fn ($v) => $v !== null);
@@ -201,7 +214,7 @@ class SearchController extends Controller
         $przepisy = $szukaPrzepisow && $searchErrors->isEmpty()
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
             // (issue #41). Bez niego blokada kończyła się na widoku i liście.
-            ? $this->search->recipes($phrase, $request->user(), $ilePrzepisow + 1, $maksMinut, $odPrzepisu, $maksKosztZl, $poPrzepisie, $bezAlergenow)
+            ? $this->search->recipes($phrase, $request->user(), $ilePrzepisow + 1, $maksMinut, $odPrzepisu, $maksKosztZl, $poPrzepisie, $bezAlergenow, $obserwowani)
             : collect();
 
         // Zakładka „Ludzie" liczy się DOKŁADNIE TAK SAMO, a nie „przy okazji".
@@ -286,6 +299,11 @@ class SearchController extends Controller
             'czasNieznany' => $czasNieznany,
             'bezAlergenow' => $bezAlergenow,
             'bezNieznane' => $bezNieznane,
+            'obserwowani' => $obserwowani,
+            'obserwowaniGosc' => $obserwowaniGosc,
+            // Do pustego stanu: czy to widz w ogóle kogoś obserwuje. Jedno
+            // proste `EXISTS`, tylko gdy wybór jest aktywny i nic nie znaleziono.
+            'obserwujeKogos' => $obserwowani && $przepisy->isEmpty() && $request->user()->following()->exists(),
             'zaKrotka' => $zaKrotka,
             'szukaPrzepisow' => $szukaPrzepisow,
             'szukaLudzi' => $szukaLudzi,
