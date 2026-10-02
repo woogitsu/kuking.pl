@@ -1312,6 +1312,9 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    ("HTTP import paczki nie pilnuje budżetu struktury (#2611)", "app/Domain/Users/Import/PodgladPaczkiEksportu.php",
+     "test_paczka_tuz_ponad_budzetem_struktury_jest_odrzucona_przez_http_bez_poczekalni",
+     lambda s: replace_once(s, 'if ($kontenery > self::MAX_KONTENEROW_JSON) {', 'if ($kontenery > self::MAX_KONTENEROW_JSON + 1) {')),
     # #2611: wyłączenie preflightu musi oblać izolowane procesy PHP 256M
     # konkretną odmową (w starym kodzie kończyły się fatalem), a nie bazę CI.
     ("Paczka JSON bez budżetu struktury (#2611)", "app/Domain/Users/Import/PodgladPaczkiEksportu.php",

@@ -142,7 +142,7 @@ class WczytanieDanychEkranTest extends TestCase
         $this->assertStringContainsString('memory_limit=256M', (string) file_get_contents(base_path('docker/php.ini')));
     }
 
-    public function test_plaska_bomba_json_w_zip_jest_odrzucona_bez_poczekalni_i_rezerwacji(): void
+    public function test_paczka_tuz_ponad_budzetem_struktury_jest_odrzucona_przez_http_bez_poczekalni(): void
     {
         $sciezka = tempnam(sys_get_temp_dir(), 'kuking-budzet-');
         $this->assertIsString($sciezka);
@@ -150,20 +150,27 @@ class WczytanieDanychEkranTest extends TestCase
 
         $zip = new ZipArchive;
         $this->assertTrue($zip->open($sciezka, ZipArchive::OVERWRITE | ZipArchive::CREATE) === true);
+        // 6 kontenerów nagłówka i 149 995 małych obiektów = dokładnie
+        // jeden ponad budżetem. Mutacja progu o jeden nie wyczerpie PHPUnit.
         $json = '{"o_tym_pliku":{"serwis":"Kuking.pl","wersja_formatu":1},"przepisy":[],"wpisy":[],"kolekcje":[],"extra":['
-            .str_repeat('{"a":0},', 799_999).'{"a":0}]}';
+            .str_repeat('{"a":0},', 149_994).'{"a":0}]}';
         $this->assertLessThan(PodgladPaczkiEksportu::MAX_DANE_BAJTOW, strlen($json));
         $zip->addFromString('dane.json', $json);
         $this->assertTrue($zip->close());
         unset($json);
 
-        $this->actingAs($this->user('zenek'))
+        $odpowiedz = $this->actingAs($this->user('zenek'))
             ->from(route('settings.data.import'))
             ->post(route('settings.data.import.check'), [
                 'plik' => new UploadedFile($sciezka, 'paczka.zip', 'application/zip', null, true),
-            ])
-            ->assertRedirect(route('settings.data.import'))
-            ->assertSessionHasErrors(['plik' => 'Ta paczka ma zbyt wiele drobnych części, żeby bezpiecznie ją wczytać. Pobierz paczkę z Kuking jeszcze raz. Jeśli problem się powtórzy, napisz do nas przez formularz kontaktowy.']);
+            ]);
+
+        $this->assertSame(
+            'Ta paczka ma zbyt wiele drobnych części, żeby bezpiecznie ją wczytać. Pobierz paczkę z Kuking jeszcze raz. Jeśli problem się powtórzy, napisz do nas przez formularz kontaktowy.',
+            $odpowiedz->getSession()->get('errors')?->first('plik'),
+            'BUDZET_2611_HTTP_ODMOWA: nadmierna struktura musi odmówić przed zapisem podglądu.',
+        );
+        $odpowiedz->assertRedirect(route('settings.data.import'));
 
         $this->assertSame([], Storage::disk('local')->allFiles('import-paczek'));
         $this->assertSame(0, WczytanaZPaczki::query()->count());

@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    "HTTP import paczki nie pilnuje budżetu struktury (#2611)": r'BUDZET_2611_HTTP_ODMOWA',
     "Paczka JSON bez budżetu struktury (#2611)": r'BUDZET_2611_ODMOWA_BEZ_FATALA',
     "Spiżarnia usuwa bez pytania (#2467)": r'SPIZARNIA_2467_USUNIECIE_WYMAGA_PYTANIA',
     'Planer usuwa bez pytania (#2468)': r'PLANER_2468_PIERWSZY_KLIK_BEZ_DELETE',
