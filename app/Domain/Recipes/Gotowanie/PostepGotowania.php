@@ -40,8 +40,9 @@ use Illuminate\Support\Str;
  * NULL = z przepisu) i składniki „przygotowane” (`prepared_ingredient_ids`).
  * Składniki zapisuje się RÓŻNICĄ („było na ekranie” → „jest”), nie całą
  * listą, więc dwa urządzenia zaznaczające różne składniki nic sobie nie
- * gubią; porcje to jedna wartość, wygrywa ostatni zapis. Minutników tu nie
- * ma — patrz `docs/DATABASE.md`.
+ * gubią, o ile odmierzały dla tej samej liczby porcji; zmiana porcji
+ * unieważnia te odhaczenia (#2502). Porcje to jedna wartość, wygrywa
+ * ostatni zapis. Minutników tu nie ma — patrz `docs/DATABASE.md`.
  */
 class PostepGotowania
 {
@@ -89,6 +90,7 @@ class PostepGotowania
                 'servings' => $porcje,
                 'prepared_ingredient_ids' => '[]',
                 'revision' => 1,
+                'servings_revision' => 1,
                 'expires_at' => $teraz->copy()->addHours($this->godziny()),
                 'created_at' => $teraz,
                 'updated_at' => $teraz,
@@ -115,6 +117,7 @@ class PostepGotowania
                     'done_step_ids' => $seed,
                     'servings' => $porcje,
                     'prepared_ingredient_ids' => [],
+                    'servings_revision' => $wiersz->servings_revision + 1,
                 ]);
             }
 
@@ -187,17 +190,30 @@ class PostepGotowania
      * @param  list<string>  $dodaj
      * @param  list<string>  $usun
      * @param  list<string>  $idSkladnikowPrzepisu
+     * @param  ?float  $porcjeNaStronie  null = ilość z przepisu
+     * @param  ?float  $porcjeZKontaNaStronie  zapisana ilość z chwili otwarcia formularza
      */
-    public function ustawSkladniki(CookingProgress $postep, array $dodaj, array $usun, array $idSkladnikowPrzepisu): ?CookingProgress
+    public function ustawSkladniki(CookingProgress $postep, array $dodaj, array $usun, array $idSkladnikowPrzepisu, ?float $porcjeNaStronie, ?float $porcjeZKontaNaStronie, int $widzianaRewizjaPorcji, string $widzianyPostepId): ?CookingProgress
     {
-        return DB::transaction(function () use ($postep, $dodaj, $usun, $idSkladnikowPrzepisu): ?CookingProgress {
+        return DB::transaction(function () use ($postep, $dodaj, $usun, $idSkladnikowPrzepisu, $porcjeNaStronie, $porcjeZKontaNaStronie, $widzianaRewizjaPorcji, $widzianyPostepId): ?CookingProgress {
             $wiersz = $this->zablokuj($postep);
 
             if ($wiersz === null) {
                 return null;
             }
 
-            $obecne = $this->przygotowane($wiersz, $idSkladnikowPrzepisu);
+            // Kontrola pod tym samym lockiem co zapis: formularz z drugiego
+            // urządzenia nie może ponownie oznaczyć dawnych ilości po zmianie
+            // porcji. Zmiana kroku nie przeszkadza, bo porównujemy porcje,
+            // nie ogólną rewizję postępu.
+            if ($wiersz->getKey() !== $widzianyPostepId || $this->porcje($wiersz) !== $porcjeZKontaNaStronie || $wiersz->servings_revision !== $widzianaRewizjaPorcji) {
+                throw new NieaktualnePorcjeSkladnikow;
+            }
+
+            $nowePorcje = $this->porcjeDoZapisu($porcjeNaStronie);
+            $zmianaPorcji = $nowePorcje !== $this->porcje($wiersz);
+
+            $obecne = $zmianaPorcji ? [] : $this->przygotowane($wiersz, $idSkladnikowPrzepisu);
             $usun = array_values(array_diff($usun, $dodaj));
             $nowe = $this->przytnij(
                 [...array_values(array_diff($obecne, $usun)), ...$dodaj],
@@ -207,11 +223,15 @@ class PostepGotowania
 
             $zapisane = $this->przytnij($wiersz->prepared_ingredient_ids, $idSkladnikowPrzepisu, self::MAKS_SKLADNIKOW);
 
-            if ($nowe === $zapisane) {
+            if ($nowe === $zapisane && ! $zmianaPorcji) {
                 return $wiersz;
             }
 
-            $this->zapisz($wiersz, ['prepared_ingredient_ids' => $nowe]);
+            $this->zapisz($wiersz, [
+                'prepared_ingredient_ids' => $nowe,
+                'servings' => $nowePorcje,
+                'servings_revision' => $wiersz->servings_revision + ($zmianaPorcji ? 1 : 0),
+            ]);
 
             return $wiersz;
         });
@@ -237,7 +257,9 @@ class PostepGotowania
                 return $wiersz;
             }
 
-            $this->zapisz($wiersz, ['servings' => $porcje]);
+            // Potwierdzenie odmierzenia dotyczy starej ilości. Czyścimy
+            // wyłącznie checklistę; kroki i minutniki pozostają bez zmian.
+            $this->zapisz($wiersz, ['servings' => $porcje, 'prepared_ingredient_ids' => [], 'servings_revision' => $wiersz->servings_revision + 1]);
 
             return $wiersz;
         });

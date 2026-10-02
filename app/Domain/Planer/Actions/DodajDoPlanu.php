@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Planer\Actions;
 
+use App\Domain\Planer\AktywneKontoPlanu;
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Planer\ZakresDatPlanu;
 use App\Models\MealPlanEntry;
@@ -63,7 +64,7 @@ final class DodajDoPlanu
             // Blokada własnego wiersza konta szereguje dwa równoległe
             // dopisania tej samej osoby — bez niej obie liczyłyby
             // „9 pozycji” i obie by weszły.
-            User::query()->whereKey($user->getKey())->lockForUpdate()->first();
+            AktywneKontoPlanu::podBlokada($user);
 
             $juz = MealPlanEntry::query()
                 ->where('user_id', $user->getKey())

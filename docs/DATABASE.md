@@ -4850,6 +4850,17 @@ razem ze zleceniem. Zlecenie `oczekuje`/`w_toku` bez zmiany od 120 minut (zadani
 zgubione inną drogą) `kuking:odzyskaj-importy` kończy jako `nieudany` /
 `blad_wewnetrzny` — ekran pokazuje „Spróbuj jeszcze raz”.
 
+**Ochrona ręcznej edycji szkicu OCR (#2520).** Świeżo utworzony przez odczyt
+szkic ma `recipes.content_revision = 0`. Udany zapis w `PublishRecipe`, nawet
+samej nazwy, opisu lub liczby porcji, podnosi licznik. `OdczytajPrzepis`
+sprawdza zero przed płatnym żądaniem i ponownie na świeżym wierszu pod blokadą
+przed wpisaniem wyniku. Wyższa rewizja kończy istniejącym kodem
+`szkic_zmieniony`; zapisany tekst autora i zdjęcie zostają. `updated_at`
+nie jest dowodem nietkniętej treści, bo zmieniają go także zapisy techniczne.
+Ponowienie odczytu na ręcznie edytowanym szkicu jest odrzucane przed nowym
+zleceniem. Nie ma nowej kolumny ani migracji; wycofanie kodu przywróciłoby
+ryzyko nadpisania.
+
 **Import z adresu w kolejce (#28).** Zlecenie z `zrodlo = 'url'` powstaje od razu
 po wysłaniu formularza (`ZlecImportZAdresu`: blokada osoby, miejsce w
 `proby_importu`, wiersz zlecenia z `source_url`, zadanie `ImportujPrzepisZAdresu`
@@ -6523,6 +6534,18 @@ pytania. Odmowa i kontrola dodatnia:
 niepotrzebne. **Paczka RODO** wydaje je w sekcji `planer`
 (`InwentarzDanychKonta`).
 
+Kopia tygodnia i zwykłe dopisanie sprawdzają świeży, aktywny stan konta pod
+blokadą jego wiersza `users`. Kopia czyta źródłowe pozycje dopiero pod tą
+blokadą. Dzięki temu równoległe wymazanie nie może zatwierdzić usunięcia
+planu między odczytem a ponownym zapisem prywatnej notatki (#2551).
+Zawieszenie nadal pozwala na odczyt planu, ale nie na jego zapis.
+Test przeplotu z prawdziwym `EraseAccountData`:
+`tests/Dwa/KopiaPlanuPoWymazaniuKontaTest.php`; kontrola ujemna w CI:
+`scripts/kontrola-negatywna-2551.py`.
+Wycofanie samego kodu przywróciłoby możliwość odtworzenia planu po wymazaniu;
+bezpieczny rollback wymaga zachowania równoważnej blokady i świeżej kontroli
+stanu konta. Schemat bazy w #2551 pozostaje bez zmian.
+
 ### shopping_list_items
 
 Lista zakupów (#27, etap 2; decyzja właściciela z 29.09.2026, **D-333** —
@@ -6811,8 +6834,9 @@ przepisu; wyłączenie kasuje wiersz), więc nie ma flagi w `users`. Bez wiersza
 | `recipe_id` | `uuid NOT NULL` → `recipes` (`ON DELETE CASCADE`) | przepis |
 | `done_step_ids` | `jsonb NOT NULL DEFAULT '[]'` | ID odhaczonych kroków (nie numery — #756); ID nieistniejących już kroków są odrzucane przy odczycie i wypadają przy zapisie |
 | `servings` | `numeric(6,2) NULL` | (etap 2, migracja `2026_09_29_193700`) wybrana liczba porcji; NULL = z przepisu; `CHECK` 1–100 (`cooking_progress_servings_check`) |
-| `prepared_ingredient_ids` | `jsonb NOT NULL DEFAULT '[]'` | (etap 2) ID składników „przygotowanych” (#2069, nie pozycje); tablica ≤ 300 (`cooking_progress_prepared_check`); nieistniejące już ID odpadają przy odczycie i zapisie |
+| `prepared_ingredient_ids` | `jsonb NOT NULL DEFAULT '[]'` | (etap 2) ID składników „przygotowanych” (#2069, nie pozycje); tablica ≤ 300 (`cooking_progress_prepared_check`); nieistniejące już ID odpadają przy odczycie i zapisie; zmiana porcji czyści wyłącznie te odhaczenia (#2502), bo dotyczą wcześniej odmierzonych ilości |
 | `revision` | `integer NOT NULL DEFAULT 1` | wspólna dla kroków, składników i porcji; rośnie o 1 przy każdej zmianie; drugie urządzenie po niej widzi, że stan zmienił się bez niego |
+| `servings_revision` | `integer NOT NULL DEFAULT 1` | migracja `2026_10_02_180000`; rośnie tylko po zmianie kontekstu porcji albo ponownym włączeniu wygasłego postępu, więc wykrywa też sekwencję 4→8→4 bez odrzucania addytywnych zmian składników/kroków |
 | `expires_at` | `timestamptz NOT NULL` | ważność: `kuking.cooking_progress.retention_hours` (24 h) od OSTATNIEJ zmiany; wygasły wiersz jest dla serwisu nieistniejący |
 | `created_at`, `updated_at` | `timestamptz` | |
 
@@ -6820,12 +6844,29 @@ Ograniczenia i indeksy:
 - `UNIQUE (user_id, recipe_id)` — jeden postęp na osobę i przepis (obsługuje też zapytania po `user_id`);
 - `cooking_progress_done_check`: `jsonb_typeof(done_step_ids) = 'array' AND jsonb_array_length(done_step_ids) <= 200`;
 - `cooking_progress_revision_check`: `revision >= 1`;
+- `cooking_progress_servings_revision_check`: `servings_revision >= 1`;
 - indeks po `expires_at` — nocne sprzątanie.
 
 Konflikt dwóch urządzeń: zapis to idempotentne USTAWIENIE jednego kroku pod
 blokadą wiersza (`SELECT … FOR UPDATE`), więc różne kroki nie gubią się
 nawzajem, a na ten sam wygrywa ostatni zapis; formularz niesie rewizję, którą
 widział, i przy rozbieżności osoba dostaje komunikat.
+
+Składniki potwierdza się dla widocznej liczby porcji (#2502). Formularz
+przesyła porcje pokazane na ekranie, wartość zapisaną wtedy na koncie oraz
+`servings_revision` i ID wiersza postępu; warunki są sprawdzane pod blokadą wiersza. Osobny znacznik
+odrzuca stary formularz nawet po zmianie i powrocie do tej samej ilości.
+Zmiana liczby porcji czyści
+listę przygotowanych składników z jawną informacją, ale nie odhaczenia
+kroków. Jawny adres z inną liczbą porcji nie pokazuje dawnej checklisty;
+przy zapisie od tej strony wymaga ponownego zaznaczenia. Pamięć jednej
+karty przeglądarki usuwa dawne klucze tylko tego przepisu przy zmianie
+efektywnej ilości, także przy powrocie do wcześniejszej liczby porcji.
+Stary klucz bez porcji nie jest uznawany za potwierdzenie nowej ilości.
+Rollback migracji znacznika przechodzi dla wartości domyślnych i pustej bazy,
+ale odmawia przy aktywnej historii zmian porcji: trzeba poczekać na wygaśnięcie
+postępu albo wyłączyć jego synchronizację świadomie, zamiast dopuścić stare
+formularze po utracie znacznika.
 
 Prywatność: widoczne wyłącznie dla właściciela (`CookingProgressPolicy`),
 każde wejście przechodzi też przez `RecipePolicy::view`. Paczka danych ma
