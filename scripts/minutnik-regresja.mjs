@@ -633,6 +633,23 @@ try {
       assert.match(await page.locator('.cook-alarm-tekst').innerText(), /wcześniejszym kroku 2/);
     } finally { await page.close(); }
   });
+  await check('stary_zapis_bez_tozsamosci_nie_udaje_edycji_2589', async () => {
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 2, 120);
+      const legacyKey = 'kuking.minutnik.zupa.2';
+      await page.evaluate(key => sessionStorage.setItem(key,
+        JSON.stringify({ sekundyCalkiem: 120, terminEpoka: Date.now() + 120000 })), legacyKey);
+      await openStep(page, 2, 120);
+      const opis = await page.locator('.cook-alarmy [role=status]').innerText();
+      assert.match(opis, /Nie można potwierdzić kroku/);
+      assert.doesNotMatch(opis, /Przepis się zmienił/);
+      assert(await page.locator('.cook-timer-start').isVisible());
+      assert(await page.locator('.cook-alarmy [role=timer]').isVisible());
+      assert.equal(await page.locator('.cook-alarm').count(), 0);
+      assert(await page.evaluate(key => sessionStorage.getItem(key) !== null, legacyKey));
+    } finally { await page.close(); }
+  });
 } finally { await browser.close(); server.close(); }
 console.log(JSON.stringify({ source: 'resources/js/app.js', markup: 'resources/views/pages/recipes/cooking.blade.php', results }, null, 2));
 if (results.some(result => result.result !== 'PASS')) process.exitCode = 1;

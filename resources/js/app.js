@@ -1020,11 +1020,11 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     const adres = pas.dataset.alarmyAdres ?? '';
     const krokiTozsamosci = JSON.parse(pas.dataset.alarmyKroki ?? '[]');
 
-    const pokazAlarm = (krok, aktualny) => {
+    const pokazAlarm = (krok, aktualny, bezTozsamosci) => {
         pokazAlarmWPasie(
             pas,
             aktualny === null
-                ? `Minutnik uruchomiony przy wcześniejszym kroku ${krok} skończył odliczanie. Przepis się zmienił.`
+                ? `Minutnik uruchomiony przy wcześniejszym kroku ${krok} skończył odliczanie. ${bezTozsamosci ? 'Nie można potwierdzić kroku.' : 'Przepis się zmienił.'}`
                 : `Minutnik kroku ${aktualny} skończył odliczanie.`,
             adres && aktualny !== null ? {href: `${adres}?krok=${encodeURIComponent(aktualny)}`, tekst: `Przejdź do kroku ${aktualny}`} : null,
         );
@@ -1032,6 +1032,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
     const odliczaj = (klucz, krok, zapis, stan) => {
         const aktualny = aktualnyKrokMinutnika(stan, krokiTozsamosci);
+        const bezTozsamosci = !stan.stepId || !stan.fingerprint;
         const terminMonotoniczny = stan.terminMonotoniczny;
         let wiersz = null;
         let interwal = null;
@@ -1044,7 +1045,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
             opis.className = 'm-0';
             opis.setAttribute('role', 'status');
             opis.textContent = aktualny === null
-                ? `Przepis się zmienił. Minutnik wcześniejszego kroku ${krok}, uruchomiony na ${formatMinutySekundy(stan.sekundyCalkiem)}, nadal odlicza.`
+                ? `${bezTozsamosci ? 'Nie można potwierdzić kroku.' : 'Przepis się zmienił.'} Minutnik wcześniejszego kroku ${krok}, uruchomiony na ${formatMinutySekundy(stan.sekundyCalkiem)}, nadal odlicza.`
                 : `Minutnik kroku ${aktualny}, uruchomiony na ${formatMinutySekundy(stan.sekundyCalkiem)}, nadal odlicza.`;
             const czas = document.createElement('p');
             czas.className = 'm-0';
@@ -1089,7 +1090,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
                 sessionStorage.removeItem(klucz);
                 wiersz?.remove();
                 pas.hidden = pas.childElementCount === 0;
-                pokazAlarm(krok, aktualny);
+                pokazAlarm(krok, aktualny, bezTozsamosci);
             }
 
             return true;
