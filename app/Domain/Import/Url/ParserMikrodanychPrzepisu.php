@@ -267,6 +267,19 @@ final class ParserMikrodanychPrzepisu
             $wlasciwosci = $this->wlasciwosci($el);
             $wynik = [];
 
+            // ListItem opisuje pozycję listy, a instrukcję niesie jego item.
+            // Sama etykieta „Krok 1” lub zewnętrzny URL nie jest instrukcją.
+            if ($this->maTyp($el, ['ListItem'])) {
+                foreach ($this->elementyAliasow($wlasciwosci, 'item', 'item') as $item) {
+                    if ($item->hasAttribute('itemscope')
+                        && $this->maTyp($item, ['HowToStep', 'HowToDirection', 'HowToSection', 'ItemList', 'ListItem'])) {
+                        array_push($wynik, ...$this->kroki($item, $glebokosc + 1));
+                    }
+                }
+
+                return array_slice($wynik, 0, self::MAKS_POZYCJI);
+            }
+
             foreach ($this->elementyAliasow($wlasciwosci, 'itemlistelement', 'step') as $dziecko) {
                 array_push($wynik, ...$this->kroki($dziecko, $glebokosc + 1));
             }

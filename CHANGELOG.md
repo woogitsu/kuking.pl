@@ -7,6 +7,8 @@
 - Naprawione (#2611): nadmiernie rozbudowana paczka własnych danych jest odrzucana z instrukcją przed wyczerpaniem pamięci przy podglądzie. Poprawne duże paczki nadal można wczytać; nic nie zapisujemy przed pokazaniem podglądu.
 - Naprawione (#2629): zmiana porcji nie mnoży zawartości tłuszczu „30 %” ani „30 proc.”; przelicza rzeczywistą ilość podaną dalej, na przykład 200 g.
 - Naprawione (#2626): przy imporcie przepisu z mikrodanych jeden składnik lub krok nie powtarza się tylko dlatego, że strona nadała mu dwie nazwy `itemprop`. Osobne pozycje o jednakowym tekście pozostają osobne i zachowują kolejność ze strony.
+- Naprawione (#2638): import mikrodanych odczytuje właściwą instrukcję z pozycji listy zamiast etykiety „Krok 1”. Sam adres lub etykieta bez lokalnego tekstu nie staje się instrukcją.
+
 - Naprawione (#2614): import przepisu z tekstowego PDF zachowuje ilości `1.5 kg` i `0.5 l` w prywatnym szkicu; prawdziwe numery listy nadal usuwa bez zmiany cyfr składnika.
 - Naprawione (#2570, #2582): import z adresu odczytuje kroki i sekcje zapisane w JSON-LD jako `ListItem.item`, zachowując kolejność prawidłowych pozycji. Przy niejasnych pozycjach zostawia kolejność źródła. Sam identyfikator `@id` nie staje się tekstem kroku; szkic pozostaje prywatny i nie używa modelu dla tych danych.
 - Naprawione (#2580): import z adresu zachowuje dosłowne porównanie, np. „<80”, wraz z resztą instrukcji. Podziały kroków i usuwanie prawdziwych znaczników HTML nadal działają.
@@ -27,6 +29,7 @@
 - Naprawione (#2624): przy przepisie autora na ponad 101 porcji „Mniej” przechodzi od razu do 100 porcji zamiast prowadzić do odrzucanego adresu i zapętlać wybór. Powrót do ilości autora nadal jest dostępny.
 - Naprawione (#2617): gdy nie da się ocenić reguły robots.txt, import nie pobiera strony. Prosi o ponowną próbę później albo ręczne wpisanie przepisu, bez przypisywania wydawcy odmowy.
 - Naprawione (#2569): zakodowanie litery w adresie nie omija zakazu wydawcy w robots.txt. Import nadal respektuje reguły także po przekierowaniu.
+- Naprawione (#2626): przy imporcie przepisu z mikrodanych jeden składnik lub krok nie powtarza się tylko dlatego, że strona nadała mu dwie nazwy `itemprop`. Osobne pozycje o jednakowym tekście pozostają osobne i zachowują kolejność ze strony.
 - Wewnętrzne (#2598): test dwóch połączeń przy zapisie do zeszytu czeka na właściwą barierę transakcji. Wcześniejsza, obca blokada nie daje fałszywej czerwieni; osobny przeplot i kontrola ujemna sprawdzają ten warunek w CI.
 - Wewnętrzne (#2596): lokalny serwer testu checklisty składników przyjmuje tylko dodatnią liczbę porcji. Nie odbija tekstu z adresu w HTML; test HTTP i kontrola ujemna pilnują tego w CI.
 - Naprawione (#2467): usunięcie produktu z „Co mam w domu” najpierw pokazuje pytanie z jego nazwą. „Anuluj” zamyka je bez kasowania ilości lub terminu, także bez JavaScriptu.

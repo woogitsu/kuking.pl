@@ -327,6 +327,35 @@ final class ImportPrzepisuZAdresuIPdfTest extends TestCase
         Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com'));
     }
 
+    public function test_listitem_mikrodanych_zapisuje_item_w_prywatnym_szkicu_bez_modelu(): void
+    {
+        $autor = $this->user();
+        $html = '<article itemscope itemtype="https://schema.org/Recipe"><h1 itemprop="name">Ciasto z listy</h1>'
+            .'<span itemprop="recipeIngredient">2 jajka</span>'
+            .'<div itemprop="recipeInstructions" itemscope itemtype="https://schema.org/ItemList">';
+        foreach (['Wymieszaj jajka.', 'Upiecz ciasto.'] as $i => $tekst) {
+            $html .= '<div itemprop="itemListElement step" itemscope itemtype="https://schema.org/ListItem">'
+                .'<span itemprop="name">Krok '.($i + 1).'</span><div itemprop="item" itemscope itemtype="https://schema.org/HowToStep">'
+                .'<span itemprop="text">'.$tekst.'</span></div></div>';
+        }
+        $html .= '</div><img itemprop="image" src="https://obcy.example/zdjecie-2638.jpg"></article>';
+        Http::fake([
+            'https://przepisy.example.pl/robots.txt' => Http::response('', 404),
+            'https://przepisy.example.pl/blog' => Http::response($html, 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $this->actingAs($autor)->post(route('recipes.import.url.store'), ['adres' => 'https://przepisy.example.pl/blog'])->assertRedirect();
+
+        $przepis = Recipe::query()->where('author_id', $autor->getKey())->firstOrFail();
+        $this->assertSame('Ciasto z listy', $przepis->title);
+        $this->assertSame(['2 jajka'], $przepis->ingredients()->pluck('ingredient_text')->all());
+        $this->assertSame(['Wymieszaj jajka.', 'Upiecz ciasto.'], $przepis->steps()->orderBy('position')->pluck('instruction')->all(), 'MICRODATA_2638_HTTP_ITEM');
+        $this->assertSame(Recipe::STATUS_DRAFT, $przepis->status);
+        $this->assertSame('private', $przepis->visibility);
+        $this->assertNull($przepis->hero_media_id);
+        Http::assertNotSent(fn (Request $r): bool => str_contains($r->url(), 'openai.com') || str_contains($r->url(), 'obcy.example'));
+    }
+
     public function test_meta_content_mikrodanych_importuje_skladniki_kroki_i_ulamkowe_porcje_bez_modelu(): void
     {
         $autor = $this->user();
