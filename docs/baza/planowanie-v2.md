@@ -15,6 +15,7 @@ zakupów tu nie ma i nie było w tej zmianie.
 | `day` | `date` | dzień planu, data kalendarzowa (nie `timestamptz`) |
 | `recipe_id` | `uuid` NULL | → `recipes(id)` **`ON DELETE SET NULL`** |
 | `label` | `varchar(120)` NULL | własny wpis, gdy pozycja nie jest przepisem |
+| `done_at` | `timestamptz(6)` NULL | prywatne „Zrobione” (#2593, migracja `2026_10_02_190000`); NULL = nieoznaczona, wartość = chwila oznaczenia i znacznik wersji stanu |
 | `created_at` / `updated_at` | `timestamptz` | |
 
 **Plan jest prywatny.** Nie ma kolumny widoczności, bo nie ma czego pokazywać
@@ -62,6 +63,19 @@ Test przeplotu z prawdziwym `EraseAccountData`:
 Wycofanie samego kodu przywróciłoby możliwość odtworzenia planu po wymazaniu;
 bezpieczny rollback wymaga zachowania równoważnej blokady i świeżej kontroli
 stanu konta. Schemat bazy w #2551 pozostaje bez zmian.
+
+**„Zrobione” (#2593, V2).** `done_at` jest poza `$fillable`; ustawia je tylko
+akcja `OznaczPozycjePlanu` (żądany stan, nie przełączenie), pod blokadą wiersza
+`users` i wiersza pozycji, po świeżej kontroli konta i własności. Formularz niesie
+znacznik stanu widzianego na stronie; gdy stan zmienił się w innej karcie, żądanie
+jest odrzucane z komunikatem (konflikt), a identyczne powtórzenie jest no-opem.
+Oznaczenie nie tworzy `cooked_events` ani powiadomień. „Skopiuj poprzedni tydzień”
+wstawia pozycje z `done_at = NULL`. Paczka RODO ma pola `zrobione` i
+`oznaczono_jako_zrobione`; wymazanie konta usuwa je razem z wierszem.
+**Rollback (D-088):** `down()` ODMAWIA, gdy choć jedna pozycja ma `done_at`
+(komunikat podaje kopię `pg_dump -t meal_plan_entries` i
+`UPDATE meal_plan_entries SET done_at = NULL`); bez oznaczeń przechodzi.
+Test: `tests/Feature/PlanerZrobioneTest.php`.
 
 ### shopping_list_items
 
@@ -126,6 +140,43 @@ i przy `migrate:refresh` — przechodzi bez pytania. Odmowa i kontrola dodatnia:
 prywatna lista jednej osoby, nikomu innemu niepotrzebna. **Paczka RODO**
 wydaje ją w sekcji `lista_zakupow` (`InwentarzDanychKonta`), z tytułem
 przepisu tylko przy przepisie widocznym dla osoby.
+
+### shopping_list_undos
+
+„Cofnij usunięcie” z listy zakupów (#2630, rozszerzenie **D-333**, decyzja
+właściciela z 2.10.2026). Migracja `2026_10_02_100000_create_shopping_list_undos_table`.
+Jeden wiersz to **jedna ostatnia operacja usunięcia** jednej osoby („Usuń”
+przy pozycji albo „Wyczyść odhaczone”). Kolejne usunięcie zastępuje wiersz —
+nie ma archiwum, kosza ani historii zakupów.
+
+| kolumna | typ | uwagi |
+|---|---|---|
+| `id` | `uuid` | `DEFAULT gen_random_uuid()` |
+| `user_id` | `uuid` UNIQUE | → `users(id)` `ON DELETE CASCADE` (pas bezpieczeństwa; konta się anonimizuje, wiersz kasuje `EraseAccountData`). UNIQUE = najwyżej jedna migawka na osobę, także przy dwóch równoległych usunięciach |
+| `scope` | `varchar(10)` | `single` (jedna pozycja) albo `checked` („Wyczyść odhaczone”); od tego zależy komunikat „wróciły jako odhaczone” |
+| `items` | `jsonb` | tablica usuniętych pozycji: `id`, `text`, `source`, `recipe_id`, `position`, `checked_at`, `created_at`. **Bez kluczy obcych** i bez tytułu, linku czy zdjęcia przepisu — przy cofnięciu `recipe_id` zostaje tylko dla przepisu, który wciąż istnieje (inaczej sam tekst, jak przy `ON DELETE SET NULL`) |
+| `items_count` | `smallint` | liczba pozycji w migawce; limit konta (`kuking.zakupy.pozycji_max`) sprawdza się przy cofnięciu |
+| `expires_at` | `timestamptz` | koniec okna cofnięcia: `created_at` + `kuking.zakupy.cofniecie_minut` (15) |
+| `created_at` | `timestamptz` | |
+
+Ograniczenia (nowa tabela, więc razem z `CREATE TABLE` — AGENTS.md §6):
+`shopping_list_undos_scope_check` (`single`/`checked`),
+`shopping_list_undos_items_check` (`items` jest tablicą o długości
+`items_count` ≥ 1), `shopping_list_undos_expires_idx` (sprzątanie).
+
+**Retencja** (ADR_RETENCJE §5.9): po `expires_at` cofnięcie odrzuca migawkę;
+kopia jest kasowana przy odczycie listy przez osobę, przy próbie cofnięcia i
+zadaniem `kuking:sprzataj-cofniecia-zakupow` (co kwadrans). **Wymazanie konta**
+kasuje wiersz od razu (`EraseAccountData`). W paczce RODO tabela jest
+oznaczona jako `NIE_DOTYCZY` (te same pozycje są w `lista_zakupow`; kopia żyje
+najwyżej 15 minut).
+
+**Rollback.** `down()` ODMAWIA, gdy w tabeli są świeże (niewygasłe) wiersze
+(D-088): kasowanie zabrałoby ludziom możliwość odzyskania omyłkowo usuniętych
+pozycji. Wygasłe wiersze nie blokują. Na świeżej bazie (CI, `migrate:refresh`)
+przechodzi bez pytania; wymuszenie: `KUKING_ROLLBACK_KASUJE_COFNIECIA_ZAKUPOW=1`.
+Wycofanie samego kodu jest bezpieczne: tabela po prostu przestaje być czytana,
+a wiersze wygasają.
 
 ## pantry_items — „Co mam w domu” (V2, D-285)
 

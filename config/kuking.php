@@ -53,6 +53,10 @@ return [
     'zakupy' => [
         'pozycji_max' => 300,
         'znakow_max' => 240,
+        // „Cofnij usunięcie” (#2630): jak długo po usunięciu pozycji albo
+        // „Wyczyść odhaczone” wolno je cofnąć. Po tym czasie migawka jest
+        // kasowana. Limit pozycji migawki = `pozycji_max`.
+        'cofniecie_minut' => 15,
     ],
 
     /*

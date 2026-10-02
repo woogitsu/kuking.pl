@@ -84,6 +84,13 @@
     overflow-wrap: anywhere;
   }
 
+  /* „Zrobione” (#2593): stan tekstem, nie samym kolorem; osobny wiersz, żeby nie ściskał nazwy. */
+  .planer-zrobione {
+    display: block;
+    font-weight: 700;
+    color: var(--color-brand);
+  }
+
   /* Destrukcja stoi w osobnym wierszu także przy 320 px i powiększeniu. */
   .planer-potwierdzenie {
     flex-basis: 100%;

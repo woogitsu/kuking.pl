@@ -13,6 +13,12 @@ use App\Models\User;
  */
 class MealPlanEntryPolicy
 {
+    /** Prywatne „Zrobione” / „Cofnij oznaczenie” (#2593). */
+    public function markDone(User $user, MealPlanEntry $entry): bool
+    {
+        return $user->getKey() === $entry->user_id;
+    }
+
     public function delete(User $user, MealPlanEntry $entry): bool
     {
         return $user->getKey() === $entry->user_id;
