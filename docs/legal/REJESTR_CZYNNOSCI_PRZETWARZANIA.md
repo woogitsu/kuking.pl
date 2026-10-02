@@ -360,10 +360,10 @@ egzekwuje.
 
 - **Cel:** potwierdzenie adresu, przypomnienie hasła, link do zalogowania,
   powiadomienia e-mailem.
-- **Dane:** adres e-mail odbiorcy, treść listu. **Dostawca dokłada od siebie
-  obrazek liczący otwarcia** — moment otwarcia, adres IP i program pocztowy.
-  Serwis tych danych nie odczytuje i nie używa; wyłącznik jest w panelu
-  dostawcy, nie w kodzie.
+- **Dane:** adres e-mail odbiorcy, treść listu. **Liczenie otwarć jest
+  wyłączone** w panelu dostawcy (D-333, 2.10.2026), więc do listów nie trafia
+  obrazek liczący otwarcia. Śledzenie odnośników wyłącza nagłówek
+  `X-TRACKING-OFF`.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
 - **Odbiorca:** EmailLabs (Vercom S.A., Poznań) — dane zostają w Polsce.
   Kod: `config/mail.php` (własny sterownik `emaillabs`),
