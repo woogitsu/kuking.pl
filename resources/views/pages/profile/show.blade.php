@@ -433,7 +433,7 @@
                 <input type="hidden" name="zakladka" value="ugotowane">
                 <div class="field @if($frazaUgotowanych->blad) has-error @endif">
                     <label for="f-szukaj-ugotowane">{{ \App\Domain\Search\FrazaWUgotowanych::ETYKIETA }}</label>
-                    <span class="field-help" id="f-szukaj-ugotowane-help">Wpisz kawałek tytułu przepisu. Polskie znaki nie mają znaczenia — „zurek” znajdzie „Żurek”.</span>
+                    <span class="field-help" id="f-szukaj-ugotowane-help">Wpisz kawałek tytułu przepisu, swojej uwagi albo tekstu „Po swojemu”. Polskie znaki nie mają znaczenia — „zurek” znajdzie „Żurek”.</span>
                     <input class="field-input" id="f-szukaj-ugotowane" name="szukaj" type="search" value="{{ $frazaUgotowanych->fraza }}"
                            maxlength="{{ \App\Domain\Search\SearchQuery::MAX_PHRASE_LENGTH }}"
                            aria-describedby="f-szukaj-ugotowane-help{{ $frazaUgotowanych->blad ? ' f-szukaj-ugotowane-error' : '' }}"
@@ -451,7 +451,7 @@
                 <h2 id="wyniki-w-ugotowanych" class="m-0">Wyniki dla „{{ $frazaUgotowanych->fraza }}”</h2>
                 @if($cookedEvents->total() === 0)
                     {{-- Brak dopasowań to nie pusty profil — mówimy, czego nie znaleźliśmy i co zrobić. --}}
-                    <p class="m-0">Nie znaleźliśmy wśród Twoich wykonań przepisu, który ma w tytule „{{ $frazaUgotowanych->fraza }}”. Spróbuj krótszego kawałka tytułu.</p>
+                    <p class="m-0">Nie znaleźliśmy wśród Twoich wykonań niczego z „{{ $frazaUgotowanych->fraza }}” w tytule przepisu, w Twojej uwadze ani w tekście „Po swojemu”. Spróbuj krótszego kawałka.</p>
                 @else
                     <p class="meta m-0">Znaleźliśmy {{ $cookedEvents->total() }} {{ \App\Support\Odmiana::rzeczownik($cookedEvents->total(), 'wykonanie', 'wykonania', 'wykonań') }}, od najnowszego.</p>
                 @endif
