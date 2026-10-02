@@ -1178,6 +1178,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::patch('/planer/{wpis}/zrobione', [PlanerController::class, 'markDone'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.done');
+    Route::get('/planer/{wpis}/przenies', [PlanerController::class, 'moveForm'])
+        ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
+        ->name('planer.move.form');
+    Route::patch('/planer/{wpis}/dzien', [PlanerController::class, 'move'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.move');
     Route::delete('/planer/{wpis}', [PlanerController::class, 'destroy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.destroy');

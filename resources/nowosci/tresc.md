@@ -30,6 +30,16 @@ z datą i skrótem kodu — to przydaje się, gdy zgłaszacie nam usterkę.
 
 ## Najnowsze zmiany
 
+### Przenoszenie pozycji Planera na inny dzień
+
+Obiad zaplanowany na środę wypadł w piątek? Przy każdej pozycji Planera jest
+przycisk „Przenieś na inny dzień”. Wybieracie nowy dzień, klikacie „Przenieś”
+i ta sama pozycja – przepis albo własny tekst – stoi już na nowym dniu. Nie
+trzeba jej usuwać ani szukać przepisu od nowa. To przeniesienie, nie kopiowanie:
+na dawnym dniu pozycji nie będzie. Jeśli dzień jest już pełny albo ta sama
+pozycja już tam stoi, nic się nie zmieni, a komunikat powie, co zrobić.
+Lista zakupów zostaje taka, jaka była.
+
 ### Przeliczanie miar przy składniku
 
 Przy składniku podanym w gramach, dekagramach, kilogramach, mililitrach, litrach, szklankach, łyżkach albo łyżeczkach znajdziecie rozwijany napis „Przelicz”. Po dotknięciu pokazuje to samo w innej jednostce, na przykład 25 dag to 250 g, a pół szklanki to około 125 ml. Przeliczamy tylko wagę na wagę i objętość na objętość — gramów nie zamieniamy na szklanki, bo zależy to od produktu. Przelicznik bierze ilość z wybranej liczby porcji, a tekst przepisu zostaje taki, jak napisał autor.

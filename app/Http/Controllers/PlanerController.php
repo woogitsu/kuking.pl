@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Planer\Actions\DodajDoPlanu;
 use App\Domain\Planer\Actions\OznaczPozycjePlanu;
+use App\Domain\Planer\Actions\PrzeniesPozycjePlanu;
 use App\Domain\Planer\Actions\SkopiujPoprzedniTydzien;
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Planer\ZakresDatPlanu;
@@ -18,6 +19,7 @@ use App\Support\Odmiana;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -238,6 +240,75 @@ class PlanerController extends Controller
 
         return redirect()->route('planer.show', ['tydzien' => $wpis->day->toDateString()])
             ->with($komunikat);
+    }
+
+    /**
+     * Ekran „Przenieś na inny dzień” (#2447): zwykły formularz bez skryptu.
+     * Niesie dzień, na którym człowiek widział pozycję — z tego znacznika
+     * akcja pozna, że ktoś w innym oknie już ją przeniósł.
+     */
+    public function moveForm(Request $request, MealPlanEntry $wpis, PlanerTygodnia $planer): View
+    {
+        $this->authorize('move', $wpis);
+
+        $dzien = CarbonImmutable::instance($wpis->day);
+        $pozycja = collect($planer->pozycje($request->user(), $dzien, $dzien))
+            ->first(fn (array $p): bool => $p['wpis']->getKey() === $wpis->getKey());
+
+        $nazwa = match ($pozycja['stan'] ?? null) {
+            PlanerTygodnia::STAN_PRZEPIS => $pozycja['przepis']?->title,
+            PlanerTygodnia::STAN_WLASNY => $wpis->label,
+            PlanerTygodnia::STAN_NIEDOSTEPNY => 'Przepis jest już niedostępny.',
+            default => 'Przepis został usunięty.',
+        };
+
+        return view('pages.planer.przenies', [
+            'wpis' => $wpis,
+            'nazwa' => $nazwa,
+            'dzien' => $dzien,
+        ]);
+    }
+
+    public function move(Request $request, MealPlanEntry $wpis, PrzeniesPozycjePlanu $przenies): RedirectResponse
+    {
+        $this->authorize('move', $wpis);
+
+        $wracaDoFormularza = route('planer.move.form', $wpis);
+
+        try {
+            $dane = $request->validate([
+                'day' => ['required', 'string', 'date_format:Y-m-d'],
+                'stan' => ['required', 'string', 'date_format:Y-m-d'],
+            ], [
+                'day.required' => 'Wybierz dzień, na który przenosisz pozycję.',
+                'day.date_format' => 'Wybierz dzień z kalendarza albo wpisz go w formacie rrrr-mm-dd, np. 2026-10-02.',
+                'day.string' => 'Wybierz dzień z kalendarza albo wpisz go w formacie rrrr-mm-dd, np. 2026-10-02.',
+                'stan.required' => 'Ta strona jest nieaktualna. Wróć do planera i otwórz przenoszenie jeszcze raz.',
+                'stan.date_format' => 'Ta strona jest nieaktualna. Wróć do planera i otwórz przenoszenie jeszcze raz.',
+                'stan.string' => 'Ta strona jest nieaktualna. Wróć do planera i otwórz przenoszenie jeszcze raz.',
+            ]);
+
+            $nowyDzien = CarbonImmutable::createFromFormat('!Y-m-d', $dane['day']);
+            $wynik = $przenies->handle($request->user(), (string) $wpis->getKey(), $nowyDzien, $dane['stan']);
+        } catch (ValidationException $e) {
+            // Błąd wraca na formularz przenoszenia (z wybranym dniem), a nie
+            // tam, skąd przyszło żądanie.
+            throw $e->redirectTo($wracaDoFormularza);
+        }
+
+        $kiedy = PlanerTygodnia::naDzien($nowyDzien);
+        $tydzien = PlanerTygodnia::poniedzialek($nowyDzien->toDateString())->toDateString();
+
+        return match ($wynik) {
+            PrzeniesPozycjePlanu::ZASTOSOWANO => redirect(route('planer.show', ['tydzien' => $tydzien]).'#dzien-'.$nowyDzien->toDateString())
+                ->with(Komunikat::sukces("Przeniesione na {$kiedy}.")),
+            PrzeniesPozycjePlanu::JUZ_TAK_BYLO => redirect(route('planer.show', ['tydzien' => $tydzien]).'#dzien-'.$nowyDzien->toDateString())
+                ->with(Komunikat::informacja("Ta pozycja już jest w planie na {$kiedy}. Nic nie zostało zmienione.")),
+            PrzeniesPozycjePlanu::KONFLIKT => redirect()->route('planer.show', ['tydzien' => $wpis->day->toDateString()])
+                ->with(Komunikat::blad('Ta pozycja została w innym oknie przeniesiona na inny dzień, więc nic nie zmieniliśmy. Sprawdź, gdzie stoi teraz (poniżej, w planie) i w razie potrzeby przenieś ją jeszcze raz.')),
+            default => redirect()->route('planer.show')
+                ->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),
+        };
     }
 
     public function destroy(Request $request, MealPlanEntry $wpis): RedirectResponse
