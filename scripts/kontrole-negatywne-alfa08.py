@@ -1274,6 +1274,12 @@ def pierwsze_z_wielu(source, old, new, ile):
 
 
 checks = [
+    ("Wspólna sesja traci zamiennik autora (#2485)", "resources/views/pages/wspolne-gotowanie/show.blade.php",
+     "test_zamienniki_i_zdjecia_sa_przy_wlasciwych_elementach_dla_obu_rol",
+     lambda s: replace_once(s, '@if($skladnik->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $skladnik->substitutes }}</span>@endif', '')),
+    ("Wspólna sesja traci zdjęcie kroku (#2486)", "resources/views/pages/wspolne-gotowanie/show.blade.php",
+     "test_zamienniki_i_zdjecia_sa_przy_wlasciwych_elementach_dla_obu_rol",
+     lambda s: replace_once(s, '@if($krok->media)', '@if(false)')),
     # #2449: osobno wykrycie jawnej zmiany i odmowa zgadywania starego wyboru.
     ("Historia ignoruje wybór Bez ilości (#2449)", "app/Domain/Recipes/Historia/PorownanieWersji.php",
      "test_jawna_zmiana_bez_ilosci_w_obie_strony_jest_widoczna_bez_zmiany_tekstu_autora",
