@@ -25,6 +25,11 @@ do składnika (placeholder kreatora wprost podpowiadał „albo masło roślinne
    liczby na początku wiersza, po myślniku/dwukropku albo przed znaną
    jednostką; „szklanka mąki” bez liczby to jedna szklanka. Przeliczana jest
    tylko ta jedna liczba, reszta zdania autora zostaje co do znaku.
+
+   **Doprecyzowanie #2629.** Procent tłuszczu przy produkcie („30 %”,
+   „30 proc.”, „30 procent”) opisuje produkt, więc nie jest ilością do
+   pomnożenia. Szukamy dalej w tym samym wierszu: przy „30 % śmietanki —
+   200 g” zmieniamy 200 g, a procent pozostaje taki, jak wpisał autor.
 3. **Zaokrąglenie kuchenne** (`IloscKuchenna`): g/dag/ml do kroku 0,1 → 0,5 →
    1 → 5 → 10 → 50 zależnie od wielkości; kg/l dziesiętnie co 0,05; łyżki,
    szklanki, sztuki i rzeczy bez jednostki — ułamki ½ ¼ ¾ ⅓ ⅔ (⅛ poniżej ¼)

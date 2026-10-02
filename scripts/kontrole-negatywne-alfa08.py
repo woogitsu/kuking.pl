@@ -1312,6 +1312,11 @@ def planer_bez_potwierdzenia(source):
 
 
 checks = [
+    ("Porcje mnożą procent tłuszczu (#2629)", "app/Domain/Recipes/Porcje/PrzeliczSkladnik.php",
+     "PrzeliczSkladnikTest::test_procent_opisuje_produkt_a_pozniejsza_masa_jest_iloscia",
+     lambda s: replace_once(s,
+         r"'/^(?<przed>\s*'.self::OKOLO.')(?<calosc>'.$ilosc.$nieProcent.$poIlosci.$jednostka.')/iu',",
+         r"'/^(?<przed>\s*'.self::OKOLO.')(?<calosc>'.$ilosc.$poIlosci.$jednostka.')/iu',")),
     ("Spiżarnia usuwa bez pytania (#2467)", "resources/views/pages/pantry/_produkty.blade.php",
      "test_pierwszy_klik_w_spizarni_rozwija_pytanie_zamiast_kasowac_produkt", spizarnia_bez_potwierdzenia),
     ("Planer usuwa bez pytania (#2468)", "resources/views/pages/planer/show.blade.php",

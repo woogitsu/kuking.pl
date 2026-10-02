@@ -22,6 +22,8 @@ namespace App\Domain\Recipes\Porcje;
  * Przeliczamy tylko tę jedną liczbę — albo obie granice zakresu („2–3”,
  * „2 do 3”, „2 lub 3”, „2 albo 3”). „2 puszki (po 400 g)” daje
  * „4 puszki (po 400 g)”, i to jest poprawne.
+ * Procent tłuszczu („30 %”, „30 proc.”, „30 procent”) jest cechą produktu,
+ * nie ilością: pomijamy tę kandydaturę i szukamy późniejszej masy.
  *
  * CZEGO NIE RUSZAMY — wiersz zostaje dokładnie taki, jak napisał autor:
  *  - „Bez ilości” (`no_amount`, issue #44) — tego się nie mnoży z definicji;
@@ -125,14 +127,17 @@ final class PrzeliczSkladnik
         // spacjami i tylko przed LICZBĄ, więc „2 łyżki do smażenia” czy
         // „1 szklanka mleka do ciasta” zakresem nie są.
         $ilosc = '(?<od>'.self::LICZBA.'|'.self::SLOWO.')(?:(?<separator>\s*[-–—]\s*|\s+(?:do|lub|albo)\s+)(?<do>'.self::LICZBA.'))?';
+        // Liczba przed procentem opisuje produkt. Nie zatrzymujemy na niej
+        // szukania, bo ten sam wiersz może dalej zawierać „200 g”.
+        $nieProcent = '(?!\s*(?:%|proc\.?(?!\p{L})|procent\p{L}*))';
         $poIlosci = '(?=\s|$|\p{L}|\(|,)';
         $jednostka = '(?:(?<spacja>\s*)(?<jednostka>'.$jednostki.')(?!\p{L}))?';
 
         $wzorce = [
             // 1. Na początku wiersza.
-            '/^(?<przed>\s*'.self::OKOLO.')(?<calosc>'.$ilosc.$poIlosci.$jednostka.')/iu',
+            '/^(?<przed>\s*'.self::OKOLO.')(?<calosc>'.$ilosc.$nieProcent.$poIlosci.$jednostka.')/iu',
             // 2. Po myślniku albo dwukropku („mąka – 500 g”).
-            '/^(?<przed>.*?\S\s*(?:[–—:]|\s-)\s*'.self::OKOLO.')(?<calosc>'.$ilosc.$poIlosci.$jednostka.')/iu',
+            '/^(?<przed>.*?\S\s*(?:[–—:]|\s-)\s*'.self::OKOLO.')(?<calosc>'.$ilosc.$nieProcent.$poIlosci.$jednostka.')/iu',
         ];
 
         foreach ($wzorce as $wzorzec) {
