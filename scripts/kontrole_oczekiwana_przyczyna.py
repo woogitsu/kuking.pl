@@ -40,6 +40,7 @@ OCZEKUJ = {
     "Co ugotuję: ostatnia strona wraca do siebie (#2599)": r'PAGINACJA_2599_BEZ_PETLI',
     "HTTP import paczki nie pilnuje budżetu struktury (#2611)": r'BUDZET_2611_HTTP_ODMOWA',
     "Paczka JSON bez budżetu struktury (#2611)": r'BUDZET_2611_ODMOWA_BEZ_FATALA',
+    "Porcje mnożą procent tłuszczu (#2629)": r'PORCJE_2629_PROCENT_NIE_JEST_ILOSCIA',
     'PDF: ilość dziesiętna staje się numerem listy (#2614)': r'PDF_2614_ILOSC_DZIESIETNA_NIE_JEST_NUMEREM_LISTY',
     'Identyfikator JSON-LD udaje krok (#2582)': r'JSONLD_ID_KROKU_NIE_JEST_TEKSTEM',
     'ListItem.item nie trafia do szkicu importu (#2570)': r'JSONLD_LISTITEM_ITEM_ZAPISUJE_KROKI',

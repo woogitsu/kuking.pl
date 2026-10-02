@@ -111,6 +111,30 @@ final class PrzeliczSkladnikTest extends TestCase
         $this->assertSame('  2 Łyżki   masła ', $wynik->tekst());
     }
 
+    public function test_procent_opisuje_produkt_a_pozniejsza_masa_jest_iloscia(): void
+    {
+        foreach ([
+            ['30 % śmietanki — 200 g', 2.0, '30 % śmietanki — 400 g', true],
+            ['30 % śmietanki — 200 g', 0.5, '30 % śmietanki — 100 g', true],
+            ['30 % śmietanki — 200 g', 1.0, '30 % śmietanki — 200 g', false],
+            ['30 proc. śmietanki — 200 g', 2.0, '30 proc. śmietanki — 400 g', true],
+            ['30 procent śmietanki — 200 g', 2.0, '30 procent śmietanki — 400 g', true],
+            ['30 procentowej śmietanki — 200 g', 2.0, '30 procentowej śmietanki — 400 g', true],
+            ['30 % śmietanki', 2.0, '30 % śmietanki', false],
+            ['30 proc. śmietanki', 2.0, '30 proc. śmietanki', false],
+            ['30% śmietanki — 200 g', 2.0, '30% śmietanki — 400 g', true],
+            ['śmietanka 30% — 200 g', 2.0, 'śmietanka 30% — 400 g', true],
+            ['200 g śmietanki 30 %', 2.0, '400 g śmietanki 30 %', true],
+            ['30 g śmietanki', 2.0, '60 g śmietanki', true],
+            ['30 % śmietanki — 200-300 g', 2.0, '30 % śmietanki — 400-600 g', true],
+        ] as [$tekst, $mnoznik, $oczekiwany, $zmieniony]) {
+            $wynik = PrzeliczSkladnik::przelicz($tekst, false, $mnoznik);
+
+            $this->assertSame($oczekiwany, $wynik->tekst(), 'PORCJE_2629_PROCENT_NIE_JEST_ILOSCIA');
+            $this->assertSame($zmieniony, $wynik->zmieniony, 'PORCJE_2629_PROCENT_NIE_JEST_ILOSCIA');
+        }
+    }
+
     public function test_wynik_rozdziela_ilosc_od_zdania_autora(): void
     {
         $wynik = PrzeliczSkladnik::przelicz('mąka pszenna – 500 g, przesiana', false, 2.0);
