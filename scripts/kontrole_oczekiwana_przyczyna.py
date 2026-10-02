@@ -35,7 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
-    'Zakodowane podziały JSON-LD sklejają instrukcje (#2564)': r'IMPORT_2564_KROKI_BEZ_SKLEJANIA',
+    'Zakodowane podziały JSON-LD sklejają instrukcje (#2564)': r'IMPORT_2564_(?:KROKI|SKLADNIKI)_BEZ_SKLEJANIA',
     'Odtworzony markup JSON-LD zostaje w zwykłym tekście (#2564)': r'IMPORT_2564_MARKUP_NIE_JEST_TEKSTEM',
     'JSON-LD dekoduje więcej niż dwie warstwy (#2564)': r'IMPORT_2564_TYLKO_DWIE_WARSTWY',
     'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
