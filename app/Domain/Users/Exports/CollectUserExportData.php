@@ -434,6 +434,7 @@ final class CollectUserExportData
             'szacunkowy_koszt_zl' => $recipe->estimated_cost_pln,
             'przygotowanie_minuty' => $recipe->prep_minutes,
             'gotowanie_minuty' => $recipe->cook_minutes,
+            'czas_laczny_zrodla_minuty' => $recipe->czas_laczny_zrodla_minut,
             'trudnosc' => $recipe->difficulty,
             'widocznosc' => $recipe->visibility,
             'status' => $recipe->status,

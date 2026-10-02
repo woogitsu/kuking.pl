@@ -131,6 +131,7 @@ final class ParserJsonLdPrzepisu
             porcje: self::porcje($wezel['recipeYield'] ?? null),
             przygotowanieMinut: self::minuty($wezel['prepTime'] ?? null),
             gotowanieMinut: self::minuty($wezel['cookTime'] ?? null),
+            lacznieMinut: self::minuty($wezel['totalTime'] ?? null),
             skladniki: $skladniki,
             kroki: $kroki,
         );

@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Nowe (#2572): import przepisu z adresu zachowuje czas łączny podany przez źródło (`totalTime`) i pokazuje go na stronie przepisu jako „Źródło podaje łącznie: około 1 godz. 30 min”. Nie jest wpisywany jako przygotowanie ani gotowanie, nie dzieli się go i nie sprawdza sumy; zdanie znika, gdy autor sam podał oba czasy. Wartość trafia też do eksportu danych.
+
 ## Alfa 0.78 — co zużyć najpierw, lista zakupów i wydruk zeszytu
 
 - Naprawione (#2621): wklejona pusta linia z nierozdzielającą spacją nie dodaje niewidocznego składnika ani nie skleja dwóch kroków przepisu. Spacja wewnątrz wpisanej ilości zostaje bez zmian.

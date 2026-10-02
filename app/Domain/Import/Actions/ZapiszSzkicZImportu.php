@@ -57,6 +57,8 @@ final class ZapiszSzkicZImportu
                     'servings' => $przepis?->porcje,
                     'prep_minutes' => $przepis?->przygotowanieMinut,
                     'cook_minutes' => $przepis?->gotowanieMinut,
+                    // Czas łączny ze źródła (#2572) — osobna informacja, nie prep ani cook.
+                    'czas_laczny_zrodla_minut' => $przepis?->lacznieMinut,
                     'visibility' => 'private',
                     'source_type' => $zAdresu ? Recipe::SOURCE_EXTERNAL : Recipe::SOURCE_OWN,
                     'source_url' => $zAdresu ? $sourceUrl : null,

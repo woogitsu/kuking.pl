@@ -120,6 +120,8 @@ class Recipe extends Model
         'estimated_cost_pln',
         'prep_minutes',
         'cook_minutes',
+        // `totalTime` ze źródła importu (#2572) — informacja, nie czas Kuking.
+        'czas_laczny_zrodla_minut',
         'difficulty',
         'visibility',
         'status',
@@ -162,6 +164,7 @@ class Recipe extends Model
             'estimated_cost_pln' => 'float',
             'prep_minutes' => 'integer',
             'cook_minutes' => 'integer',
+            'czas_laczny_zrodla_minut' => 'integer',
             'family_since_year' => 'integer',
             'forked_at' => 'datetime',
         ];
