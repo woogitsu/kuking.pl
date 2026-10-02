@@ -63,12 +63,15 @@ temperaturę”. Po jej otwarciu zobaczycie, ile to w drugiej skali, na przykła
 piekarnik, i zawsze opisany jako „około”. Tekst przepisu zostaje taki, jak
 napisał go autor, a samo „180 stopni” bez jednostki nie jest przeliczane.
 Rozwijanie działa bez żadnych ustawień i niczego nie zapisuje.
+
 ### Własny minutnik w trybie gotowania
 
 Krok, przy którym autor nie podał czasu, ma teraz „Nastaw własny minutnik”: możecie wybrać 5, 10, 15 lub 20 minut albo wpisać własną liczbę i dotknąć „Start”. Minutnik odlicza i dzwoni tak samo jak ten od autora, i odlicza dalej po przejściu do następnych kroków. Czas zostaje tylko w tej przeglądarce — nie zmienia przepisu.
+
 ### Zrobione w Planerze
 
 Przy każdej pozycji planu możesz oznaczyć, że jest już zrobiona, i cofnąć to jednym przyciskiem. Dzięki temu po przygotowaniu części potraw widzisz, co jeszcze zostało, a cały plan zostaje na swoim miejscu. Oznaczenie jest prywatne: nie publikuje „Ugotowałem”, nie powiadamia autora przepisu i nie zmienia nic poza Twoim planem.
+
 ### Cofnij usunięcie na liście zakupów
 
 Jeśli na liście zakupów usuniecie pozycję albo klikniecie „Wyczyść odhaczone”
@@ -282,6 +285,7 @@ zdjęcie i kilka słów przez „Ugotowałem”. Wtedy Wasze wykonanie pojawi si
 stronie obok innych z tego tygodnia, od najnowszego. Tydzień trwa od
 poniedziałku do niedzieli. Niżej są poprzednie tygodnie razem ze zdjęciami
 z tamtych dni. Odnośnik do tej strony jest na „Świeżo z Kuking”.
+
 ### Nowe wpisy w czytniku kanałów
 
 Jeśli korzystacie z czytnika kanałów (na przykład Feedly albo Inoreader), możecie
