@@ -24,7 +24,7 @@ use Throwable;
  * backendów. Nie zna topologii wdrożenia i nie zgaduje jej z niczego.
  * Budżet szczytowy (ile połączeń MA prawo zająć aktualna topologia) jest
  * liczbą POLICZONĄ przez człowieka i stoi w `config/kuking.php`, razem
- * z wyprowadzeniem w `docs/DATABASE.md`. Rozdzielenie jest celowe: pomiar
+ * z wyprowadzeniem w `docs/baza/budzet-polaczen.md`. Rozdzielenie jest celowe: pomiar
  * ma prawo zaprzeczyć obliczeniu, a obliczenie nie ma prawa udawać pomiaru.
  *
  * DLACZEGO LICZYMY BACKENDY CAŁEGO SERWERA, A NIE TYLKO NASZEJ BAZY

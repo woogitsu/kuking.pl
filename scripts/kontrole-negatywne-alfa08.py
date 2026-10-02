@@ -431,7 +431,8 @@ R2_ZAPIS_WERYFIKACJI_TEST = "test_data_sprawdzenia_r2_w_polityce_to_ostatni_zapi
 KONTROLER_AWATARA = "app/Http/Controllers/Settings/AvatarSettingsController.php"
 DOKUMENTACJA_AWATARA_TEST = "DokumentacjaAwataraZgodnaZKodemTest"
 AWATAR_KOMENTARZ = "        // Awatar dalej podlega zgłoszeniom od ludzi, jak każda treść.\n"
-DATABASE_DOC = "docs/DATABASE.md"
+INDEKS_BAZY_TEST = "IndeksDokumentacjiBazyTest"
+DATABASE_DOC = "docs/baza/zgloszenia.md"  # opis schematu bazy leży w docs/baza/, DATABASE.md to indeks
 AWATAR_DATABASE = "Wprowadził ją automat oceny\nzdjęć profilowych (issue #237), a oznaczenie wskazywało `media.id`."
 
 # Awans roli z powłoki gasi sesje sprzed awansu (#1315). Test chodzi po HTTP
@@ -840,6 +841,11 @@ IAC_GALAZ_W_WARUNKU = "      github.event.pull_request.base.ref == 'main' &&\n"
 CHANGELOG = "CHANGELOG.md"
 CHANGELOG_DUPLIKATY_TEST = "ChangelogBezZdublowanychWpisowTest"
 CHANGELOG_NAGLOWEK = "## Nieopublikowane\n\n"
+# Archiwum starszych wersji (docs/changelog/, 2.10.2026): testy czytają je
+# razem z CHANGELOG.md (tests/Support/PelnyChangelog.php).
+CHANGELOG_ARCHIWUM = "docs/changelog/archiwum-alfa-0.70-0.74.md"
+CHANGELOG_ARCHIWUM_LINK = "- [Alfa 0.69](docs/changelog/archiwum-alfa-0.69.md)\n"
+CHANGELOG_NUMERACJA_TEST = "PodbicieWersjiWymagaWpisuWChangelogTest"
 # Strażnik strony „Co nowego” (issue #1909, AGENTS.md §10): wpis CHANGELOGA
 # oznaczony `[nowa funkcja]` w sekcji „## Nieopublikowane" ma odpowiadający
 # akapit (`### ...`) w sekcji „## Najnowsze zmiany" pliku nowości.
@@ -1358,6 +1364,21 @@ checks = [
     ("Mikrodane ListItem zapisują etykietę do szkicu (#2638)", "app/Domain/Import/Url/ParserMikrodanychPrzepisu.php",
      "ImportPrzepisuZAdresuIPdfTest::test_listitem_mikrodanych_zapisuje_item_w_prywatnym_szkicu_bez_modelu",
      lambda s: replace_once(s, "if ($this->maTyp($el, ['ListItem'])) {", "if (false) {")),
+    ("Import URL: regex zostawia potomka komentarzy (#2640)",
+     "app/Domain/Import/Url/TekstStrony.php",
+     "ImportParseryTest::test_zagniezdzone_komentarze_znikaja_z_calym_poddrzewem_a_przepis_zostaje",
+     lambda s: replace_once(s, "$html = self::bezKomentarzyCzytelnikow($html);",
+         r"""$html = (string) preg_replace('#<(section|div|ol|ul)\b[^>]*\b(id|class)\s*=\s*["\'][^"\']*\bcomments?\b[^"\']*["\'][^>]*>.*?</\1\s*>#is', "\n", $html);""")),
+    ("Import URL HTTP: regex wysyła komentarz do fragmentów (#2640)",
+     "app/Domain/Import/Url/TekstStrony.php",
+     "ImportPrzepisuZAdresuIPdfTest::test_import_http_nie_przekazuje_zagniezdzonych_komentarzy_do_fragmentow_ani_szkicu",
+     lambda s: replace_once(s, "$html = self::bezKomentarzyCzytelnikow($html);",
+         r"""$html = (string) preg_replace('#<(section|div|ol|ul)\b[^>]*\b(id|class)\s*=\s*["\'][^"\']*\bcomments?\b[^"\']*["\'][^>]*>.*?</\1\s*>#is', "\n", $html);""")),
+    ("OCR: miesięczny limit obiecuje jutro (#2648)", "app/Domain/Import/KomunikatImportu.php",
+     "test_zapisane_zlecenie_pokazuje_obecny_miesieczny_limit_zamiast_obietnicy_jutra",
+     lambda s: replace_once(s,
+                            "Po rozpoczęciu następnego miesiąca możesz spróbować ponownie, jeśli odczytywanie będzie dostępne.",
+                            "Jutro rano będzie można dalej.")),
     ("PDF: ilość dziesiętna staje się numerem listy (#2614)",
      "app/Domain/Import/ParserTekstuPrzepisu.php",
      "ImportParseryTest::test_tekst_pdf_zachowuje_dziesietne_ilosci_a_usuwa_tylko_jednoznaczna_numeracje",
@@ -1808,6 +1829,10 @@ checks = [
     ("DATABASE.md znów mówi, że model ocenia awatar", DATABASE_DOC, DOKUMENTACJA_AWATARA_TEST,
      lambda s: replace_once(s, AWATAR_DATABASE, "Dziś trafia tu wyłącznie\nzdjęcie profilowe: model ocenia je po "
                             "przetworzeniu (`PrzeanalizujAwatar`),\na oznaczenie wskazuje `media.id`.")),
+    ("Indeks bazy gubi plik obszaru", "docs/DATABASE.md", INDEKS_BAZY_TEST,
+     lambda s: replace_once(s, "(baza/kontakt.md)", "(baza/kontakt-stary.md)")),
+    ("Link względny w docs/baza/ bez poprawki po przeniesieniu", "docs/baza/budzet-polaczen.md", INDEKS_BAZY_TEST,
+     lambda s: replace_once(s, "(../infra/MONITORING_ODBIOR_2026_09_20.md)", "(infra/MONITORING_ODBIOR_2026_09_20.md)")),
     ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
      lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
                             "return $this->zdejmij($user, $recipe, $collection);")),
@@ -2269,6 +2294,13 @@ checks = [
     ("CHANGELOG z tym samym wpisem dwa razy", CHANGELOG, CHANGELOG_DUPLIKATY_TEST,
      lambda s: replace_once(s, CHANGELOG_NAGLOWEK, CHANGELOG_NAGLOWEK
                             + "- Wpis zdublowany przez kontrolę dodatnią.\n" * 2)),
+    # Archiwum changelogu czytane razem z plikiem głównym: ten sam wpis
+    # dwa razy w samym archiwum nadal ma zapalić test duplikatów.
+    ("Archiwum CHANGELOG z tym samym wpisem dwa razy", CHANGELOG_ARCHIWUM, CHANGELOG_DUPLIKATY_TEST,
+     lambda s: s + "\n- Wpis zdublowany w archiwum.\n- Wpis zdublowany w archiwum.\n"),
+    # Plik archiwum bez odnośnika w CHANGELOG.md wypadłby po cichu z testów.
+    ("CHANGELOG bez odnośnika do pliku archiwum", CHANGELOG, CHANGELOG_NUMERACJA_TEST,
+     lambda s: replace_once(s, CHANGELOG_ARCHIWUM_LINK, "")),
     # Strona „Co nowego” (issue #1909): nowa funkcja w sekcji
     # „Nieopublikowane” musi mieć akapit w „Najnowszych zmianach”. Dodajemy
     # osierocony wpis, zamiast zdejmować znacznik ze starego wydania: po

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Import;
 
 use App\Domain\Import\KlientLuna;
+use App\Domain\Import\KomunikatImportu;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Users\Actions\EraseAccountData;
@@ -17,6 +18,8 @@ use App\Models\User;
 use App\Models\WpisZgody;
 use App\Support\Czas;
 use App\Support\KreatorPrzepisu\DanePublikacji;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
@@ -317,7 +320,7 @@ final class OdczytZdjeciaKartkiTest extends TestCase
             $this->zlecenieBezWysylki(ImportPrzepisu::STATUS_GOTOWY);
         }
 
-        $this->actingAs($this->osoba)->get(route('import.zdjecie'))->assertSee('to dzienny limit');
+        $this->actingAs($this->osoba)->get(route('import.zdjecie'))->assertSee('Dziś wykorzystano limit');
 
         $this->actingAs($this->osoba)->post(route('import.zlec'), ['zdjecie' => $this->kartka()]);
 
@@ -343,6 +346,115 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
         $this->assertSame(1, ImportPrzepisu::query()->where('kod_bledu', ImportPrzepisu::KOD_LIMIT_OSOBY)->count());
         Http::assertNothingSent();
+    }
+
+    public function test_zapisane_zlecenie_pokazuje_obecny_miesieczny_limit_zamiast_obietnicy_jutra(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-15 12:00:00', 'Europe/Warsaw'));
+        $this->zgoda();
+        Http::fake();
+        config(['kuking.import.limity.na_osobe_dzien' => 1, 'kuking.import.limity.na_osobe_miesiac' => 1]);
+        $this->zlecenieBezWysylki(ImportPrzepisu::STATUS_GOTOWY);
+
+        $this->actingAs($this->osoba)->get(route('import.zdjecie'))
+            ->assertOk()
+            ->assertSee('W tym miesiącu wykorzystano limit odczytów')
+            ->assertDontSee('Jutro rano będzie można dalej');
+
+        $this->actingAs($this->osoba)->post(route('import.zlec'), ['zdjecie' => $this->kartka()]);
+        $zlecenie = ImportPrzepisu::query()->where('kod_bledu', ImportPrzepisu::KOD_LIMIT_OSOBY)->sole();
+        $this->assertSame(ImportPrzepisu::STATUS_WSTRZYMANY_LIMITEM, $zlecenie->status);
+        $this->assertNotNull($zlecenie->recipe->source_scan_media_id);
+        Http::assertNothingSent();
+
+        $odpowiedz = $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))->assertOk();
+        $this->assertStringContainsString(
+            'Po rozpoczęciu następnego miesiąca możesz spróbować ponownie',
+            $odpowiedz->getContent(),
+            'OCR_2648_MIESIAC_NIE_OBIECUJE_JUTRA',
+        );
+        $odpowiedz->assertSee('W tym miesiącu wykorzystano limit odczytów')
+            ->assertSee('Po rozpoczęciu następnego miesiąca możesz spróbować ponownie')
+            ->assertSee('Wpiszę przepis ręcznie')
+            ->assertDontSee('Jutro rano będzie można dalej');
+
+        $this->travelTo(CarbonImmutable::parse('2026-10-16 12:00:00', 'Europe/Warsaw'));
+        $html = $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))->assertOk()->getContent();
+        $this->assertStringContainsString('Po rozpoczęciu następnego miesiąca możesz spróbować ponownie', $html, 'OCR_2648_MIESIAC_NIE_OBIECUJE_JUTRA');
+        $this->assertStringNotContainsString('Jutro rano będzie można dalej', $html);
+
+        $this->travelTo(CarbonImmutable::parse('2026-10-31 23:59:59', 'Europe/Warsaw'));
+        $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
+            ->assertOk()->assertSee('W tym miesiącu wykorzystano limit odczytów');
+
+        $this->travelTo(CarbonImmutable::parse('2026-11-01 00:00:01', 'Europe/Warsaw'));
+        $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
+            ->assertOk()
+            ->assertSee('<strong>Możesz spróbować ponownie</strong>', false)
+            ->assertSee('Możesz spróbować ponownie, jeśli odczytywanie jest dostępne')
+            ->assertDontSee('W tym miesiącu wykorzystano limit odczytów')
+            ->assertDontSee('To już limit odczytów');
+        Http::assertNothingSent();
+    }
+
+    public function test_dzienny_limit_zapisanego_zlecenia_i_stary_kod_maja_uczciwy_komunikat(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-15 12:00:00', 'Europe/Warsaw'));
+        $this->zgoda();
+        Http::fake();
+        config(['kuking.import.limity.na_osobe_dzien' => 1, 'kuking.import.limity.na_osobe_miesiac' => 30]);
+        $this->zlecenieBezWysylki(ImportPrzepisu::STATUS_GOTOWY);
+        $this->actingAs($this->osoba)->post(route('import.zlec'), ['zdjecie' => $this->kartka()]);
+        $zlecenie = ImportPrzepisu::query()->where('kod_bledu', ImportPrzepisu::KOD_LIMIT_OSOBY)->sole();
+
+        $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
+            ->assertOk()->assertSee('Dziś wykorzystano limit odczytów')
+            ->assertSee('Po rozpoczęciu następnego dnia możesz spróbować ponownie')
+            ->assertDontSee('W tym miesiącu wykorzystano limit odczytów');
+
+        $this->travelTo(CarbonImmutable::parse('2026-10-15 23:59:59', 'Europe/Warsaw'));
+        $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
+            ->assertOk()->assertSee('Dziś wykorzystano limit odczytów');
+
+        $this->travelTo(CarbonImmutable::parse('2026-10-16 00:00:01', 'Europe/Warsaw'));
+        $this->actingAs($this->osoba)->get(route('import.show', $zlecenie))
+            ->assertOk()->assertSee('<strong>Możesz spróbować ponownie</strong>', false)
+            ->assertSee('Możesz spróbować ponownie, jeśli odczytywanie jest dostępne')
+            ->assertDontSee('Dziś wykorzystano limit odczytów')
+            ->assertDontSee('To już limit odczytów');
+
+        // Historyczny kod w nieblokowanym zleceniu nie ma zapisanej przyczyny.
+        $stare = $this->zlecenieBezWysylki(ImportPrzepisu::STATUS_NIEUDANY, ImportPrzepisu::KOD_LIMIT_OSOBY);
+        $this->actingAs($this->osoba)->get(route('import.show', $stare))
+            ->assertOk()->assertSee('<strong>Możesz spróbować ponownie</strong>', false)
+            ->assertSee('Możesz spróbować ponownie, jeśli odczytywanie jest dostępne')
+            ->assertDontSee('To już limit odczytów')
+            ->assertDontSee('Jutro rano będzie można dalej');
+        Http::assertNothingSent();
+    }
+
+    public function test_liczniki_okresow_czytamy_tylko_dla_wstrzymanego_zlecenia(): void
+    {
+        config(['kuking.import.limity.na_osobe_dzien' => 1, 'kuking.import.limity.na_osobe_miesiac' => 1]);
+        $this->zlecenieBezWysylki(ImportPrzepisu::STATUS_GOTOWY);
+        $miesieczny = $this->zlecenieBezWysylki(ImportPrzepisu::STATUS_WSTRZYMANY_LIMITEM, ImportPrzepisu::KOD_LIMIT_OSOBY);
+        $inny = $this->zlecenieBezWysylki(ImportPrzepisu::STATUS_WSTRZYMANY_LIMITEM, ImportPrzepisu::KOD_BUDZET_DZIENNY);
+        $sql = [];
+        DB::listen(static function (QueryExecuted $zapytanie) use (&$sql): void {
+            if (str_contains(strtolower($zapytanie->sql), 'count(*)') && (str_contains($zapytanie->sql, 'proby_importu') || str_contains($zapytanie->sql, 'importy_przepisow'))) {
+                $sql[] = $zapytanie->sql;
+            }
+        });
+
+        KomunikatImportu::dla($inny);
+        $this->assertCount(0, $sql, 'OCR_2648_INNE_ZLECENIE_BEZ_DODATKOWYCH_COUNT');
+        KomunikatImportu::dla($miesieczny);
+        $this->assertCount(2, $sql, 'OCR_2648_MIESIAC_TYLKO_DWA_COUNT');
+
+        config(['kuking.import.limity.na_osobe_miesiac' => 30]);
+        $sql = [];
+        KomunikatImportu::dla($miesieczny);
+        $this->assertCount(4, $sql, 'OCR_2648_DZIEN_CZTERY_COUNT_BEZ_POWTORZENIA_OKRESU');
     }
 
     public function test_wyczerpany_budzet_dzienny_wstrzymuje_bez_wywolania(): void

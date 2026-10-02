@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Tests\Support\DokumentacjaBazy;
 use Tests\TestCase;
 
 /**
@@ -194,7 +195,11 @@ final class DokumentacjaAwataraZgodnaZKodemTest extends TestCase
 
     private function plik(string $sciezka): string
     {
-        $tresc = file_get_contents(base_path($sciezka));
+        // Opis schematu bazy jest rozłożony na indeks i pliki obszarów w docs/baza/:
+        // twierdzenie o awatarze może leżeć w którymkolwiek, więc czytamy całość.
+        $tresc = $sciezka === DokumentacjaBazy::INDEKS
+            ? DokumentacjaBazy::tresc()
+            : file_get_contents(base_path($sciezka));
         $this->assertIsString($tresc, 'Brak pliku '.$sciezka);
         $this->assertNotSame('', $tresc, 'Pusty plik '.$sciezka);
 

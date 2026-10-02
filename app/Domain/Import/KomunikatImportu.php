@@ -25,23 +25,22 @@ final class KomunikatImportu
             return self::dlaPdf($import);
         }
 
-        $naDzien = (int) config('kuking.import.limity.na_osobe_dzien');
-        $naMiesiac = (int) config('kuking.import.limity.na_osobe_miesiac');
-
         return match ($import->status) {
             ImportPrzepisu::STATUS_OCZEKUJE, ImportPrzepisu::STATUS_W_TOKU => $import->proby > 1
                 ? ['tytul' => 'To trwa dłużej niż zwykle', 'tresc' => 'Nie musisz czekać. Możesz zamknąć tę stronę — szkic znajdziesz w „Moich szkicach”, a zdjęcie kartki jest już przy nim zapisane.']
                 : ['tytul' => 'Odczytujemy pismo', 'tresc' => 'Zwykle trwa to do minuty. Nie musisz czekać — możesz zamknąć tę stronę, szkic znajdziesz w „Moich szkicach”.'],
             ImportPrzepisu::STATUS_GOTOWY => ['tytul' => 'Szkic gotowy do sprawdzenia', 'tresc' => 'Ten tekst odczytał komputer. Porównaj każdą linijkę ze zdjęciem i popraw, co trzeba. Nic się nie opublikuje, dopóki nie klikniesz „Opublikuj”.'],
-            default => self::niepowodzenie((string) $import->kod_bledu, $naDzien, $naMiesiac),
+            default => self::niepowodzenie($import),
         };
     }
 
     /** @return array{tytul: string, tresc: string} */
-    private static function niepowodzenie(string $kod, int $naDzien, int $naMiesiac): array
+    private static function niepowodzenie(ImportPrzepisu $import): array
     {
+        $kod = (string) $import->kod_bledu;
+
         return match ($kod) {
-            ImportPrzepisu::KOD_LIMIT_OSOBY => ['tytul' => 'To już limit odczytów', 'tresc' => "Można odczytać {$naDzien} przepisów dziennie i {$naMiesiac} w miesiącu. Twoje zdjęcie jest zapisane w szkicu. Jutro rano będzie można dalej — albo wpisz przepis ręcznie już teraz."],
+            ImportPrzepisu::KOD_LIMIT_OSOBY => self::limitOsoby($import),
             ImportPrzepisu::KOD_BUDZET_DZIENNY => ['tytul' => 'Odczytywanie jest na dziś wstrzymane', 'tresc' => 'Wyczerpał się dzienny limit odczytów w serwisie. Twoje zdjęcie jest zapisane. Możesz wpisać przepis ręcznie już teraz albo wrócić jutro i kliknąć „Spróbuj jeszcze raz”.'],
             ImportPrzepisu::KOD_BUDZET_MIESIECZNY => ['tytul' => 'Odczytywanie jest w tym miesiącu wstrzymane', 'tresc' => 'Wyczerpał się miesięczny limit odczytów w serwisie. Twoje zdjęcie jest zapisane. Możesz wpisać przepis ręcznie już teraz albo wrócić w przyszłym miesiącu.'],
             ImportPrzepisu::KOD_BRAK_ZGODY => ['tytul' => 'Zgoda na odczyt jest wycofana', 'tresc' => 'Bez zgody na odczyt przez OpenAI nic nie wysłaliśmy. Twoje zdjęcie jest zapisane w szkicu — możesz wpisać przepis ręcznie.'],
@@ -52,6 +51,28 @@ final class KomunikatImportu
             ImportPrzepisu::KOD_SZKIC_ZMIENIONY => ['tytul' => 'Szkic zmienił się w trakcie odczytu', 'tresc' => 'W tym szkicu jest już Twój tekst, więc niczego w nim nie nadpisaliśmy. Zdjęcie kartki jest przy szkicu.'],
             default => ['tytul' => 'Nie udało się odczytać przepisu', 'tresc' => 'Nic nie zginęło — zdjęcie jest zapisane. Możesz wpisać przepis ręcznie.'],
         };
+    }
+
+    /** @return array{tytul: string, tresc: string} */
+    private static function limitOsoby(ImportPrzepisu $import): array
+    {
+        // Starszy kod nie zapisywał okresu. Pokazujemy wyłącznie OBECNY limit,
+        // tylko przy faktycznie wstrzymanym zleceniu; nie zgadujemy przyczyny.
+        $osoba = $import->status === ImportPrzepisu::STATUS_WSTRZYMANY_LIMITEM
+            ? $import->user()->first()
+            : null;
+        $okres = $osoba === null ? null : app(LimitImportowOsoby::class)->obecnaBlokada($osoba);
+
+        $tresc = match ($okres) {
+            LimitImportowOsoby::MIESIAC => 'W tym miesiącu wykorzystano limit odczytów. Po rozpoczęciu następnego miesiąca możesz spróbować ponownie, jeśli odczytywanie będzie dostępne.',
+            LimitImportowOsoby::DZIEN => 'Dziś wykorzystano limit odczytów. Po rozpoczęciu następnego dnia możesz spróbować ponownie, jeśli odczytywanie będzie dostępne.',
+            default => 'Możesz spróbować ponownie, jeśli odczytywanie jest dostępne.',
+        };
+
+        return [
+            'tytul' => $okres === null ? 'Możesz spróbować ponownie' : 'To już limit odczytów',
+            'tresc' => $tresc.' Twoje zdjęcie jest zapisane w szkicu. Możesz też wpisać przepis ręcznie już teraz.',
+        ];
     }
 
     /**

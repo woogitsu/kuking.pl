@@ -252,7 +252,7 @@ class BudzetPolaczenBazyTest extends TestCase
         // Kontrola DODATNIA: to naprawdę jest nasz alarm i mówi, co zrobić.
         $this->assertStringContainsString('połączenia PostgreSQL', $tresc);
         $this->assertStringContainsString('kuking:budzet-polaczen', $tresc);
-        $this->assertStringContainsString('DATABASE.md', $tresc);
+        $this->assertStringContainsString('docs/baza/budzet-polaczen.md', $tresc);
 
         // Kontrola UJEMNA: nazwa bazy jest podpowiedzią dla kogoś, kto przejął
         // kanał, a diagnozy nie przyspiesza — stoi w zmiennych środowiskowych.

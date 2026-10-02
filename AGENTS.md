@@ -27,43 +27,11 @@ przez inną osobę. Jest silniejszy niż jakikolwiek lajk i to on generuje
 najcenniejsze powiadomienie w całym serwisie. **„Ugotowałem” ZAWSZE powiadamia
 autora przepisu.**
 
-### Co znaczy tu „zawsze” — i trzy przypadki, w których powiadomienia nie ma
+### „Ugotowałem” — trzy granice powiadomienia ([szczegóły](docs/agenci/UGOTOWALEM_POWIADAMIA_AUTORA.md))
 
-Obietnica działająca w większości ścieżek nie działa, więc słowo „zawsze”
-obowiązuje na KAŻDEJ drodze, którą w tym serwisie powstaje wykonanie: przez
-formularz, przez akcję domenową wołaną wprost i przez dane demonstracyjne.
-Do 12 września 2026 `DemoSeeder` zapisywał dwa wykonania i powiadamiał przy
-jednym — obietnica była tam prawdziwa w połowie przypadków, a to są dane, na
-których ogląda się serwis lokalnie. Dlatego seeder **też** idzie przez
-`RecordCookedEvent`, a nie przez gołe `CookedEvent::create()`.
-
-Granice są trzy, wszystkie odcina `NotifyUser` i wszystkie są zmierzone
-w `tests/Feature/UgotowalemZawszePowiadamiaAutoraTest.php`:
-
-1. **Autor ugotował własny przepis.** Wolno mu (`RecipePolicy::cook`), ale
-   wiadomość o własnej akcji nie niesie informacji.
-2. **Konto autora jest zamknięte** — `banned`, `pending_delete` albo `erased`.
-   Przy dwóch pierwszych wykonanie w ogóle nie powstaje, bo przepis takiego
-   konta jest niewidoczny. Przy `erased` wykonanie powstaje i **zostaje** (to
-   dorobek kucharza), a powiadomienia nie ma, bo nie ma komu go przeczytać.
-   **Zawieszenie tu nie wchodzi**: zawieszony autor powiadomienie dostaje —
-   zawieszenie odcina od pisania, nie od wiadomości, dla której warto wrócić.
-3. **Między autorem a kucharzem jest blokada** (w którąkolwiek stronę). Wtedy
-   nie powstaje samo wykonanie.
-
-Czego na tej liście nie ma i mieć nie ma: **ustawienia użytkownika**.
-Powiadomienia w serwisie nie wycisza żaden przełącznik. **Wyjątek dotyczy
-wyłącznie kanałów zewnętrznych (D-303):** na `/ustawienia/powiadomienia`
-człowiek włącza albo wyłącza Web Push (per urządzenie) i ustawia ciszę nocną
-oraz dzienny limit — to decyduje, czy i kiedy dowie się o powiadomieniu POZA
-serwisem, nigdy o tym, czy powiadomienie w serwisie powstanie. Bez ustawień
-per typ. Osobną zgodą jest tygodniowy list (`users.wants_weekly_digest`),
-który powiadomień w serwisie też nie dotyka. Ugotowanie
-**cofnięte i zrobione ponownie** powiadamia drugi raz, a ta sama osoba
-gotująca ten sam przepis dwa razy daje dwa powiadomienia — to są ZDARZENIA,
-nie STAN (`NotifyUser::TYPY_WYCISZANE_W_OKNIE`). Jedno ograniczenie jest
-wąskie i nazwane: jedno wysłanie formularza to jedno powiadomienie
-(`klucz_wyslania`).
+- „Zawsze” dotyczy KAŻDEJ drogi, którą powstaje wykonanie: formularza, akcji domenowej i danych demonstracyjnych (`DemoSeeder` idzie przez `RecordCookedEvent`, nie przez gołe `CookedEvent::create()`).
+- Powiadomienia nie ma tylko gdy: autor ugotował własny przepis; konto autora jest zamknięte (`banned`, `pending_delete`, `erased` — zawieszony DOSTAJE); jest blokada między autorem a kucharzem (wtedy nie powstaje samo wykonanie). Pilnuje `UgotowalemZawszePowiadamiaAutoraTest`.
+- Żadne ustawienie użytkownika nie wycisza powiadomień w serwisie; wyjątek (D-303) to wyłącznie kanały zewnętrzne (Web Push, cisza nocna, dzienny limit).
 
 ### Hierarchia priorytetów
 
@@ -79,39 +47,11 @@ społeczność         >  anonimowa baza treści
 
 ## 2. Zanim napiszesz choćby linijkę
 
-Przeczytaj w tej kolejności:
-
-1. ten plik,
-2. `docs/PRODUCT.md` — czym jest produkt,
-3. `docs/FEATURES.md` — co jest w MVP, a co świadomie NIE,
-4. `docs/UX_50_PLUS.md` — twardy standard interfejsu,
-5. `docs/ARCHITECTURE.md` — jak to jest zbudowane,
-6. `docs/DATABASE.md` — model danych,
-7. `docs/ROADMAP.md` i `docs/FEATURES.md` (lista V2 jest w sekcji „V2” tego
-   drugiego) — **od D-282 (26 września 2026) V2 wolno budować**; sprawdź
-   tę sekcję, żeby wiedzieć, co to jest, i pracować po kolei (P0 → P1 → P2,
-   §10), nie po to, żeby tego unikać. Lista „Nie wcześnie” w tym samym pliku
-   pozostaje zakazana bez zmian,
-8. **`docs/DECISIONS.md` — dziennik decyzji już podjętych.** Czytaj go, zanim
-   zaproponujesz zmianę architektury, pakiet albo inny sposób pisania tekstów.
-   Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem.
-   Od 30.09.2026 to **indeks**: każda decyzja jest osobnym plikiem
-   `docs/decyzje/D-NNN-krotki-slug.md`. **Nowa decyzja = nowy plik**
-   (numer: `php scripts/decyzje-indeks.php --nastepny`), potem
-   `php scripts/decyzje-indeks.php` odświeża tabelę — nigdy nie dopisuj treści
-   decyzji do `docs/DECISIONS.md`. Pilnuje tego `DziennikDecyzjiZgodnyZIndeksemTest`.
-   Gałąź sprzed podziału z nowym wpisem w starym dzienniku przenosi go według
-   [`docs/flota/PRZENIESIENIE_PO_PODZIALE.md`](docs/flota/PRZENIESIENIE_PO_PODZIALE.md);
-9. dokument dotyczący obszaru, który zmieniasz (`docs/` ma katalogi tematyczne).
-
-Jeśli pracujesz nad marką lub wyglądem: najpierw
-[`docs/brand/KONSTYTUCJA_MARKI.md`](docs/brand/KONSTYTUCJA_MARKI.md), potem
-`docs/brand/COPY_STYLE.md`, `docs/brand/GLOS_MARKI.md` oraz
-`docs/design/DESIGN_SYSTEM.md`. Konstytucja wyznacza kierunek marki;
-nie zastępuje nadrzędnych zasad tego pliku ani jawnych decyzji właściciela
-w `docs/DECISIONS.md`. Historyczna makieta nie unieważnia tych zasad.
-Jeśli nad moderacją lub prawem: `docs/legal/`.
-Jeśli nad wdrożeniem: `docs/infra/`.
+1. **Zawsze** przeczytaj ten plik w całości.
+2. Potem TYLKO dokumenty dotyczące obszaru zmiany — mapa obszar → lektura: [szczegóły](docs/agenci/LEKTURY_PRZED_PRACA.md). Interfejs (widok, formularz, CSS) → zawsze [`docs/UX_50_PLUS.md`](docs/UX_50_PLUS.md). Marka i wygląd: najpierw `docs/brand/KONSTYTUCJA_MARKI.md`; prawo i moderacja: `docs/legal/`; wdrożenie: `docs/infra/`.
+3. **Duże pliki** (`docs/DATABASE.md`, `CHANGELOG.md`, `docs/DECISIONS.md`, `docs/PULAPKI_TESTOW.md`) — nie czytaj w całości: przeszukaj (grep) i czytaj sekcję swojego obszaru. `docs/DATABASE.md` to indeks modelu danych, a opis tabel leży w `docs/baza/` (szukaj tabeli w indeksie). Starsze wersje `CHANGELOG.md` leżą w `docs/changelog/` — czytaj tylko górę `CHANGELOG.md`.
+4. **Decyzje:** zanim zaproponujesz zmianę architektury, pakiet albo sposób pisania tekstów, przeszukaj `docs/DECISIONS.md` (indeks) i `docs/decyzje/`. Duża, osobna decyzja = nowy plik `docs/decyzje/D-NNN-krotki-slug.md` (numer: `php scripts/decyzje-indeks.php --nastepny`), potem `php scripts/decyzje-indeks.php`; nigdy nie dopisuj treści decyzji do `docs/DECISIONS.md` (pilnuje `DziennikDecyzjiZgodnyZIndeksemTest`). **Drobna decyzja właściciela = nowy wiersz tabeli w aktualnym zbiorczym pliku (obecnie D-333), bez nowego numeru D**; gdy plik przekroczy ~60 KB, zamyka się go i otwiera następny zbiorczy (numer z `--nastepny`). **Duża** = zmienia zasadę z AGENTS.md, architekturę, stos, model uprawnień albo schemat wielu obszarów; reszta (zakres jednej funkcji, brzmienie, próg, kolejność) to drobna.
+5. **V2 wolno budować od D-282 (26 września 2026)**, po kolei P0 → P1 → P2 (§10); sekcja „V2” w `docs/FEATURES.md`. Lista „Nie wcześnie” w tym samym pliku pozostaje zakazana bez zmian.
 
 ---
 
@@ -133,50 +73,13 @@ Jeśli nad wdrożeniem: `docs/infra/`.
 | Mobile | PWA | w repozytorium: `public/manifest.webmanifest` |
 | API dla aplikacji mobilnej | prefiks `api/v1`, Laravel Sanctum (tokeny osobistego dostępu, bez sesji), domyślnie wyłączone flagą `KUKING_API_ENABLED` (D-270) | `composer.json`: `laravel/sanctum` · w repozytorium: `routes/api.php` |
 
-Feed, wyszukiwanie, komentarze i „Ugotowałem” korzystają z kontrolerów
-i widoków Blade, z JavaScriptem jako ulepszeniem. Livewire obsługuje złożony
-formularz kreatora przepisu (`resources/views/components/recipe-wizard.blade.php`).
-Dodanie `wire:poll` do często odwiedzanych ekranów wymaga osobnej decyzji
-i pomiaru kosztu żądań; nie wynika z wyboru Livewire dla kreatora.
+Feed, wyszukiwanie, komentarze i „Ugotowałem” to kontrolery i widoki Blade (JavaScript jako ulepszenie); Livewire tylko w kreatorze przepisu. `wire:poll` na często odwiedzanych ekranach wymaga osobnej decyzji i pomiaru kosztu żądań ([szczegóły](docs/agenci/STACK_TABELA_PRAWDY.md)).
 
-### Ta tabela opisuje STAN, nie zamiar — i trzecia kolumna jest sprawdzana testem (D-104)
+### Tabela stacku opisuje STAN, nie zamiar (D-104) — [szczegóły](docs/agenci/STACK_TABELA_PRAWDY.md)
 
-Tabela nosi nagłówek „Stack” i jest czytana jako odpowiedź na pytanie „co
-w tym projekcie JEST”. Do 10 września 2026 stało w niej `| Monitoring | Sentry |`,
-a Sentry'ego tu nie ma i nigdy nie było: zero trafień w `composer.json`, brak
-`config/sentry.php`, a `SENTRY_LARAVEL_DSN` jest przewleczone przez
-`.env.example`, `.railway/railway.ts` i `ci.yml`, ale **nie czyta go ani jedna
-linijka PHP**. Autor PR-a #253 zbudował na tym wierszu całe zdanie o tym, że
-„właściciel ma szansę dowiedzieć się o awarii bez zaglądania” — założył, że
-`Log::error()` dojdzie do Sentry. Nie dochodzi. Prostowanie tego zajęło komuś
-innemu trzy pliki i wpis w dzienniku decyzji.
-
-Dlatego wiersz `Monitoring` mówi teraz, co **działa dziś**, a Sentry jako wybór
-docelowy stoi tam, gdzie zamiary mają stać: **D-041** w `docs/DECISIONS.md`
-i `docs/ROADMAP.md` §0. Tak samo postępuj z każdym następnym wierszem: do tabeli
-wchodzi rzecz wdrożona, do roadmapy — zamiar.
-
-Trzecia kolumna nie jest ozdobą. Czyta ją
-`tests/Feature/TabelaStackuMowiPrawdeTest.php` i sprawdza, czy rzecz naprawdę
-jest tam, gdzie wiersz obiecuje. Dozwolone są **cztery kształty wpisu i nic
-poza nimi**:
-
-| Kształt | Znaczenie | Co sprawdza test |
-|---|---|---|
-| `composer.json`: nazwa pakietu | zależność PHP | klucz jest w `require` albo `require-dev` |
-| `package.json`: nazwa pakietu | zależność npm | klucz jest w `dependencies`, `devDependencies` albo `optionalDependencies` |
-| w repozytorium: ścieżka | rzecz jest naszym kodem | plik albo katalog istnieje |
-| usługa zewnętrzna | konto u kogoś — w repozytorium nie ma czego sprawdzać | tylko to, że wiersz to MÓWI |
-
-Kilka lokalizatorów w jednym wierszu rozdziela `·`. Kształt piąty nie przejdzie:
-test oblewa i podaje wiersz z nazwy. Nowy wiersz nie wejdzie więc do tabeli bez
-odpowiedzi na pytanie „a gdzie to jest”, i odpowiada na nie ten, kto go dopisuje.
-
-**„usługa zewnętrzna” nie jest wytrychem.** Wpisanie tego przy pakiecie PHP
-(Sentry jest SDK, nie usługą) test przepuści — ale wtedy tabela kłamie JAWNIE,
-w jednym widocznym wierszu, zamiast po cichu przez zwykłą nazwę w kolumnie
-„Wybór”. Żeby nie dało się uciszyć testu przepisaniem wszystkich wierszy na tę
-wartość, test wymaga minimalnej liczby wierszy sprawdzalnych w repozytorium.
+- Do tabeli wchodzi rzecz wdrożona; zamiar żyje w `docs/ROADMAP.md` i `docs/DECISIONS.md`.
+- Trzecia kolumna ma jeden z czterech kształtów: `composer.json`: pakiet · `package.json`: pakiet · w repozytorium: ścieżka · usługa zewnętrzna (kilka lokalizatorów rozdziela `·`). Sprawdza to `tests/Feature/TabelaStackuMowiPrawdeTest.php`.
+- „usługa zewnętrzna” nie jest wytrychem (nie wpisuj tego przy pakiecie PHP).
 
 ### Zakaz overengineeringu
 
@@ -200,25 +103,6 @@ issue z pomiarem**, który to uzasadnia. Nie wprowadzaj tego w PR-ze przy okazji
 
 ## 4. Struktura kodu
 
-```text
-app/
-├── Domain/            # przypadki użycia i reguły domenowe
-│   ├── Collections/
-│   ├── Comments/
-│   ├── Feed/
-│   ├── Media/
-│   ├── Moderation/
-│   ├── Notifications/
-│   ├── Posts/
-│   ├── Recipes/
-│   ├── Search/
-│   └── Social/
-├── Http/Controllers/  # cienkie: walidacja → akcja → widok
-├── Jobs/              # zadania w tle
-├── Models/            # Eloquent
-└── Policies/          # autoryzacja
-```
-
 **Kontroler ma być cienki.** Reguła domenowa („blokada kasuje obserwowanie
 w obie strony”) żyje w `app/Domain`, nie w kontrolerze i nie w widoku.
 Dzięki temu da się ją przetestować bez HTTP i nie da się jej obejść,
@@ -228,6 +112,8 @@ To jest **modularny monolit**. Nie robimy z katalogów `app/Domain/*` osobnych
 pakietów ani serwisów.
 
 ---
+
+Struktura katalogów `app/` (`Domain/`, `Http/Controllers/`, `Jobs/`, `Models/`, `Policies/`): [szczegóły](docs/agenci/STRUKTURA_KODU.md).
 
 ## 5. UX 50+ — twarde reguły, nie sugestie
 
@@ -245,51 +131,12 @@ Każdy nowy ekran MUSI spełniać:
 - przy 200% powiększenia i przy szerokości 320 px strona pozostaje używalna,
 - cel: **WCAG 2.2 AA**.
 
-Te dwie reguły mają dwa nazwane, udokumentowane wyjątki — oba na świadomą
-decyzję właściciela:
+Te dwie reguły (18 px i ikona z opisem) mają nazwane wyjątki, oba na świadomą decyzję właściciela — nie ma furtki ogólnej, a kolejny wyjątek wymaga nowej decyzji właściciela i dopisania go tutaj:
 
-- **D-051** — metryczka wersji i przełącznik motywu w stopce
-  (`docs/DECISIONS.md`, D-051);
-- **D-262** — tylko reguła 18 px i tylko panel moderacji: napisy pomocnicze
-  15–16 px w czterech selektorach — `.side-nav-moderacja-naglowek`
-  i `.sygnal-podglad-cytat` (`resources/css/app.css:1512` i `:1632`),
-  `.tabela-kont .drobne` i `.stan-konta`
-  (`resources/css/ekran-uzytkownikow.css:282` i `:294`). Numery linii
-  wskazują komentarz z odwołaniem do D-262 nad regułą (stan z 25 września
-  2026); przy rozjeździe wiążąca jest nazwa selektora. Przyciski i inne cele
-  dotyku w panelu mają nadal ≥ 48 px (`docs/DECISIONS.md`, D-262).
+- **D-051** — metryczka wersji i przełącznik motywu w stopce (`docs/DECISIONS.md`, D-051);
+- **D-262** — tylko reguła 18 px i tylko panel moderacji: napisy pomocnicze 15–16 px w czterech selektorach — `.side-nav-moderacja-naglowek`, `.sygnal-podglad-cytat`, `.tabela-kont .drobne` i `.stan-konta` (przy rozjeździe wiążąca jest nazwa selektora, nie numer linii w CSS; pełny opis z plikami i liniami: [szczegóły](docs/agenci/UX_WYJATKI_I_JAVASCRIPT.md)). Przyciski i inne cele dotyku w panelu mają nadal ≥ 48 px.
 
-To nie jest furtka ogólna: gdziekolwiek indziej w serwisie — także na innych
-ekranach panelu moderacji i w publicznych widokach odwołań — te reguły
-obowiązują bez zmian. Kolejny wyjątek wymaga nowej decyzji właściciela
-i dopisania go tutaj.
-
-**Reguła „ikona nigdy nie jest jedynym opisem ważnej akcji" ma jeden nazwany
-wyjątek: menu „więcej" na karcie wpisu** (`components/post-card.blade.php`,
-`<details class="post-card-menu">`). Ten jeden przycisk to same trzy kropki,
-bez widocznego napisu.
-
-- **Powód.** To jest utrwalony wzorzec z Facebooka, a nasza grupa spędziła
-  tam lata. Trzy kropki w rogu wpisu nie są dla niej ikoną do rozszyfrowania,
-  tylko znakiem, który już zna. Decyzja właściciela z 12 września 2026,
-  podjęta ze znajomością ryzyka — odwraca decyzję z 11 września, która
-  dokładała tam napis „Więcej".
-- **Granica.** Wyjątek dotyczy **wyłącznie tego jednego menu**. Nie obejmuje
-  paska akcji pod wpisem, pasków nawigacji, przycisku zamykania, akcji
-  moderacyjnych ani niczego innego — tam reguła obowiązuje bez zmian
-  i pilnują jej osobne testy.
-- **Co wyjątek zabiera, a czego nie.** Zabiera **widoczny napis**. Nie
-  zabiera niczego czytnikowi ekranu: `aria-label` („Więcej przy tym wpisie")
-  zostaje i jest wtedy jedyną nazwą dostępną tego przycisku. Nie zabiera też
-  celu dotknięcia — przycisk dalej ma 48 × 48 px.
-- **Czym to się różni od stanu sprzed 11 września.** Wtedy przyciskiem były
-  trzy kropki wpisane z klawiatury, schowane przed czytnikiem ekranu — oko
-  dostawało znak bez podpisu, czytnik podpis bez znaku. Teraz kropki rysuje
-  komponent ikony, `aria-label` niesie pełną nazwę, a `AGENTS.md`
-  i `docs/UX_50_PLUS.md` mówią o tym wprost, zamiast milczeć.
-- **Pilnuje tego test** `KartaWpisuTest::test_menu_karty_to_same_kropki_ale_czytnik_ekranu_nie_traci_nic`.
-  Rozszerzenie wyjątku na kolejny przycisk wymaga decyzji właściciela
-  i wpisu w `docs/DECISIONS.md`, a nie dopisania klasy CSS.
+**Reguła „ikona nigdy nie jest jedynym opisem ważnej akcji” ma jeden nazwany wyjątek: menu „więcej” na karcie wpisu** (`components/post-card.blade.php`, trzy kropki bez widocznego napisu) — wyłącznie to jedno menu, nie pasek akcji, nawigacja, zamykanie ani akcje moderacyjne. `aria-label` („Więcej przy tym wpisie”) zostaje, cel dotknięcia dalej 48 × 48 px. Powód, granice i test (`KartaWpisuTest::test_menu_karty_to_same_kropki_ale_czytnik_ekranu_nie_traci_nic`): [szczegóły](docs/agenci/UX_WYJATKI_I_JAVASCRIPT.md). Rozszerzenie wyjątku wymaga decyzji właściciela i wpisu w `docs/DECISIONS.md`, a nie dopisania klasy CSS.
 
 Nawigacja mobilna ma **maksymalnie 5 pozycji**:
 `Start | Szukaj | Dodaj | Moje | Profil`.
@@ -298,29 +145,11 @@ Paginacja to **przycisk „Pokaż więcej”**, nie infinite scroll.
 
 ### JavaScript jest wymagany tam, gdzie chroni serwis — i nigdzie nie zostawia martwego przycisku
 
-**Zmiana zasady, 9 września 2026 (D-053).** Wcześniej stało tu, że rejestracja,
-logowanie, publikacja wpisu, przepis, komentarz i „Ugotowałem” **muszą działać
-bez JavaScriptu**. Właściciel to zmienił i ma rację co do faktów: nasi
-użytkownicy nie wchodzą tu z telefonu bez skryptów, tylko z Samsunga, Xiaomi
-albo z komputera. Pełne uzasadnienie i skutki: **D-053** w `docs/DECISIONS.md`.
+1. Newralgiczne formularze (rejestracja i logowanie za Turnstile, D-050) mogą wymagać JavaScriptu; gdzie indziej JavaScript jest mile widziany i nie trzeba go dublować wersją bez skryptu.
+2. **Nigdy martwego przycisku:** jeśli bez skryptu coś nie zadziała, człowiek widzi `<noscript>` z konkretną instrukcją po polsku, CO ZROBIĆ (nie ogólnik „wymagany JavaScript”).
+3. Awaria weryfikacji tokenu (nasza albo Cloudflare) nie zamyka drzwi — formularz przechodzi (D-050).
 
-Obowiązuje teraz to:
-
-1. **Newralgiczne formularze mogą wymagać JavaScriptu.** Rejestracja i logowanie
-   stoją za Turnstile (D-050), a Turnstile bez skryptu nie istnieje. Wymóg jest
-   świadomy: chroni serwis przed ruchem automatycznym.
-2. **Gdziekolwiek indziej JavaScript jest mile widziany** — podgląd zdjęcia
-   przed wysłaniem, licznik znaków, kadrowanie awatara. Nie trzeba tego
-   uzasadniać ani dublować wersją bez skryptu.
-3. **Czego nie wolno nigdy: martwego przycisku.** Jeśli coś bez skryptu nie
-   zadziała, człowiek ma zobaczyć zdanie po polsku mówiące, CO ZROBIĆ, a nie
-   formularz, który po kliknięciu milczy. `<noscript>` z konkretną instrukcją,
-   nie z ogólnikiem „wymagany JavaScript”. Powód jest ten sam co dawniej i nie
-   zniknął: przy słabym zasięgu skrypt bywa **nie dociągnięty** na telefonie,
-   który JavaScript ma i ma go włączonego.
-4. **Awaria po naszej stronie albo po stronie Cloudflare nie zamyka drzwi.**
-   Gdy weryfikacja tokenu nie odpowiada, formularz przechodzi (D-050). Wymóg
-   dotyczy skryptu u człowieka, nie sprawności cudzej usługi.
+Uzasadnienie zmiany zasady i pełne brzmienie (D-053): [szczegóły](docs/agenci/UX_WYJATKI_I_JAVASCRIPT.md).
 
 ---
 
@@ -330,7 +159,7 @@ Każda zmiana schematu wymaga **wszystkich czterech** rzeczy:
 
 1. migracji,
 2. testu,
-3. aktualizacji `docs/DATABASE.md`,
+3. opisu w pliku obszaru w `docs/baza/` i — dla nowej tabeli — wiersza w indeksie `docs/DATABASE.md`,
 4. opisu rollbacku (albo wyjaśnienia, dlaczego rollback nie jest bezpieczny).
 
 Zasady modelu:
@@ -346,37 +175,7 @@ Zasady modelu:
 Ta sama osoba może gotować ten sam przepis dziesiątki razy przez lata
 i każde takie wykonanie jest osobnym, wartościowym wydarzeniem.
 
-### DDL na istniejącej tabeli nie może zatrzymać serwisu (audyt B3 W3)
-
-Migracje chodzą na **żywej** bazie (rola `migrate`). `ALTER TABLE posts`
-czekający na blokadę za długim zapytaniem ustawia za sobą w kolejce KAŻDE
-następne zapytanie do `posts`, także zwykły `SELECT` z feedu. Dlatego:
-
-- **Każda migracja chodzi z `lock_timeout = 5s`** — ustawia go
-  `App\Support\Baza\LimitBlokadMigracji` na zdarzeniach migratora, nie
-  trzeba nic dopisywać. DDL, który nie dostał blokady, pada i daje się
-  powtórzyć. Pilnuje `tests/Feature/MigracjeMajaLimitBlokadTest.php`.
-- **Indeks na istniejącej tabeli** to `CREATE INDEX CONCURRENTLY IF NOT EXISTS`
-  w migracji z `public $withinTransaction = false;` (`CONCURRENTLY` nie działa
-  w transakcji). Przerwana budowa zostawia indeks INVALID pod tą samą nazwą —
-  migracja ma go przed budową zdjąć, bo `IF NOT EXISTS` by go przepuściło.
-  `down()`: `DROP INDEX CONCURRENTLY IF EXISTS`.
-- **CHECK i klucz obcy na istniejącej tabeli** to `ADD CONSTRAINT … NOT VALID`,
-  a potem osobno `VALIDATE CONSTRAINT` — obie rzeczy poza jedną transakcją
-  (`$withinTransaction = false`), inaczej blokada z pierwszego kroku trwa do
-  końca drugiego. Wzorzec:
-  `2026_09_23_100000_powiaz_status_zgloszenia_z_rozstrzygnieciem.php`.
-- **Nowa tabela** tych reguł nie potrzebuje — nikt jeszcze na nią nie czeka.
-- **Unikaj przepisania tabeli** (`ADD COLUMN … GENERATED … STORED`, zmiana
-  typu kolumny) na gorących tabelach bez osobnego planu wdrożenia.
-- **Migracja `2026_09_24_120000_add_appeal_id_to_moderation_actions.php`
-  łamie powyższe** (indeks i FK/CHECK na istniejącej tabeli bez CONCURRENTLY
-  i bez NOT VALID) — jest już na produkcji i świadomie jej NIE poprawiamy,
-  ale `tests/Feature/NoweMigracjeTrzymajaSieParagrafu6Test.php`
-  (`App\Support\Baza\StraznikNowychMigracji`) pilnuje, żeby ten sam błąd nie
-  powtórzył się w żadnej migracji dodanej po wprowadzeniu strażnika, nawet
-  jeśli jej datownik jest wcześniejszy. Wyjątki historyczne są jawnie zapisane
-  w `app/Support/Baza/migracje-historyczne-par6.txt`.
+Procedury ([szczegóły](docs/agenci/BAZA_MIGRACJE_ROLLBACK_WERSJA.md)): migracja chodzi z `lock_timeout = 5s` (`LimitBlokadMigracji`); indeks na istniejącej tabeli to `CREATE INDEX CONCURRENTLY IF NOT EXISTS` z `$withinTransaction = false`; CHECK i FK na istniejącej tabeli to `NOT VALID` + osobno `VALIDATE CONSTRAINT`; unikaj przepisania gorących tabel; nowa tabela tych reguł nie potrzebuje (strażnik: `NoweMigracjeTrzymajaSieParagrafu6Test`).
 
 ### `down()` przy wartościach semantycznych ODMAWIA, zamiast zgadywać (D-088)
 
@@ -386,62 +185,16 @@ następne zapytanie do `posts`, także zwykły `SELECT` z feedu. Dlatego:
 > z komunikatem mówiącym, co zrobić ręcznie. Zgadywanie cichą wartością
 > domyślną jest najgorszą z opcji, bo nie zostawia śladu błędu.
 
-Powód jest jeden i nie jest teoretyczny: **`down()` prawie nigdy nie
-występuje sam.** Po nim idzie kolejny `migrate` — `migrate:refresh` w CI albo
-awaryjny rollback WDROŻENIA, który pociąga bazę za sobą. Kolumna wraca, CHECK-i
-wracają, żaden wiersz nie ginie, więc nie ma błędu do zauważenia — a wartość
-jest już ta, którą umie nadać `DEFAULT` albo backfill z `up()`, czyli zwykle
-ODWROTNOŚĆ tego, co człowiek wybrał.
-
-Trzy przypadki tej jednej choroby, złapane w tym repozytorium:
-
-| Gdzie | Co się cicho odwracało |
-|---|---|
-| `..._default_weekly_digest_to_off` (DB2) | `DEFAULT true` wracał, czyli nowe konta znów zapisywane na mailing bez zgody |
-| `..._add_erased_status_and_delete_scope_to_users` (#287, MIG-01) | „usuń wszystkie moje treści" wracało jako „usuń minimum" |
-| `..._add_memories_to_users_and_posts` (#287, przeoczone przy MIG-01) | wyłącznik wspomnień osoby w żałobie włączał się sam, schowany wpis wracał na stronę główną |
-
-**Napisanie w komentarzu migracji „przy cofaniu na produkcji najpierw kopia
-kolumny" NIE jest zabezpieczeniem.** Trzeci wiersz tabeli wyżej miał dokładnie
-takie zdanie — prawdziwe, konkretne i bezwartościowe, bo przenosiło ochronę na
-czyjąś pamięć w jedynym momencie, w którym nikt nie czyta komentarzy
-w migracjach. Zabezpieczeniem jest `throw` w `down()`.
-
-**Odmowa musi być WĄSKA.** Rollback blokuje się tylko wtedy, gdy w bazie
-naprawdę jest wartość, której `up()` nie odtworzy — na wartościach domyślnych
-i na świeżej bazie przechodzi bez pytania. Zablokowanie rollbacku na zawsze
-jest błędem tej samej wagi w drugą stronę, więc każdy taki strażnik ma test
-odmowy **i** kontrolę dodatnią (wzorce:
-`tests/Feature/CofniecieMigracjiNiePodmieniaZakresuUsunieciaTest.php`,
-`tests/Feature/CofniecieMigracjiNieWlaczaWspomnienTest.php`).
-
-Preferencja WYGLĄDU to nie wartość semantyczna: `theme` i `posts.display_mode`
-zostają świadomie bez strażnika (uzasadnienie w D-088).
+Rollback jest WĄSKI (blokuje się tylko, gdy w bazie jest wartość, której `up()` nie odtworzy; test odmowy **i** kontrola dodatnia); komentarz „najpierw kopia kolumny” NIE jest zabezpieczeniem — jest nim `throw` w `down()`. Preferencja WYGLĄDU nie jest wartością semantyczną. Szczegóły i wzorce: [szczegóły](docs/agenci/BAZA_MIGRACJE_ROLLBACK_WERSJA.md).
 
 **Nigdy nie wykonuj destrukcyjnych operacji na produkcyjnej bazie
 bez jawnej zgody właściciela.**
 
-### Numer wersji: DUŻY numer ręcznie, KOŃCÓWKA sama (issue #1932, D-318)
+### Numer wersji — reguła (issue #1932, D-318)
 
-`kuking.wersja.etykieta` w `config/kuking.php` (np. „Alfa 0.68") to DUŻY
-numer wydania — podbijasz go RĘCZNIE, w Pull Requeście, razem z wpisem na
-górze `CHANGELOG.md` (pilnuje tego
-`tests/Feature/PodbicieWersjiWymagaWpisuWChangelogTest.php`). Zasada, KIEDY
-go podbić, stoi w komentarzu nad samą wartością w `config/kuking.php`: przy
-każdej zmianie, którą człowiek ZOBACZY — nowy ekran, zmieniony układ, nowa
-funkcja, inne zachowanie formularza. Poprawki bez śladu w interfejsie (testy,
-refaktor, dokumentacja) go nie ruszają.
-
-KOŃCÓWKA (`.005` w „Alfa 0.68.005") jest INNĄ rzeczą i NIE dotykasz jej
-ręcznie nigdy — rośnie sama, o jeden, przy KAŻDYM wdrożeniu, licząc od
-dziennika w tabeli `wdrozenia` (`kuking:zarejestruj-wdrozenie`, uruchamiana
-przez `docker/entrypoint.sh` po tym, jak nowy kontener przejdzie `/health` —
-nie w `preDeployCommand`, żeby nieudany rollout nie zużywał numeru). Gdy podbijasz DUŻY numer, końcówka
-WRACA DO `.001` SAMA — to jest nowa sekwencja liczona od nowa, nie ciąg
-dalszy poprzedniej, i nie ma tu nic do ustawienia ręcznie: pierwsze
-wdrożenie pod nową etykietą po prostu dostaje numer 1. Pełny mechanizm,
-tabele i bezpieczeństwo przy równoległym starcie: `docs/DATABASE.md`
-(sekcja „`wdrozenia` i `wdrozenia_funkcje`") i D-318.
+- DUŻY numer (`kuking.wersja.etykieta` w `config/kuking.php`, np. „Alfa 0.68”) podbijasz RĘCZNIE w PR-ze, razem z wpisem na górze `CHANGELOG.md` (`PodbicieWersjiWymagaWpisuWChangelogTest`) — przy zmianie, którą człowiek ZOBACZY; testy, refaktor i dokumentacja go nie ruszają.
+- `CHANGELOG.md` trzyma tylko sekcję „Nieopublikowane” i kilka najnowszych wydanych wersji; przy podbiciu numeru wersji, gdy plik bez „Nieopublikowane” przekroczy ok. 40 KB, najstarsze wydane sekcje przenosi się bez zmian do `docs/changelog/archiwum-alfa-<od>-<do>.md` (do ok. 60 KB na plik) i dopisuje link w „Starsze wersje”; testy numeracji i duplikatów czytają całość przez `Tests\Support\PelnyChangelog`.
+- KOŃCÓWKI (`.005` w „Alfa 0.68.005”) NIGDY nie ustawiasz ręcznie: rośnie sama przy KAŻDYM wdrożeniu, a po podbiciu dużego numeru wraca do `.001`. Mechanizm: [szczegóły](docs/agenci/BAZA_MIGRACJE_ROLLBACK_WERSJA.md), `docs/baza/migracje-danych-i-wdrozenia.md`, D-318.
 
 ---
 
@@ -461,19 +214,8 @@ Nigdy:
   samej rodziny co `status` i `role` (D-006): rozstrzyga, czy wpis jest daniem,
   czy pytaniem, więc też o strumieniach, adresie i Policy. Zmienia je wyłącznie
   nazwana metoda `Post::oznaczJakoPytanie()`.
-- **żadnego POŚWIADCZENIA w `$fillable`, w żadnej tabeli** — `password`,
-  `remember_token`, `two_factor_*`, każde `*_token`, `*_secret`, `*_token_hash`.
-  Kto zapisze taką kolumnę, ten wchodzi na konto bez znajomości hasła.
-  Wchodzą tam jawnymi, nazwanymi metodami (`assignEmail()`,
-  `assignPassword()`, `connectGoogle()`) albo przez `forceFill()` w jednej
-  nazwanej akcji domenowej. `ip_hash` i `checksum_sha256` to NIE są
-  poświadczenia — reguła mówi „poświadczenie", nie „ciąg szesnastkowy".
-  Pilnuje tego `tests/Feature/WrazliweKolumnyPozaMasowymPrzypisaniemTest.php`,
-  który przechodzi po WSZYSTKICH modelach i wylicza kolumny wrażliwe
-  z schematu bazy i z relacji, a nie z listy przepisanej z palca. Kolumny
-  wrażliwe spoza kategorii poświadczeń (stan treści, klucze właściciela,
-  widoczność) wolno w `$fillable` zostawić, ale wyłącznie z wpisem w rejestrze
-  tego testu mówiącym, skąd ta wartość pochodzi, jeśli nie z żądania.
+
+- **żadnego POŚWIADCZENIA w `$fillable`, w żadnej tabeli** — `password`, `remember_token`, `two_factor_*`, każde `*_token`, `*_secret`, `*_token_hash`; wchodzą tam jawnymi, nazwanymi metodami (`assignEmail()`, `assignPassword()`, `connectGoogle()`) albo przez `forceFill()` w jednej nazwanej akcji domenowej. Pilnuje `WrazliweKolumnyPozaMasowymPrzypisaniemTest`; pełna reguła i rejestr wyjątków: [szczegóły](docs/agenci/BEZPIECZENSTWO_FILLABLE.md).
 
 Każdy endpoint przechodzi przez pięć pytań:
 **auth → authorization → validation → rate limit → audit.**
@@ -529,22 +271,7 @@ Dozwolone są **wyłącznie**:
 - bramki widoczności i blokady;
 - jawne polecenia widza (obserwuj, ukryj) — z listą, na której może je cofnąć.
 
-Półka **„Mój stół”** (D-304, #1749) dobiera wyłącznie z tej listy: obserwowane
-tagi, tag z listy gospodarza, „kuKINGi na dziś” w kolejności gospodarza, czas,
-jeden przepis od osoby, bramki i ukrycia.
-
-W **Obserwowanych** nic nie znika poza bramkami i blokadami oraz wpisami, które
-widz sam ukrył („Ukryj ten wpis”, a przy wpisach z obserwowanego tagu także
-„Ukryj tę osobę”; D-278 — z listą „Ukryte” do cofnięcia). Osoby obserwowane
-wprost nie znikają nigdy.
-Dopuszczalne jest tylko zwinięcie serii wpisów jednej osoby albo jednego
-obserwowanego tagu (D-279: dwa widać, reszta pod „Pokaż”), bez zmiany
-kolejności.
-
-Każda nowa reguła doboru = wpis w `docs/DECISIONS.md` + aktualizacja „Jak
-dobieramy wpisy” (zdanie w `App\Domain\Feed\JakDobieramyWpisy` z dowodem
-w `tests/Feature/JakDobieramyWpisyMowiPrawdeTest.php`, D-305) + strażnik (`tests/Feature/FeedNieSortujePoMierzeReakcjiTest.php`
-albo nowy). Reguła spoza tej listy wymaga decyzji właściciela, nie PR-a.
+Półka „Mój stół” (D-304) dobiera wyłącznie z tej listy. W Obserwowanych nic nie znika poza bramkami, blokadami i wpisami ukrytymi przez widza (D-278); osoby obserwowane wprost nie znikają nigdy; dopuszczalne jest tylko zwinięcie serii wpisów (D-279). Każda nowa reguła doboru = wpis w `docs/DECISIONS.md` + aktualizacja „Jak dobieramy wpisy” (`JakDobieramyWpisy`, `JakDobieramyWpisyMowiPrawdeTest`, D-305) + strażnik (`FeedNieSortujePoMierzeReakcjiTest` albo nowy); reguła spoza listy wymaga decyzji właściciela, nie PR-a. [Pełne brzmienie](docs/agenci/FEED_REGULY_SZCZEGOLOWE.md).
 
 Gdy feed obserwowanych jest pusty, pokazujemy „Świeżo z Kuking” i propozycje
 osób. Pusty ekran u nowego użytkownika to koniec korzystania z serwisu.
@@ -575,48 +302,13 @@ jedyny realny wyróżnik Kuking — autentyczność — i jest nieodwracalne.
 ./scripts/check.sh       # formatowanie + składnia + testy + migracje + assety
 ```
 
-**GitHub Actions są włączone** (D-010): repozytorium żyje w organizacji
-`woogitsu`, która ma własną pulę 2 000 minut miesięcznie. CI chodzi na
-`push` do `main` i `staging` oraz na każdym Pull Requeście do tych gałęzi.
-
-Kontrola lokalna **zostaje mimo to** — jest szybsza i łapie błąd, zanim ten
-zje minuty z puli. Zainstaluj hook raz:
-
-```bash
-./scripts/install-hooks.sh
-```
-
-Szczegóły i plan awaryjny: `docs/infra/CI_BEZ_ACTIONS.md`.
-
-Pojedyncze kroki, gdy chcesz coś sprawdzić osobno:
-
-```bash
-vendor/bin/pint          # formatowanie
-php artisan test         # testy (wymagają PostgreSQL, patrz niżej)
-npm run build            # assety się budują
-```
+- CI (GitHub Actions, D-010) chodzi na `push` do `main` i `staging` oraz na PR-ach do nich, ale kontrola lokalna zostaje (hook: `./scripts/install-hooks.sh`); pojedyncze kroki, plan awaryjny i szczegóły: [szczegóły](docs/agenci/SRODOWISKO_TESTY_CI.md).
 
 Testy chodzą na **PostgreSQL**, nie na SQLite — schemat używa indeksów
 częściowych, `num_nonnulls()`, `gen_random_uuid()`, `pg_trgm` i `unaccent`.
 Test na SQLite przechodziłby, nic nie sprawdzając.
 
-I to na **PostgreSQL 18 lub nowszym** — tak samo lokalnie, w CI i na produkcji.
-Jeden próg dla wszystkich trzech, bo próg niższy od produkcyjnego przepuszcza
-lokalnie migracje, które w CI padają. Produkcja ma 18, CI stawia
-`postgres:18-alpine`, więc `php artisan test` na starszym majorze mierzy silnik,
-którego nigdzie nie używamy. Pilnuje tego `TestyChodzaNaPostgresieTest` —
-i pilnuje też tego, żeby ten akapit i próg w strażniku mówiły tę samą liczbę.
-
-To jest wymaganie, a nie opis każdej maszyny. Kontener sesji agentów w chmurze
-ma na 127.0.0.1:5432 **PostgreSQL 16.13** (obraz ma tylko pakiet 16; `SELECT
-version()` 30.09.2026, audyt wydajności F7, #2292). Tam
-`TestyChodzaNaPostgresieTest` oblewa środowiskowo, a rozstrzyga CI na 18.
-Progu nie obniżaj. W raporcie z pomiaru planów i JIT podaj wersję z `SELECT
-version()`, bo plany różnią się między majorami.
-
-Przed utworzeniem bazy ustal jej właściciela, host, port i nazwę.
-Użyj izolowanej bazy tego zadania i jawnych parametrów połączenia.
-Nie polegaj na domyślnym porcie ani nazwie w środowisku współdzielonym.
+- **PostgreSQL 18 lub nowszy** lokalnie, w CI i na produkcji; progu nie obniżaj (`TestyChodzaNaPostgresieTest`; kontener agentów z PG 16 oblewa tu środowiskowo, rozstrzyga CI). Używaj izolowanej bazy zadania z jawnym hostem, portem i nazwą.
 
 **Jeśli pracujesz w worktree gita z dowiązanym `vendor`** — dodaj jawną ścieżkę
 bazową, inaczej Laravel załaduje trasy i klasy z głównego katalogu, a testy
@@ -626,62 +318,14 @@ będą fałszywie zielone:
 APP_BASE_PATH=$(pwd) php artisan test
 ```
 
-### Gdy instalacja zależności nie działa
+### Instalacja zależności i przeglądarka agenta ([szczegóły](docs/agenci/SRODOWISKO_TESTY_CI.md))
 
-Najpierw uruchom zwykłe `composer install` i odczytaj rzeczywisty błąd.
-Historyczne kontenery agentów miały proxy odrzucające pobrania z GitHuba;
-nie jest to stała właściwość każdego środowiska. Sprawdź bieżący dostęp,
-wersję narzędzia i konfigurację, zanim uznasz instalację za niewykonalną.
-
-Jeśli potwierdzisz blokadę pobrań `dist`, a dostęp przez git działa,
-możesz spróbować `composer install --prefer-source`. Nie zmieniaj globalnej
-konfiguracji Composera w środowisku współdzielonym. Ewentualną konfigurację
-obejścia ogranicz do izolowanej kopii lub osobnego katalogu COMPOSER_HOME.
-
-Nie usuwaj zależności z manifestu ani locka, żeby uzyskać pozornie pełną
-instalację. Zachowaj dokładne wersje z composer.lock. Historycznie lokalną
-instalację PHPStan umożliwiło przygotowanie archiwum wskazanego commita
-w cache Composera; to opis zakończonej sesji, nie nakaz stosowania obejścia
-przy każdym uruchomieniu.
-
-Przed obejściem wymagającym modyfikacji plików zrób kopię ich aktualnych
-bajtów i czasu modyfikacji poza repo. Preferuj izolowaną kopię wykonawczą.
-Przywróć dokładnie zapisany stan i sprawdź MD5 oraz mtime; odtworzenie pliku
-z commita nie chroni cudzych niezapisanych zmian. Nie ogłaszaj narzędzia
-niedostępnym ani testu zaliczonym na podstawie historycznej notatki.
-CI pozostaje rozstrzygające, a brak wykonania kontroli musi być jawny.
+- Gdy instalacja nie działa: zwykłe `composer install` i odczyt rzeczywistego błędu; bez zmiany globalnej konfiguracji Composera i bez usuwania zależności z manifestu lub locka; przed obejściem modyfikującym pliki kopia bajtów i mtime poza repo, po nim sprawdź MD5 oraz mtime. CI rozstrzyga, brak wykonania kontroli musi być jawny.
 
 Czego nadal nie wolno robić: odhaczać w opisie Pull Requesta punktu, którego
 nie uruchomiłeś. To dotyczy każdego narzędzia, nie tylko tego.
 
-W nowej izolowanej instancji lokalnej sprawdź, czy istnieje klucz aplikacji.
-Generuj go tylko, gdy go brakuje; bez niego wystąpi błąd
-„No application encryption key has been specified”. Nie zmieniaj klucza
-istniejącej aplikacji produkcyjnej podczas przygotowania testów:
-
-```bash
-php artisan key:generate
-```
-
-### Przeglądarka w środowisku agenta
-
-Najpierw sprawdź aktualny dostęp do testowanej strony. W jednej z dawnych
-sesji Chromium przerywał TLS za proxy; w późniejszych sesjach produkcja
-była dostępna zarówno przez Chromium, jak i zalogowany Chrome. Historyczny
-błąd nie jest dowodem dzisiejszej blokady ani usterki aplikacji.
-
-Do fixture, formularzy i stanów wymagających danych testowych używaj
-izolowanej instancji lokalnej. Przed migracją lub seedowaniem odczytaj
-faktyczny host, port i nazwę bazy oraz upewnij się, że należą do tego testu.
-Nie zakładaj dostępności domyślnego portu PostgreSQL: może obsługiwać inne
-projekty. Współdzielone środowisko wymaga jawnie wybranej bazy i portu.
-Nie wykonuj testów niszczących fixture równolegle z oglądem używającym
-tej samej bazy lub mediów. Nie obchodź błędów TLS przez wyłączanie ochrony.
-
-Raportuj oddzielnie odczyt kodu, pomiary lokalne i ogląd produkcji.
-Brak dostępu do zalogowanej produkcji jest ograniczeniem, nie wynikiem
-pozytywnym; odpowiednie stany można sprawdzić lokalnie, bez zmiany danych
-użytkowników produkcyjnych.
+- Klucza aplikacji produkcyjnej nie zmieniaj. Przeglądarka: sprawdź aktualny dostęp, nie obchodź błędów TLS, raportuj oddzielnie odczyt kodu, pomiary lokalne i ogląd produkcji.
 
 ### Pull Request zawiera
 
@@ -692,37 +336,15 @@ użytkowników produkcyjnych.
 - plan rollbacku,
 - aktualizację `docs/`,
 - opis zmiany w UI albo zrzut ekranu, jeśli dotyczy interfejsu,
-- **wpis w `CHANGELOG.md`, jeśli PR dodaje nową funkcję albo nowe zachowanie
-  widoczne dla użytkownika** — oznaczony na końcu wiersza dopiskiem
-  `[nowa funkcja]` (issue #1909). Poprawka, zmiana kosmetyczna i porządek za
-  kulisami tego dopisku NIE dostają — dla nich CHANGELOG zostaje zwykłym
-  wpisem bez znacznika. **Każdy wpis `[nowa funkcja]` w sekcji
-  „## Nieopublikowane” ma odpowiadający akapit** (nagłówek `### ...` i kilka
-  zdań prostym językiem: gdzie znaleźć, jak działa, co daje) **w sekcji
-  „## Najnowsze zmiany” pliku `resources/nowosci/tresc.md`** — strony „Co
-  nowego” pod numerem wersji w stopce. Pilnuje tego
-  `tests/Feature/StraznikNowosciKazdaNowaFunkcjaMaAkapitTest.php`
-  (kontrola ujemna w `scripts/kontrole-negatywne-alfa08.py`, wzorzec
-  z issue #1909).
+- **wpis w `CHANGELOG.md`, jeśli PR dodaje nową funkcję albo zachowanie widoczne dla użytkownika** — z dopiskiem `[nowa funkcja]` i akapitem w `resources/nowosci/tresc.md` (`StraznikNowosciKazdaNowaFunkcjaMaAkapitTest`); [szczegóły](docs/agenci/PULL_REQUEST_I_TESTY_REGRESYJNE.md).
 
 ### Bugfix zawsze zawiera test regresyjny
 
 Poprawka bez testu, który by ten błąd złapał, nie jest poprawką — jest
 zaproszeniem do jego powtórzenia.
 
-**Test bez kontroli ujemnej nie jest dowodem.** Zepsuj to, czego test pilnuje,
-sprawdź, że OBLEWA, przywróć. Pomyłki, które w tym repozytorium przeszły
-przez zielone CI — razem z gotowymi wzorcami, jak ich uniknąć — są zebrane
-w [`docs/PULAPKI_TESTOW.md`](docs/PULAPKI_TESTOW.md). Przeczytaj to raz, zanim
-napiszesz pierwszy test w tym projekcie; każda z tych pułapek wróci.
-
-**Test czytający kod źródłowy dostaje kontrolę mutacyjną w CI.** Wpis w `checks`
-w `scripts/kontrole-negatywne-alfa08.py` + **wzorzec oczekiwanej porażki** w
-`scripts/kontrole_oczekiwana_przyczyna.py` (klucz: nazwa kontroli; fragment
-komunikatu asercji, którą mutacja ma zapalić — czerwień z innego powodu nie jest
-dowodem, #1011). Kontrola bez wzorca jest raportowana jako `BEZ_WZORCA`, czyli
-dowód niepełny. Wyjątek tylko przez `@bez-kontroli-dodatniej <powód>` w docbloku
-klasy — pilnuje tego `StraznikTekstuMaKontroleDodatniaTest`.
+- **Test bez kontroli ujemnej nie jest dowodem:** zepsuj to, czego test pilnuje, sprawdź, że OBLEWA, przywróć. Pułapki z gotowymi wzorcami: [`docs/PULAPKI_TESTOW.md`](docs/PULAPKI_TESTOW.md) — przeszukaj go (grep) po słowie kluczowym swojego testu.
+- **Test czytający kod źródłowy dostaje kontrolę mutacyjną w CI:** wpis w `scripts/kontrole-negatywne-alfa08.py` + wzorzec oczekiwanej porażki w `scripts/kontrole_oczekiwana_przyczyna.py` (bez wzorca: `BEZ_WZORCA`, dowód niepełny); wyjątek tylko przez `@bez-kontroli-dodatniej <powód>` (`StraznikTekstuMaKontroleDodatniaTest`). [szczegóły](docs/agenci/PULL_REQUEST_I_TESTY_REGRESYJNE.md)
 
 ### Issues
 
@@ -756,10 +378,7 @@ Sesja robocza nie otwiera PR-ów. Pushuje swoją gałąź i kończy raportem.
   `/ustawienia`), z wyjątkiem `/home`, `/login`, `/register`.
 - Nazwy zdarzeń analitycznych: `snake_case` po angielsku.
 
-**Każdy tekst widoczny dla użytkownika piszesz według `docs/brand/COPY_STYLE.md`
-i `docs/brand/GLOS_MARKI.md`.** Oba są wiążące, nie są inspiracją: pierwszy mówi,
-JAK napisać zdanie, i ma gotowe teksty do wklejenia; drugi mówi, czym ten głos
-JEST i gdzie marka mówi głośno, a gdzie milczy.
+Każdy tekst widoczny dla użytkownika piszesz według `docs/brand/COPY_STYLE.md` (JAK napisać zdanie) i `docs/brand/GLOS_MARKI.md` (czym jest głos marki) — oba są wiążące; [pełne brzmienie](docs/agenci/JEZYK_I_PRAWO.md).
 
 W skrócie:
 
@@ -767,40 +386,14 @@ W skrócie:
 - nie mówimy „content”, „explore”, „engage”, „creator”, „tapnij”;
 - **`kuKING` to nazwa mieszkańca serwisu, nie komplement.** Wolno „Zostań
   kuKINGiem”, nie wolno „Jesteś prawdziwym kuKINGiem!” ani „Top kuKINGi tygodnia”;
-- **nazwę piszemy dwukolorowo, komponentem `<x-kuking-word/>`, wszędzie — także
-  jako nazwę serwisu w tekście bieżącym.** Limitu „raz na ekran” nie ma
-  (decyzja właściciela z 11 września 2026, odwraca tę część D-009 i D-015).
-  Obowiązuje kryterium: charakter marki wolno tam, gdzie **nie konkuruje
-  z zadaniem**, a w jednym akapicie, nagłówku albo punkcie listy nazwa
-  pojawia się raz;
-- **nigdy** w komunikacie błędu, wiadomości moderacyjnej, tekście prawnym,
-  na ekranie bezpieczeństwa, w liście technicznym, w powiadomieniu o cudzej
-  aktywności ani w polu formularza, który ktoś właśnie wypełnia;
-- **nigdy tam, gdzie koloru nie ma** — `alt`, `title`, `aria-label`, tytuł
-  strony, `meta`, temat listu, pliki eksportu. Tam piszemy zwyczajnie „Kuking”;
 - zero emoji w tekstach interfejsu, najwyżej jeden wykrzyknik na ekran;
 - komunikat błędu ma powiedzieć, **co zrobić**;
-- unikamy konstrukcji zakładających rodzaj, gdzie da się inaczej
-  („Co dziś gotujesz?” zamiast form z „-łeś/-łaś”); formę, którą osoba
-  sama wybrała, stosujemy wyłącznie przez helper z wariantem neutralnym — D-332.
-  **Jawne wyjątki są frazami, nie słowami**, i pilnuje ich lista `WYJATKI`
-  w `tests/Support/WzorceRodzaju.php`: hasło główne („co dziś ugotowałeś”),
-  nazwa przycisku „Ugotowałem” oraz etykieta pola wyboru **„Sprawdziłem
-  odczytany tekst”** przy szkicu z importu (decyzja właściciela z 26 września
-  2026, PR #1899, D-300 — ta sama logika co „Ugotowałem”: nazwa kontrolki
-  cytowana w komunikacie). Kolejny wyjątek wymaga decyzji właściciela.
+- nazwę serwisu piszemy dwukolorowo komponentem `<x-kuking-word/>` (raz w akapicie, nagłówku albo punkcie listy), ale **nigdy** w komunikacie błędu, wiadomości moderacyjnej, tekście prawnym, na ekranie bezpieczeństwa, w liście technicznym, powiadomieniu o cudzej aktywności ani w polu wypełnianego formularza, i **nigdy tam, gdzie koloru nie ma** (`alt`, `title`, `aria-label`, tytuł strony, `meta`, temat listu, eksport) — tam zwykłe „Kuking”;
+- rodzaj gramatyczny: formę, którą osoba sama wybrała, stosujemy wyłącznie przez helper z wariantem neutralnym (D-332); jawne wyjątki są frazami, nie słowami (lista `WYJATKI` w `tests/Support/WzorceRodzaju.php`), kolejny wyjątek wymaga decyzji właściciela. [Pełne brzmienie](docs/agenci/JEZYK_I_PRAWO.md).
 
 Pełny słownik i lista słów zakazanych: `docs/brand/BRAND_EXTENDED.md`.
 
-**Dokumenty prawne (polityka prywatności, regulamin): data publikacji to nie
-data wejścia w życie** (D-327, decyzja właściciela z 26 września 2026).
-Zmiana **istotna** obowiązuje 14 dni po publikacji, a do tego dnia obowiązuje
-poprzednia wersja; pasek o zmianie stoi od publikacji i podaje ten dzień.
-Poprawka **drobna** (redakcyjna, bez zmiany praw i obowiązków) wchodzi od
-razu. Przy każdym podbiciu `kuking.zgody.wersja_*` ustaw jawnie
-`kuking.zgody.zmiana_*.istotna` na `true` albo `false` — wartości domyślnej
-nie ma. Zgodę zapisuj z wersją obowiązującą (`WersjaDokumentu::…->obowiazujaca()`),
-nigdy z samą datą z konfiguracji.
+**Dokumenty prawne: data publikacji to nie data wejścia w życie** (D-327). Zmiana istotna obowiązuje 14 dni po publikacji, drobna od razu; przy podbiciu `kuking.zgody.wersja_*` ustaw jawnie `kuking.zgody.zmiana_*.istotna` (`true`/`false`, bez wartości domyślnej); zgodę zapisuj z wersją obowiązującą (`WersjaDokumentu::…->obowiazujaca()`). [Szczegóły](docs/agenci/JEZYK_I_PRAWO.md).
 
 ---
 
@@ -811,39 +404,11 @@ wiadomości prywatne, natywne aplikacje, planer posiłków, lista zakupów,
 generator przepisów AI, rozbudowana gamifikacja, marketplace,
 transmisje live, wypłaty dla twórców.
 
-**Planer tygodnia (D-310) i prywatna lista zakupów zeszły z tej listy** — planer
-26 września 2026, lista zakupów 29 września 2026 (D-333, wiersz „#27 etap 2”).
-Lista zakupów to wyłącznie etap 2: prywatna lista konta, składniki kopiowane
-dosłownie z przepisu, bez sumowania. Lista wspólna, offline, grupowanie po
-działach sklepu i premium zostają poza zakresem i wymagają nowej decyzji.
-
-**Spiżarnia („Co mam w domu”) zeszła z tej listy 26 września 2026** — sekcja
-V2 w `docs/FEATURES.md` wymienia „pantry” i „co ugotuję z tego, co mam”, a
-**D-282** pozwala je budować. **Spiżarnia z terminami ważności i priorytetem
-zużycia (#1903) zeszła z listy „V2, ale nie teraz” 30 września 2026** —
-decyzja właściciela zapisana w D-333 (wiersze „#1903”): terminy, ilość jako
-wolny tekst, flaga „mrożone”, sekcja „Zużyj w pierwszej kolejności”, tryb
-przepisów „najpierw to, co się psuje” i sobotnie przypomnienie e-mailem za
-osobną, domyślnie wyłączoną zgodą. Poza zakresem zostają: AI, OCR paragonu i
-kod kreskowy, push, liczby i jednostki, „zużyte/wyrzucone” w bazie, wspólna
-spiżarnia domowników.
-
-**OCR starych zeszytów zszedł z tej listy 26 września 2026** — V2 wolno budować
-od decyzji **D-282**, a odczyt zdjęcia kartki działa według **D-296** (zgoda
-„odczyt AI”, wyjątek od D-240), **D-297** (budżet i limity) i **D-298**
-(architektura: zawsze prywatny szkic, nigdy publikacja). „Generator przepisów
-AI” zostaje zakazany: odczyt przepisuje kartkę człowieka, nie wymyśla przepisu.
+**Zeszły z tej listy** (zakres i granice: [szczegóły](docs/agenci/NIE_WCZESNIE_HISTORIA_LISTY.md)): planer tygodnia (D-310); prywatna lista zakupów (D-333) wyłącznie jako etap 2 — prywatna lista konta, składniki kopiowane dosłownie, bez sumowania, reszta wymaga nowej decyzji; spiżarnia (D-282, #1903); OCR starych zeszytów (D-296–D-298, zawsze prywatny szkic). „Generator przepisów AI” zostaje zakazany.
 
 Anty-wzorce, których **nie wprowadzamy nigdy**:
 streaki i punkty za liczbę postów, publiczne rankingi użytkowników,
 ranking po popularności i uczenie z zachowania (§8), masowy import cudzych przepisów, sztuczne konta,
 liczniki lajków wyeksponowane w interfejsie.
 
-**Jeden wyjątek, i tylko ten: „ile osób zapisało to u siebie w zeszycie"**
-pod wpisem — decyzja właściciela **D-081** (`docs/DECISIONS.md`, issue #275).
-To NIE jest licznik lajków ani ranking: autor widzi liczbę od pierwszej osoby,
-ktokolwiek inny od trzeciej, liczba nigdzie nie sortuje, nie promuje i nie
-tworzy zestawień, a na tablicy „kuKINGi na dziś", w wyszukiwarce i na stronie
-powitalnej jej celowo nie ma. Zanim tę liczbę gdziekolwiek dołożysz, przeniesiesz
-albo użyjesz do porządkowania treści — przeczytaj D-081, bo granice są tam
-wypisane wprost i ich przesunięcie wymaga osobnej decyzji właściciela.
+**Jeden wyjątek, i tylko ten: „ile osób zapisało to u siebie w zeszycie”** pod wpisem (D-081, issue #275) — to NIE jest licznik lajków ani ranking: autor widzi liczbę od pierwszej osoby, ktokolwiek inny od trzeciej; liczba nigdzie nie sortuje, nie promuje i nie tworzy zestawień, a na tablicy „kuKINGi na dziś”, w wyszukiwarce i na stronie powitalnej jej nie ma. Zanim ją gdziekolwiek dołożysz, przeniesiesz albo użyjesz do porządkowania treści — przeczytaj D-081; przesunięcie granic wymaga osobnej decyzji właściciela. [Pełne brzmienie](docs/agenci/NIE_WCZESNIE_HISTORIA_LISTY.md).
