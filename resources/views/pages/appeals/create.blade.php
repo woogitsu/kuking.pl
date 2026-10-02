@@ -79,7 +79,7 @@
                 wydarzyło naprawdę — to trafi do osoby, która obejrzy sprawę drugi raz.
             </p>
 
-            <x-field name="body" label="Twoje wyjaśnienie" type="textarea" :rows="6" required
+            <x-field name="body" label="Twoje wyjaśnienie" type="textarea" :rows="6" required dyktowanie
                      help="Od 10 do 2000 znaków." />
 
             <p class="meta">

@@ -12,6 +12,9 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 const read = value => typeof value === 'string' ? JSON.parse(readFileSync(value, 'utf8')) : value;
 const requireThat = (condition, code) => { if (!condition) throw new Error(code); };
 const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value);
+// Status dyktowania ma własny, początkowo ukryty komunikat. Nie jest błędem
+// walidacji serwera i nie może zwiększać liczby błędów pól po nieudanym POST.
+export const liczBledyWalidacji = form => form.locator('.field-error:not(.dyktowanie-blad)').count();
 const scenarios = [
   { name: 'report-custom', family: 'report', payload: { action: 'suspend', suspend_days: 'wlasny', suspend_days_custom: '0', reason_code: '', note: 'Kontrola lokalna A', user_message: 'Kontrola lokalna B' }, errors: ['reason_code', 'suspend_days_custom'], inline: 2 },
   { name: 'report-no-term', family: 'report', payload: { action: 'suspend', suspend_days: 'brak', reason_code: 'spam-reklama', note: 'Kontrola lokalna C' }, errors: ['suspend_days'], inline: 1 },
@@ -113,13 +116,13 @@ export async function runCandidate({ browser, origin, session, fullManifest, sta
         const errors = await summary.locator('li').allTextContents();
         const expected = scenario.errors.map(key => messages[scenario.family === 'restore' ? 'restore' : key]);
         requireThat(isDeepStrictEqual(errors.map(s => s.trim()).sort(), expected.sort()), 'EXPECTED_ERRORS');
-        requireThat(await form.locator('.field-error').count() === scenario.inline, 'INLINE_ERRORS');
+        requireThat(await liczBledyWalidacji(form) === scenario.inline, 'INLINE_ERRORS');
         for (const [name, value] of Object.entries(scenario.payload)) {
           const field = form.locator('[name="' + name + '"]');
           if (await field.first().getAttribute('type') === 'radio') requireThat(await field.evaluateAll((nodes, selected) => nodes.filter(n => n.checked).length === 1 && nodes.some(n => n.checked && n.value === selected), value), 'OLD_RADIO');
           else requireThat(await field.inputValue() === value, 'OLD_VALUE');
         }
-        if (siblingId) requireThat(isDeepStrictEqual(await formState(formFor(siblingId)), siblingBefore) && await formFor(siblingId).locator('.field-error').count() === 0, 'SIBLING_ISOLATION');
+        if (siblingId) requireThat(isDeepStrictEqual(await formState(formFor(siblingId)), siblingBefore) && await liczBledyWalidacji(formFor(siblingId)) === 0, 'SIBLING_ISOLATION');
         // Odwołania używają wspólnego podsumowania z odnośnikami. Zgłoszenia
         // mają świadomie płaską listę (inne konwencje ID ręcznych pól).
         if (isAppeal) {

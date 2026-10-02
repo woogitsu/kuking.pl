@@ -1345,6 +1345,14 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
+     lambda s: replace_once(s, "return $request->user() !== null", "return false")),
+    ("Dyktowanie daje mikrofon gościowi (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
+     lambda s: replace_once(s, "return $request->user() !== null", "return true")),
+    ("Dyktowanie daje mikrofon błędowi i JSON (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_nazwa_trasy_nie_odblokowuje_mikrofonu_na_bledzie_przekierowaniu_json_ani_post",
+     lambda s: replace_once(s, "&& $request->isMethod('GET')\n            && $response->isSuccessful()\n            && str_starts_with((string) $response->headers->get('Content-Type'), 'text/html')", "&& true")),
+    ("Dyktowanie odblokowuje wszystkie trasy (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_zalogowanie_nie_odblokowuje_mikrofonu_na_innych_ekranach",
+     lambda s: replace_once(s, "&& $request->routeIs(...self::TRASY_DYKTOWANIA)", "&& true")),
     ("Wspólna sesja traci zamiennik autora (#2485)", "resources/views/pages/wspolne-gotowanie/show.blade.php",
      "test_zamienniki_i_zdjecia_sa_przy_wlasciwych_elementach_dla_obu_rol",
      lambda s: replace_once(s, '@if($skladnik->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $skladnik->substitutes }}</span>@endif', '')),
@@ -1927,6 +1935,11 @@ checks = [
                             "        # rozjazd wyłapuje `PanelMarkiDzieliSieBezUtratyPomiaruTest`.\n        czesc: [1]\n")),
     ("Panel marki bez numeru części (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
      lambda s: replace_once(s, "      PANEL_CZESC: ${{ matrix.czesc }}\n", "")),
+    ("Pomiar panelu tylko w części 2 (#2446)", CI_WORKFLOW,
+     "PanelMarkiDzieliSieBezUtratyPomiaruTest::test_kazda_czesc_uruchamia_pomiar_i_regresje_podzialu",
+     lambda s: replace_once(s,
+         "      - name: Panel — logowanie z TOTP, faza pusta i pełna\n        run: node scripts/panel-marki-run.mjs\n",
+         "      - name: Panel — logowanie z TOTP, faza pusta i pełna\n        if: matrix.czesc == 2\n        run: node scripts/panel-marki-run.mjs\n")),
     ("Job zbiorczy panelu pomijany po czerwonej części (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
      lambda s: replace_once(s, "    needs: [zakres, port_panelu]\n    if: ${{ !cancelled() }}\n", "    needs: [zakres, port_panelu]\n")),
     ("Testy JS nie biegną nigdzie, bo assets też buduje sam Vite (#2299)", CI_WORKFLOW, "TestyJsBiegnaWJobieAssetowTest",

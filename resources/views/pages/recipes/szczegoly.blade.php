@@ -227,7 +227,7 @@
                 @error('hero_photo')<span class="field-error" id="f-hero_photo-error">{{ $message }}</span>@enderror
             </div>
 
-            <x-field name="summary" label="Krótko o przepisie" type="textarea" :rows="3"
+            <x-field name="summary" label="Krótko o przepisie" type="textarea" :rows="3" dyktowanie
                      :value="$isEdit ? $recipe->summary : null"
                      help="Jedno-dwa zdania. Na co ten przepis jest dobry, kiedy go robisz." />
 
@@ -349,7 +349,7 @@
                  publicznym, a taki jest tu domyślny (radio „Wszyscy" wyżej).
                  Ten formularz idzie zwykłym POST-em, więc zdanie zależne od
                  widoczności i tak nie zmieniłoby się przed wysłaniem. --}}
-            <x-field name="source_note" label="Historia tego przepisu" type="textarea" :rows="4"
+            <x-field name="source_note" label="Historia tego przepisu" type="textarea" :rows="4" dyktowanie
                      :value="$isEdit ? $recipe->source_note : null"
                      help="Skąd go znasz, kiedy się go gotuje, co Ci się z nim wiąże. Ta historia jest częścią przepisu — zobaczy ją każdy, kto zobaczy przepis." />
 

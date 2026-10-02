@@ -121,7 +121,7 @@
             @error('media_ids.*')<span class="field-error" id="f-media-ids-error">{{ $message }}</span>@enderror
         </div>
 
-        <x-field name="note" label="Jak wyszło?" type="textarea" :rows="4"
+        <x-field name="note" label="Jak wyszło?" type="textarea" :rows="4" dyktowanie
                  help="Na przykład: „Wyszło pięknie, tylko soli mniej.”" />
 
         {{-- POMOC MÓWI, CO TU WPISAĆ I GDZIE TO TRAFI, A NIE JAK CZĘSTO
@@ -155,7 +155,7 @@
             <p class="m-0">Masz prywatny dopisek z gotowania, ale nie wstawiamy go do formularza, w którym już coś wpisano. Dopisek zostaje prywatny.</p>
         @endif
 
-        <x-field name="changes_note" label="Coś po swojemu?" type="textarea" :rows="3"
+        <x-field name="changes_note" label="Coś po swojemu?" type="textarea" :rows="3" dyktowanie
                  :value="$dopisek['stan'] === 'wstawiony' ? $dopisek['tresc'] : null"
                  help="Zamiana składnika, inny czas, inna forma. Pokażemy to przy Twoim wykonaniu, podpisane „Po swojemu”." />
 

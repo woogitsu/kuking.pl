@@ -151,6 +151,8 @@ punktu sprawdź w podanym issue. Numery D-330 (#2130), D-331 (V2) i D-332
 
 **Doprecyzowanie wykonawcze #2453.** Filtr daty w Polsce obowiązuje już przy wyborze odbiorców sobotniego listu, nie dopiero przy składaniu jego treści. Konto z samym niemrożonym produktem po terminie „Należy zużyć do” nie zajmuje miejsca w dziennym limicie poczty i nie dostaje pustego przypomnienia. Ponowna kontrola w workerze pozostaje, ponieważ produkt i zgoda mogą zmienić się po zakolejkowaniu.
 
+| #2377: dyktowanie dłuższych pól — etap 2 (decyzja właściciela z 1.10.2026, handover koordynatora) | Rozszerzamy dyktowanie **wszędzie, gdzie jest dłuższy tekst**: opis przepisu, notatka „Ugotowałem”, komentarze i odpowiedzi, wpis, notatki w zeszycie oraz pozostałe edytowalne dłuższe pola. Ten wiersz rozszerza zakres pierwszego etapu powyżej; nie zmienia technologii ani obiegu dźwięku. `microphone=(self)` tylko dla **zalogowanego** na udanym ekranie HTML z takim polem, z jawną listą tras; gość i reszta ekranów `()`. Zalogowany wariant nie może trafić do cache CDN. Podgląd i jawne wstawienie pozostają obowiązkowe; nie uruchamia to publikacji ani operacji moderacyjnej. Bez hosta w polach tylko do odczytu i na ekranach odzyskiwania po 419/429. Polityka i identyczne archiwum: drobna poprawka wersji 2026-09-30. Nie wysyłamy dźwięku ani transkrypcji do Kuking lub AI. | #2377 |
+
 ### Wycofanie
 Każdą decyzję zmienia nowa decyzja właściciela, zapisana jako osobny wpis
 D-xxx z odwołaniem do tego.
