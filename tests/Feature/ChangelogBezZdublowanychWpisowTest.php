@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Tests\Support\PelnyChangelog;
 use Tests\TestCase;
 
 /**
@@ -29,11 +30,11 @@ class ChangelogBezZdublowanychWpisowTest extends TestCase
 {
     public function test_changelog_nie_ma_dwoch_identycznych_wpisow(): void
     {
-        $duplikaty = self::zdublowaneWpisy((string) file_get_contents(base_path('CHANGELOG.md')));
+        $duplikaty = self::zdublowaneWpisy(PelnyChangelog::tresc());
 
         $this->assertSame([], $duplikaty, implode("\n", [
             'CHANGELOG.md ma zdublowane wpisy — najczęściej skutek rozwiązania konfliktu „obie strony”,',
-            'gdy obie strony niosły ten sam wpis. Zostaw jeden egzemplarz:',
+            'gdy obie strony niosły ten sam wpis. Zostaw jeden egzemplarz (numery linii od początku CHANGELOG.md, dalej pliki archiwum docs/changelog/ po kolei):',
             ...$duplikaty,
         ]));
     }

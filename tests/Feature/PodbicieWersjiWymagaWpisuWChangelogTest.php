@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Support\Wersja;
+use Tests\Support\PelnyChangelog;
 use Tests\TestCase;
 
 /**
@@ -97,13 +98,29 @@ class PodbicieWersjiWymagaWpisuWChangelogTest extends TestCase
      */
     public function test_numery_wersji_w_changelog_sa_unikalne_i_maleja(): void
     {
-        $numery = $this->numeryWersji((string) file_get_contents(base_path('CHANGELOG.md')));
+        $numery = $this->numeryWersji(PelnyChangelog::tresc());
 
         $this->assertNotEmpty($numery, 'CHANGELOG.md nie ma nagłówków „## Alfa 0.N — …".');
         $this->assertSame([], $this->bledyNumeracji($numery), 'CHANGELOG.md: '
             .'numer wersji powtórzony albo nie maleje. Dwie gałęzie podbiły tę samą '
             .'wersję — przenieś wpis jednej z nich pod „## Nieopublikowane” i cofnij '
             .'jej podbicie (docs/flota/chmura/SESJA_GLOWNA.md §5).');
+    }
+
+    /**
+     * Archiwum starszych wersji (`docs/changelog/`) jest czytane razem
+     * z CHANGELOG.md. Plik archiwum bez odnośnika w sekcji „Starsze wersje”
+     * wypadłby po cichu z testów numeracji i duplikatów, a odnośnik do
+     * nieistniejącego pliku byłby martwy.
+     */
+    public function test_archiwum_changelogu_jest_w_calosci_podlinkowane_i_istnieje(): void
+    {
+        $this->assertSame([], PelnyChangelog::niepodlinkowane(), 'Pliki w docs/changelog/ bez odnośnika w CHANGELOG.md (sekcja „Starsze wersje”).');
+        $this->assertGreaterThan(1, count(PelnyChangelog::pliki()), 'CHANGELOG.md nie linkuje do żadnego pliku archiwum.');
+
+        foreach (PelnyChangelog::pliki() as $sciezka) {
+            $this->assertFileExists(base_path($sciezka), "Odnośnik do archiwum bez pliku: {$sciezka}.");
+        }
     }
 
     /**
@@ -131,7 +148,7 @@ class PodbicieWersjiWymagaWpisuWChangelogTest extends TestCase
      */
     public function test_stare_wydania_maja_zero_wiodace_i_porzadek_jest_liczbowy(): void
     {
-        $tresc = (string) file_get_contents(base_path('CHANGELOG.md'));
+        $tresc = PelnyChangelog::tresc();
 
         $this->assertSame(
             0,
