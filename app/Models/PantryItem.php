@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Jeden produkt z prywatnej listy „Co mam w domu” (V2, D-285).
@@ -56,5 +57,16 @@ class PantryItem extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Drugie opakowanie tego samego produktu (#2568) — najwyżej jedno.
+     * Pierwsze opakowanie to kolumny tego modelu.
+     *
+     * @return HasOne<PantrySecondPackage, $this>
+     */
+    public function secondPackage(): HasOne
+    {
+        return $this->hasOne(PantrySecondPackage::class, 'pantry_item_id');
     }
 }

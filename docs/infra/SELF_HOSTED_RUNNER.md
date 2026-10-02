@@ -331,7 +331,7 @@ czy problem nie był chwilowy. Powód stoi przy nim w komentarzu w `ci.yml`.
 **Pozostałe trzy workflow-y też chodzą same.** Sprawdzone parserem YAML
 12 września 2026, plik po pliku: `deploy.yml` ma `deployment_status`
 i `workflow_dispatch`, `preview.yml` ma `pull_request` (opened, synchronize,
-reopened) i `workflow_dispatch`, `railway-iac.yml` ma `pull_request`
+reopened, od 2.10.2026 także ready_for_review) i `workflow_dispatch`, `railway-iac.yml` ma `pull_request`
 (opened, synchronize, reopened) na ścieżkach `.railway/**` i na własnym
 pliku — to sam plan — oraz `workflow_dispatch`, jedyną drogę do `apply`
 (od 24.09.2026, #595; wcześniej `closed` po scaleniu stosował plik sam). **W żadnym z tych plików nie ma dziś
@@ -342,6 +342,51 @@ Była to nieprawda tej samej klasy co ta z D-165: kazała zrobić rzecz, której
 ma do zrobienia, a przy okazji mówiła, że deploy i preview nie chodzą, choć
 chodzą. Zgodności tego akapitu ze stanem bloków `on:` pilnuje teraz
 `../../tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php`.
+
+### Zakres CI na draft PR-ach (decyzja właściciela z 2.10.2026)
+
+**Po co.** Pomiar z 2.10.2026: w 12,5 h 3509 jobów, ok. 28 000 minut runnera,
+średnio 34 joby naraz, szczyt 157. Prawie całość to `CI` na DRAFT PR-ach agentów
+do `codex/integracja-*`, których nie scalamy bezpośrednio — scalamy paczki,
+a paczka ma pełne CI. To przygotowanie do repozytorium prywatnego i własnych
+runnerów (wiersz w D-333, bez nowego numeru D).
+
+**Jak.** Bramka `zakres` (`scripts/ci/zakres.sh`) ma siódme wyjście `pelny`:
+`false` wyłącznie, gdy zdarzenie to `pull_request`, a PR jest draftem
+(`github.event.pull_request.draft == true`). Push na `main`/`staging`/integrację,
+PR nie-draft, `workflow_dispatch` i każdy brak danych dają `pelny=true`.
+
+| job | draft PR | pełny przebieg |
+| --- | --- | --- |
+| `Zakres zmiany` | biegnie | biegnie |
+| `Pint (styl kodu)` | biegnie | biegnie |
+| `Larastan (analiza statyczna)` | biegnie | biegnie |
+| `Testy (PostgreSQL 18) — część 1/4`…`4/4` | biegną | biegną |
+| `Testy (PostgreSQL 18) — kontrole negatywne, część 1/3`…`3/3` | **nie powstają** (puste `include` macierzy) | biegną |
+| `Testy (PostgreSQL 18)` (agregat, wymagany) | zielony z adnotacją „draft — zakres skrócony” | jak dotąd |
+| przyrząd #605, wyścigi, assety, panel marki (obie części), port marki, rodziny ekranów, dostępność, kaskada, audyt, build obrazu | `skipped` | wg bramki obszaru, jak dotąd |
+| `Panel marki — puste i pełne widoki` (agregat, wymagany) | zielony z adnotacją „draft — zakres skrócony” | jak dotąd |
+
+`pull_request` w `ci.yml` ma jawne `types: [opened, synchronize, reopened,
+ready_for_review]`: oznaczenie PR-a jako gotowego uruchamia pełny przebieg bez
+dodatkowego pusha (poprzedni, skrócony przebieg anuluje `concurrency`). Test
+dymny w `preview.yml` na drafcie jest pomijany z powodem w podsumowaniu
+(`scripts/ci/preview-bramka.sh`) i też rusza przy `ready_for_review`.
+
+**Czego to nie zmienia.** Żaden test nie jest wyłączony — na drafcie nie biegną,
+na pełnym przebiegu biegną wszystkie. Agregaty `testy` i `panel_marki` na
+pełnym przebiegu nie przepuszczają pominiętych części (pominięcie „z powodu
+draftu” jest akceptowane tylko przy `pelny=false` z zielonej bramki). Pilnują
+tego `tests/skrypty/zakres.sh` (tabela i kontrola ujemna wyjścia `pelny`)
+oraz `tests/Feature/CiNaDrafcieMaSkroconyZakresTest.php` (na drafcie biegną
+dokładnie Pint, Larastan i testy 1–4; na pełnym przebiegu nic nie jest
+pominięte z powodu draftu; kontrola ujemna w tym samym pliku).
+
+**Ryzyko, o którym trzeba wiedzieć.** Wymagana kontrola, której job jest
+`skipped`, liczy się w GitHubie jako spełniona. Draftu i tak nie da się scalić,
+a po `ready_for_review` biegnie pełny przebieg — ale gdyby ktoś scalił PR
+zaraz po zdjęciu draftu, zanim nowy przebieg wystartuje, scaliłby na wyniku
+skróconym. Dlatego agregaty mówią „draft — zakres skrócony” w podsumowaniu.
 
 ### Krok 3 — pierwszy przebieg
 

@@ -495,19 +495,46 @@ try {
     if (!daneFixture.has(nazwa)) daneFixture.set(nazwa, JSON.parse(execFileSync('php', [`scripts/fixtures/${nazwa}.php`], { env: env() }).toString()));
     return daneFixture.get(nazwa);
   };
+  const zmierzEtapPortu = async (etap, wykonaj) => {
+    const start = performance.now();
+    console.log(`PORT_START etap=${etap}`);
+    try {
+      await wykonaj();
+      console.log(`PORT_END etap=${etap} status=ok czas_ms=${Math.round(performance.now() - start)}`);
+    } catch (error) {
+      console.log(`PORT_END etap=${etap} status=blad czas_ms=${Math.round(performance.now() - start)}`);
+      throw error;
+    }
+  };
   await wykonajGrupe(grupa, 'rozszerzenia-1', async () => {
-  if (!['127.0.0.1', 'localhost'].includes(new URL(adres).hostname)) throw new Error('Fixture kompozycji wymaga lokalnego serwera.');
-  const kompozycje = fixture('kompozycje-marki');
-  await sprawdzKompozycje({ browser: przegladarka, adres, sesja, ...kompozycje });
-  const zeszyty = fixture('zeszyty-marki');
-  await sprawdzZeszyty({ browser: przegladarka, adres, sesja, ...zeszyty });
-  const paczka513 = fixture('kompozycje-513');
-  await sprawdzKompozycje513({ browser: przegladarka, adres, sesja, phpEnv: env(), ...paczka513 });
-  await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
-  await sprawdzInstalacjePwa({ browser: przegladarka, adres, sesja, phpEnv: env() });
-  await sprawdzPasek({ browser: przegladarka, adres, sesja });
-  await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
-  await sprawdzStopke({ browser: przegladarka, adres, sesja });
+    if (!['127.0.0.1', 'localhost'].includes(new URL(adres).hostname)) throw new Error('Fixture kompozycji wymaga lokalnego serwera.');
+    await zmierzEtapPortu('kompozycje', async () => {
+      const kompozycje = fixture('kompozycje-marki');
+      await sprawdzKompozycje({ browser: przegladarka, adres, sesja, ...kompozycje });
+    });
+    await zmierzEtapPortu('zeszyty', async () => {
+      const zeszyty = fixture('zeszyty-marki');
+      await sprawdzZeszyty({ browser: przegladarka, adres, sesja, ...zeszyty });
+    });
+    await zmierzEtapPortu('k513', async () => {
+      const paczka513 = fixture('kompozycje-513');
+      await sprawdzKompozycje513({ browser: przegladarka, adres, sesja, phpEnv: env(), ...paczka513 });
+    });
+    await zmierzEtapPortu('notice', async () => {
+      await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
+    });
+    await zmierzEtapPortu('pwa', async () => {
+      await sprawdzInstalacjePwa({ browser: przegladarka, adres, sesja, phpEnv: env() });
+    });
+    await zmierzEtapPortu('pasek', async () => {
+      await sprawdzPasek({ browser: przegladarka, adres, sesja });
+    });
+    await zmierzEtapPortu('szybki-wyglad', async () => {
+      await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
+    });
+    await zmierzEtapPortu('stopka', async () => {
+      await sprawdzStopke({ browser: przegladarka, adres, sesja });
+    });
   });
   await wykonajGrupe(grupa, 'rozszerzenia-2', async () => {
   if (!['127.0.0.1', 'localhost'].includes(new URL(adres).hostname)) throw new Error('Fixture kompozycji wymaga lokalnego serwera.');

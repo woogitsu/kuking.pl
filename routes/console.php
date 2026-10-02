@@ -318,6 +318,18 @@ Harmonogram::artisan('kuking:sprzataj-postep-gotowania')
     ->onOneServer()
     ->withoutOverlapping(120);
 
+// 02:15 — wolny slot przed wszystkimi nocnymi zadaniami (najbliższe: 02:30,
+// odstęp 15 minut; `HarmonogramBezWspolnychSlotowTest`).
+// Prywatna lista ostatnio oglądanych przepisów (#2553): wizyty starsze niż
+// `config('kuking.ostatnio_ogladane.dni')` dni, ponad limit pozycji na osobę
+// i osób, które wyłączyły funkcję. Odczyt pomija je sam; to zadanie zabiera dane.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Harmonogram::artisan('kuking:sprzataj-ostatnio-ogladane')
+    ->name('kuking:sprzataj-ostatnio-ogladane')
+    ->dailyAt('02:15')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+
 // 02:30 — przed całym nocnym pasmem sprzątania (odstęp 15 minut od 02:45;
 // `HarmonogramBezWspolnychSlotowTest`). Wygasłe sesje wspólnego gotowania
 // (#2385): ważne `config('kuking.wspolne_gotowanie.retencja_godziny')` godzin

@@ -3442,6 +3442,21 @@ return [
         'limit_na_osobe' => 500,
     ],
 
+    'ostatnio_ogladane' => [
+        // Opcjonalna, prywatna lista ostatnio oglądanych przepisów (#2553).
+        // Wartości z propozycji w issue — DO POTWIERDZENIA przez właściciela
+        // (wiersz w D-333). Zmiana wartości nie wymaga migracji: limit i czas
+        // życia pilnuje kod przy zapisie, przy odczycie i nocne sprzątanie.
+        //
+        // Najwięcej RÓŻNYCH przepisów na osobę. Kolejne wejście w ten sam
+        // przepis przesuwa jedną pozycję, nie dokłada drugiej.
+        'limit' => 10,
+        // Ile dni od ostatniego wejścia pozycja jest ważna. Starsza jest dla
+        // serwisu nieistniejąca już przy odczycie (nie czeka na zadanie
+        // sprzątające), a `kuking:sprzataj-ostatnio-ogladane` kasuje ją co noc.
+        'dni' => 7,
+    ],
+
     'sessions' => [
         // RETENCJA TABELI `sessions` (RZ-01, 21.09.2026).
         //
@@ -3603,6 +3618,14 @@ return [
         'krs' => '0000901262',
         'nip' => '5423435334',
         'regon' => '388971059',
+
+        /*
+         * Art. 206 § 1 KSH: sąd rejestrowy i kapitał zakładowy w informacjach
+         * spółki (analiza prawna z 2.10.2026, pyt. 14). Dane podał właściciel
+         * 2.10.2026 (D-333).
+         */
+        'sad_rejestrowy' => 'Sąd Rejonowy w Białymstoku, XII Wydział Gospodarczy Krajowego Rejestru Sądowego',
+        'kapital_zakladowy' => '5 000,00 zł',
 
         /*
          * Adres, pod którym odpowiada spółka — i to NIE jest to samo, co

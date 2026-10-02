@@ -101,7 +101,10 @@ name: Preview
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    # `ready_for_review` (2.10.2026, D-333): na draft PR-ze bramka niżej
+    # pomija test dymny z powodem „draft — zakres skrócony"; oznaczenie PR-a
+    # jako gotowego musi więc uruchomić go bez dodatkowego pusha.
+    types: [opened, synchronize, reopened, ready_for_review]
 
   workflow_dispatch:
     inputs:
@@ -161,6 +164,8 @@ jobs:
         env:
           ZDARZENIE: ${{ github.event_name }}
           FLAGA: ${{ vars.KUKING_DEPLOY_ENABLED }}
+          # Draft PR -> test dymny pominięty z powodem (2.10.2026, D-333).
+          DRAFT: ${{ github.event.pull_request.draft }}
         run: bash scripts/ci/preview-bramka.sh
 
   # ===========================================================================

@@ -46,7 +46,7 @@
             <input type="hidden" name="zgloszenie" value="{{ $zgloszenie->getKey() }}">
         @endif
 
-        <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2"
+        <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" dyktowanie
                  help="Nieobowiązkowa. Widzi ją tylko moderacja. Bez opisu samego materiału." />
 
         <div class="field @if($bladPotwierdzenia) has-error @endif">

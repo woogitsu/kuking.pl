@@ -68,7 +68,17 @@ class PanelMarkiDzieliSieBezUtratyPomiaruTest extends TestCase
             $job,
             'Części panelu nie uruchamiają `scripts/panel-czesci.test.mjs` — podział mógłby zgubić szerokość albo dodatek (#2299).',
         );
-        $this->assertDoesNotMatchRegularExpression('/^\s+if: matrix\.czesc/m', $job, 'Kroki pomiaru panelu nie zależą od części — dzieli je sam skrypt.');
+        // Dodatkowa regresja formularza biegnie raz w części 2. Sam pomiar
+        // panelu i wszystkie pozostałe kroki nadal muszą biec w obu częściach.
+        $dodatkowaRegresja = "      - name: Regresja błędów walidacji obok hostów dyktowania\n"
+            ."        if: matrix.czesc == 2\n"
+            ."        run: node --test scripts/przegladarka/panel-validation-errors.test.mjs\n";
+        $this->assertSame(1, substr_count($job, $dodatkowaRegresja), 'Jedyna regresja tylko w części 2 musi rzeczywiście biec.');
+        $this->assertDoesNotMatchRegularExpression(
+            '/^\s+if: matrix\.czesc/m',
+            str_replace($dodatkowaRegresja, '', $job),
+            'PANEL_2446_POMIAR_KAZDA_CZESC: pomiar panelu i pozostałe kroki nie zależą od części.',
+        );
     }
 
     public function test_wymagany_check_wystawia_job_zbiorczy_czekajacy_na_obie_czesci(): void

@@ -151,7 +151,7 @@
                 <input type="hidden" name="stan_ile" value="{{ $ile }}">
                 <input type="hidden" name="stan_najnowsze" value="{{ $grupa->getAttribute('najnowsze') }}">
 
-                <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" :wiersz="$kluczGrupy"
+                <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" :wiersz="$kluczGrupy" dyktowanie
                          help="Zostaje w logu moderacji. Autor treści jej nie zobaczy — przy tej decyzji nie dostaje żadnego powiadomienia." />
 
                 <button class="btn btn-primary mt-5" type="submit">

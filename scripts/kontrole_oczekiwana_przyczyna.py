@@ -35,6 +35,9 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Lista ostatnio oglądanych sięga do analityki (#2553)': r'OSTATNIO_OGLADANE_2553_PRYWATNA_LISTA_POZA_ZAMKNIETA_LISTA',
+    'Lista ostatnio oglądanych pokazuje przepis konta zbanowanego (#2553)': r'OSTATNIO_OGLADANE_2553_TYTUL_NIEDOSTEPNEGO_PRZEPISU',
+    'Lista ostatnio oglądanych miesza konta (#2553)': r'OSTATNIO_OGLADANE_2553_KONTO_[AB]_WIDZI_LISTE_[AB]',
     'Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)': r'JIT_2291_SWIEZA_SESJA_WYMAGA_OFF',
     "Pusta linia Unicode tworzy składnik (#2621)": r'PUSTE_LINIE_2621_UNICODE',
     "Pusta linia Unicode skleja kroki po POST (#2621)": r'PUSTE_LINIE_2621_POST_KROKI',
@@ -86,6 +89,11 @@ OCZEKUJ = {
     'Odżywcze: masa razem mnożona przez puszki (#2487)': r'ODZYWCZE_2487_LACZNA_MASA_BEZ_MNOZENIA',
     'Odżywcze: sprzeczna masa wpada w domyślną miarę (#2487)': r'ODZYWCZE_2487_SPRZECZNY_NAWIAS_ODMAWIA',
     'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
+    'Pomiar panelu tylko w części 2 (#2446)': r'PANEL_2446_POMIAR_KAZDA_CZESC',
+    'Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)': r'DICTATION_AUTH_HEADER',
+    'Dyktowanie daje mikrofon gościowi (#2377 etap 2)': r'DICTATION_GUEST_HEADER',
+    'Dyktowanie daje mikrofon błędowi i JSON (#2377 etap 2)': r'DICTATION_NON_FORM_RESPONSE',
+    'Dyktowanie odblokowuje wszystkie trasy (#2377 etap 2)': r'DICTATION_OTHER_ROUTE',
     'Wspólna sesja traci zamiennik autora (#2485)': r'WSPOLNE_2485_ZAMIENNIK_PRZY_SKLADNIKU',
     'Wspólna sesja traci zdjęcie kroku (#2486)': r'WSPOLNE_2486_ZDJECIE_PRZY_KROKU',
     'Historia ignoruje wybór Bez ilości (#2449)': r'HISTORIA_BEZ_ILOSCI_ZMIANA',
@@ -522,6 +530,10 @@ OCZEKUJ = {
     'Kontrole bez regresji zawężenia filtra (#2299)': r'Części kontroli nie uruchamiają `scripts/test_zawezenie_testow\.py` \(#2299\)',
     'Macierz panelu krótsza niż podział (#2299)': r'Macierz `port_panelu` w ci\.yml ma inne części niż `CZESCI_PANELU`',
     'Panel marki bez numeru części (#2299)': r'Job `port_panelu` nie podaje `PANEL_CZESC` z macierzy',
+    'Build obrazu biegnie na drafcie (D-333, 2.10.2026)': r'draft PR: biegną .*docker-build',
+    'Kontrole negatywne na drafcie (D-333, 2.10.2026)': r'draft PR: części kontroli negatywnych w macierzy: \[1\]',
+    'Agregat panelu zielony bez części na pełnym przebiegu (D-333, 2.10.2026)': r'`panel_marki` przy części=skipped, pelny=true: kod wyjścia 0, ma być 1',
+    'Bramka skraca także push z DRAFT=true (D-333, 2.10.2026)': r'push \(z DRAFT=true w środowisku\): bramka wystawiła pelny=false',
     'Job zbiorczy panelu pomijany po czerwonej części (#2299)': r'Job zbiorczy panelu bez `!cancelled\(\)` jest `skipped` po czerwonej części',
     'Testy JS nie biegną nigdzie, bo assets też buduje sam Vite (#2299)': r'Job `assets` nie robi pełnego `npm run build`',
     'Cache przeglądarki odtwarza inną wersję (#2299)': r'przeglądarka innej wersji nie może być odtwarzana \(#2299\)',

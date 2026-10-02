@@ -1345,6 +1345,14 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
+     lambda s: replace_once(s, "return $request->user() !== null", "return false")),
+    ("Dyktowanie daje mikrofon gościowi (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
+     lambda s: replace_once(s, "return $request->user() !== null", "return true")),
+    ("Dyktowanie daje mikrofon błędowi i JSON (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_nazwa_trasy_nie_odblokowuje_mikrofonu_na_bledzie_przekierowaniu_json_ani_post",
+     lambda s: replace_once(s, "&& $request->isMethod('GET')\n            && $response->isSuccessful()\n            && str_starts_with((string) $response->headers->get('Content-Type'), 'text/html')", "&& true")),
+    ("Dyktowanie odblokowuje wszystkie trasy (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_zalogowanie_nie_odblokowuje_mikrofonu_na_innych_ekranach",
+     lambda s: replace_once(s, "&& $request->routeIs(...self::TRASY_DYKTOWANIA)", "&& true")),
     ("Wspólna sesja traci zamiennik autora (#2485)", "resources/views/pages/wspolne-gotowanie/show.blade.php",
      "test_zamienniki_i_zdjecia_sa_przy_wlasciwych_elementach_dla_obu_rol",
      lambda s: replace_once(s, '@if($skladnik->substitutes)<span class="skladnik-zamiennik">Zamiast tego: {{ $skladnik->substitutes }}</span>@endif', '')),
@@ -1927,6 +1935,11 @@ checks = [
                             "        # rozjazd wyłapuje `PanelMarkiDzieliSieBezUtratyPomiaruTest`.\n        czesc: [1]\n")),
     ("Panel marki bez numeru części (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
      lambda s: replace_once(s, "      PANEL_CZESC: ${{ matrix.czesc }}\n", "")),
+    ("Pomiar panelu tylko w części 2 (#2446)", CI_WORKFLOW,
+     "PanelMarkiDzieliSieBezUtratyPomiaruTest::test_kazda_czesc_uruchamia_pomiar_i_regresje_podzialu",
+     lambda s: replace_once(s,
+         "      - name: Panel — logowanie z TOTP, faza pusta i pełna\n        run: node scripts/panel-marki-run.mjs\n",
+         "      - name: Panel — logowanie z TOTP, faza pusta i pełna\n        if: matrix.czesc == 2\n        run: node scripts/panel-marki-run.mjs\n")),
     ("Job zbiorczy panelu pomijany po czerwonej części (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
      lambda s: replace_once(s, "    needs: [zakres, port_panelu]\n    if: ${{ !cancelled() }}\n", "    needs: [zakres, port_panelu]\n")),
     ("Testy JS nie biegną nigdzie, bo assets też buduje sam Vite (#2299)", CI_WORKFLOW, "TestyJsBiegnaWJobieAssetowTest",
@@ -2206,6 +2219,19 @@ checks = [
     ("Licznik widza bez poprawki na blokady", "app/Domain/Questions/PytaniaBezOdpowiedzi.php",
      "test_blokada_zmniejsza_licznik_widza_ale_nie_goscia",
      lambda s: replace_once(s, "        if ($wBlokadzie !== []) {\n", "        if (false) {\n")),
+    # #2553: prywatna lista ostatnio oglądanych służy tylko do powrotu do przepisu.
+    # Dotknięcie jej z kodu analityki ma zapalić strażnika zamkniętej listy plików,
+    # pominięcie ponownej kontroli widoczności — ujawnić tytuł niedostępnego przepisu,
+    # a zgubienie właściciela wiersza — pokazać listę jednego konta drugiemu.
+    ("Lista ostatnio oglądanych sięga do analityki (#2553)", "app/Domain/Analytics/ZanotujOstatniaWizyte.php",
+     "OstatnioOgladaneNieWyciekajaPozaListeTest::test_lista_jest_uzywana_tylko_przez_dozwolone_pliki",
+     lambda s: replace_once(s, "final class ZanotujOstatniaWizyte\n{\n", "final class ZanotujOstatniaWizyte\n{\n    private const SLAD = \\App\\Models\\RecentRecipeView::class;\n\n")),
+    ("Lista ostatnio oglądanych pokazuje przepis konta zbanowanego (#2553)", "app/Domain/Recipes/OstatnioOgladane.php",
+     "OstatnioOgladanePrywatnaListaTest::test_przepis_ktory_przestal_byc_widoczny_znika_z_listy_razem_z_tytulem",
+     lambda s: replace_once(s, "if ($przepis === null || ! $gate->allows('view', $przepis)) {", "if ($przepis === null) {")),
+    ("Lista ostatnio oglądanych miesza konta (#2553)", "app/Domain/Recipes/OstatnioOgladane.php",
+     "OstatnioOgladanePrywatnaListaTest::test_dwa_konta_nie_widza_nawzajem_swoich_list",
+     lambda s: replace_once(s, "RecentRecipeView::query()\n            ->where('user_id', $osoba->getKey())\n            ->where('viewed_at', '>', $this->granicaCzasu())", "RecentRecipeView::query()\n            ->where('viewed_at', '>', $this->granicaCzasu())")),
     ("Dopisek autora liczony jako odpowiedź", "app/Domain/Questions/OdpowiedzNaPytanie.php",
      "test_komentarz_autora_pod_wlasnym_pytaniem_nie_jest_odpowiedzia",
      lambda s: replace_once(s, "\n            ->whereColumn($tabela.'.author_id', '!=', $autorPytania);", ";")),
@@ -2641,6 +2667,20 @@ checks = [
      lambda s: replace_once(s,
          "                    ->where('p.frozen', false)\n                    ->whereRaw(PriorytetZuzycia::DOSTEPNY_SQL, [$dzis]);",
          "                    ->where('p.frozen', false);")),
+    # 2.10.2026 (D-333): CI na draft PR-ach skrócone. Ciężki job bez warunku
+    # `pelny`, kontrole negatywne na drafcie, bramka skracająca push i agregat
+    # panelu zielony z pominiętych części na pełnym przebiegu.
+    ("Build obrazu biegnie na drafcie (D-333, 2.10.2026)", CI_WORKFLOW, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, "needs.zakres.outputs.obraz == 'true' && needs.zakres.outputs.pelny == 'true'\n",
+                            "needs.zakres.outputs.obraz == 'true'\n")),
+    ("Kontrole negatywne na drafcie (D-333, 2.10.2026)", CI_WORKFLOW, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, "\"kontrole_czesc\":3}]' || '[]') }}",
+                            "\"kontrole_czesc\":3}]' || '[{\"czesc\":\"kontrole\",\"kontrole_czesc\":1}]') }}")),
+    ("Agregat panelu zielony bez części na pełnym przebiegu (D-333, 2.10.2026)", CI_WORKFLOW, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, '            && [ "${PELNY}" = "false" ]; then\n', '            ; then\n')),
+    ("Bramka skraca także push z DRAFT=true (D-333, 2.10.2026)", BRAMKA_SKRYPT, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, 'if [ "${ZDARZENIE:-}" = "pull_request" ] && [ "${DRAFT:-}" = "true" ]; then',
+                            'if [ "${DRAFT:-}" = "true" ]; then')),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

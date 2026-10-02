@@ -92,15 +92,18 @@ final class ZmienTerminProduktu
 
     /**
      * @param  array<string, mixed>  $dane  surowe pola formularza
+     * @param  string|null  $odcisk  odcisk pierwszego opakowania z chwili otwarcia formularza
+     *                               (`Opakowanie::odcisk()`); niesie go tylko formularz produktu z DWOMA
+     *                               opakowaniami (#2568) — bez niego zapis działa jak dawniej
      * @return bool `false`, gdy produktu już nie ma (usunięty równolegle)
      *
      * @throws ValidationException
      */
-    public function handle(PantryItem $produkt, array $dane, ?string $dzis = null): bool
+    public function handle(PantryItem $produkt, array $dane, ?string $dzis = null, ?string $odcisk = null): bool
     {
         $dzis ??= PriorytetZuzycia::dzis();
 
-        return DB::transaction(function () use ($produkt, $dane, $dzis): bool {
+        return DB::transaction(function () use ($produkt, $dane, $dzis, $odcisk): bool {
             // STAN CZYTAMY POD BLOKADĄ. Model z kontrolera został wczytany przed
             // blokadą, więc mógł być już nieaktualny: gdy druga edycja
             // zdążyła zapisać termin, zmiana samej ilości (która „zostawia
@@ -110,13 +113,25 @@ final class ZmienTerminProduktu
                 ->where('id', $produkt->getKey())
                 ->where('user_id', $produkt->user_id)
                 ->lockForUpdate()
-                ->first(['id', 'expires_on', 'expiry_kind']);
+                ->first(['id', 'expires_on', 'expiry_kind', 'quantity_note', 'frozen']);
 
             if ($wiersz === null) {
                 return false;
             }
 
-            $zmiany = $this->zmiany($wiersz, $dane, $dzis);
+            // Po usunięciu pierwszego opakowania drugie AWANSUJE na jego miejsce
+            // (`DrugieOpakowanieProduktu::usun()`). Stary formularz pierwszego
+            // opakowania nie może wtedy zapisać swojej treści na cudze miejsce.
+            if ($odcisk !== null && $odcisk !== '' && $odcisk !== Opakowanie::odciskTresci(
+                $wiersz->expires_on === null ? null : (string) $wiersz->expires_on,
+                $wiersz->expiry_kind,
+                $wiersz->quantity_note,
+                (bool) $wiersz->frozen,
+            )) {
+                throw ValidationException::withMessages(['opakowanie' => DrugieOpakowanieProduktu::BLAD_ZMIENILO_SIE]);
+            }
+
+            $zmiany = $this->kolumny($wiersz, $dane, $dzis);
 
             DB::table('pantry_items')
                 ->where('id', $produkt->getKey())
@@ -128,13 +143,17 @@ final class ZmienTerminProduktu
     }
 
     /**
+     * Zwalidowane kolumny do zapisu (termin, rodzaj, ilość, „mrożone”) —
+     * wspólne dla pierwszego opakowania (`handle()`) i drugiego
+     * (`DrugieOpakowanieProduktu`), żeby oba mówiły te same błędy po polsku.
+     *
      * @param  array<string, mixed>  $dane
      * @param  object{expires_on: ?string, expiry_kind: ?string}  $zapisany  wiersz odczytany pod blokadą
      * @return array<string, mixed> kolumny do zapisu
      *
      * @throws ValidationException
      */
-    private function zmiany(object $zapisany, array $dane, string $dzis): array
+    public function kolumny(object $zapisany, array $dane, string $dzis): array
     {
         $bledy = [];
 
