@@ -13,9 +13,9 @@ use PHPUnit\Framework\TestCase;
  */
 final class PorownanieWersjiTest extends TestCase
 {
-    private function skladnik(string $tekst, ?string $grupa = null): array
+    private function skladnik(string $tekst, ?string $grupa = null, int $pozycja = 0): array
     {
-        return ['group_name' => $grupa, 'text' => $tekst, 'note' => null, 'substitutes' => null, 'position' => 0];
+        return ['group_name' => $grupa, 'text' => $tekst, 'note' => null, 'substitutes' => null, 'position' => $pozycja];
     }
 
     private function krok(string $tresc, ?int $timer = null): array
@@ -56,6 +56,93 @@ final class PorownanieWersjiTest extends TestCase
 
         $this->assertCount(1, $wynik);
         $this->assertSame(PorownanieWersji::USUNIETO, $wynik[0]['rodzaj']);
+    }
+
+    public function test_zamiana_kolejnosci_grup_i_wierszy_jest_widoczna_bez_fikcyjnego_dodania(): void
+    {
+        $stara = ['ingredients' => [
+            $this->skladnik('mąka', 'Ciasto', 0),
+            $this->skladnik('woda', 'Ciasto', 1),
+            $this->skladnik('jabłka', 'Farsz', 2),
+        ]];
+        $nowa = ['ingredients' => [
+            $this->skladnik('jabłka', 'Farsz', 0),
+            $this->skladnik('woda', 'Ciasto', 1),
+            $this->skladnik('mąka', 'Ciasto', 2),
+        ]];
+
+        $wynik = PorownanieWersji::porownaj($stara, $nowa);
+
+        $this->assertSame([], $wynik['skladniki']);
+        $this->assertTrue($wynik['zmienionaKolejnoscSkladnikow'], 'KOLEJNOSC_2451_MUSI_BYC_WIDOCZNA');
+        $this->assertFalse($wynik['brakZmian']);
+        $this->assertFalse($wynik['bezWykrytychZmian']);
+    }
+
+    public function test_sama_zamiana_wierszy_jednej_grupy_jest_widoczna(): void
+    {
+        $stara = ['ingredients' => [$this->skladnik('mąka', 'Ciasto', 0), $this->skladnik('woda', 'Ciasto', 1)]];
+        $nowa = ['ingredients' => [$this->skladnik('woda', 'Ciasto', 0), $this->skladnik('mąka', 'Ciasto', 1)]];
+
+        $this->assertTrue(PorownanieWersji::porownaj($stara, $nowa)['zmienionaKolejnoscSkladnikow']);
+    }
+
+    public function test_sama_zamiana_grup_jest_widoczna(): void
+    {
+        $stara = ['ingredients' => [$this->skladnik('mąka', 'Ciasto', 0), $this->skladnik('jabłka', 'Farsz', 1)]];
+        $nowa = ['ingredients' => [$this->skladnik('jabłka', 'Farsz', 0), $this->skladnik('mąka', 'Ciasto', 1)]];
+
+        $this->assertTrue(PorownanieWersji::porownaj($stara, $nowa)['zmienionaKolejnoscSkladnikow']);
+    }
+
+    public function test_surowy_json_przeplot_i_dodanie_nie_udaja_zmiany_widocznej_kolejnosci(): void
+    {
+        $stara = ['ingredients' => [
+            $this->skladnik('mąka', 'Ciasto', 0),
+            $this->skladnik('jabłka', 'Farsz', 1),
+            $this->skladnik('woda', 'ciasto', 2),
+        ]];
+        $nowa = ['ingredients' => [
+            $this->skladnik('woda', 'ciasto', 3),
+            $this->skladnik('sól', 'Ciasto', 1),
+            $this->skladnik('jabłka', 'Farsz', 2),
+            $this->skladnik('mąka', 'Ciasto', 0),
+        ]];
+
+        $wynik = PorownanieWersji::porownaj($stara, $nowa);
+
+        $this->assertFalse($wynik['zmienionaKolejnoscSkladnikow']);
+        $this->assertSame([PorownanieWersji::DODANO], array_column($wynik['skladniki'], 'rodzaj'));
+
+        $tenSamJsonInaczej = ['ingredients' => array_reverse($stara['ingredients'])];
+        $this->assertFalse(PorownanieWersji::porownaj($stara, $tenSamJsonInaczej)['zmienionaKolejnoscSkladnikow']);
+
+        $tenSamWidokBezPrzeplotu = ['ingredients' => [
+            $this->skladnik('mąka', 'Ciasto', 0),
+            $this->skladnik('woda', 'ciasto', 1),
+            $this->skladnik('jabłka', 'Farsz', 2),
+        ]];
+        $this->assertFalse(PorownanieWersji::porownaj($stara, $tenSamWidokBezPrzeplotu)['zmienionaKolejnoscSkladnikow']);
+    }
+
+    public function test_powtorzone_teksty_i_bez_grupy_nie_tworza_falszywego_przesuniecia(): void
+    {
+        $stara = ['ingredients' => [
+            $this->skladnik('woda', null, 0),
+            $this->skladnik('mąka', 'Ciasto', 1),
+            $this->skladnik('woda', null, 2),
+            $this->skladnik('jajko', 'Ciasto', 3),
+        ]];
+        $nowa = ['ingredients' => [
+            $this->skladnik('woda', null, 0),
+            $this->skladnik('jajko', 'ciasto', 1),
+            $this->skladnik('mąka', 'Ciasto', 2),
+        ]];
+
+        $wynik = PorownanieWersji::porownaj($stara, $nowa);
+
+        $this->assertTrue($wynik['zmienionaKolejnoscSkladnikow']);
+        $this->assertSame([PorownanieWersji::ZMIENIONO, PorownanieWersji::USUNIETO], array_column($wynik['skladniki'], 'rodzaj'));
     }
 
     public function test_kroki_wstawiony_w_srodku_nie_przesuwa_reszty_w_zmiany(): void
