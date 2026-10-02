@@ -61,6 +61,27 @@ Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
 - `cooked_at timestamptz NOT NULL DEFAULT now()` — kiedy gotowano. Osobne od
   `created_at`, bo wpis o niedzielnym obiedzie bywa pisany we wtorek;
 - `klucz_wyslania` — patrz niżej.
+- **`dzien_gotowania date NULL`** (CHECK `dzien_gotowania IS NULL OR
+  dzien_gotowania >= DATE '2000-01-01'`, migracja
+  `2026_10_02_230000_add_dzien_gotowania_to_cooked_events`, #2583, decyzja
+  właściciela z 2.10.2026) — **prywatny** dzień kalendarzowy, który kucharz
+  świadomie podał przy „Ugotowałem”, gdy zgłasza później niż gotował. Osobny od
+  `cooked_at` (chwila zgłoszenia, serwerowa), który zostaje nietknięty: na nim
+  stoją feed, digest, WAC, kohorty i „Ugotujmy razem”. Typ `date`, nie
+  `timestamptz` — bez godziny i bez strefy, więc konwersja nie przesuwa dnia.
+  `NULL` = nie podano (domyślnie; wykonania sprzed migracji bez backfillu z
+  `cooked_at`, bo to byłoby zmyślone). Górną granicę (nie z przyszłości wg
+  `Europe/Warsaw`) pilnuje `App\Domain\Recipes\Gotowanie\DzienGotowania`
+  w formularzu i w `RecordCookedEvent`; CHECK nie może zależeć od `now()`.
+  Poza `$fillable` (ustawia go wyłącznie `RecordCookedEvent`). Widzi go tylko
+  kucharz (karta wykonania, gdy `auth()->id() === user_id`); publiczna karta,
+  profil, autor przepisu, powiadomienie, API i SEO go nie niosą. Eksport
+  danych konta: `ugotowalem[].dzien_gotowania_podany_przeze_mnie`. Wymazanie
+  konta zeruje kolumnę także przy zakresie `minimum` (wykonanie zostaje).
+  **Rollback:** `down()` odmawia, gdy choć jedno wykonanie ma zapisany dzień
+  (D-088 — to deklaracja człowieka, której kolejny `migrate` nie odtworzy, a
+  odtworzenie z `cooked_at` byłoby nieprawdą); inaczej zdejmuje CHECK i
+  kolumnę. Test: `tests/Feature/PrywatnyDzienGotowaniaTest.php`.
 - **`recipe_version_id uuid NULL` → `recipe_versions (id)` `ON DELETE SET NULL`**
   (#2378, migracja `2026_10_01_100100_add_recipe_version_id_to_cooked_events`) —
   wersja przepisu otwarta przy formularzu „Ugotowałem”. **Wskaźnik, nie kopia:**

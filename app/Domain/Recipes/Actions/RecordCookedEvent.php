@@ -6,6 +6,7 @@ namespace App\Domain\Recipes\Actions;
 
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Recipes\Gotowanie\DzienGotowania;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\CookedEvent;
@@ -99,12 +100,18 @@ final class RecordCookedEvent
         ?string $ip = null,
         ?string $kluczWyslania = null,
         ?string $wersjaPrzepisuId = null,
+        ?string $dzienGotowania = null,
     ): CookedEvent {
+        // Prywatny dzień gotowania (#2583): sprawdzany tu, a nie tylko w
+        // formularzu, żeby żadna droga (konsola, import) nie zapisała dnia
+        // z przyszłości. Błąd rzucamy PRZED transakcją i powiadomieniem.
+        $dzienGotowania = DzienGotowania::sprawdz($dzienGotowania);
+
         $zapisz = function (?string $klucz) use (
-            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ip, $wersjaPrzepisuId
+            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ip, $wersjaPrzepisuId, $dzienGotowania
         ): CookedEvent {
             return DB::transaction(function () use (
-                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $klucz, $ip, $wersjaPrzepisuId
+                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $klucz, $ip, $wersjaPrzepisuId, $dzienGotowania
             ): CookedEvent {
                 /*
                  * ZDJĘCIA WYBIERANE POD BLOKADĄ, W TEJ SAMEJ TRANSAKCJI
@@ -204,7 +211,14 @@ final class RecordCookedEvent
                 // Wskaźnik na wersję (issue #2378) jest poza `$fillable`:
                 // ustawia go wyłącznie ta akcja, po sprawdzeniu, że wersja
                 // należy do TEGO przepisu.
-                $event->forceFill(['recipe_version_id' => $this->wersjaWykonania($recipe, $wersjaPrzepisuId)])->save();
+                //
+                // Prywatny dzień gotowania (#2583) jest tak samo poza
+                // `$fillable`. `cooked_at` zostaje chwilą zgłoszenia — dzień
+                // go nie zastępuje i nie dotyka powiadomienia ani kohort.
+                $event->forceFill([
+                    'recipe_version_id' => $this->wersjaWykonania($recipe, $wersjaPrzepisuId),
+                    'dzien_gotowania' => $dzienGotowania,
+                ])->save();
 
                 $position = 0;
 

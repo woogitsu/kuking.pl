@@ -15,6 +15,7 @@ use App\Models\Comment;
 use App\Models\CommentThank;
 use App\Models\ContactMessageReply;
 use App\Models\CookedEvent;
+use App\Models\CookingNote;
 use App\Models\CookingProgress;
 use App\Models\CookingSession;
 use App\Models\Hide;
@@ -26,6 +27,7 @@ use App\Models\Profile;
 use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Models\RecipeHint;
+use App\Models\RecipeServingPreference;
 use App\Models\RecipeVersion;
 use App\Models\ShoppingListItem;
 use App\Models\User;
@@ -217,6 +219,9 @@ final class CollectUserExportData
             'co_mam_w_domu' => $this->pantry($user),
             'postep_gotowania' => $this->postepGotowania($user),
             'wspolne_gotowanie' => $this->wspolneGotowanie($user),
+            'dopiski_z_gotowania' => $this->dopiskiZGotowania($user),
+            // Jawnie zapamiętane liczby porcji przy przepisach (#2602).
+            'zapamietane_porcje' => $this->zapamietanePorcje($user),
             'ukryte' => $this->hides($user),
             // „Smakowicie wygląda" (#1813, D-280): napisane przez tę osobę
             // i otrzymane pod jej wpisami. Otrzymane z nazwą konta — autor
@@ -438,6 +443,9 @@ final class CollectUserExportData
             'plik_do_czytania' => 'przepisy/'.ExportFileNames::recipeFile($recipe),
             'krotki_opis' => $recipe->summary,
             'porcje' => $recipe->servings,
+            // Ile gotowych sztuk wychodzi z przepisu (#2645); osobno od porcji, `null` = nie podano.
+            'gotowe_sztuki' => $recipe->yield_count,
+            'gotowe_sztuki_co' => $recipe->yield_unit,
             // Wybór autora musi przetrwać przeniesienie danych; brak pola
             // odróżniałby ukrycie od domyślnej widoczności (D-299, #1993).
             'pokazuj_wartosci_odzywcze' => (bool) $recipe->pokazuj_wartosci_odzywcze,
@@ -571,6 +579,10 @@ final class CollectUserExportData
                 ? ($this->plikiWlasnychPrzepisow[(string) $event->recipe_id] ?? null)
                 : null,
             'kiedy' => $this->date($event->cooked_at),
+            // Prywatny dzień gotowania podany przez samą osobę (#2583) — sam
+            // dzień `RRRR-MM-DD`; `null` = nie podano. Osobny od `kiedy`
+            // (chwili zgłoszenia).
+            'dzien_gotowania_podany_przeze_mnie' => $event->dzien_gotowania?->format('Y-m-d'),
             // Numer wersji przepisu otwartej przy gotowaniu (#2378) — sam numer,
             // bez treści wersji; `null` = nie wiadomo (wykonanie sprzed zmiany
             // albo wersja usunięta retencją).
@@ -1295,6 +1307,28 @@ final class CollectUserExportData
     }
 
     /**
+     * Prywatne, robocze dopiski z gotowania (#2587) — tylko niewygasłe.
+     * Tekst jest własnością osoby, więc idzie w całości; tytuł przepisu
+     * tylko wtedy, gdy przepis widać dziś pod jego adresem (jak w `postepGotowania`).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function dopiskiZGotowania(User $user): array
+    {
+        return $user->cookingNotes()
+            ->where('expires_at', '>', now())
+            ->with('recipe')
+            ->orderBy('updated_at')
+            ->get()
+            ->map(fn (CookingNote $dopisek): array => [
+                'przepis' => $this->granica->widzi($dopisek->recipe) ? $dopisek->recipe->title : self::TRESC_NIEDOSTEPNA,
+                'tresc' => $dopisek->body,
+                'ostatnia_zmiana' => $this->date($dopisek->updated_at),
+                'wygasa' => $this->date($dopisek->expires_at),
+            ])->all();
+    }
+
+    /**
      * Zapamiętany na koncie postęp gotowania (#2016) — tylko niewygasły
      * (wygasły jest dla serwisu nieistniejący i czeka na nocne sprzątanie).
      * Tytuł przepisu tylko wtedy, gdy przepis widać dziś pod jego adresem
@@ -1379,6 +1413,33 @@ final class CollectUserExportData
                     'kroki_odhaczone_przeze_mnie' => $numery,
                     'zalozona' => $this->date($sesja->created_at),
                     'wygasa' => $this->date($sesja->expires_at),
+                ];
+            })->all();
+    }
+
+    /**
+     * Liczby porcji, które osoba świadomie zapamiętała przy przepisach (#2602).
+     * Tytuł i adres tylko przy przepisie widocznym dziś dla osoby; liczba
+     * jest jej własnym wyborem, więc wychodzi zawsze.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function zapamietanePorcje(User $user): array
+    {
+        return $user->servingPreferences()
+            ->with('recipe')
+            ->orderBy('updated_at')
+            ->orderBy('id')
+            ->get()
+            ->map(function (RecipeServingPreference $wybor): array {
+                $widoczny = $wybor->recipe !== null && $this->granica->widzi($wybor->recipe);
+
+                return [
+                    'przepis' => $widoczny ? $wybor->recipe->title : self::TRESC_NIEDOSTEPNA,
+                    'adres' => $widoczny ? route('recipes.show', $wybor->recipe) : null,
+                    'zapamietana_liczba_porcji' => (float) $wybor->servings,
+                    'zapisano' => $this->date($wybor->created_at),
+                    'zmieniono' => $this->date($wybor->updated_at),
                 ];
             })->all();
     }

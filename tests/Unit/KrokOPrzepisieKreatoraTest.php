@@ -111,6 +111,12 @@ final class KrokOPrzepisieKreatoraTest extends TestCase
             'estimated_cost_pln.min' => ['estimated_cost_pln', '-1', 'estimated_cost_pln.min'],
             'estimated_cost_pln.max' => ['estimated_cost_pln', '10000', 'estimated_cost_pln.max'],
             'estimated_cost_pln.decimal' => ['estimated_cost_pln', '24,555', 'estimated_cost_pln.decimal'],
+            // Gotowe sztuki (#2645).
+            'yield_count.integer' => ['yield_count', 'dużo', 'yield_count.integer'],
+            'yield_count.min' => ['yield_count', '0', 'yield_count.min'],
+            'yield_count.max' => ['yield_count', '10000', 'yield_count.max'],
+            'yield_unit.max' => ['yield_unit', str_repeat('a', 41), 'yield_unit.max', ['yield_count' => '24']],
+            'yield_count.required_with' => ['yield_count', '', 'yield_count.required_with', ['yield_unit' => 'pierogi']],
             'prep_minutes.integer' => ['prep_minutes', '1.5', 'prep_minutes.integer'],
             'prep_minutes.min' => ['prep_minutes', '-1', 'prep_minutes.min'],
             'prep_minutes.max' => ['prep_minutes', '10081', 'prep_minutes.max'],
@@ -130,10 +136,11 @@ final class KrokOPrzepisieKreatoraTest extends TestCase
         ];
     }
 
+    /** @param  array<string, string>  $dodatkowe */
     #[DataProvider('wejsciaDlaKomunikatow')]
-    public function test_kazdy_komunikat_ma_wejscie_ktore_go_wywoluje(string $pole, string $wartosc, string $klucz): void
+    public function test_kazdy_komunikat_ma_wejscie_ktore_go_wywoluje(string $pole, string $wartosc, string $klucz, array $dodatkowe = []): void
     {
-        $walidator = KrokOPrzepisie::walidator([$pole => $wartosc] + $this->poprawnePola(), null);
+        $walidator = KrokOPrzepisie::walidator([$pole => $wartosc] + $dodatkowe + $this->poprawnePola(), null);
 
         $this->assertTrue($walidator->fails(), "Wartość {$wartosc} w polu {$pole} przeszła walidację.");
         $this->assertSame(

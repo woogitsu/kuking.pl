@@ -332,6 +332,8 @@ final class PrzedawnioneUsunieteTresci
                 'slug' => self::slugNagrobka($id),
                 'summary' => null,
                 'servings' => null,
+                'yield_count' => null,
+                'yield_unit' => null,
                 'prep_minutes' => null,
                 'cook_minutes' => null,
                 'czas_laczny_zrodla_minut' => null,

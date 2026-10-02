@@ -18,6 +18,7 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - `czas_laczny_zrodla_minut` — łączny czas podany przez źródło importu, osobno
   od `prep_minutes` i `cook_minutes` (patrz niżej);
 - `estimated_cost_pln` — szacunkowy koszt wg autora, patrz niżej (D-286);
+- `yield_count`, `yield_unit` — ile gotowych sztuk wychodzi z przepisu, patrz niżej (#2645);
 - `visibility` (`public` \| `followers` \| `private`),
   `status` (`draft` \| `published` \| `hidden` \| `removed`), `hero_media_id`;
 - pochodzenie: `source_type`, `source_url`, `source_person`, `source_note`,
@@ -246,6 +247,45 @@ składnikami. Idzie też do `<meta name="description">` (przycięte do 155 znak�
 i do `description` w JSON-LD, więc jest tekstem, który człowiek zobaczy
 w wynikach wyszukiwania. `NULL` jest stanem normalnym — przepis bez opisu
 publikuje się tak samo.
+
+#### `yield_count`, `yield_unit` — ile gotowych sztuk wychodzi z przepisu (V2, #2645)
+
+Migracja `2026_10_02_200000_add_yield_to_recipes`.
+
+```sql
+ALTER TABLE recipes ADD COLUMN yield_count integer NULL;
+ALTER TABLE recipes ADD COLUMN yield_unit varchar(40) NULL;
+ALTER TABLE recipes ADD CONSTRAINT recipes_yield_count_check
+    CHECK (yield_count IS NULL OR (yield_count >= 1 AND yield_count <= 9999)) NOT VALID;
+ALTER TABLE recipes ADD CONSTRAINT recipes_yield_unit_check
+    CHECK (yield_unit IS NULL OR (yield_count IS NOT NULL
+        AND char_length(btrim(yield_unit)) >= 1 AND char_length(yield_unit) <= 40)) NOT VALID;
+ALTER TABLE recipes VALIDATE CONSTRAINT recipes_yield_count_check;
+ALTER TABLE recipes VALIDATE CONSTRAINT recipes_yield_unit_check;
+```
+
+- **Osobne od `servings`.** „24 pierogi” nie mówi, ile osób nakarmi przepis,
+  więc stare wartości nie są przepisywane na nowe znaczenie, a import (#2539)
+  nie zgaduje sztuk. `NULL` = autor nie podał; strona wygląda jak dotąd.
+- `yield_count` — dodatnia liczba całkowita 1–9999. `yield_unit` — krótki opis,
+  CO to za sztuki („pierogi”), najwyżej 40 znaków, tylko razem z liczbą.
+- Wpisuje je wyłącznie autor: kreator (`KrokOPrzepisie`) i formularz szczegółów
+  (`ZapisPrzepisuRequest`), wspólne reguły i komunikaty w
+  `App\Domain\Recipes\Porcje\GotoweSztuki`. **Brak pola w żądaniu nie czyści
+  wartości** (`PublishRecipe` zapisuje ją tylko, gdy klucz przyszedł).
+- Przeliczenie żyje w adresie (`?sztuki=36`, `WyborSztuk`), nigdy w bazie.
+  Wybór sztuk i wybór porcji wykluczają się: liczy się jedna podstawa.
+  Koszt przeliczony jest proporcjonalny do sztuk; wartości odżywcze zostają
+  „na porcję” (sztuki ich nie zmieniają).
+- Idzie do migawki wersji (`SnapshotRecipeVersion`, porównanie wersji),
+  do kopii „Moja wersja” (`ZrobWlasnaWersje`), do odcisku treści
+  (`TrescPrzepisu`) i do paczki danych (`CollectUserExportData`:
+  `gotowe_sztuki`, `gotowe_sztuki_co`).
+
+**Rollback:** `down()` **odmawia**, gdy choć jeden przepis ma liczbę sztuk
+(D-088) — komunikat podaje kopię danych i zmienną
+`KUKING_ROLLBACK_KASUJE_LICZBE_SZTUK=1`. Na świeżej bazie i przy samych `NULL`
+przechodzi bez pytania (`tests/Feature/GotoweSztukiMigracjaTest.php`).
 
 #### `estimated_cost_pln` — szacunkowy koszt całego przepisu wg autora (V2, D-286)
 

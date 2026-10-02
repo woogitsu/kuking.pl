@@ -60,6 +60,8 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         'lista_zakupow' => '| Lista zakupów |',
         'postep_gotowania' => '| Zapamiętany postęp w trybie gotowania |',
         'wspolne_gotowanie' => '| Wspólne gotowanie |',
+        'dopiski_z_gotowania' => '| Prywatny dopisek z gotowania |',
+        'zapamietane_porcje' => '| Zapamiętana liczba porcji przy przepisie |',
         'ukryte' => '| Ukrywanie wpisów i osób',
         'moje_reakcje' => '| Reakcja „Smakowicie wygląda”',
         'moje_podziekowania' => '| „Dziękuję” pod cudzym komentarzem',
@@ -163,6 +165,13 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
             '/^\| Zapamiętany postęp w trybie gotowania .*\*\*'.$godzinPostepu.' godzin/mu',
             $polityka,
             "Postęp gotowania żyje {$godzinPostepu} godzin, a polityka podaje inny termin.",
+        );
+
+        $godzinDopiskow = (int) config('kuking.cooking_note.retention_hours');
+        $this->assertMatchesRegularExpression(
+            '/^\| Prywatny dopisek z gotowania .*\*\*'.$godzinDopiskow.' godzin/mu',
+            $polityka,
+            "Dopisek z gotowania żyje {$godzinDopiskow} godzin, a polityka podaje inny termin.",
         );
 
         $godzinPaczki = (int) config('kuking.import_paczki.przechowanie_godzin');

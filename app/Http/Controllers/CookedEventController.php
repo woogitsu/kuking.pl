@@ -12,6 +12,7 @@ use App\Domain\Recipes\Actions\UsunWykonanie;
 use App\Domain\Recipes\Actions\ZapiszWykonanieZFormularza;
 use App\Domain\Recipes\Actions\ZbierzZdjeciaWykonania;
 use App\Domain\Recipes\Gotowanie\JakWyszlo;
+use App\Domain\Recipes\Gotowanie\RoboczyDopisek;
 use App\Domain\Recipes\Gotowanie\WersjaWykonania;
 use App\Domain\Recipes\Historia\MigawkaWersji;
 use App\Exceptions\BladDlaCzlowieka;
@@ -77,6 +78,7 @@ class CookedEventController extends Controller
         $this->authorize('cook', $model);
 
         return view('pages.cooked.create', [
+            'dopisek' => $this->dopisekDoFormularza($request, $model),
             'recipe' => $model->load(['author.profile', 'heroMedia']),
             'kluczWyslania' => $this->kluczDlaFormularza(),
             'wersjaPrzepisu' => $this->wersjaDlaFormularza($model),
@@ -85,6 +87,38 @@ class CookedEventController extends Controller
             // przy zapisie, zanim dotknie zapytania (issue #871).
             'zachowane' => $this->zdjecia->zachowane(old('media_ids', []), $request->user()),
         ]);
+    }
+
+    /**
+     * Prywatny roboczy dopisek z gotowania (#2587) jako PROPOZYCJA do pola
+     * „Coś po swojemu?”. Nic nie wchodzi do pola samo:
+     *
+     * - `propozycja`: jest dopisek i formularz jest świeży — widok pokazuje
+     *   podgląd i odnośnik „Wstaw do pola” (`?dopisek=wstaw`);
+     * - `wstawiony`: osoba o to poprosiła — pole startuje od tekstu dopisku,
+     *   który nadal można poprawić albo wyczyścić przed wysłaniem;
+     * - `zajete`: formularz wrócił z błędem (są zachowane dane osoby) — nie
+     *   ruszamy pola, a odnośnik zniknąłby razem z wpisanym tekstem, więc go nie ma.
+     *
+     * @return array{stan: string, tresc: string|null}
+     */
+    private function dopisekDoFormularza(Request $request, Recipe $recipe): array
+    {
+        $osoba = $request->user();
+        $dopisek = $osoba === null ? null : app(RoboczyDopisek::class)->aktywny($osoba, $recipe);
+
+        if ($dopisek === null) {
+            return ['stan' => 'brak', 'tresc' => null];
+        }
+
+        if ($request->session()->hasOldInput()) {
+            return ['stan' => 'zajete', 'tresc' => $dopisek->body];
+        }
+
+        return [
+            'stan' => $request->query('dopisek') === 'wstaw' ? 'wstawiony' : 'propozycja',
+            'tresc' => $dopisek->body,
+        ];
     }
 
     /**
@@ -210,6 +244,11 @@ class CookedEventController extends Controller
         // Gotowanie z trybu gotowania w tej sesji jest domknięte — „Jak
         // wyszło?” już o nie nie zapyta, a raport liczy je jako ugotowane (F1).
         app(JakWyszlo::class)->poUgotowaniu($request->session(), $user, $model);
+
+        // Prywatny roboczy dopisek (#2587) dotyczył tej próby, która właśnie
+        // się skończyła — nie może przejść do następnego gotowania tego przepisu.
+        // Treść, którą osoba zdecydowała się wysłać, jest już w wykonaniu.
+        app(RoboczyDopisek::class)->usun($user, $model);
 
         return redirect()->route('cooked.show', $event)->with(Komunikat::sukces('Wykonanie zapisane.',
         ));

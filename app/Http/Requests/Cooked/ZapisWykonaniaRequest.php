@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Cooked;
 
+use App\Domain\Recipes\Gotowanie\DzienGotowania;
 use App\Models\Recipe;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
@@ -140,7 +141,17 @@ final class ZapisWykonaniaRequest extends FormRequest
             'would_make_again' => ['nullable', 'boolean'],
             'perceived_difficulty' => ['nullable', 'in:easy,medium,hard'],
             'actual_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
+            // Prywatny dzień gotowania (#2583). Jedna reguła w `DzienGotowania`
+            // (też w akcji), z komunikatem mówiącym, co zrobić.
+            'dzien_gotowania' => ['nullable', 'string', function (string $pole, mixed $wartosc, \Closure $niepowodzenie): void {
+                $blad = is_string($wartosc) ? DzienGotowania::blad(trim($wartosc)) : DzienGotowania::KOMUNIKAT_NIEZROZUMIALY;
+
+                if ($blad !== null) {
+                    $niepowodzenie($blad);
+                }
+            }],
         ], [
+            'dzien_gotowania.string' => DzienGotowania::KOMUNIKAT_NIEZROZUMIALY,
             'note.max' => 'Ta uwaga jest za długa. Zmieść się w 2000 znakach.',
             'changes_note.max' => 'To jest za długie. Zmieść się w 1000 znakach.',
             // `in` ma mówić, CO WYBRAĆ, nie że „wybrana wartość jest

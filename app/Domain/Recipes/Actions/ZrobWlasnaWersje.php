@@ -94,6 +94,8 @@ final class ZrobWlasnaWersje
                 'title' => $oryginal->title,
                 'summary' => $oryginal->summary,
                 'servings' => $oryginal->servings,
+                'yield_count' => $oryginal->yield_count,
+                'yield_unit' => $oryginal->yield_unit,
                 'prep_minutes' => $oryginal->prep_minutes,
                 'cook_minutes' => $oryginal->cook_minutes,
                 'difficulty' => $oryginal->difficulty,

@@ -380,6 +380,46 @@
         {{-- Gotowanie kilku potraw naraz (#2379): przycisk odkrywa skrypt. --}}
         <x-kolejka-dodaj :recipe="$recipe" />
 
+        {{--
+            PRYWATNY ROBOCZY DOPISEK (#2587). Zwijany obszar z jednym polem:
+            szczegół zmieniony przy garnku („dolane 50 ml”), zanim umknie.
+            Zwykły formularz POST, więc działa bez JavaScriptu; nic się przez
+            niego nie publikuje, a „Ugotowałem” nie jest tu potrzebne. Otwarty
+            od razu, gdy jest już dopisek albo ostatni zapis się nie udał,
+            żeby wpisany tekst nie zniknął z oczu.
+        --}}
+        @if($dopisek['dostepny'])
+            <section class="cook-sync stack" aria-label="Prywatny dopisek z gotowania">
+                <details class="cook-dopisek" @if($dopisek['tresc'] !== null || $errors->has('dopisek') || old('dopisek') !== null || session('status_rodzaj') === 'blad') open @endif>
+                    <summary class="btn btn-secondary">Prywatny dopisek z gotowania (roboczy)</summary>
+                    <div class="stack">
+                        <p class="m-0">Widzisz go tylko Ty. Nie jest wykonaniem i nic się przez niego nie publikuje. Znika po {{ $dopisek['godziny'] }} godzinach od ostatniej zmiany albo po zapisaniu wykonania tego przepisu.</p>
+                        @if($dopisek['tresc'] !== null && old('dopisek') !== null && old('dopisek') !== $dopisek['tresc'])
+                            {{-- Konflikt albo nieudany zapis: pole zachowuje tekst wpisany tutaj, a to, co jest zapisane na koncie, pokazujemy osobno. --}}
+                            <p class="m-0"><strong>Zapisany teraz dopisek:</strong> {{ $dopisek['tresc'] }}</p>
+                        @endif
+                        <form method="POST" action="{{ route('cooking.dopisek.zapisz', $recipe->slug) }}" class="stack" novalidate>
+                            @csrf
+                            @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
+                            <input type="hidden" name="krok" value="{{ $krok }}">
+                            <input type="hidden" name="rewizja" value="{{ $dopisek['rewizja'] }}">
+                            <x-field name="dopisek" label="Co zmienione przy garnku?" type="textarea" :rows="3" :value="$dopisek['tresc']" :required="true" bezOznaczenia
+                                     help="Na przykład: mniej soli, krótszy czas. Najwyżej {{ $dopisek['maks'] }} znaków." />
+                            <button type="submit" class="btn btn-primary">Zapisz dopisek</button>
+                        </form>
+                        @if($dopisek['tresc'] !== null)
+                            <form method="POST" action="{{ route('cooking.dopisek.usun', $recipe->slug) }}">
+                                @csrf
+                                @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
+                                <input type="hidden" name="krok" value="{{ $krok }}">
+                                <button type="submit" class="btn btn-secondary">Usuń dopisek</button>
+                            </form>
+                        @endif
+                    </div>
+                </details>
+            </section>
+        @endif
+
         @if($nastepnyKrok === null)
             {{--
                 Ostatni krok — issue: „Ugotowałem" jako naturalne domknięcie,

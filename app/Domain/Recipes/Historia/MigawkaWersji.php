@@ -6,6 +6,7 @@ namespace App\Domain\Recipes\Historia;
 
 use App\Domain\Recipes\Alergeny\Alergen;
 use App\Domain\Recipes\KosztPrzepisu;
+use App\Domain\Recipes\Porcje\GotoweSztuki;
 use App\Models\Recipe;
 
 /**
@@ -35,6 +36,7 @@ final class MigawkaWersji
         'title' => 'Nazwa',
         'summary' => 'Opis',
         'servings' => 'Ilość porcji',
+        'yield_count' => 'Gotowe sztuki',
         'prep_minutes' => 'Przygotowanie (minuty)',
         'cook_minutes' => 'Gotowanie (minuty)',
         'difficulty' => 'Poziom trudności',
@@ -98,6 +100,8 @@ final class MigawkaWersji
 
         $tekst = match ($klucz) {
             'servings' => self::liczba($wartosc),
+            // Liczba razem z opisem sztuk, więc zmiana samego opisu też jest widoczna (#2645).
+            'yield_count' => is_numeric($wartosc) ? GotoweSztuki::etykieta((int) $wartosc, is_string($this->dane['yield_unit'] ?? null) ? $this->dane['yield_unit'] : null) : null,
             'difficulty' => Recipe::DIFFICULTY_LABELS[(string) $wartosc] ?? null,
             'source_type' => Recipe::SOURCE_LABELS[(string) $wartosc] ?? null,
             'estimated_cost_pln' => is_numeric($wartosc) ? KosztPrzepisu::zdanie((float) $wartosc) : null,

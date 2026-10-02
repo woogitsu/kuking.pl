@@ -83,6 +83,8 @@ final class InwentarzDanychKonta
         'cooking_session_participants.user_id' => [self::EKSPORT, 'wspolne_gotowanie'],
         'cooking_session_steps.done_by_id' => [self::EKSPORT, 'wspolne_gotowanie'],
         'cooking_session_invitations.accepted_by_id' => [self::EKSPORT, 'wspolne_gotowanie'],
+        'cooking_notes.user_id' => [self::EKSPORT, 'dopiski_z_gotowania'],
+        'recipe_serving_preferences.user_id' => [self::EKSPORT, 'zapamietane_porcje'],
         'hides.user_id' => [self::EKSPORT, 'ukryte'],
         'post_reactions.user_id' => [self::EKSPORT, 'moje_reakcje'],
         'comment_thanks.thanker_id' => [self::EKSPORT, 'moje_podziekowania'],
