@@ -417,11 +417,23 @@
                      (`?porcje=`), nie zawsze z przepisu autora. --}}
                 <p class="druk-pomocnik-porcje m-0"><strong>Ilość: {{ $wyborPorcji->dostepny() ? \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wyborPorcji->wybrane) : $porcje }}</strong>@if($wyborPorcji->przeliczone()) <span class="meta">(w przepisie autora: {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wyborPorcji->zPrzepisu) }})</span>@endif</p>
             @endif
-            {{-- Koszt wg autora (D-286). Pełnym zdaniem, z „ok." i „wg autora",
-                 a nie jako kolejna „liczba" obok czasu i porcji: to szacunek
-                 jednej osoby, nie cena, którą serwis za coś ręczy. --}}
-            @if($recipe->costLabel())
-                <p class="przepis-koszt kolumna-czytania" data-koszt-autora="{{ $recipe->estimated_cost_pln }}">{{ $recipe->costLabel() }}</p>
+            {{-- Kwota autora skaluje się tylko dla tego samego, sprawdzonego wyboru
+                 porcji co składniki (D-286). Nie skaluje to przedziału z cennika. --}}
+            @php
+                $kosztAutora = $recipe->costLabel();
+                if ($kosztAutora !== null && $wyborPorcji->przeliczone()) {
+                    $przeliczonyKoszt = \App\Domain\Recipes\KosztPrzepisu::naPorcje(
+                        (float) $recipe->estimated_cost_pln,
+                        $wyborPorcji->zPrzepisu,
+                        (float) $wyborPorcji->wybrane,
+                    );
+                    if ($przeliczonyKoszt !== null) {
+                        $kosztAutora = \App\Domain\Recipes\KosztPrzepisu::zdaniePrzeliczone($przeliczonyKoszt);
+                    }
+                }
+            @endphp
+            @if($kosztAutora !== null)
+                <p class="przepis-koszt kolumna-czytania" data-koszt-autora="{{ $recipe->estimated_cost_pln }}">{{ $kosztAutora }}</p>
             @elseif(($szacunekKosztu ?? null) !== null)
                 {{-- Bez kwoty autora: przedział z cen GUS albo zdanie, dlaczego
                      go nie ma (D-286, część 2). Zawsze „orientacyjny", zawsze
@@ -553,7 +565,7 @@
                     przycisku (D-053). Na papier przycisk nie idzie — `main .btn`
                     chowa `wydruk-przepisu.css`.
                 --}}
-                <a class="btn btn-secondary" href="{{ route('recipes.show', ['recipe' => $recipe->slug, 'druk' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis>Drukuj przepis</a>
+                <a class="btn btn-secondary" href="{{ $adresDruku(false) }}" rel="nofollow" data-drukuj-przepis>Drukuj przepis</a>
                 {{-- „Dla pomocnika” (#2345): krótsza kartka na blat, bez skryptu —
                      zwykły odnośnik do instrukcji i wyboru kodu QR niżej. --}}
                 <a class="btn btn-secondary" href="{{ $adresDruku(true) }}" rel="nofollow">Drukuj dla pomocnika</a>
@@ -608,7 +620,7 @@
 
             {{-- „Skąd ten przepis” stoi PRZED składnikami. To jest decyzja
                  produktowa, nie kolejność przypadkowa. --}}
-            @if(($recipe->source_note || $recipe->source_person) && ! $dlaPomocnika)
+            @if(($recipe->source_note || $recipe->source_person || $recipe->sourceScan) && ! $dlaPomocnika)
                 <section class="recipe-story">
                     <h2 class="mt-0 text-title-sm">Skąd ten przepis</h2>
                     @if($recipe->source_person)
@@ -785,6 +797,9 @@
                                 <div>
                                     <span class="visually-hidden">Krok {{ $step->position + 1 }}.</span>
                                     <p class="m-0 whitespace-pre-line">{{ $step->instruction }}</p>
+                                    @if($step->timerLabel())
+                                        <p class="m-0">Czas kroku: {{ $step->timerLabel() }}</p>
+                                    @endif
                                     @if($step->media)
                                         <div class="mt-3 max-w-[20rem]">
                                             {{-- Opis dla czytnika (issue #1304): własny opis autora,

@@ -2219,6 +2219,10 @@ dziennej; więcej nie zbieramy. `source_scan_media_id uuid NULL` → `media`
 To zdjęcie bywa skanem odręcznej kartki z nazwiskami, więc dostęp do niego
 idzie tą samą drogą co do każdego innego zdjęcia przepisu
 (`App\Domain\Media\DostepDoZdjecia`).
+Na zwykłej stronie przepisu skan otwiera sekcję „Skąd ten przepis” także bez
+opcjonalnych `source_person` i `source_note`; wariant dla pomocnika nadal ją
+pomija. Zdjęcie renderuje istniejący komponent z przetworzonym wariantem,
+nigdy oryginał z metadanymi pliku.
 
 ### ceny_skladnikow
 Cennik składników do **orientacyjnego kosztu dania**, gdy autor nie wpisał
@@ -2326,6 +2330,14 @@ Snapshot po istotnych zmianach.
   wersja różni się od poprzedniej. `NULL` znaczy „nic nie napisał" i jest
   stanem normalnym;
 - `created_at`.
+
+Porównanie dwóch migawek (#2451) sprawdza również **widoczną kolejność**
+grup i składników po zastosowaniu `GrupySkladnikow::ulozyc()`. Porównuje
+wspólne wiersze, nie numery `position`: dodanie albo usunięcie składnika nie
+oznacza każdej późniejszej pozycji jako zmienionej. Nie pobiera dzisiejszej
+treści przepisu do odtwarzania starszej wersji. To zmiana odczytu historii,
+bez zmiany schematu i bez migracji; cofnięcie samego kodu przywracałoby błędny
+komunikat „brak różnic” przy przestawieniu.
 
 **Kiedy powstaje wersja (issue #1316).** Przy każdej publikacji
 („Pierwsza publikacja", „Aktualizacja przepisu") oraz przy ŚWIADOMYM zapisie
