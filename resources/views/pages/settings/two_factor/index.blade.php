@@ -59,7 +59,7 @@
                 <summary class="btn btn-secondary inline-flex">Wygeneruj nowe kody zapasowe</summary>
                 <div class="mt-4">
                     <p>
-                        Nowy komplet ośmiu kodów. <strong>Stare kody przestaną wtedy działać</strong> —
+                        Nowy komplet {{ $liczbaKodow }} {{ \App\Support\Odmiana::rzeczownik($liczbaKodow, 'kodu', 'kodów', 'kodów') }}. <strong>Stare kody przestaną wtedy działać</strong> —
                         o to właśnie chodzi, jeśli nie wiesz, gdzie jest kartka z poprzednimi.
                         Aplikacja w telefonie działa dalej bez zmian, nie musisz nic w niej przestawiać.
                     </p>
