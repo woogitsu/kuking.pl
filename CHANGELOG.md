@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2655): po zmianie liczby porcji ta sama masa lub objętość w różnych jednostkach daje ten sam wynik — „0,1 kg” i „100 g” po ćwiartce to 25 g (0,025 kg), a „0,1 l” i „100 ml” to 25 ml. Zaokrąglenie liczymy w gramach i mililitrach, a pokazujemy w jednostce autora; wcześniej 0,1 kg dawało 0,05 kg, czyli dwa razy za dużo.
+- Poprawione (#2609): ilość zapisana jako suma, np. „1 kg i 200 g mąki” albo „500 g (2 × 250 g)”, nie jest już przeliczana po kawałku przy zmianie porcji. Wiersz zostaje taki, jak napisał autor, z dopiskiem, że ilość trzeba sprawdzić samodzielnie (strona przepisu i tryb gotowania).
 - Nowe (#2533): przy składniku w gramach, dekagramach, kilogramach, mililitrach, litrach, szklankach, łyżkach lub łyżeczkach strona przepisu ma rozwijany blok „Przelicz” z równoważnikami (np. 25 dag = 250 g, 1 kg = 1000 g, ½ szklanki = ok. 125 ml). Przelicza tylko masę na masę i objętość na objętość; masy nie zamienia na objętość. Pokazuje ilości po wybranej liczbie porcji, działa bez JavaScriptu i niczego nie zapisuje — tekst przepisu zostaje bez zmian [nowa funkcja].
 ## Alfa 0.78 — co zużyć najpierw, lista zakupów i wydruk zeszytu
 

@@ -87,12 +87,23 @@ final class PrzeliczSkladnik
             return PrzeliczonySkladnik::bezZmian($tekst);
         }
 
-        $ilosc = IloscKuchenna::zapis($od * $mnoznik, $rodzaj);
-        $doOdmiany = IloscKuchenna::zaokraglij($od * $mnoznik, $rodzaj);
+        $reszta = mb_substr($tekst, mb_strlen($trafienie['przed']) + mb_strlen($trafienie['calosc']));
+
+        // #2609: „1 kg i 200 g” to jedna ilość z dwóch członów. Przemnożenie
+        // pierwszego daje sumę, która nie odpowiada zmianie porcji.
+        if (self::toSuma($jednostka, $reszta)) {
+            return PrzeliczonySkladnik::nieprzeliczony($tekst);
+        }
+
+        // Masę i objętość zaokrąglamy w g/ml (#2655), więc ta sama ilość
+        // w kg i w g daje ten sam wynik.
+        $wspolczynnik = $jednostka?->wspolczynnikBazowy();
+        $ilosc = IloscKuchenna::zapis($od * $mnoznik, $rodzaj, $wspolczynnik);
+        $doOdmiany = IloscKuchenna::zaokraglij($od * $mnoznik, $rodzaj, $wspolczynnik);
 
         if ($do !== null) {
-            $ilosc .= $trafienie['separator'].IloscKuchenna::zapis($do * $mnoznik, $rodzaj);
-            $doOdmiany = IloscKuchenna::zaokraglij($do * $mnoznik, $rodzaj);
+            $ilosc .= $trafienie['separator'].IloscKuchenna::zapis($do * $mnoznik, $rodzaj, $wspolczynnik);
+            $doOdmiany = IloscKuchenna::zaokraglij($do * $mnoznik, $rodzaj, $wspolczynnik);
         }
 
         if ($jednostka !== null) {
@@ -102,7 +113,7 @@ final class PrzeliczSkladnik
         $wynik = new PrzeliczonySkladnik(
             przed: $trafienie['przed'],
             ilosc: $ilosc,
-            po: mb_substr($tekst, mb_strlen($trafienie['przed']) + mb_strlen($trafienie['calosc'])),
+            po: $reszta,
             zmieniony: true,
         );
 
@@ -143,7 +154,46 @@ final class PrzeliczSkladnik
             return null;
         }
 
+        // Suma („1 kg i 200 g”): równoważniki samego pierwszego członu
+        // byłyby błędną odpowiedzią na całe pytanie (#2609).
+        if (self::toSuma($jednostka, mb_substr($tekst, mb_strlen($trafienie['przed']) + mb_strlen($trafienie['calosc'])))) {
+            return null;
+        }
+
         return ['od' => $od, 'do' => $do, 'jednostka' => $jednostka];
+    }
+
+    /**
+     * Czy bezpośrednio za znalezioną ilością stoi jej drugi człon (#2609).
+     *
+     * Rozpoznajemy tylko to, co jednoznaczne, i nie zgadujemy reszty:
+     *  - „1 kg i 200 g”, „1 kg + 200 g”, „1 kg oraz 200 g”, „1 kg plus 200 g”
+     *    i „1 kg 200 g” — druga ilość MA JEDNOSTKĘ tej samej wielkości
+     *    (masa z masą, objętość z objętością, ta sama miara z tą samą),
+     *    stoi tuż za pierwszą i jest od niej odsunięta tylko spójnikiem;
+     *  - „500 g (2 × 250 g)” — nawias z mnożeniem liczb tuż za ilością.
+     * „2 jajka i 200 g mąki”, „2 puszki (po 400 g)”, „200 g mąki i 100 g
+     * cukru” to co innego (inny produkt, opakowanie) i są przeliczane dalej.
+     */
+    private static function toSuma(?JednostkaKuchenna $pierwsza, string $reszta): bool
+    {
+        if (preg_match('/^\s*\((?=[^)]*\d\s*[×x*]\s*\d)[^)]*\)/iu', $reszta) === 1) {
+            return true;
+        }
+
+        if ($pierwsza === null) {
+            return false;
+        }
+
+        $wzorzec = '/^\s*(?:\+|(?:i|oraz|plus)(?!\p{L}))?\s*'.self::LICZBA.'\s*(?<jednostka>'.JednostkaKuchenna::wzorzec().')(?!\p{L})/iu';
+
+        if (preg_match($wzorzec, $reszta, $m) !== 1) {
+            return false;
+        }
+
+        $druga = JednostkaKuchenna::zFormy($m['jednostka']);
+
+        return $druga !== null && $druga->wielkosc() === $pierwsza->wielkosc();
     }
 
     /**

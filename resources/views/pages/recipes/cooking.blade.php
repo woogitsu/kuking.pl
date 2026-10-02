@@ -159,6 +159,7 @@
                                 <input type="checkbox" class="cook-skladnik-pole" data-przygotowanie-pole @if($skladnikiNaKoncie) name="zaznaczone[]" value="{{ $ingredient->getKey() }}" @checked($przygotowany) @else hidden @endif>
                                 <span class="cook-skladnik-tresc">
                                 @if($przeliczony->zmieniony){{ $przeliczony->przed }}<strong class="skladnik-przeliczony">{{ $przeliczony->ilosc }}</strong>{{ $przeliczony->po }}@else{{ $ingredient->ingredient_text }}@endif
+                                @if($przeliczony->nieprzeliczony)<span class="meta" data-skladnik-suma> — {{ \App\Domain\Recipes\Porcje\PrzeliczonySkladnik::UWAGA_SUMA }}</span>@endif
                                 {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
                                      tego sam w tekście składnika (issue #44).
                                      DOPISEK JEST CELOWY I TYLKO TUTAJ (D-232): to widok
