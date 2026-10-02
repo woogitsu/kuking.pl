@@ -40,6 +40,8 @@ OCZEKUJ = {
     'Dyktowanie daje mikrofon gościowi (#2377 etap 2)': r'DICTATION_GUEST_HEADER',
     'Dyktowanie daje mikrofon błędowi i JSON (#2377 etap 2)': r'DICTATION_NON_FORM_RESPONSE',
     'Dyktowanie odblokowuje wszystkie trasy (#2377 etap 2)': r'DICTATION_OTHER_ROUTE',
+    'Historia ignoruje wybór Bez ilości (#2449)': r'HISTORIA_BEZ_ILOSCI_ZMIANA',
+    'Historia zgaduje wybór w starej migawce (#2449)': r'HISTORIA_BEZ_ILOSCI_BRAK_DANYCH',
     'Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)': r'JIT_2291_SWIEZA_SESJA_WYMAGA_OFF',
     'Grupowanie tysięcy rozbite na fragmenty (#2455)': r'GRUPOWANIE_TYSIECY_WYNIK',
     'Historia: zmieniony krok gubi minutnik': r'HISTORIA_TIMER_CHANGED',

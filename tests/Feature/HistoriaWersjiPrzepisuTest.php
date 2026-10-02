@@ -312,6 +312,38 @@ class HistoriaWersjiPrzepisuTest extends TestCase
         $this->assertStringContainsString('Jest: Posyp cukrem (minutnik: 1 min)', $kroki);
     }
 
+    public function test_ekran_porownania_pokazuje_wybor_bez_ilosci_przy_skladniku(): void
+    {
+        $przepis = Recipe::factory()->create();
+        $stary = ['group_name' => null, 'text' => 'Sól', 'note' => null, 'substitutes' => null, 'no_amount' => false, 'position' => 0];
+        $nowy = array_replace($stary, ['no_amount' => true]);
+        $this->wersja($przepis, 1, ['ingredients' => [$stary]]);
+        $this->wersja($przepis, 2, ['ingredients' => [$nowy]]);
+
+        $html = $this->get(route('recipes.history.changes', [$przepis->slug, 2]))->assertOk()->getContent();
+        $this->assertSame(1, preg_match('/<section[^>]*aria-labelledby="hz-skladniki"[^>]*>(.*?)<\/section>/s', $html, $sekcja));
+        $skladniki = html_entity_decode(strip_tags($sekcja[1]));
+
+        $this->assertStringContainsString('Było: Sól (wybór „Bez ilości”: nie)', $skladniki, 'HISTORIA_BEZ_ILOSCI_HTTP');
+        $this->assertStringContainsString('Jest: Sól (wybór „Bez ilości”: tak)', $skladniki);
+        $this->assertStringNotContainsString('do smaku', $skladniki);
+    }
+
+    public function test_ekran_starej_migawki_bez_klucza_wyboru_mowi_o_braku_danych(): void
+    {
+        $przepis = Recipe::factory()->create();
+        $stary = ['group_name' => null, 'text' => 'Sól', 'note' => null, 'substitutes' => null, 'position' => 0];
+        $this->wersja($przepis, 1, ['ingredients' => [$stary]]);
+        $this->wersja($przepis, 2, ['ingredients' => [array_replace($stary, ['no_amount' => true])]]);
+
+        $html = $this->get(route('recipes.history.changes', [$przepis->slug, 2]))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('aria-labelledby="hz-skladniki"', $html);
+        $this->assertStringContainsString('wybór „Bez ilości” przy składniku 1 („Sól”)', html_entity_decode(strip_tags($html)), 'HISTORIA_BEZ_ILOSCI_LEGACY');
+        $this->assertStringContainsString('W tym, co da się porównać, nie widać różnic.', $html);
+        $this->assertStringNotContainsString('W tekście i danych przepisu nie ma różnic', $html);
+    }
+
     public function test_pierwsza_wersja_nie_ma_z_czym_sie_porownac(): void
     {
         $przepis = $this->przepisZWersjami(2);
