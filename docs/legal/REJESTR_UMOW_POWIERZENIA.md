@@ -79,9 +79,10 @@ panelu w ogóle szukasz umowy.
   Terms of Service, podpisany przez obie strony przez DocuSign
   (koperta `04FC80D8-ABBE-843E-8176-BFDC686A49A0`, 11 stron). Strony: Customer
   Samsufi sp. z o.o. (podpisał prezes zarządu), Railway Corporation (Head of
-  Operations). **Effective Date: 2026-10-02.** Oryginał PDF trzyma właściciel;
-  nie publikujemy go w repozytorium (repozytorium jest publiczne, a dokument
-  zawiera podpisy).
+  Operations). **Effective Date: 2026-10-02.** Podpisany PDF:
+  [`umowy/railway-dpa-2026-10-02.pdf`](umowy/railway-dpa-2026-10-02.pdf). Właściciel
+  2.10.2026 zdecydował, że plik jest w publicznym repozytorium, choć zawiera
+  podpisy i nazwiska.
   - **Role (§2.1):** SAMSUFI jest administratorem, Railway procesorem.
   - **Transfery (§9):** EU SCC (decyzja 2021/914) są włączone do DPA
     i „uznane za podpisane”: moduł 2 (administrator → procesor), prawo i sąd
