@@ -52,6 +52,7 @@ OCZEKUJ = {
     'Odtworzony markup JSON-LD zostaje w zwykłym tekście (#2564)': r'IMPORT_2564_MARKUP_NIE_JEST_TEKSTEM',
     'JSON-LD dekoduje więcej niż dwie warstwy (#2564)': r'IMPORT_2564_TYLKO_DWIE_WARSTWY',
     'Koszt: druga ilość wraca do wyceny pierwszej (#2578)': r'KOSZT_2578_DRUGA_ILOSC_NIE_ZANIZA_MASY',
+    'Koszt: dopełniacz miary staje się sztuką (#2643)': r'KOSZT_2643_DOPELNIACZ_MIARY_NIE_JEST_SZTUKA',
     'Koszt: grupowane tysiące stają się sztukami (#2561)': r'KOSZT_2561_GRUPOWANE_TYSIACE_NIE_SA_SZTUKAMI',
     "Prywatny zeszyt obiecuje odebranie dostepu (#2601)": r"ZESZYT_2601_PRYWATNY_NIE_ODBIERA_ZAPROSZONYM",
     'OCR: błąd zdjęcia znika z opisu pola (#2586)': r'OCR_2586_BLEDNY_OPIS_POLA',
