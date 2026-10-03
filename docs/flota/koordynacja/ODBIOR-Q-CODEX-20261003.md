@@ -28,6 +28,25 @@ Nie jest jeszcze wypchnięta, wydana ani uznana za pełną zieleń CI.
   niepełny wzorzec przyczyny; followup dopuszcza tylko dwa konkretne markery
   tej samej reguły i został zmierzony rzeczywistym narzędziem kontroli.
   Niezależny reviewer nie znalazł blokera produktu.
+- **#2858**, `63a47cf3f`: dopisek zachowuje jawny podgląd ze spisu kroków.
+  Rzeczywista droga HTTP od linku przez POST, błąd i powrót nie wyświetla
+  fałszywego pytania „Jak wyszło”; zwykły ostatni krok nadal je wyświetla.
+  Akceptowana jest tylko lokalna, nazwana trasa powrotu. Własny PG18:
+  **43 / 292 PASS**, dwie fizyczne kontrole ujemne z właściwym markerem,
+  dokładne przywrócenie. Niezależny przegląd i odczyt koordynatora: ACCEPT.
+- **#2852**, `7039a8503`: wydruk całego zeszytu i wybranych pozycji podaje
+  podpis oryginału „Mojej wersji”. Oryginały są pobierane zbiorczo z pełną
+  kontrolą widoczności i dostępności autora; brak dostępu daje neutralny
+  tekst bez tytułu, adresu i danych autora. Własny PG18: **57 / 418 PASS**,
+  w tym liczba zapytań dla jedenastu różnych oryginałów i granice dostępu.
+  Fizyczny mutant: właściwy `PODPIS_2852_WIDOCZNY`, dokładny restore.
+  To jest odbiór HTML i zapytań; nie wykonano oglądu PDF ani przeglądarki.
+
+Koordynator zmierzył trzy pierwsze poprawki na osobnej instancji Linux,
+PG18 na porcie 55488: **66 / 2152 PASS**, wyścig retencji **1 / 18 PASS**,
+fizyczny DELETE po ID oblał z właściwą przyczyną, a dokładny restore przeszedł.
+Pełna analiza typów: zero błędów. Baza wyścigów należy do tego worktree
+(`kuking_race_repo_q`). Dwie ostatnie poprawki wymagają pomiaru wspólnej bazy.
 
 Konflikty CHANGELOG rozwiązano sumą wpisów. Q nie dodaje migracji,
 zależności ani płatnych wywołań. Wcześniejsze migracje N zachowują własne
@@ -36,8 +55,8 @@ retencji i klasę dwóch połączeń.
 
 ## Pozostałe bramki
 
-Root przygotowuje własną kopię Linux z dokładnym lockiem i osobną bazą PG18.
-Pomiar całych zmienionych klas, Dwa i pełna analiza typów poprzedzają
+Root odświeża własną kopię Linux do kompletu pięciu poprawek z dokładnym
+lockiem i osobną bazą PG18. Pomiar całych zmienionych klas i pełna analiza typów poprzedzają
 zwykły push z niezmienionym hakiem. Następnie pełne CI dokładnego heada,
 przegląd końcowego PR i merge z expectedHeadSha do integracji.
 
