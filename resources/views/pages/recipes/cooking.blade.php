@@ -465,6 +465,7 @@
                             @csrf
                             @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
                             <input type="hidden" name="krok" value="{{ $krok }}">
+                            @if($podgladZeSpisu)<input type="hidden" name="spis" value="1">@endif
                             <input type="hidden" name="rewizja" value="{{ $dopisek['rewizja'] }}">
                             <x-field name="dopisek" label="Co zmienione przy garnku?" type="textarea" :rows="3" :value="$dopisek['tresc']" :required="true" bezOznaczenia
                                      help="Na przykład: mniej soli, krótszy czas. Najwyżej {{ $dopisek['maks'] }} znaków." />
@@ -475,6 +476,7 @@
                                 @csrf
                                 @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
                                 <input type="hidden" name="krok" value="{{ $krok }}">
+                                @if($podgladZeSpisu)<input type="hidden" name="spis" value="1">@endif
                                 <button type="submit" class="btn btn-secondary">Usuń dopisek</button>
                             </form>
                         @endif

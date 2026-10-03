@@ -118,6 +118,8 @@ OCZEKUJ = {
     'Odżywcze: stan po nazwie znika (#2563)': r'STAN_2563_PO_NAZWIE',
     "Spiżarnia: sól z 'bez soli' udaje masło (#2613)": r'SPIZARNIA_2613_SOL_NIE_JEST_MASLEM',
     "Porcje: Mniej od autora prowadzi do odrzucanej liczby (#2624)": r'PORCJE_2624_MNIEJ_BEZ_PETLI',
+    "Dopisek ze spisu gubi kontekst w formularzu (#2858)": r'SPIS_2858_FORMULARZ_NIESIE_PODGLAD',
+    "Dopisek ze spisu gubi kontekst w powrocie (#2858)": r'SPIS_2858_BLEDNY_DOPISEK_WRACA_DO_PODGLADU',
     'Robots: awaria PCRE nie daje zgody (#2617)': r'ROBOTS_2617_AWARIA_PCRE_NIE_JEST_ZGODA',
     'Robots: zakodowane litery omijają zakaz (#2569)': r'ROBOTS_2569_OKTETY_ZAKAZANE',
     'Robots: znaki zarezerwowane dekodowane bez ograniczenia (#2569)': r'ROBOTS_2569_BEZ_PONOWNEGO_DEKODOWANIA',
