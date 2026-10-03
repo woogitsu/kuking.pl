@@ -1355,6 +1355,11 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Usunięta lista zakupów prowadzi do nieistniejącego formularza (#2806)", "app/Http/Controllers/ZakupyDoSpizarniController.php",
+     "test_lista_usunieta_po_wstepnym_odczycie_wysyla_wprost_na_istniejacy_ekran",
+     lambda s: replace_once(s,
+         "if (isset($e->errors()['lista'])) {",
+         "if (false) {")),
     ("Błąd spiżarni gubi nazwaną listę zakupów (#2806)", "app/Http/Controllers/ZakupyDoSpizarniController.php",
      "test_blad_w_nazwanej_liscie_odtwarza_wlasciwe_pola_wybor_i_odnosniki",
      lambda s: replace_once(s,

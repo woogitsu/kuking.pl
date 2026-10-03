@@ -69,7 +69,7 @@ final class DodajKupioneDoSpizarni
             if ($lista !== null && ! ShoppingList::query()
                 ->whereKey($lista->getKey())->where('user_id', $user->getKey())->exists()) {
                 throw ValidationException::withMessages([
-                    'pozycje' => 'Tej listy zakupów już nie ma. Wybierz listę jeszcze raz.',
+                    'lista' => 'Tej listy zakupów już nie ma. Wybierz listę jeszcze raz.',
                 ]);
             }
 

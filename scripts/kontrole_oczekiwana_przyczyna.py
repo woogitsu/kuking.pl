@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Usunięta lista zakupów prowadzi do nieistniejącego formularza (#2806)': r'ZAKUPY_2806_BEZ_DRUGIEGO_PRZEKIEROWANIA',
     'Błąd spiżarni gubi nazwaną listę zakupów (#2806)': r'ZAKUPY_2806_NAZWANA_LISTA_ZOSTAJE',
     'Limit przepisu gubi wybraną listę zakupów (#2818)': r'LISTY_2818_WRACA_NA_WYBRANA',
     'Anonimowy licznik omija sprzeciw wobec statystyk (#2837)': r'SPRZECIW_2837_ANI_ANONIMOWO',

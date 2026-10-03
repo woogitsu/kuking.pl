@@ -6,7 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
-- Poprawione (#2806): po błędzie dodawania zakupów do spiżarni wracasz do wybranej nazwanej listy z zachowanymi nazwami i zaznaczeniami. Formularz nie przełącza się na listę domyślną.
+- Poprawione (#2806): po błędzie dodawania zakupów do spiżarni wracasz do wybranej nazwanej listy z zachowanymi nazwami i zaznaczeniami. Formularz nie przełącza się na listę domyślną. Jeśli lista została w międzyczasie usunięta, wracasz bezpośrednio do list zakupów z wyjaśnieniem; produkty nie są dopisywane.
 
 - Poprawione (#2829): gdy notatka przy zapisie z dalszej porcji zeszytu ma błąd albo została zmieniona w innej karcie, formularz wraca przy właściwym przepisie lub wpisie z zachowanym tekstem. Pozostałe notatki nie przejmują tego tekstu.
 

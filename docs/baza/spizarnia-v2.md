@@ -97,6 +97,10 @@ konta potwierdza, że wszystkie zaznaczone pozycje nadal do niej należą;
 nie dodaje części zestawu ani nie przełącza się na domyślną listę. Usunięta
 lista daje jawną odmowę. Cofnięcie samej poprawki nie zmienia danych ani
 schematu, ale przywróciłoby utratę kontekstu formularza.
+Jeśli lista zniknie dopiero między wstępnym odczytem a zapisem pod blokadą,
+odmowa prowadzi bezpośrednio do istniejącego ekranu list zakupów. Nie kieruje
+do formularza usuniętej listy ani nie obiecuje przywrócenia jej pozycji;
+żaden produkt nie trafia wtedy do spiżarni.
 
 **Rollback.** `down()` usuwa tabelę i obie funkcje. Nie dotyka przepisów,
 składników ani wyszukiwarki. Przy niepustej tabeli **odmawia** (D-088) —

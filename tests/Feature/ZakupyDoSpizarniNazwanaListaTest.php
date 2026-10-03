@@ -9,7 +9,9 @@ use App\Models\PantryItem;
 use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 final class ZakupyDoSpizarniNazwanaListaTest extends TestCase
@@ -138,6 +140,40 @@ final class ZakupyDoSpizarniNazwanaListaTest extends TestCase
             'nazwy' => [$default->getKey() => 'cukier'],
         ])->assertRedirect(route('shopping.index'))
             ->assertSessionHas('status', fn ($message) => str_contains((string) $message, 'Tej listy zakupów już nie ma'));
+        $this->assertSame(0, PantryItem::query()->count());
+    }
+
+    public function test_lista_usunieta_po_wstepnym_odczycie_wysyla_wprost_na_istniejacy_ekran(): void
+    {
+        $user = $this->user('zakupy2806przeplot');
+        $list = $this->lista($user, 'Święta');
+        $item = $this->pozycja($user, 'mąka', $list);
+        $listId = (string) $list->getKey();
+        $usunietoPoOdczycie = false;
+
+        // Usuń listę tuż PO SELECT w kontrolerze, a PRZED blokadą w akcji.
+        // Zapytania i zapis przechodzą przez rzeczywistą bazę PostgreSQL.
+        DB::listen(function (QueryExecuted $query) use (&$usunietoPoOdczycie, $listId): void {
+            if ($usunietoPoOdczycie || ! str_starts_with(strtolower($query->sql), 'select')
+                || ! str_contains($query->sql, '"shopping_lists"')) {
+                return;
+            }
+
+            $usunietoPoOdczycie = true;
+            DB::table('shopping_lists')->where('id', $listId)->delete();
+        });
+
+        $response = $this->actingAs($user)->post(route('shopping.pantry.store'), [
+            'lista' => $listId,
+            'pozycje' => [$item->getKey()],
+            'nazwy' => [$item->getKey() => 'mąka pszenna'],
+        ]);
+
+        $this->assertTrue($usunietoPoOdczycie, 'ZAKUPY_2806_PRZEPLOT: lista znika po wstępnym SELECT.');
+        $this->assertSame(route('shopping.index'), $response->headers->get('Location'), 'ZAKUPY_2806_BEZ_DRUGIEGO_PRZEKIEROWANIA: po usunięciu listy wracamy prosto na istniejący ekran.');
+        $response->assertRedirect(route('shopping.index'))
+            ->assertSessionHas('status', fn ($message) => str_contains((string) $message, 'Tej listy zakupów już nie ma'));
+        $this->assertArrayNotHasKey('_old_input', session()->all(), 'ZAKUPY_2806_BEZ_DRUGIEGO_PRZEKIEROWANIA: nie obiecujemy odtworzenia nieistniejącej listy.');
         $this->assertSame(0, PantryItem::query()->count());
     }
 }

@@ -103,6 +103,14 @@ class ZakupyDoSpizarniController extends Controller
         try {
             $wynik = $dodaj->handle($user, $nazwy, $wybrana);
         } catch (ValidationException $e) {
+            if (isset($e->errors()['lista'])) {
+                // Po odczycie formularza lista mogła zniknąć. Nie kieruj na
+                // nieistniejący ekran ani nie obiecuj odtworzenia jej pozycji.
+                return redirect()->route('shopping.index')->with(Komunikat::blad(
+                    (string) $e->errors()['lista'][0],
+                ));
+            }
+
             return redirect()->route('shopping.pantry.form', $wybrana !== null ? ['lista' => $wybrana->getKey()] : [])
                 ->withErrors($e->errors())
                 ->withInput($request->only('pozycje', 'nazwy'));
