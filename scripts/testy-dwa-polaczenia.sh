@@ -116,6 +116,11 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna okresu zgody historii #2855 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        # #2880: spóźniona komenda nie może ujawnić wyłączonych urodzin.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2880.py; then
+            printf "${CZERWONY}Kontrola ujemna świeżej decyzji o urodzinach #2880 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2402.py; then
             printf "${CZERWONY}Kontrola ujemna atomowości importów #2402 nie przeszła.${RESET}\n" >&2
             exit 1

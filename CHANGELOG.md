@@ -12,6 +12,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 - Poprawione (#2875): przy stosowaniu starszej wersji przepisu błąd pustego wyboru prowadzi do widocznej grupy „Co zastosować?”, także gdy dane przepisu są bez zmian. Wybrane składniki lub kroki pozostają zaznaczone po innym błędzie formularza.
 - Poprawione (#2873): „Anuluj” podczas poprawiania pozycji zakupów wraca do jej nazwanej listy, zamiast do listy domyślnej. Pozycja pozostaje bez zmian.
 - Poprawione (#2881): starsze wersje przepisu pozostają z nim przez 30 dni w koszu. Nocne sprzątanie historii nie usuwa ich przed terminem; po odzyskaniu znów obowiązuje zwykła retencja wersji.
+- Poprawione (#2880): wyłączenie widoczności urodzin lub zmiana daty podczas przebiegu przypomnień odcina nowe powiadomienie dla obserwujących. Gdy powiadomienie powstało wcześniej, pozostaje w historii.
 - Poprawione (#2869): nowa paczka danych zachowuje historię otrzymanego zaproszenia, lecz nie pokazuje późniejszej nazwy cudzego prywatnego zeszytu po odebraniu dostępu lub odejściu.
 - Poprawione (#2868): ekran „Usunięte przepisy” pokazuje starsze odzyskiwalne przepisy mimo nowszych pozycji objętych moderacją. „Pokaż więcej” prowadzi przez kolejne porcje bez ujawniania chronionych przepisów.
 - Poprawione (#2860): po wyłączeniu i ponownym włączeniu zapamiętywania postępu stara karta nie cofnie kroków ani liczby porcji zapisanych później. Pokaże zmianę i poprosi o otwarcie aktualnego gotowania.

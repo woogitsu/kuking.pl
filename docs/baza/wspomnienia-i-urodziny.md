@@ -207,5 +207,16 @@ przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
   wyłączeniu w innej karcie (#2864). Stan widoczności z chwili otwarcia
   formularza jest sprawdzany pod tą samą blokadą co zgoda na mail;
   rozbieżność odmawia całego zapisu i prosi o otwarcie aktualnych ustawień.
+- Po wstępnym wyborze solenizanta komenda sprawdza jego **świeży** stan,
+  widoczność i datę pod `FOR SHARE` w transakcji zapisu (#2880). Zmiana
+  decyzji albo daty, która zdążyła się zatwierdzić, odcina nowe
+  powiadomienie. Jeśli powiadomienie zapisano pierwsze, pozostaje, a
+  późniejsze wyłączenie nie kasuje historii. Najpierw blokada odbiorcy
+  pilnuje dobowego limitu, potem blokada wiersza solenizanta; zapis
+  ustawień bierze wyłącznie blokadę własnego konta. Dowód obu kolejności:
+  `PrzypomnieniaUrodzinPoZmianieDecyzjiTest` (dwa połączenia PG18).
+  Cofnięcie tej poprawki przywraca okno ujawnienia prywatnych urodzin;
+  bezpieczny rollback to powrót do poprzedniego kodu tylko po ocenie
+  powiadomień utworzonych w tym oknie, bez usuwania historii w ciemno.
 - **Rollback:** `down()` odmawia, gdy choć jedno konto ma `true` (D-088:
   decyzja o widoczności). Test: `tests/Feature/PrzypomnienieOUrodzinachTest.php`.

@@ -79,6 +79,7 @@ use App\Domain\Users\Actions\ChangeUserRole;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\RequestAccountDeletion;
+use App\Domain\Users\Actions\ZapiszWyboryUrodzin;
 use App\Domain\Users\Exports\WersjaFormatuPaczki;
 use App\Domain\Users\Import\PodgladPaczki;
 use App\Domain\Users\Import\PozycjaPodgladu;
@@ -920,6 +921,21 @@ try {
             barieraPoSprawdzeniuUrodzin();
 
             return Artisan::call('kuking:przypomnij-o-urodzinach');
+        })(),
+
+        // #2880: prawdziwy zapis wyboru pod blokadą w drugim procesie.
+        'ukryj-urodziny' => (function () use ($argumenty): string {
+            $user = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            app(ZapiszWyboryUrodzin::class)->handle(
+                $user,
+                (bool) $user->birthday_wishes_enabled,
+                (bool) $user->wants_birthday_email,
+                (bool) $user->wants_birthday_email,
+                (bool) $user->birthday_visible_to_followers,
+                false,
+            );
+
+            return 'ukryto';
         })(),
 
         // Notatka współpracownika kontra odebranie dostępu (#2311).
