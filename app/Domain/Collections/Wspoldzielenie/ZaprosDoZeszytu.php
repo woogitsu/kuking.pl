@@ -6,6 +6,7 @@ namespace App\Domain\Collections\Wspoldzielenie;
 
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Domain\Social\ZamekPary;
+use App\Domain\Users\ZamekKonta;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Collection;
 use App\Models\CollectionInvitation;
@@ -45,6 +46,8 @@ final class ZaprosDoZeszytu
     public const NIE_DA_SIE = 'Nie możemy zaprosić tej osoby do zeszytu. Sprawdź nazwę konta — jest na stronie profilu, po znaku @.';
 
     public const PELNY = 'Ten zeszyt ma już najwięcej osób, ile się da — razem z oczekującymi zaproszeniami. Odbierz komuś dostęp albo odwołaj zaproszenie i spróbuj jeszcze raz.';
+
+    public const BRAK_PRAWA = 'Nie możesz teraz zapraszać do tego zeszytu. Otwórz stronę zeszytu ponownie i sprawdź stan swojego konta.';
 
     public function __construct(private readonly NotifyUser $notify) {}
 
@@ -88,6 +91,9 @@ final class ZaprosDoZeszytu
     {
         return DB::transaction(function () use ($wlasciciel, $zeszyt, $adresat): CollectionInvitation {
             $swiezy = $this->zablokujZeszyt($zeszyt);
+            // Sankcja mogła zapaść po pierwszej Policy. Oba konta oraz
+            // zeszyt są teraz zablokowane aż do końca zapisu.
+            $this->sprawdzPrawo($wlasciciel, $swiezy);
 
             if ($swiezy->maCzlonka($adresat)) {
                 throw new BladDlaCzlowieka('Ta osoba ma już dostęp do tego zeszytu.');
@@ -144,8 +150,11 @@ final class ZaprosDoZeszytu
     {
         Gate::forUser($wlasciciel)->authorize('share', $zeszyt);
 
-        return DB::transaction(function () use ($wlasciciel, $zeszyt): array {
+        // Ta sama kolejność co po nazwie: konto przed zeszytem. Zamek konta
+        // serializuje zapis z suspend(), a Policy czyta świeży stan.
+        return ZamekKonta::zablokuj($wlasciciel, function (?User $swiezyWlasciciel) use ($zeszyt): array {
             $swiezy = $this->zablokujZeszyt($zeszyt);
+            $this->sprawdzPrawo($swiezyWlasciciel, $swiezy);
 
             $this->sprawdzMiejsce($swiezy);
 
@@ -154,7 +163,7 @@ final class ZaprosDoZeszytu
             $zaproszenie = new CollectionInvitation;
             $zaproszenie->forceFill([
                 'collection_id' => $swiezy->getKey(),
-                'inviter_id' => $wlasciciel->getKey(),
+                'inviter_id' => $swiezyWlasciciel->getKey(),
                 'invitee_id' => null,
                 'via_link' => true,
                 'token_hash' => CollectionInvitation::skrotTokenu($token),
@@ -170,6 +179,13 @@ final class ZaprosDoZeszytu
     {
         return Collection::query()->whereKey($zeszyt->getKey())->lockForUpdate()->first()
             ?? throw new BladDlaCzlowieka('Tego zeszytu już nie ma — mógł zostać usunięty w innym oknie.');
+    }
+
+    private function sprawdzPrawo(?User $wlasciciel, Collection $zeszyt): void
+    {
+        if ($wlasciciel === null || ! Gate::forUser($wlasciciel)->allows('share', $zeszyt)) {
+            throw new BladDlaCzlowieka(self::BRAK_PRAWA);
+        }
     }
 
     /** @return HasMany<CollectionInvitation, Collection> */

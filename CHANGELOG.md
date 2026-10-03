@@ -6,6 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2835): zaproszenie do wspólnego zeszytu rozpoczęte przed zawieszeniem właściciela nie zapisuje się po zatwierdzeniu kary. Wcześniejsze zaproszenia pozostają, a zawieszony właściciel nadal może sprawdzić dostęp i go odebrać.
 - Poprawione (#2825): ponowienie przyjętego zaproszenia po odebraniu dostępu nie pokazuje nowej nazwy prywatnego zeszytu ani nie przywraca członkostwa. Gdy dostęp nadal trwa, ponowienie działa bez drugiego powiadomienia.
 - Poprawione (#2803): „Moje rozmowy” otwierają pierwszą porcję, gdy w adresie jest kursor z nieistniejącą datą lub godziną. Poprawne kursory, także z dniem przestępnym i remisem czasu, nadal prowadzą do dalszej porcji bez powtórzeń.
 - Poprawione (#2785): nowa paczka danych nie ujawnia bieżącego tytułu ani autora prywatnego przepisu, gdy odbiorca utracił do niego dostęp. Informacja o samym udostępnieniu pozostaje; po ustaniu kary dostępne dane znów są widoczne.
