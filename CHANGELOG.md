@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2863): ukryty lub usunięty wpis nie wróci do kanału Atom, gdy wcześniejsze pobranie kończy budowanie kopii po jej wyczyszczeniu.
+
 - Podgląd ostatniego kroku ze spisu pozostaje podglądem także po zapisie lub błędzie prywatnego dopisku; nie wywołuje omyłkowego pytania „Jak wyszło?” (#2858).
 - Poprawione (#2852): wydruk zeszytu pokazuje przy „Mojej wersji” podpis oryginału. Gdy oryginał nie jest dostępny, podpis zostaje bez jego tytułu i autora.
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Kanaly\CacheKanalu;
 use App\Domain\Kanaly\Kanal;
 use App\Domain\Kanaly\KluczeKanalu;
 use App\Domain\Kanaly\TresciKanalu;
@@ -18,7 +19,6 @@ use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -173,6 +173,6 @@ final class KanalAtomController
             return $buduj();
         }
 
-        return Cache::remember($klucz, now()->addSeconds($sekundy), $buduj);
+        return CacheKanalu::zapamietaj($klucz, $sekundy, $buduj);
     }
 }
