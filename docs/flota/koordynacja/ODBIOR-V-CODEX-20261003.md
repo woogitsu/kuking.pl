@@ -50,3 +50,9 @@ dokładnego SHA, zgodne /wydanie i /health. Dopiero wtedy rozstrzygamy
 zamknięcie issues według wszystkich kryteriów. Brak zmian schematu,
 kosztu i zgód. Revert kodu przywraca opisane błędy; nie cofamy danych
 ani wyborów człowieka.
+
+## Odświeżenie zależności — 3.10, 11:39 UTC
+
+Zwykły pełny pre-push pierwotnego `762b0ad3555017c06243e08543ce2116f64a91a8` zakończył się kodem 0 i ten head był potwierdzony na GitHubie. Późniejsze zwykłe scalenia włączyły naprawy narzędzi i dokumentów N–U `c31238b012518345fa807daee71e82e8f8525e27` oraz odebrane wydanie S main `09f8af1c738789c4498d35158f940ac237c30eee`; wynik przed tym wpisem: `2ea5d89fd438647fbdee406d3543ca3c863fa742`. Porównanie `app`, `resources/views` i `tests/Dwa` z pierwotnym 762b0ad jest puste: nie zmieniono odebranego kodu czterech poprawek V. Rejestry i kontrola zakresu zawierają sumę wcześniejszych bramek.
+
+Wydanie S odebrano osobno: pełne CI main 24/24 SUCCESS, trzy Railway SUCCESS tego SHA, rzeczywiste `/wydanie` i `/health` 200 o 11:24 UTC. N–U ma świeże CI 37119391938 w toku; V nie zastępuje jego odbioru. Obecny nowy head V wymaga własnego zwykłego pełnego push i pełnego CI po aktualnej bazie C. Nie traktujemy poprzedniego hooka ani skróconych draftów jako tego wyniku. #2810 pozostaje osobną poprawką Y, a ręczne kryteria 50+/telefonów pozostają otwarte.
