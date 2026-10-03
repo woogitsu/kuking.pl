@@ -71,5 +71,15 @@ final class OdnowionyPunktKontraSprzatanieTest extends TestDwochPolaczen
         $this->assertSame('Tekst B', $swiezy->snapshot['title'], 'PUNKT_2849_ODNOWIONY: musi umożliwić powrót do tekstu B.');
         $this->assertTrue($swiezy->taken_at->greaterThan(now()->subMinute()));
         $this->assertSame('Tekst A', $szkic->fresh()->title);
+
+        $szkicPoPierwszym = $szkic->fresh();
+        $powrotDoB = app(PunktOdzyskaniaSzkicu::class)->przywroc(
+            $autor,
+            (string) $szkicPoPierwszym->getKey(),
+            (int) $szkicPoPierwszym->content_revision,
+            $swiezy->taken_at->utc()->format(PunktOdzyskaniaSzkicu::FORMAT_ZNACZNIKA),
+        );
+        $this->assertSame(PunktOdzyskaniaSzkicu::ODZYSKANO, $powrotDoB->status, 'PUNKT_2849_ODNOWIONY: drugi powrót do B musi działać. '.$powrotDoB->komunikat);
+        $this->assertSame('Tekst B', $szkic->fresh()->title, 'PUNKT_2849_ODNOWIONY: tekst B wraca z odnowionego punktu.');
     }
 }
