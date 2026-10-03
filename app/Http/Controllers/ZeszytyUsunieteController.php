@@ -50,7 +50,8 @@ class ZeszytyUsunieteController extends Controller
         }
 
         try {
-            $wynik = $odzyskaj->handle($request->user(), $zeszytUsuniety);
+            $kopiaId = $request->input(OdzyskajUsunietyZeszyt::POLE_KOPII);
+            $wynik = $odzyskaj->handle($request->user(), $zeszytUsuniety, is_string($kopiaId) ? $kopiaId : '');
         } catch (BladDlaCzlowieka $e) {
             return redirect()->route('collections.deleted')->with(Komunikat::blad($e->getMessage()));
         }

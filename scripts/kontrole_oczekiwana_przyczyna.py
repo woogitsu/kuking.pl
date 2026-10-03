@@ -50,6 +50,7 @@ OCZEKUJ = {
     'Dokumentacja bazy wraca do martwej lokalnej kotwicy': r'BAZA_KOTWICA_20261003',
     'Kopia odzyskania gubi ręczną kolejność (#2816)': r'ODZYSKANIE_2816_RECZNA_KOLEJNOSC',
     'Odtworzenie zeszytu gubi ręczną kolejność (#2816)': r'ODZYSKANIE_2816_RECZNA_KOLEJNOSC',
+    'Stary przycisk odzyskuje nową kopię zeszytu (#2867)': r'KOPIA_2867_STARY_PRZYCISK',
     'Pełny limit chowa nazwę nowej listy (#2821)': r'LISTY_2821_ZYWE_POLE',
     'Ponowienie zaproszenia ujawnia nazwę po odebraniu dostępu (#2825)': r'ZESZYT_2825_PONOWIENIE_BEZ_DOSTEPU',
     'Zawieszona autorka nie może cofnąć udostępnienia (#2791)': r'UDOSTEPNIENIE_2791_COFNIECIE_MIMO_KARY',

@@ -78,6 +78,11 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
         return (string) session('status');
     }
 
+    private function kopiaId(Collection $zeszyt): string
+    {
+        return DeletedCollection::query()->where('collection_id', $zeszyt->getKey())->firstOrFail()->getKey();
+    }
+
     // ───────────── Usuwanie: kiedy powstaje kopia ─────────────
 
     public function test_usuniecie_prywatnego_zeszytu_zostawia_kopie_z_dopiskami_i_datami(): void
@@ -221,7 +226,7 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
         $this->usun($this->basia, $zeszyt);
 
         $this->actingAs($this->basia)
-            ->post(route('collections.deleted.recover', $zeszyt->getKey()))
+            ->post(route('collections.deleted.recover', $zeszyt->getKey()), [OdzyskajUsunietyZeszyt::POLE_KOPII => $this->kopiaId($zeszyt)])
             ->assertRedirect(route('collections.show', $zeszyt->getKey()));
 
         $wrocil = Collection::query()->findOrFail($zeszyt->getKey());
@@ -275,7 +280,7 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
         $wyeksportowane = collect($paczka['usuniete_zeszyty'][0]['pozycje'])->where('rodzaj', 'przepis')->pluck('reczna_pozycja')->all();
         $this->assertSame([1, 3, 2], array_values($wyeksportowane)); // kopia jest uporządkowana po datach zapisu
 
-        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()))
+        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()), [OdzyskajUsunietyZeszyt::POLE_KOPII => $this->kopiaId($zeszyt)])
             ->assertRedirect(route('collections.show', $zeszyt->getKey()));
         $wrocil = Collection::query()->findOrFail($zeszyt->getKey());
         $this->assertSame($oczekiwany, KolejnoscPrzepisow::uklad($wrocil), 'ODZYSKANIE_2816_RECZNA_KOLEJNOSC: odtworzenie zgubiło ułożenie.');
@@ -304,7 +309,7 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
             }, $kopia->items), JSON_THROW_ON_ERROR),
         ]);
 
-        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()))->assertRedirect();
+        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()), [OdzyskajUsunietyZeszyt::POLE_KOPII => $this->kopiaId($zeszyt)])->assertRedirect();
         $this->assertFalse(KolejnoscPrzepisow::jestUlozony($zeszyt));
         $this->assertSame([$drugi->id, $pierwszy->id], KolejnoscPrzepisow::uklad($zeszyt));
     }
@@ -320,7 +325,7 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
         $this->usun($this->basia, $zeszyt);
         $przepisy[1]->delete();
 
-        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->id))->assertRedirect();
+        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->id), [OdzyskajUsunietyZeszyt::POLE_KOPII => $this->kopiaId($zeszyt)])->assertRedirect();
         $wiersze = DB::table('collection_items')->where('collection_id', $zeszyt->id)->orderBy('position')->pluck('position', 'recipe_id')->all();
         $this->assertSame([(string) $przepisy[0]->id => 1, (string) $przepisy[2]->id => 3], $wiersze);
         $this->assertSame([$przepisy[0]->id, $przepisy[2]->id], KolejnoscPrzepisow::uklad($zeszyt));
@@ -341,7 +346,7 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
         $miekko->delete();
         $twardo->forceDelete();
 
-        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()));
+        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()), [OdzyskajUsunietyZeszyt::POLE_KOPII => $this->kopiaId($zeszyt)]);
 
         $this->assertSame(
             [(string) $zyje->getKey()],
@@ -390,7 +395,7 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
         DeletedCollection::query()->update(['deleted_at' => now()->subDays(OdzyskajUsunietyZeszyt::dniOkna())->subMinute()]);
 
         $this->actingAs($this->basia)->get(route('collections.deleted'))->assertOk()->assertDontSee('Odzyskaj zeszyt');
-        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()))
+        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()), [OdzyskajUsunietyZeszyt::POLE_KOPII => $this->kopiaId($zeszyt)])
             ->assertRedirect(route('collections.deleted'));
 
         $this->assertNull(Collection::query()->find($zeszyt->getKey()));
@@ -406,7 +411,7 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
         $html = $this->actingAs($this->basia)->get(route('collections.deleted'))->assertOk()->getContent();
         $this->assertStringNotContainsString('data-usuniety-zeszyt="'.$zeszyt->getKey().'"', $html);
 
-        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()))
+        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()), [OdzyskajUsunietyZeszyt::POLE_KOPII => $this->kopiaId($zeszyt)])
             ->assertRedirect(route('collections.deleted'));
 
         $this->assertNull(Collection::query()->find($zeszyt->getKey()));
@@ -418,7 +423,7 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
         $this->usun($this->basia, $zeszyt);
         $nowy = $this->zeszyt($this->basia, 'obiady');
 
-        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()))
+        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()), [OdzyskajUsunietyZeszyt::POLE_KOPII => $this->kopiaId($zeszyt)])
             ->assertRedirect(route('collections.deleted'));
 
         $this->assertStringContainsString('Zmień nazwę tamtego zeszytu', $this->wiadomosc());
@@ -427,7 +432,7 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
 
         // Po zmianie nazwy tamtego zeszytu odzyskanie działa.
         $nowy->update(['name' => 'Obiady codzienne']);
-        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()))
+        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()), [OdzyskajUsunietyZeszyt::POLE_KOPII => $this->kopiaId($zeszyt)])
             ->assertRedirect(route('collections.show', $zeszyt->getKey()));
         $this->assertSame(0, DeletedCollection::query()->count());
     }
@@ -437,12 +442,58 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
         $zeszyt = $this->zeszyt($this->basia);
         $this->usun($this->basia, $zeszyt);
         $adres = route('collections.deleted.recover', $zeszyt->getKey());
+        $kopiaId = $this->kopiaId($zeszyt);
 
-        $this->actingAs($this->basia)->post($adres);
-        $this->actingAs($this->basia)->post($adres)->assertRedirect(route('collections.show', $zeszyt->getKey()));
+        $this->actingAs($this->basia)->post($adres, [OdzyskajUsunietyZeszyt::POLE_KOPII => $kopiaId]);
+        $this->actingAs($this->basia)->post($adres, [OdzyskajUsunietyZeszyt::POLE_KOPII => $kopiaId])
+            ->assertRedirect(route('collections.show', $zeszyt->getKey()));
 
         $this->assertStringContainsString('już odzyskany', $this->wiadomosc());
         $this->assertSame(1, Collection::query()->where('owner_id', $this->basia->getKey())->count());
+    }
+
+    public function test_stary_przycisk_nie_odzyskuje_nowej_kopii_tego_samego_zeszytu(): void
+    {
+        $zeszyt = $this->zeszyt($this->basia, 'Obiady');
+        $adres = route('collections.deleted.recover', $zeszyt->getKey());
+        $this->usun($this->basia, $zeszyt);
+        $kopiaA = $this->kopiaId($zeszyt);
+        $staryEkran = $this->actingAs($this->basia)->get(route('collections.deleted'))->assertOk()->getContent();
+        $this->assertStringContainsString('name="'.OdzyskajUsunietyZeszyt::POLE_KOPII.'" value="'.$kopiaA.'"', $staryEkran);
+
+        $this->actingAs($this->basia)->post($adres, [OdzyskajUsunietyZeszyt::POLE_KOPII => $kopiaA])
+            ->assertRedirect(route('collections.show', $zeszyt->getKey()));
+        $odnowiony = Collection::query()->findOrFail($zeszyt->getKey());
+        $odnowiony->update(['name' => 'Obiady później', 'description' => 'Nowy dopisek']);
+        $this->zapisz($odnowiony, Recipe::factory()->create(), 'nowa treść', '2026-03-04 10:11:12+00');
+        $this->usun($this->basia, $odnowiony);
+        $kopiaB = $this->kopiaId($zeszyt);
+        $this->assertNotSame($kopiaA, $kopiaB);
+
+        $odpowiedz = $this->actingAs($this->basia)->post($adres, [OdzyskajUsunietyZeszyt::POLE_KOPII => $kopiaA]);
+        $this->assertSame($kopiaB, (string) DB::table('deleted_collections')->where('collection_id', $zeszyt->getKey())->value('id'),
+            'KOPIA_2867_STARY_PRZYCISK: stary formularz zużył nową kopię.');
+        $this->assertNull(Collection::query()->find($zeszyt->getKey()), 'KOPIA_2867_STARY_PRZYCISK: stary formularz odtworzył nową kopię.');
+        $odpowiedz->assertRedirect(route('collections.deleted'));
+        $this->assertStringContainsString('Otwórz ponownie „Usunięte zeszyty”', $this->wiadomosc());
+
+        $swiezyEkran = $this->actingAs($this->basia)->get(route('collections.deleted'))->assertOk()->getContent();
+        $this->assertStringContainsString('name="'.OdzyskajUsunietyZeszyt::POLE_KOPII.'" value="'.$kopiaB.'"', $swiezyEkran);
+        $this->actingAs($this->basia)->post($adres, [OdzyskajUsunietyZeszyt::POLE_KOPII => $kopiaB])
+            ->assertRedirect(route('collections.show', $zeszyt->getKey()));
+        $this->assertSame('Obiady później', Collection::query()->findOrFail($zeszyt->getKey())->name);
+        $this->assertSame('nowa treść', DB::table('collection_items')->where('collection_id', $zeszyt->getKey())->value('note'));
+    }
+
+    public function test_formularz_sprzed_zmiany_bez_id_kopii_odmawia_i_zostawia_kopie(): void
+    {
+        $zeszyt = $this->zeszyt($this->basia);
+        $this->usun($this->basia, $zeszyt);
+        $kopiaId = $this->kopiaId($zeszyt);
+
+        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()))
+            ->assertRedirect(route('collections.deleted'));
+        $this->assertSame($kopiaId, $this->kopiaId($zeszyt), 'KOPIA_2867_STARY_PRZYCISK: formularz bez identyfikatora zużył kopię.');
     }
 
     public function test_zawieszone_konto_nie_odzyskuje(): void
@@ -451,7 +502,7 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
         $this->usun($this->basia, $zeszyt);
         $this->basia->suspend();
 
-        $this->actingAs($this->basia->fresh())->post(route('collections.deleted.recover', $zeszyt->getKey()));
+        $this->actingAs($this->basia->fresh())->post(route('collections.deleted.recover', $zeszyt->getKey()), [OdzyskajUsunietyZeszyt::POLE_KOPII => $this->kopiaId($zeszyt)]);
 
         $this->assertNull(Collection::query()->find($zeszyt->getKey()));
         $this->assertSame(1, DeletedCollection::query()->count());
@@ -464,7 +515,7 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
         $this->zapisz($inny, Recipe::factory()->create(), 'zostaje', '2026-01-01 10:00:00+00');
         $this->usun($this->basia, $zeszyt);
 
-        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()));
+        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()), [OdzyskajUsunietyZeszyt::POLE_KOPII => $this->kopiaId($zeszyt)]);
 
         $this->assertSame(1, DB::table('collection_items')->where('collection_id', $inny->getKey())->count());
         $this->assertNull($this->basia->fresh()->ulubiony_zeszyt_id);
@@ -494,13 +545,14 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
         $zeszyt = $this->zeszyt($this->basia);
         $this->zapisz($zeszyt, Recipe::factory()->create(), 'prywatny dopisek', '2026-03-04 10:00:00+00');
         $this->usun($this->basia, $zeszyt);
+        $kopiaId = $this->kopiaId($zeszyt);
 
         $this->basia->markForDeletion();
         app(EraseAccountData::class)->handle($this->basia->fresh());
 
         $this->assertSame(0, DeletedCollection::query()->count());
 
-        $this->actingAs($this->basia->fresh())->post(route('collections.deleted.recover', $zeszyt->getKey()));
+        $this->actingAs($this->basia->fresh())->post(route('collections.deleted.recover', $zeszyt->getKey()), [OdzyskajUsunietyZeszyt::POLE_KOPII => $kopiaId]);
         $this->assertNull(Collection::query()->find($zeszyt->getKey()));
     }
 
