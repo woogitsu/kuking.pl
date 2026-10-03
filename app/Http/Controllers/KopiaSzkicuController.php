@@ -38,6 +38,7 @@ class KopiaSzkicuController extends Controller
                 || $przepis->source_scan_media_id !== null
                 || $przepis->steps()->whereNotNull('media_id')->exists(),
             'jestAdaptacja' => $przepis->forked_at !== null,
+            'pochodziZImportu' => ZrobKopieSzkicu::jestPowiazanyZImportem($przepis),
             // Nowy formularz = nowy klucz = nowy wariant; odświeżenie ekranu klucza nie zmienia dopiero po POST.
             'klucz' => old('klucz_kopii') && Str::isUuid((string) old('klucz_kopii')) ? (string) old('klucz_kopii') : (string) Str::uuid7(),
         ]);

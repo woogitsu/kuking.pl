@@ -6,6 +6,8 @@ namespace App\Domain\Recipes\Actions;
 
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
+use App\Models\ImportPrzepisu;
+use App\Models\PrzepisZImportu;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
@@ -40,6 +42,8 @@ use Illuminate\Support\Facades\Gate;
  * a `MojaWersja::pilnujRoznicy` nadal pilnuje oryginału przy publikacji. Kopia
  * dodatkowo nie wychodzi do ludzi bez zmian względem źródła
  * (`MojaWersja::pilnujRoznicyKopii`).
+ * SZKIC Z IMPORTU nie jest kopiowany: jego pochodzenie i potwierdzenie odczytu
+ * są przypięte do ID przepisu. Kopia bez nich ominęłaby bramkę D-300 (#2800).
  *
  * JEDNO WYSŁANIE = JEDNA KOPIA. `$klucz` to tożsamość wysłania formularza;
  * powtórka (drugie kliknięcie, dwie karty) zwraca tę samą kopię, a nowy
@@ -50,6 +54,8 @@ use Illuminate\Support\Facades\Gate;
 final class ZrobKopieSzkicu
 {
     private const DOPISEK = ' — kopia';
+
+    public const KOMUNIKAT_IMPORT = 'Ten szkic pochodzi z odczytu adresu, pliku albo zdjęcia. Nie można zrobić jego kopii. Wróć do szkicu i pracuj w nim dalej.';
 
     public function __construct(private readonly GenerateRecipeSlug $slugs) {}
 
@@ -84,6 +90,12 @@ final class ZrobKopieSzkicu
 
             // Policy na ŚWIEŻYM stanie (sankcja konta, status szkicu, właściciel).
             Gate::forUser($swiezyUser)->authorize('copyDraft', $swiezeZrodlo);
+
+            // Kopia ma nowe ID, a bramki odczytu są przypięte do ID szkicu.
+            // Bez pełnego przeniesienia pochodzenia kopia mogłaby wyjść do ludzi bez sprawdzenia.
+            if (self::jestPowiazanyZImportem($swiezeZrodlo)) {
+                throw new BladDlaCzlowieka(self::KOMUNIKAT_IMPORT);
+            }
 
             $atrybuty = [
                 'author_id' => $swiezyUser->getKey(),
@@ -156,6 +168,12 @@ final class ZrobKopieSzkicu
 
             return $kopia;
         });
+    }
+
+    public static function jestPowiazanyZImportem(Recipe $szkic): bool
+    {
+        return PrzepisZImportu::query()->whereKey($szkic->getKey())->exists()
+            || ImportPrzepisu::query()->where('recipe_id', $szkic->getKey())->exists();
     }
 
     private function tytul(string $tytul): string
