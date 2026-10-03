@@ -157,6 +157,11 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna spóźnionego kanału Atom #2863 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        # #2879: stary model konta oblewa pięć odmów; odwrotne przeploty przechodzą.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2879.py; then
+            printf "${CZERWONY}Kontrola ujemna postępu po zawieszeniu #2879 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
         # #2403: usunięcie retry slugu musi ujawnić 23505/recipes_slug_unique.
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2403.py; then
             printf "${CZERWONY}Kontrola ujemna kolizji slugu #2403 nie przeszła.${RESET}\n" >&2
