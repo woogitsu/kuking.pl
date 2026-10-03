@@ -77,8 +77,8 @@ final class PodgladPoprawkiZWersji
             $a = $teraz->pole($klucz);
             $b = $stara->pole($klucz);
             $stan = ! $jestKlucz ? 'brak_danych' : ($a === $b ? 'bez_zmian' : 'zmieni');
-            // Nazwa i porcje nie mogą być puste — pusta wartość z migawki zostaje bez zmian.
-            if ($stan === 'zmieni' && in_array($klucz, ['title', 'servings'], true) && $b === null) {
+            // Pusta nazwa nie wraca. Jawne NULL porcji to zapisane „nie podano”.
+            if ($stan === 'zmieni' && $klucz === 'title' && $b === null) {
                 $stan = 'brak_danych';
             }
             $zmian += $stan === 'zmieni' ? 1 : 0;

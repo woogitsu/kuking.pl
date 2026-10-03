@@ -23,6 +23,15 @@ Snapshot po istotnych zmianach.
   stanem normalnym;
 - `created_at`.
 
+Przy „Zastosuj jako nową poprawkę” (#2525, poprawka #2877) zapisany klucz
+`servings` z wartością `NULL` oznacza znane „nie podano”. Podgląd pokazuje
+różnicę wobec dzisiejszej liczby, a zastosowanie danych zapisuje NULL także
+w nowej wersji. **Brak klucza** nadal oznacza brak danych i pozostawia
+dzisiejszą wartość. Pusta nazwa przepisu nie jest przywracana. Dawne wersje,
+zakres przywracanych pól, autoryzacja, rewizja i atomowość pozostają bez zmian;
+nie ma migracji. Cofnięcie samej poprawki kodu znów pomijałoby jawne NULL,
+ale nie zmienia zapisanych już migawek.
+
 Porównanie dwóch migawek (#2451) sprawdza również **widoczną kolejność**
 grup i składników po zastosowaniu `GrupySkladnikow::ulozyc()`. Porównuje
 wspólne wiersze, nie numery `position`: dodanie albo usunięcie składnika nie

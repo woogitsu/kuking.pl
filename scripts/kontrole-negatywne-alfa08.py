@@ -1356,6 +1356,18 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ('Historia myli jawne NULL porcji z brakiem danych (#2877)',
+     'app/Domain/Recipes/Historia/PodgladPoprawkiZWersji.php',
+     'PustaLiczbaPorcjiZHistoriiTest::test_samo_jawne_null_jest_dostepne_w_podgladzie_i_wraca_przez_post',
+     lambda s: replace_once(s,
+         "$klucz === 'title' && $b === null",
+         "in_array($klucz, ['title', 'servings'], true) && $b === null")),
+    ('Historia pomija zapisane NULL porcji przy zastosowaniu (#2877)',
+     'app/Domain/Recipes/Historia/ZastosujWersjeJakoPoprawke.php',
+     'PustaLiczbaPorcjiZHistoriiTest::test_zastosowanie_opisu_przywraca_tez_jawne_null_porcji',
+     lambda s: replace_once(s,
+         "$wartosc === null && $klucz === 'title'",
+         "$wartosc === null && in_array($klucz, ['title', 'servings'], true)")),
     ("Częściowe dane prób znów potwierdzają zgodność obu pól (#2817)",
      "app/Domain/Recipes/Gotowanie/ProbyPrzepisu.php",
      "CzesciowePorownanieProbPrzepisuTest",
