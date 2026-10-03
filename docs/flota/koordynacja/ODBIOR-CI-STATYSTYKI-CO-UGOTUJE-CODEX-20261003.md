@@ -23,8 +23,8 @@ po `CoUgotuje statystyki`, `CoUgotuje CI timeout`, nazwie klasy i
 `ANALYZE fixture` nie znalazło duplikatu tej awarii ani aktywnej poprawki.
 Zamknięte [#2516](https://github.com/woogitsu/kuking.pl/issues/2516) dotyczy
 pomiaru innej szyny. Odczytano aktualne AGENTS, D-333, PULAPKI_TESTOW,
-strażników źródeł i istniejący rejestr mutacji paginacji. Nowe asercje czytają
-rzeczywisty katalog PostgreSQL, nie tekst źródeł.
+strażników źródeł i istniejący rejestr mutacji paginacji. Zachowano istniejące
+asercje rzeczywistego HTTP i dotychczasowy wpis kontroli pętli stron.
 
 ## Czerwień CI i identyczne zielone źródło
 
