@@ -16,10 +16,10 @@ final class UsunProduktPoPotwierdzeniu
 
     public const BRAK = 'brak';
 
-    /** `brak` albo UUID drugiego opakowania z otwartego formularza. */
-    public function handle(PantryItem $produkt, ?string $widzianeDrugie): string
+    /** Tożsamość pierwszego oraz `brak` albo UUID drugiego z otwartego pytania. */
+    public function handle(PantryItem $produkt, ?string $widzianePierwsze, ?string $widzianeDrugie): string
     {
-        return DB::transaction(function () use ($produkt, $widzianeDrugie): string {
+        return DB::transaction(function () use ($produkt, $widzianePierwsze, $widzianeDrugie): string {
             // Ta sama blokada produktu co przy dodaniu i usunięciu jednego
             // opakowania. Nie ma okna między porównaniem zakresu a DELETE.
             $swiezy = PantryItem::query()
@@ -36,8 +36,10 @@ final class UsunProduktPoPotwierdzeniu
                 ->where('pantry_item_id', $swiezy->getKey())
                 ->value('id');
             $aktualnyZakres = $aktualneDrugie === null ? 'brak' : (string) $aktualneDrugie;
+            $aktualnePierwsze = (string) ($swiezy->first_package_id ?? $swiezy->getKey());
 
-            if ($widzianeDrugie === null || $widzianeDrugie !== $aktualnyZakres) {
+            if ($widzianePierwsze === null || $widzianePierwsze !== $aktualnePierwsze
+                || $widzianeDrugie === null || $widzianeDrugie !== $aktualnyZakres) {
                 return self::ZMIENILO_SIE;
             }
 

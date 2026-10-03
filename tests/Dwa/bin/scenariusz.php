@@ -985,7 +985,7 @@ try {
         'usun-produkt-po-potwierdzeniu-pantry' => (function () use ($argumenty): string {
             $produkt = PantryItem::query()->findOrFail($argumenty['produkt']);
 
-            return app(UsunProduktPoPotwierdzeniu::class)->handle($produkt, $argumenty['widziane_drugie']);
+            return app(UsunProduktPoPotwierdzeniu::class)->handle($produkt, $argumenty['widziane_pierwsze'], $argumenty['widziane_drugie']);
         })(),
 
         // Zastąpienie wyboru redakcyjnego (#1027): prawdziwe akcje domenowe,

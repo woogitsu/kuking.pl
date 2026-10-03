@@ -11,6 +11,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 - Poprawione (#2791): zawieszona osoba może odebrać dostęp do własnego przepisu. Po końcu kary cofnięte udostępnienie nie wraca; nowych udostępnień nadal nie można tworzyć podczas zawieszenia.
 
 - Poprawione (#2826): potwierdzenie usunięcia produktu ze spiżarni traci ważność, gdy w innym oknie dodano drugie opakowanie. Oba zostają, a pytanie trzeba otworzyć ponownie, by świadomie wybrać zakres usunięcia.
+- Poprawione (#2826): potwierdzenie usunięcia produktu ze spiżarni traci ważność, gdy w innym oknie dodano drugie opakowanie albo drugie awansowało na pierwsze. Opakowania zostają, a pytanie trzeba otworzyć ponownie, by świadomie wybrać zakres usunięcia.
 - Poprawione (#2803): „Moje rozmowy” otwierają pierwszą porcję, gdy w adresie jest kursor z nieistniejącą datą lub godziną. Poprawne kursory, także z dniem przestępnym i remisem czasu, nadal prowadzą do dalszej porcji bez powtórzeń.
 - Poprawione (#2785): nowa paczka danych nie ujawnia bieżącego tytułu ani autora prywatnego przepisu, gdy odbiorca utracił do niego dostęp. Informacja o samym udostępnieniu pozostaje; po ustaniu kary dostępne dane znów są widoczne.
 - Doprecyzowane (#2708): instrukcja moderacji odróżnia obsługiwany awatar i osobne zdjęcie od „Ugotowałem” i zeszytu, które nadal nie mają akcji CSAM. Wskazuje też, gdzie w panelu dostępny jest przycisk dla zdjęcia, aktualną treść ekranu zgłoszenia do organów oraz że próba na wdrożonym R2/CDN pozostaje do wykonania.
