@@ -1356,6 +1356,18 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ('Kopia dnia gubi wybrane porcje (#2836)',
+     'app/Domain/Planer/Actions/SkopiujDzienPlanu.php',
+     'PlanerKopiujDzienTest::test_kopia_dnia_(zachowuje_porcje|otwiera_porcje)',
+     lambda s: replace_once(s, "                $kopia->planned_servings = $pozycja['wpis']->planned_servings;\n", '')),
+    ('Kopia dnia gubi prywatny dopisek (#2836)',
+     'app/Domain/Planer/Actions/SkopiujDzienPlanu.php',
+     'PlanerKopiujDzienTest::test_kopia_dnia_zachowuje_dopisek_a_duplikatow_i_niedostepnych_nie_nadpisuje',
+     lambda s: replace_once(s, "                $kopia->note = $pozycja['wpis']->note;\n", '')),
+    ('Kopia dnia nie wykrywa zmiany porcji lub dopisku (#2836)',
+     'app/Domain/Planer/Actions/SkopiujDzienPlanu.php',
+     'PlanerKopiujDzienTest::test_zmiana_porcji_lub_dopisku_wymaga_nowego_podgladu',
+     lambda s: replace_once(s, '                $wpis->planned_servings, $wpis->note,\n', '')),
     ('Wycofana wskazówka podmienia tekst otwartej sprawy (#2884)',
      'app/Domain/Recipes/Gotowanie/PolaKorekty.php',
      'OchronaZgloszonejWskazowkiPrzyKorekcieTest::test_zgloszenie_wycofanie_i_pelna_korekta_nie_podmieniaja_uwagi_w_panelu',
