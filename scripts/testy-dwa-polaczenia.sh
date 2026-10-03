@@ -142,6 +142,11 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna spóźnionych zmian 2FA nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        # #2861: literalne cookie moderatora oraz okno potwierdzenie → sesje.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2861-uzupelnienie.py; then
+            printf "${CZERWONY}Kontrola ujemna uzupełnienia 2FA #2861 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
     fi
     printf "${ZIELONY}Przebiegów zielonych: %s z %s.${RESET}\n" "$PRZESZLO" "$PRZEBIEGI"
     exit 0
