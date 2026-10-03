@@ -57,6 +57,11 @@ export function kluczStanu(recipeSlug, krok, stepId = null, fingerprint = null) 
     return `kuking.minutnik.${recipeSlug}.${stepId && fingerprint ? `id_${stepId}_${fingerprint}` : krok}`;
 }
 
+/** Zakończenie tego samego kroku nie jest aktywnym minutnikiem ani nowym alarmem. */
+export function kluczPoAlarmie(klucz) {
+    return `${klucz}.po-alarmie`;
+}
+
 /**
  * Stan minutnika do zapisania PRZED nawigacją: termin jako czas ŚCIENNY
  * (epoka, `Date.now()`), bo `performance.now()` nie przetrwa przeładowania

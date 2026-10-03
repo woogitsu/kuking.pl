@@ -1988,6 +1988,17 @@ jobs:
           APP_BASE_PATH="$PWD" php artisan migrate --force --no-interaction
           node scripts/minutnik-edycja-http-2589.mjs
 
+      - name: Minutnik — powrót z alarmu wcześniejszego kroku (#2814)
+        if: matrix.czesc == 2
+        env:
+          DB_DATABASE: kuking_minutnik_2814
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$DB_PASSWORD"
+          createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -O "$DB_USERNAME" "$DB_DATABASE"
+          APP_BASE_PATH="$PWD" php artisan migrate --force --no-interaction
+          node scripts/minutnik-kontrola-ujemna-2814.mjs
+
       - name: Zrzuty portu marki
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

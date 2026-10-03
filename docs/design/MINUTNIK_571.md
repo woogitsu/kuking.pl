@@ -84,3 +84,21 @@ Do CI dodano też `scripts/minutnik-fokus.mjs`: rzeczywisty fragment Blade,
 skompilowany arkusz oraz Tab w obu motywach. Ten test osobno przeszedł
 fizyczny negatyw CSS, przywrócenie i ponowny wynik dodatni. Nie udaje zoomu:
 rzeczywisty zoom sprawdzono osobno na stronie Laravel, jak opisano wyżej.
+
+## Powrót z alarmu wcześniejszego kroku (#2814)
+
+Gdy minutnik skończy odliczanie na stronie innego kroku, odnośnik alarmu
+prowadzi z powrotem do właściwej czynności. Na tym ekranie przycisk
+„Ustaw dodatkowy czas” pozostaje dostępny bez ponownego uruchamiania pełnego
+czasu autora. Zakończenie jest zapisane tylko w `sessionStorage` tej karty,
+pod tą samą tożsamością kroku i odciskiem treści co termin. Nie jest aktywnym
+minutnikiem, nie powtarza alarmu po GET ani reloadzie i wygasa po 15 minutach.
+Nowy start, poprawne dodanie czasu, anulowanie aktywnego minutnika oraz
+wyjście z gotowania sprzątają ten znacznik. Zmiana kroku lub przepisu nie
+przyznaje prawa do wznowienia alarmu innej czynności.
+
+Dowód: `scripts/minutnik-powrot-http-2814.mjs` używa prawdziwego Laravel,
+dwóch kroków w izolowanej bazie PostgreSQL 18 i Chromium. Kontrola ujemna
+`scripts/minutnik-kontrola-ujemna-2814.mjs` fizycznie usuwa zapis zakończenia,
+wymaga porażki z markerem `MINUTNIK_2814_POWROT_ALARMU_DODAJE_CZAS`,
+przywraca bajty i czas pliku, po czym wymaga dodatniego przebiegu.
