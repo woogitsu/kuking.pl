@@ -371,6 +371,57 @@ final class WspolnyZeszytTest extends TestCase
         $this->actingAs($this->jurek)->get(route('collections.show', $this->zeszyt))->assertForbidden();
     }
 
+    /** @return array<string, array{0: string, 1: string}> */
+    public static function wariantyZakonczeniaWspoltworzenia(): array
+    {
+        return [
+            'właściciel odbiera dostęp do publicznego' => ['public', 'odebranie'],
+            'właściciel odbiera dostęp do prywatnego' => ['private', 'odebranie'],
+            'członek odchodzi z publicznego' => ['public', 'odejście'],
+            'członek odchodzi z prywatnego' => ['private', 'odejście'],
+        ];
+    }
+
+    #[DataProvider('wariantyZakonczeniaWspoltworzenia')]
+    public function test_koniec_wspoltworzenia_nie_obiecuje_utraty_publicznego_widoku(string $widocznosc, string $akcja): void
+    {
+        $this->zeszyt->forceFill(['visibility' => $widocznosc])->save();
+        $this->dolaczJurka();
+
+        if ($akcja === 'odejście') {
+            $potwierdzenie = $this->actingAs($this->jurek)->get(route('collections.show', $this->zeszyt))->assertOk();
+            $this->assertStringContainsString('Nie będziesz już w nim zapisywać', $potwierdzenie->getContent(), 'ZESZYT_2822_POTWIERDZENIE_BEZ_OBIETNICY');
+            $this->assertStringNotContainsString('Stracisz do niego dostęp', $potwierdzenie->getContent());
+            $odpowiedz = $this->actingAs($this->jurek)->delete(route('collections.leave', $this->zeszyt))
+                ->assertRedirect(route('collections.index'));
+        } else {
+            $odpowiedz = $this->actingAs($this->halina)->delete(route('collections.members.destroy', [
+                'collection' => $this->zeszyt,
+                'member' => $this->jurek->getKey(),
+            ]))->assertRedirect(route('collections.sharing', $this->zeszyt));
+        }
+
+        $odpowiedz->assertSessionHas('status');
+        $komunikat = (string) session('status');
+        $this->assertStringContainsString($akcja === 'odejście' ? 'Nie możesz już w nim zapisywać' : 'nie może już zapisywać', $komunikat, 'ZESZYT_2822_KONIEC_WSPOLTWORZENIA');
+        $this->assertStringContainsString('Jeśli zeszyt jest publiczny i nadal dostępny', $komunikat, 'ZESZYT_2822_WARUNKOWY_ODCZYT');
+        $this->assertStringNotContainsString('nie widzi już tego zeszytu', $komunikat);
+        $this->assertFalse($this->zeszyt->maCzlonka($this->jurek));
+
+        $widok = $this->actingAs($this->jurek)->get(route('collections.show', $this->zeszyt));
+        if ($widocznosc === 'public') {
+            $widok->assertOk();
+        } else {
+            $widok->assertForbidden();
+        }
+
+        $przepis = Recipe::factory()->create(['visibility' => 'public']);
+        $this->actingAs($this->jurek)->post(route('collections.save', $przepis->slug), [
+            'collection_id' => $this->zeszyt->getKey(),
+        ])->assertSessionHasErrors('collection_id');
+        $this->assertSame(0, DB::table('collection_items')->where('collection_id', $this->zeszyt->getKey())->count());
+    }
+
     /** @return array<string, array{0: bool}> */
     public static function kierunkiBlokady(): array
     {

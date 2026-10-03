@@ -36,6 +36,8 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 
 OCZEKUJ = {
     'Planer pomija błąd frazy w podsumowaniu (#2846)': r'PLANER_2846_BLAD_W_PODSUMOWANIU',
+    'Odebranie współtworzenia obiecuje brak widoku zeszytu (#2822)': r'ZESZYT_2822_KONIEC_WSPOLTWORZENIA',
+    'Potwierdzenie odejścia obiecuje brak widoku zeszytu (#2822)': r'ZESZYT_2822_POTWIERDZENIE_BEZ_OBIETNICY',
     'Wygasła prośba nadal blokuje poprawę uwagi (#2820)': r'KOREKTA_2820_WYGASLA_PROSBA_ODBLOCKOWUJE',
     'Kolejka gubi zdjęcie bieżącego kroku (#2828)': r'ZDJECIE_2828_BIEZACY_KROK',
     'Usunięta lista zakupów prowadzi do nieistniejącego formularza (#2806)': r'ZAKUPY_2806_BEZ_DRUGIEGO_PRZEKIEROWANIA',
