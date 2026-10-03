@@ -347,6 +347,39 @@ final class NazwaneListyZakupowTest extends TestCase
         $this->assertStringContainsString('Nazwa nowej listy', $html);
     }
 
+    public function test_limit_z_drugiej_karty_zostawia_nazwe_pole_i_zywy_odnosnik_bledu(): void
+    {
+        $ja = $this->user('kupujaca');
+        foreach (['Święta', 'Urodziny', 'Wakacje'] as $nazwa) {
+            $this->lista($ja, $nazwa);
+        }
+        // Karta A otwiera formularz, kiedy razem z „Na co dzień” są 4 listy.
+        $this->actingAs($ja)->get(route('shopping.index'))->assertOk()->assertSee('Nowa lista');
+        // Karta B zajmuje ostatnie miejsce zwykłym formularzem.
+        $this->actingAs($ja)->post(route('shopping.lists.store'), ['nazwa' => 'Remont'])
+            ->assertRedirect()->assertSessionHas('status');
+        $przed = ShoppingList::query()->where('user_id', $ja->getKey())->orderBy('name')->pluck('name')->all();
+
+        $html = (string) $this->actingAs($ja)->from(route('shopping.index'))->followingRedirects()
+            ->post(route('shopping.lists.store'), ['nazwa' => 'Przyjęcie u Kasi'])
+            ->assertOk()->getContent();
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="utf-8"?>'.$html);
+        $xpath = new \DOMXPath($dom);
+        $liczba = static function (string $zapytanie) use ($xpath): int {
+            $wynik = $xpath->query($zapytanie);
+
+            return $wynik === false ? 0 : $wynik->length;
+        };
+        $this->assertSame(1, $liczba('//section[@id="nowa-lista"]//form//input[@id="f-nazwa" and @name="nazwa" and @value="Przyjęcie u Kasi" and @aria-invalid="true"]'), 'LISTY_2821_ZYWE_POLE: wpisana nazwa albo pole zniknęły po limicie.');
+        $this->assertSame(1, $liczba('//div[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]//a[@href="#f-nazwa"]'), 'LISTY_2821_ZYWE_POLE: podsumowanie prowadzi do nieistniejącego pola.');
+        $this->assertSame(1, $liczba('//section[@id="nowa-lista"]//label[@for="f-nazwa"]'), 'LISTY_2821_ZYWE_POLE: pole utraciło widoczną etykietę.');
+        $this->assertSame(1, $liczba('//section[@id="nowa-lista"]//*[@id="f-nazwa-error"]'), 'LISTY_2821_ZYWE_POLE: brakuje błędu przy polu.');
+        $this->assertSame(1, $liczba('//section[@id="nowa-lista"]//form//button[@type="submit" and @disabled]'), 'LISTY_2821_ZYWE_POLE: przy pełnym limicie przycisk nie może obiecywać zapisu.');
+        $this->assertStringContainsString('Usuń listę, której już nie potrzebujesz', $html);
+        $this->assertSame($przed, ShoppingList::query()->where('user_id', $ja->getKey())->orderBy('name')->pluck('name')->all());
+    }
+
     public function test_zmiana_nazwy_nie_rusza_pozycji(): void
     {
         $ja = $this->user('kupujaca');

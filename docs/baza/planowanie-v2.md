@@ -242,6 +242,12 @@ odmowę, listy usuniętej w innej karcie — komunikat po polsku. „Cofnij usun
 (`shopping_list_undos.items[].list_id`) przywraca pozycję na jej listę, a gdy tej
 listy już nie ma — na listę domyślną.
 
+Jeśli druga karta zajmie ostatnie miejsce na nową listę, odmowa założenia
+listy zachowuje wpisaną nazwę, widoczne pole i błąd przy nim. Link w
+podsumowaniu prowadzi do tego pola; przy pełnym limicie przycisk założenia
+jest nieaktywny, a tekst mówi, że trzeba usunąć niepotrzebną listę.
+Normalny ekran pełnego konta nadal pokazuje sam komunikat o limicie.
+
 **Paczka RODO:** sekcja `listy_zakupow` (nazwa, data założenia — także puste listy)
 oraz pole `lista` przy każdej pozycji w `lista_zakupow`. **Wymazanie konta**
 kasuje listy bezwarunkowo (`EraseAccountData`). Polityka prywatności: wiersz „Lista
