@@ -552,5 +552,11 @@
         </x-empty-state>
     @endif
 
+    {{-- Dalsza porcja mogła opustoszeć po odczytaniu powiadomień w drugiej karcie.
+         Pokaż więcej rozpoznaje pustą listę jako koniec, a brak listy jako błąd odpowiedzi. --}}
+    @if($notifications->count() === 0 && $numerStrony > 1)
+        <ul id="lista-powiadomien" hidden></ul>
+    @endif
+
     <x-show-more :paginator="$notifications" czego="powiadomień" lista="lista-powiadomien" />
 </x-layout>
