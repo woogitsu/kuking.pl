@@ -465,6 +465,28 @@ Kontrolowane zdarzenia `saved` i listener SQL w tej klasie nadal nie są
 pomiarem dwóch procesów. Osobny odbiór zapisuje różne PID-y świeżego odczytu
 zatwierdzonych danych oraz istniejący rzeczywisty Dwa #2849.
 
+**Pusta lista transakcji nie izoluje słownika składników.** Pełny serialny
+przebieg W odtworzył osiem `MultipleRecordsFoundException` w
+`PelnaNazwaSkladnikaTest`. Linie 44 i 70 czytają `Ingredient::sole()`, nie
+`Recipe::sole()`: osobny pomiar tej klasy daje 8/114 PASS, a proces
+`OdzyskanieTekstuSzkicuAtomowaZamianaTest` → `PelnaNazwaSkladnikaTest` zostawiał
+pięć rekordów słownika i odtwarzał wszystkie osiem ERROR. FK usuwały wiersze
+przepisu, ale słownik jest wspólny i nie należy do autora. Przy pustym
+`connectionsToTransact()` cache `RefreshDatabaseState::$migrated` pozostaje
+ustawiony; kolejna klasa zaczyna transakcję na istniejącym schemacie.
+
+Fixture #2810 zapisuje zastane ID swoich nazw przed utworzeniem danych,
+a po własnych przepisach i kontach usuwa tylko nowe ID tych składników.
+Zastany składnik oraz jego wcześniejszy przepis pozostają, co mierzy osobny
+przypadek danych. Asercja `ODZYSKANIE_2810_CZYSTY_SLOWNIK` po sprzątaniu
+oblewa po fizycznym usunięciu samego DELETE własnych ID. Fizyczne poszerzenie
+DELETE na cały słownik oblewa `ODZYSKANIE_2810_ZASTANY_SLOWNIK`. Te kontrole
+mają nazwane ASSERTFAIL bez ERROR; historyczna reprodukcja ośmiu wyjątków
+jest diagnozą zanieczyszczenia, nie właściwą kontrolą ujemną reguły domenowej.
+Zachowane są rzeczywiste commity #2810, poziom transakcji 0 i wszystkie
+114 asercji następnej klasy. Nie zastępuj ich zewnętrzną transakcją,
+`first()`, globalnym `TRUNCATE` ani filtrem ukrywającym pozostawione rekordy.
+
 ---
 
 ## 6b. …a od 11.09.2026 jest na to grupa `dwa-polaczenia`
