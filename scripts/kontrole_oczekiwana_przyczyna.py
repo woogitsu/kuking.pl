@@ -36,6 +36,9 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 
 OCZEKUJ = {
     'Częściowe dane prób znów potwierdzają zgodność obu pól (#2817)': r'PROBY_2817_OSOBNE_POLA_DOMENA|PROBY_2817_OSOBNE_POLA_HTTP_PAGINACJA',
+    'Kopia dnia gubi wybrane porcje (#2836)': r'PLANER_2836_KOPIA_PORCJI_DANE|PLANER_2836_KOPIA_PORCJI_LINK',
+    'Kopia dnia gubi prywatny dopisek (#2836)': r'PLANER_2836_KOPIA_DOPISKU',
+    'Kopia dnia nie wykrywa zmiany porcji lub dopisku (#2836)': r'PLANER_2836_ZMIANA_WYMAGA_PODGLADU',
     'Wycofana wskazówka podmienia tekst otwartej sprawy (#2884)': r'UWAGA_2884_ZGLOSZONY_TEKST',
     'Odrzucone zdjęcie potwierdza nieistniejące przypięcie (#2883)': r'DOLACZENIE_2883_ODMOWA_ZAMIAST_PONOWIENIA|DOLACZENIE_2883_DOMENA_SWIEZY_STAN',
     'Odmowa dołączenia zachowuje niedostępny wybór (#2883)': r'DOLACZENIE_2883_BEZ_FALSZYWEGO_ZACHOWANIA',
