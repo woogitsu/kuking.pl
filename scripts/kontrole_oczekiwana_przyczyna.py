@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Limit przepisu gubi wybraną listę zakupów (#2818)': r'LISTY_2818_WRACA_NA_WYBRANA',
     'Kopia odzyskania gubi ręczną kolejność (#2816)': r'ODZYSKANIE_2816_RECZNA_KOLEJNOSC',
     'Odtworzenie zeszytu gubi ręczną kolejność (#2816)': r'ODZYSKANIE_2816_RECZNA_KOLEJNOSC',
     'Ponowienie zaproszenia ujawnia nazwę po odebraniu dostępu (#2825)': r'ZESZYT_2825_PONOWIENIE_BEZ_DOSTEPU',

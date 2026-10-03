@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2818): gdy dodanie składników przepisu przekroczy limit zakupów, odmowa wraca na nadal dostępną wybraną listę. Można tam zobaczyć odhaczone pozycje i skorzystać z „Wyczyść odhaczone”; nic nie jest usuwane automatycznie.
+
 - Poprawione (#2816): odzyskanie własnego usuniętego zeszytu zachowuje ręczną kolejność przepisów. Starsza kopia bez informacji o kolejności wraca bez zgadywania układu; usunięty przepis nadal nie wraca.
 
 - Poprawione (#2835): zaproszenie do wspólnego zeszytu rozpoczęte przed zawieszeniem właściciela nie zapisuje się po zatwierdzeniu kary. Wcześniejsze zaproszenia pozostają, a zawieszony właściciel nadal może sprawdzić dostęp i go odebrać.

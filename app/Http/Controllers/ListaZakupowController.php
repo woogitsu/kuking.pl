@@ -365,7 +365,17 @@ class ListaZakupowController extends Controller
             // z limitu ginąłby po przekierowaniu „wstecz”, a przycisk
             // wyglądałby na martwy. Odmowa idzie na listę zakupów, gdzie
             // jest „Wyczyść odhaczone”, jako widoczny komunikat.
-            return redirect()->route('shopping.index')->with(Komunikat::blad(
+            // Lista mogła zniknąć między wyborem a odmową domeny.
+            $cel = null;
+            if (! isset($e->errors()['lista']) && isset($wybrana)) {
+                try {
+                    $cel = $lista->znajdzListe($user, (string) $wybrana->getKey());
+                } catch (ValidationException) {
+                    // Lista usunięta w innej karcie: bezpieczny ekran domyślny.
+                }
+            }
+
+            return redirect()->route('shopping.index', $cel !== null ? ['lista' => $cel->getKey()] : [])->with(Komunikat::blad(
                 (string) collect($e->errors())->flatten()->first(),
             ));
         }
