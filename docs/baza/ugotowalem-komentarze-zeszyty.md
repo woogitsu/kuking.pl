@@ -165,6 +165,13 @@ istniejąca kolumna lub ograniczenie nie przerywa kolejnej próby.
   **Rollback:** `down()` odmawia, gdy choć jedno wykonanie ma ślad korekty
   (D-088 — po cofnięciu poprawiony tekst wyglądałby jak pierwotny); inaczej
   zdejmuje kolumnę. Test: `tests/Feature/KorektaWykonaniaTest.php`.
+  Poprawa uwagi jest zablokowana przez przyjętą wskazówkę albo prośbę, która
+  jeszcze nie wygasła (#2820). Prośba w stanie `proposed` przestaje blokować
+  dokładnie po czasie `prosba_wygasa_po_dniach`, bez zmiany jej stanu w bazie;
+  otwarte zgłoszenie wykonania nadal blokuje tekst niezależnie od tego czasu.
+  Zarówno formularz, jak i zapis korzystają z `PolaKorekty::zablokowane`.
+  Cofnięcie tej poprawki przywracałoby błędną blokadę wygasłych próśb; nie ma
+  migracji ani danych do cofnięcia.
 - **`recipe_version_id uuid NULL` → `recipe_versions (id)` `ON DELETE SET NULL`**
   (#2378, migracja `2026_10_01_100100_add_recipe_version_id_to_cooked_events`) —
   wersja przepisu otwarta przy formularzu „Ugotowałem”. **Wskaźnik, nie kopia:**

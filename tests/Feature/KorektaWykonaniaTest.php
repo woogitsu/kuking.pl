@@ -374,6 +374,68 @@ class KorektaWykonaniaTest extends TestCase
         $this->assertSame('Wyszło z literówką w opisie', $this->wykonanie->fresh()->note);
     }
 
+    public function test_prosba_blokuje_przed_terminem_a_w_chwili_wygasniecia_odblokowuje_formularz_i_zapis(): void
+    {
+        $wskazowka = RecipeHint::factory()->dlaWykonania($this->wykonanie, RecipeHint::STATUS_PROPOSED)->create();
+        $liczbaPowiadomien = Notification::query()->count();
+        $liczbaWykonan = CookedEvent::query()->count();
+        $granica = $wskazowka->created_at->addDays((int) config('kuking.wskazowki.prosba_wygasa_po_dniach'));
+
+        Carbon::setTestNow($granica->copy()->subSecond());
+        $przed = $this->actingAs($this->kucharz)->get(route('cooked.edit', $this->wykonanie))->assertOk()->getContent();
+        $this->assertIsString($przed);
+        $this->assertStringNotContainsString('name="note"', $przed);
+        $this->popraw(['note' => 'Jeszcze za wcześnie'])->assertSessionHasErrors('wersja');
+        $this->assertSame('Wyszło z literówką w opisie', $this->wykonanie->fresh()->note);
+
+        Carbon::setTestNow($granica);
+        $po = $this->actingAs($this->kucharz)->get(route('cooked.edit', $this->wykonanie))->assertOk()->getContent();
+        $this->assertIsString($po);
+        $this->assertStringContainsString('name="note"', $po, 'KOREKTA_2820_WYGASLA_PROSBA_ODBLOCKOWUJE');
+        $this->assertStringNotContainsString('najpierw odpowiedz „Nie”', $po);
+        $this->popraw(['note' => 'Poprawiona literówka'])->assertSessionHasNoErrors();
+        $this->assertSame('Poprawiona literówka', $this->wykonanie->fresh()->note, 'KOREKTA_2820_WYGASLA_PROSBA_ODBLOCKOWUJE');
+
+        Carbon::setTestNow($granica->copy()->addSecond());
+        $this->popraw(['note' => 'Poprawiona po terminie'])->assertSessionHasNoErrors();
+        $this->assertSame('Poprawiona po terminie', $this->wykonanie->fresh()->note);
+        $this->assertSame(RecipeHint::STATUS_PROPOSED, $wskazowka->fresh()->status);
+        $this->assertSame($liczbaWykonan, CookedEvent::query()->count());
+        $this->assertSame($liczbaPowiadomien, Notification::query()->count());
+    }
+
+    public function test_przyjeta_wskazowka_nadal_blokuje_po_oknie_wygasania_prosb(): void
+    {
+        $wskazowka = RecipeHint::factory()->dlaWykonania($this->wykonanie, RecipeHint::STATUS_ACCEPTED)->create();
+        Carbon::setTestNow($wskazowka->created_at->addDays((int) config('kuking.wskazowki.prosba_wygasa_po_dniach') + 1));
+
+        $html = $this->actingAs($this->kucharz)->get(route('cooked.edit', $this->wykonanie))->assertOk()->getContent();
+        $this->assertIsString($html);
+        $this->assertStringNotContainsString('name="note"', $html);
+        $this->popraw(['note' => 'Nie wolno podmienić'])->assertSessionHasErrors('wersja');
+        $this->assertSame('Wyszło z literówką w opisie', $this->wykonanie->fresh()->note);
+    }
+
+    public function test_wygasla_prosba_nie_odblokowuje_tekstu_przy_otwartym_zgloszeniu(): void
+    {
+        $wskazowka = RecipeHint::factory()->dlaWykonania($this->wykonanie, RecipeHint::STATUS_PROPOSED)->create();
+        Report::create([
+            'reporter_id' => $this->autor->getKey(),
+            'target_type' => 'cooked_event',
+            'target_id' => $this->wykonanie->getKey(),
+            'reason' => 'other',
+            'status' => Report::STATUS_OPEN,
+        ]);
+        Carbon::setTestNow($wskazowka->created_at->addDays((int) config('kuking.wskazowki.prosba_wygasa_po_dniach')));
+
+        $html = $this->actingAs($this->kucharz)->get(route('cooked.edit', $this->wykonanie))->assertOk()->getContent();
+        $this->assertIsString($html);
+        $this->assertStringNotContainsString('name="note"', $html);
+        $this->assertStringContainsString('moderacja jeszcze nie skończyła sprawy', $html);
+        $this->popraw(['note' => 'Nie wolno podmienić'])->assertSessionHasErrors('wersja');
+        $this->assertSame('Wyszło z literówką w opisie', $this->wykonanie->fresh()->note);
+    }
+
     public function test_po_odmowie_albo_wycofaniu_wskazowki_uwage_znow_mozna_poprawic(): void
     {
         RecipeHint::factory()->dlaWykonania($this->wykonanie, RecipeHint::STATUS_WITHDRAWN)->create();
