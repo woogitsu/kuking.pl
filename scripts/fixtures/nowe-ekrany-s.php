@@ -3,9 +3,10 @@
 declare(strict_types=1);
 
 /*
- * Dane do pomiaru dostępności ekranów paczki S (spiżarnia z terminami,
+ * Dane do pomiaru dostępności ekranów paczek S i N (spiżarnia z terminami,
  * „Wydrukuj zeszyt”, karta z kodem QR, wspomnienia z wykonań, historia wersji,
- * strony sobotniego listu) — WYŁĄCZNIE lokalna baza pomiarowa.
+ * strony sobotniego listu, własne rozmowy i zapamiętane gotowanie) — WYŁĄCZNIE
+ * lokalna baza pomiarowa.
  *
  *   php scripts/fixtures/nowe-ekrany-s.php przygotuj             → JSON ze ścieżkami
  *   php scripts/fixtures/nowe-ekrany-s.php link <wypisz|wygasly> <adres serwera>
@@ -21,9 +22,11 @@ declare(strict_types=1);
  */
 
 use App\Domain\Pantry\OdnosnikWypisaniaZPrzypomnienia;
+use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Gotowanie\Wspolne\SesjaWspolnegoGotowania;
 use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
 use App\Models\Collection;
+use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Profile;
 use App\Models\Recipe;
@@ -80,6 +83,19 @@ $rosol = Recipe::where('slug', 'rosol-babci-zofii')->first()
     ?? throw new RuntimeException('Brak przepisu z DemoSeedera.');
 
 DB::transaction(function () use ($ania, $rosol): void {
+    // Ekrany paczki N: rzeczywista własna wypowiedź i włączony na koncie
+    // postęp. Oba adresy mają być mierzone z treścią, a nie z pustym stanem.
+    Comment::firstOrCreate([
+        'author_id' => $ania->getKey(),
+        'recipe_id' => $rosol->getKey(),
+        'body' => 'Pomiar N: pytanie o rosół w moich rozmowach',
+    ], ['status' => Comment::STATUS_PUBLISHED]);
+    $kroki = $rosol->steps()->orderBy('position')->pluck('id')->map(fn ($id): string => (string) $id)->all();
+    if ($kroki === []) {
+        throw new RuntimeException('Przepis pomiarowy nie ma kroków do zapamiętania.');
+    }
+    app(PostepGotowania::class)->wlacz($ania, $rosol, $kroki, []);
+
     // Spiżarnia: produkt po terminie, pilny, mrożony, z odległym terminem i bez terminu.
     $dzis = Carbon::now('Europe/Warsaw')->startOfDay();
     $produkty = [

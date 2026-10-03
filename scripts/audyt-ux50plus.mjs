@@ -134,6 +134,11 @@ const EKRANY = [
   { nazwa: 'historia wersji — co się zmieniło', dynamiczny: 'zmiany', znak: '#hz-skladniki' },
   { nazwa: 'wspólne gotowanie — ekran sesji', dynamiczny: 'wspolneGotowanie', zalogowany: true, znak: 'button:text("Utwórz nowy link")' },
   { nazwa: 'wspólne gotowanie — link zaproszenia', dynamiczny: 'wspolneGotowanieLink', zalogowany: true, znak: 'button:text("Dołączam")' },
+  // Paczka N: sprawdzamy listy z prawdziwą własną pozycją, nie samą ramę.
+  { nazwa: 'moje rozmowy', adres: '/zeszyt/moje-rozmowy', zalogowany: true,
+    znak: 'article[data-moja-rozmowa]:has-text("Pomiar N: pytanie o rosół w moich rozmowach")' },
+  { nazwa: 'gotowanie zapamiętane na koncie', adres: '/zeszyt/gotowanie-zapamietane', zalogowany: true,
+    znak: '[data-rola="gotowanie-zapamietane"] li:has-text("Rosół babci Zofii")' },
   ]),
 ];
 
