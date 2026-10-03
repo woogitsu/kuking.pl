@@ -9,12 +9,15 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Logger;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Mockery;
 use Mockery\MockInterface;
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Level as MonologLevel;
 use Monolog\Logger as MonologLogger;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\LoggerInterface;
 use Tests\TestCase;
@@ -138,23 +141,72 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
             ->once();
     }
 
-    #[Test]
-    public function stan_bez_pomiaru_nie_udaje_wpisu_z_liczbami(): void
+    /** @return array<string, array{string, bool}> */
+    public static function niedostepnePomiary(): array
     {
-        // Gdy serwer nie odpowiada, komenda kończy się wcześniej. Wpis
-        // z zerami byłby gorszy niż jego brak: w szeregu czasowym wyglądałby
-        // jak prawdziwy pomiar mówiący „zero połączeń".
-        $polaczenie = self::atrapa(Connection::class);
-        $polaczenie->shouldReceive('getDriverName')->andReturn('pgsql');
-        $polaczenie->shouldReceive('select')->andThrow(new \RuntimeException('padło'));
+        return [
+            'zapytanie bez alarmu' => ['zapytanie', true],
+            'zapytanie z alarmem' => ['zapytanie', false],
+            'polaczenie bez alarmu' => ['polaczenie', true],
+            'polaczenie z alarmem' => ['polaczenie', false],
+        ];
+    }
 
-        DB::shouldReceive('connection')->andReturn($polaczenie);
+    #[Test]
+    #[DataProvider('niedostepnePomiary')]
+    public function niedostepny_pomiar_zostawia_rekord_z_null_zamiast_zer(string $awaria, bool $bezAlarmu): void
+    {
+        $wyjatek = new \RuntimeException('598_TAJNY_DSN 192.0.2.198 db_598 username_598 password_598');
 
-        $dziennik = $this->szpiegKanaluPomiarow();
+        if ($awaria === 'polaczenie') {
+            DB::shouldReceive('connection')->andThrow($wyjatek);
+        } else {
+            $polaczenie = self::atrapa(Connection::class);
+            $polaczenie->shouldReceive('getDriverName')->andReturn('pgsql');
+            $polaczenie->shouldReceive('select')->andThrow($wyjatek);
+            DB::shouldReceive('connection')->andReturn($polaczenie);
+        }
 
-        $this->artisan('kuking:budzet-polaczen', ['--bez-alarmu' => true])->assertExitCode(1);
+        Http::preventStrayRequests();
+        Http::fake(['https://alarm598.example.test/hook' => Http::response('', 204)]);
+        config()->set('logging.channels.blad_webhook.url', 'https://alarm598.example.test/hook');
+        config()->set('logging.channels.blad_email.to', null);
+        config()->set('logging.channels.stderr.level', 'warning');
 
-        $dziennik->shouldNotHaveReceived('info');
+        $plik = tempnam(sys_get_temp_dir(), 'kuking-pomiar-598-');
+        $this->assertIsString($plik);
+        // Prawdziwy kanał i jego filtr poziomu; własny strumień i format JSON
+        // pozwalają odczytać zapisane wartości. Szpieg info() tego nie dowodzi.
+        config()->set('logging.channels.pomiary.handler_with.stream', $plik);
+        config()->set('logging.channels.pomiary.formatter', JsonFormatter::class);
+        Log::forgetChannel('pomiary');
+
+        try {
+            $this->artisan('kuking:budzet-polaczen', ['--bez-alarmu' => $bezAlarmu])->assertExitCode(1);
+            Log::forgetChannel('pomiary');
+
+            $wiersze = array_values(array_filter(explode("\n", trim((string) file_get_contents($plik)))));
+            $this->assertCount(1, $wiersze, 'POMIAR_598_NIEDOSTEPNY_REKORD: brak pojedynczego trwałego pomiaru.');
+            $rekord = json_decode($wiersze[0], true, 512, JSON_THROW_ON_ERROR);
+            $this->assertSame('kuking:budzet-polaczen', $rekord['message']);
+            $this->assertSame('INFO', $rekord['level_name']);
+            $this->assertSame([
+                'stan' => 'niedostepny',
+                'zajete_serwer' => null,
+                'zajete_baza' => null,
+                'aktywne' => null,
+                'bezczynne' => null,
+                'w_transakcji' => null,
+                'dostepne' => null,
+                'max_connections' => null,
+                'budzet_szczytowy' => (int) config('kuking.polaczenia.budzet_szczytowy'),
+                'prog_ostrzegawczy' => (int) config('kuking.polaczenia.prog_ostrzegawczy'),
+            ], $rekord['context'], 'POMIAR_598_NIEDOSTEPNY_NULL: brak pomiaru nie jest zerem i nie wynosi danych połączenia.');
+            Http::assertSentCount($bezAlarmu ? 0 : 1);
+        } finally {
+            Log::forgetChannel('pomiary');
+            unlink($plik);
+        }
     }
 
     // -----------------------------------------------------------------

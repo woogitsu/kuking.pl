@@ -1355,6 +1355,12 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Niedostępny pomiar znika z dziennika (#598)", "app/Console/Commands/BudzetPolaczen.php",
+     "PomiarCzujekTrafiaDoDziennikaTest",
+     lambda s: replace_once(s, "if ($wynik['stan'] === StanPolaczenBazy::NIEDOSTEPNY) {\n            $this->zapiszWDzienniku($wynik);", "if ($wynik['stan'] === StanPolaczenBazy::NIEDOSTEPNY) {")),
+    ("Niedostępny pomiar udaje zmierzone zero (#598)", "app/Domain/Polaczenia/StanPolaczenBazy.php",
+     "PomiarCzujekTrafiaDoDziennikaTest",
+     lambda s: replace_once(s, "'max_connections' => null,", "'max_connections' => 0,")),
     ("Listy zakupów mieszają pozycje (#2528)", "app/Domain/Zakupy/ListaZakupow.php",
      "test_dotychczasowe_pozycje_sa_na_liscie_domyslnej_a_nazwana_ich_nie_miesza",
      lambda s: replace_once(s, ": $zapytanie->where('list_id', $lista->getKey());", ": $zapytanie;").replace("? $zapytanie->whereNull('list_id')", "? $zapytanie")),
