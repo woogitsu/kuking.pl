@@ -1,3 +1,9 @@
+# Aktualizacja koordynatora — 3.10.2026, 11:39 UTC
+
+S #2886 odebrane na main i produkcji `09f8af1c738789c4498d35158f940ac237c30eee`: pełne CI24/24, CodeQL, trzy Railway SUCCESS i live wydanie/health200. #2851/#2854/#2862 zamknięte z dowodem; #2861 czeka na dwa dodatkowe kryteria Dwa w Y. N–U #2865 zdalny `c31238b012518345fa807daee71e82e8f8525e27` przeszedł pełny normalny hook i czeka na świeże CI37119391938. #2810 NIE jest jego naprawionym zakresem; rzeczywistą awarię punktu odtworzono i naprawia ją agent w Y. V po zwykłym merge N–U i S zachowuje dokładnie wcześniejszy kod app/views/Dwa i rozpoczyna własną pełną bramkę przed PR. W i X idą potem zgodnie z odbiorami; zamrożonych headów w trwającym hooku nie zmieniamy. Właściciel zatwierdził dokładny izolowany test opóźnionego ReportContent; wcześniejszy niepotwierdzony wyścig nie jest jeszcze naprawą ani zamknięciem issue.
+
+Poniżej zachowany wcześniejszy handover i pomiary; dawne liczby/SHA są migawką.
+
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
 ## Aktualny odbiór Codex — 3.10.2026, 09:50 UTC
