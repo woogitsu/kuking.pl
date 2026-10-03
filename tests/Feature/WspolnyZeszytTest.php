@@ -134,6 +134,56 @@ final class WspolnyZeszytTest extends TestCase
             ->assertOk()->assertSee('Udostępnione Tobie')->assertSee('Obiady rodzinne');
     }
 
+    /** @return array<string, array{0: string}> */
+    public static function utrataDostepuPrzedPonowieniem(): array
+    {
+        return [
+            'odebranie członkostwa' => ['odebrane'],
+            'samodzielne odejście' => ['odejscie'],
+            'blokada po przyjęciu' => ['blokada'],
+            'zamknięcie konta właściciela' => ['ban'],
+            'publiczny zeszyt po odebraniu członkostwa' => ['publiczny'],
+        ];
+    }
+
+    #[DataProvider('utrataDostepuPrzedPonowieniem')]
+    public function test_ponowienie_przyjetego_zaproszenia_bez_aktualnego_dostepu_nie_zdradza_nowej_nazwy(string $przypadek): void
+    {
+        $zaproszenie = $this->zaproszenie();
+        $this->actingAs($this->jurek)->post(route('collections.invitations.accept', $zaproszenie))
+            ->assertRedirect(route('collections.show', $this->zeszyt));
+        $powiadomien = Notification::query()->where('type', Notification::TYPE_COLLECTION_JOINED)->count();
+
+        if ($przypadek === 'odejscie') {
+            $this->actingAs($this->jurek)->delete(route('collections.leave', $this->zeszyt))
+                ->assertRedirect(route('collections.index'));
+        } elseif ($przypadek === 'blokada') {
+            app(BlockUser::class)->handle($this->jurek, $this->halina);
+        } else {
+            $this->actingAs($this->halina)->delete(route('collections.members.destroy', [
+                'collection' => $this->zeszyt, 'member' => $this->jurek->getKey(),
+            ]))->assertRedirect(route('collections.sharing', $this->zeszyt));
+        }
+        if ($przypadek === 'ban') {
+            $this->halina->ban();
+        }
+        if ($przypadek === 'publiczny') {
+            $this->zeszyt->forceFill(['visibility' => 'public'])->save();
+        }
+        $tajna = 'Nowa prywatna nazwa '.Str::lower(Str::random(8));
+        $this->zeszyt->forceFill(['name' => $tajna])->save();
+
+        $odpowiedz = $this->actingAs($this->jurek)->post(route('collections.invitations.accept', $zaproszenie));
+        $this->assertSame(route('collections.index'), $odpowiedz->headers->get('Location'), 'ZESZYT_2825_PONOWIENIE_BEZ_DOSTEPU');
+        $odpowiedz->assertSessionHasErrors(['zaproszenie' => OdpowiedzNaZaproszenie::NIEAKTUALNE]);
+        $odpowiedz->assertDontSee($tajna, false);
+        $this->actingAs($this->jurek)->get(route('collections.index'))
+            ->assertOk()->assertDontSee($tajna, false);
+
+        $this->assertFalse($this->zeszyt->maCzlonka($this->jurek), 'ZESZYT_2825_BEZ_PRZYWRACANIA_CZLONKOSTWA');
+        $this->assertSame($powiadomien, Notification::query()->where('type', Notification::TYPE_COLLECTION_JOINED)->count(), 'ZESZYT_2825_BEZ_NOWEGO_POWIADOMIENIA');
+    }
+
     public function test_odrzucenie_nie_daje_dostepu(): void
     {
         $zaproszenie = $this->zaproszenie();
