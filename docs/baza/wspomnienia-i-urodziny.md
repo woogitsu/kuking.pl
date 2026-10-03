@@ -212,8 +212,13 @@ przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
   decyzji albo daty, która zdążyła się zatwierdzić, odcina nowe
   powiadomienie. Jeśli powiadomienie zapisano pierwsze, pozostaje, a
   późniejsze wyłączenie nie kasuje historii. Najpierw blokada odbiorcy
-  pilnuje dobowego limitu, potem blokada wiersza solenizanta; zapis
-  ustawień bierze wyłącznie blokadę własnego konta. Dowód obu kolejności:
+  pilnuje dobowego limitu, potem `FOR SHARE` na **obu kontach**, rosnąco po
+  UUID jak w `ZamekPary`; odbiorca przekazany do `NotifyUser` też jest świeży.
+  Sam SHARE solenizanta zakleszczał się z `BlockUser`, gdy odbiorca miał
+  mniejszy UUID: FK nowego powiadomienia potrzebował KEY SHARE jego konta,
+  które blokada między osobami trzymała już pod FOR UPDATE. Zapis ustawień
+  bierze wyłącznie blokadę własnego konta. Dowód obu kolejności decyzji oraz
+  obu kolejności UUID przy prawdziwym `BlockUser`:
   `PrzypomnieniaUrodzinPoZmianieDecyzjiTest` (dwa połączenia PG18).
   Cofnięcie tej poprawki przywraca okno ujawnienia prywatnych urodzin;
   bezpieczny rollback to powrót do poprzedniego kodu tylko po ocenie
