@@ -43,8 +43,9 @@ nowe funkcje i koszt zachowują osobne decyzje.
   #2814 powrót po alarmie, #2837 sprzeciw wobec anonimowych liczników,
   #2838 brak zakleszczenia odpowiedzi, #2820 wygasła wskazówka,
   #2828 zdjęcie aktywnego kroku. Własna `codex/paczka-o-20261003`,
-  złożenie `19890f6b882298cb343037a61c300e6a5c6c0a83` zawiera nowy
-  przyrząd M; podział dokumentacji N trzeba dołączyć przed bramką.
+  złożenie `d188a5345fbe6ee2cbd089cc3c9e84672cbf1d33` zawiera nowy
+  przyrząd M i oba podziały dokumentacji N. Odbiór i granice pomiarów:
+  [ODBIOR-O-CODEX-20261003.md](ODBIOR-O-CODEX-20261003.md).
   Pomiary wcześniejszych złożeń: 43 / 1952 i 73 / 2122 PASS,
   pełny PHPStan 0. Poszczególne poprawki mają fizyczne kontrole ujemne;
   zdjęcie obejrzane w rzeczywistym Chrome 320 px / tekst 200%.
