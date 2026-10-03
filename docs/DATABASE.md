@@ -38,7 +38,8 @@ Przy zmianie schematu dopisz opis do pliku obszaru (z planem wycofania, AGENTS.m
 | [`przepisy-wersje-i-udostepnienia`](baza/przepisy-wersje-i-udostepnienia.md) | Wersje, udostępnienia i odzyskiwanie szkicu | recipe_versions, recipe_shares, draft_restore_points |
 | [`skladniki-kroki-i-miary`](baza/skladniki-kroki-i-miary.md) | Składniki, kroki, miary | ingredients, units, recipe_ingredients, recipe_steps, skladniki_odzywcze, miary_domowe, aliasy_skladnikow, users.moj_stol_enabled |
 | [`wspomnienia-i-urodziny`](baza/wspomnienia-i-urodziny.md) | Wspomnienia „Rok temu gotowałaś…" i urodziny bez roku | wspomnienia (issue #34), urodziny bez roku (users) |
-| [`ugotowalem-komentarze-zeszyty`](baza/ugotowalem-komentarze-zeszyty.md) | Ugotowałem, komentarze, zeszyty | collection_items, cooked_events (także photo_submission_keys), cooked_event_media, comment_thanks, comments, collections, deleted_collections, users.ulubiony_zeszyt_id, collection_members, collection_invitations, first_post_events |
+| [`ugotowalem-komentarze-zeszyty`](baza/ugotowalem-komentarze-zeszyty.md) | Ugotowałem, komentarze i zapisy | collection_items, cooked_events (także photo_submission_keys), cooked_event_media, comment_thanks, comments |
+| [`zeszyty-udostepnienia-i-odzyskiwanie`](baza/zeszyty-udostepnienia-i-odzyskiwanie.md) | Zeszyty, udostępnienia i odzyskiwanie | collections, collection_items, deleted_collections, users.ulubiony_zeszyt_id, collection_members, collection_invitations, first_post_events |
 | [`powiadomienia-i-poczta`](baza/powiadomienia-i-poczta.md) | Powiadomienia, przegląd tygodnia, push, poczta | notifications, weekly_digest_sends, push_subscriptions, ustawienia_powiadomien_zewnetrznych, mail_failures, przypomnienia_dobowe |
 | [`kontakt`](baza/kontakt.md) | Formularz kontaktowy | contact_messages, contact_message_replies |
 | [`zgloszenia`](baza/zgloszenia.md) | Zgłoszenia i pilne alarmy | reports, human_urgent_alarm_attempts |
