@@ -1355,6 +1355,11 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Limit przepisu gubi wybraną listę zakupów (#2818)", "app/Http/Controllers/ListaZakupowController.php",
+     "test_odmowa_limitu_przepisu_wraca_na_wybrana_liste_z_droga_wyczyszczenia",
+     lambda s: replace_once(s,
+         "return redirect()->route('shopping.index', $cel !== null ? ['lista' => $cel->getKey()] : [])->with(Komunikat::blad(",
+         "return redirect()->route('shopping.index')->with(Komunikat::blad(")),
     ("Kopia odzyskania gubi ręczną kolejność (#2816)", "app/Domain/Collections/Odzyskiwanie/UsunZeszyt.php",
      "test_reczne_ulozenie_przezywa_usuniecie_i_odzyskanie_calego_zeszytu",
      lambda s: replace_once(s, "'position' => $p->position === null ? null : (int) $p->position,", "'position' => null,")),

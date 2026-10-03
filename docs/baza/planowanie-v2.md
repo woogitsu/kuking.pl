@@ -248,6 +248,12 @@ podsumowaniu prowadzi do tego pola; przy pełnym limicie przycisk założenia
 jest nieaktywny, a tekst mówi, że trzeba usunąć niepotrzebną listę.
 Normalny ekran pełnego konta nadal pokazuje sam komunikat o limicie.
 
+Po odmowie dodania składników przepisu przez globalny limit 300 pozycji ekran
+wraca na nadal istniejącą i własną listę, którą osoba wybrała. Widać tam
+odhaczone pozycje i „Wyczyść odhaczone”. Gdy lista zniknęła w innej karcie,
+powrót prowadzi bezpiecznie na listę domyślną z komunikatem. Żadna pozycja
+nie jest usuwana automatycznie; limit i wybór listy nie zmieniają się (#2818).
+
 **Paczka RODO:** sekcja `listy_zakupow` (nazwa, data założenia — także puste listy)
 oraz pole `lista` przy każdej pozycji w `lista_zakupow`. **Wymazanie konta**
 kasuje listy bezwarunkowo (`EraseAccountData`). Polityka prywatności: wiersz „Lista
