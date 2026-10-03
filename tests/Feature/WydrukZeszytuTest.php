@@ -96,6 +96,56 @@ class WydrukZeszytuTest extends TestCase
         return $wersja;
     }
 
+    public function test_wydruk_calego_zeszytu_pokazuje_sztuki_osobno_od_porcji_i_czasu(): void
+    {
+        $this->przepis($this->halina, 'Same sztuki', null, [
+            'yield_count' => 24, 'yield_unit' => 'pierogi',
+            'servings' => null, 'prep_minutes' => null, 'cook_minutes' => null,
+        ]);
+        $this->przepis($this->halina, 'Sztuki i porcje', null, [
+            'yield_count' => 12, 'yield_unit' => 'bułki',
+            'servings' => 4, 'prep_minutes' => 10, 'cook_minutes' => 20,
+        ]);
+        $this->przepis($this->halina, 'Bez sztuk', null, [
+            'yield_count' => null, 'yield_unit' => null,
+            'servings' => 2, 'prep_minutes' => null, 'cook_minutes' => null,
+        ]);
+
+        $html = (string) $this->druk($this->halina)->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/<p class="meta m-0">\s*24 szt\. \(pierogi\)\s*<\/p>/u', $html, 'SZTUKI_2876_WYDRUK: brak sztuk bez porcji i czasu albo pusty separator.');
+        $this->assertMatchesRegularExpression('/<p class="meta m-0">\s*4 porcje\s*·\s*12 szt\. \(bułki\)\s*·\s*Czas: 30 min\s*<\/p>/u', $html, 'SZTUKI_2876_WYDRUK: porcje, sztuki i czas muszą pozostać osobnymi danymi.');
+        $this->assertMatchesRegularExpression('/<p class="meta m-0">\s*2 porcje\s*<\/p>/u', $html, 'Przepis bez sztuk zachowuje dotychczasową metryczkę.');
+    }
+
+    public function test_wybrany_wydruk_pokazuje_sztuki_i_zachowuje_opcje_oraz_escapowanie(): void
+    {
+        $wybrany = $this->przepis($this->halina, 'Pierogi', null, [
+            'yield_count' => 24, 'yield_unit' => '<script>alert(1)</script>',
+            'servings' => null, 'prep_minutes' => null, 'cook_minutes' => null,
+            'source_note' => '<b>Rodzinna historia</b>',
+        ], 'Prywatna notatka');
+        $wybrany->forceFill(['hero_media_id' => Media::factory()->create(['owner_id' => $this->halina->getKey()])->getKey()])->save();
+        $this->przepis($this->halina, 'Niewybrany', null, ['yield_count' => 99]);
+
+        $this->druk($this->halina, null, [
+            'tryb' => 'wybrane', 'przepisy' => [(string) $wybrany->getKey()],
+        ])->assertOk()->assertSee('class="zeszyt-zdjecie"', false)->assertDontSee('Prywatna notatka');
+
+        $html = (string) $this->druk($this->halina, null, [
+            'tryb' => 'wybrane', 'przepisy' => [(string) $wybrany->getKey()],
+            'bez-zdjec' => 1, 'z-notatkami' => 1,
+        ])->assertOk()->getContent();
+
+        $this->assertStringContainsString('24 szt. (&lt;script&gt;alert(1)&lt;/script&gt;)', $html, 'SZTUKI_2876_WYDRUK: wybór przepisu nie może zgubić sztuk.');
+        $this->assertStringNotContainsString('<script>alert(1)</script>', $html);
+        $this->assertStringContainsString('&lt;b&gt;Rodzinna historia&lt;/b&gt;', $html);
+        $this->assertStringContainsString('Prywatna notatka', $html);
+        $this->assertStringNotContainsString('Niewybrany', $html);
+        $this->assertStringNotContainsString('99 szt.', $html);
+        $this->assertStringNotContainsString('class="zeszyt-zdjecie"', $html);
+    }
+
     public function test_wydruk_calosci_i_wyboru_podpisuje_widoczny_oryginal_niezaleznie_od_zdjec_i_notatek(): void
     {
         $oryginal = Recipe::factory()->create(['author_id' => $this->jurek->getKey(), 'title' => 'Oryginalny żurek']);

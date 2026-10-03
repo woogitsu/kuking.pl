@@ -96,6 +96,7 @@ OCZEKUJ = {
     "HTTP import paczki nie pilnuje budżetu struktury (#2611)": r'BUDZET_2611_HTTP_ODMOWA',
     "Import partii ponownie zaznacza wykluczoną pozycję (#2843)": r'WYBOR_2843_NIE_WRACA_WYKLUCZONA',
     "Wydruk zeszytu pomija podpis oryginału wersji (#2852)": r'PODPIS_2852_WIDOCZNY',
+    "Wydruk zeszytu pomija gotowe sztuki (#2876)": r'SZTUKI_2876_WYDRUK',
     "Stara karta urodzin przywraca widoczność (#2864)": r'URODZINY_2864_NOWSZA_DECYZJA',
     "Paczka JSON bez budżetu struktury (#2611)": r'BUDZET_2611_ODMOWA_BEZ_FATALA',
     "Porcje mnożą procent tłuszczu (#2629)": r'PORCJE_2629_PROCENT_NIE_JEST_ILOSCIA',

@@ -1577,6 +1577,9 @@ checks = [
      lambda s: replace_once(s,
          '<x-na-podstawie-przepisu :recipe="$przepis" :oryginal="$oryginalyDlaPodpisu->get($przepis->forked_from_id)" :oryginal-ustalony="true" />',
          '')),
+    ("Wydruk zeszytu pomija gotowe sztuki (#2876)", "resources/views/pages/collections/do-druku.blade.php",
+     "WydrukZeszytuTest::test_wydruk_calego_zeszytu_pokazuje_sztuki_osobno_od_porcji_i_czasu",
+     lambda s: replace_once(s, '$sztuki = $przepis->yieldLabel();', '$sztuki = null;')),
     # #2611: wyłączenie preflightu musi oblać izolowane procesy PHP 256M
     # konkretną odmową (w starym kodzie kończyły się fatalem), a nie bazę CI.
     ("Paczka JSON bez budżetu struktury (#2611)", "app/Domain/Users/Import/PodgladPaczkiEksportu.php",
