@@ -1355,7 +1355,40 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
     return replace_once(source, old, old.replace('\\\\x{00A0}\\\\x{202F}', ''))
 
 
+def odzyskanie_2810_bez_wspolnej_transakcji(source):
+    source = replace_once(
+        source,
+        'DB::transaction(function () use ($swiezy, $atrybuty, $skladniki, $kroki, $szkic, $widzianaRewizja, $punkt, $kopia, $przedPrzywroceniem, $widzianyZnacznik): void {',
+        '(function () use ($swiezy, $atrybuty, $skladniki, $kroki, $szkic, $widzianaRewizja, $punkt, $kopia, $przedPrzywroceniem, $widzianyZnacznik): void {',
+    )
+    return replace_once(
+        source,
+        "$wiersz->forceFill(['snapshot' => $przedPrzywroceniem, 'taken_at' => now()])->save();\n            });",
+        "$wiersz->forceFill(['snapshot' => $przedPrzywroceniem, 'taken_at' => now()])->save();\n            })();",
+    )
+
+
 checks = [
+    ('Przywrócenie szkicu zatwierdza tekst przed błędem kopii (#2810)',
+     'app/Domain/Recipes/Odzyskiwanie/PunktOdzyskaniaSzkicu.php',
+     'OdzyskanieTekstuSzkicuAtomowaZamianaTest::test_awaria_drugiego_zapisu_cofa_przepis_skladniki_kroki_i_rewizje',
+     odzyskanie_2810_bez_wspolnej_transakcji),
+    ('Przywrócenie szkicu czyta punkt sprzed blokady (#2810)',
+     'app/Domain/Recipes/Odzyskiwanie/PunktOdzyskaniaSzkicu.php',
+     'OdzyskanieTekstuSzkicuAtomowaZamianaTest::test_zmiana_punktu_po_zapisie_tekstu_odmawia_i_cofa_cala_zamiane',
+     lambda s: replace_once(s, '$wiersz = DraftRestorePoint::query()->whereKey($punkt->getKey())->lockForUpdate()->first();', '$wiersz = $punkt;')),
+    ('Przywrócenie szkicu zatwierdza odmowę jako sukces (#2810)',
+     'app/Domain/Recipes/Odzyskiwanie/PunktOdzyskaniaSzkicu.php',
+     'OdzyskanieTekstuSzkicuAtomowaZamianaTest::test_zmiana_punktu_po_zapisie_tekstu_odmawia_i_cofa_cala_zamiane',
+     lambda s: replace_once(s,
+         "throw new BladDlaCzlowieka('Szkic albo kopia zmieniły się podczas przywracania. Otwórz aktualny podgląd i sprawdź różnice przed ponownym przywróceniem.');",
+         'return;')),
+    ('Przywrócenie szkicu pomija termin podczas zamiany (#2810)',
+     'app/Domain/Recipes/Odzyskiwanie/PunktOdzyskaniaSzkicu.php',
+     'OdzyskanieTekstuSzkicuAtomowaZamianaTest::test_zmiana_punktu_po_zapisie_tekstu_odmawia_i_cofa_cala_zamiane',
+     lambda s: replace_once(s,
+         '                    || $wiersz->taken_at->lessThanOrEqualTo(now()->subDays($this->dni()))\n',
+         '')),
     ("Częściowe dane prób znów potwierdzają zgodność obu pól (#2817)",
      "app/Domain/Recipes/Gotowanie/ProbyPrzepisu.php",
      "CzesciowePorownanieProbPrzepisuTest",

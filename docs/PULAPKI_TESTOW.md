@@ -443,6 +443,28 @@ katalog `tests/Feature/Wyscigi/` (siedem testów, m.in.
 Nie pisz zamiast tego testu pozornego, który „sprawdza współbieżność" przez
 dwa wywołania pod rząd.
 
+### Błąd SQL drugiego zapisu pod transakcją fixture może ukryć utratę pierwszego (#2810)
+
+Przywrócenie szkicu zapisywało tekst B, a zachowanie zastąpionego A w punkcie
+było osobną transakcją. Rzeczywisty wyzwalacz PostgreSQL odmawiający drugiego
+zapisu pokazał zatwierdzone B+B zamiast zachowanego A+B.
+
+Samo dodanie tego wyzwalacza do zwykłego `RefreshDatabase` nie daje właściwej
+kontroli ujemnej. Po fizycznym zdjęciu wspólnej transakcji błąd punktu
+przerywa zewnętrzną transakcję fixture: kolejne odczyty oblewają `25P02`,
+zamiast asercji o utraconym A. Nowa klasa
+`OdzyskanieTekstuSzkicuAtomowaZamianaTest` używa przygotowania schematu
+`RefreshDatabase`, ale jawnie zwraca pustą listę `connectionsToTransact()`
+i wymaga poziomu transakcji 0. Sprząta wyłącznie własne syntetyczne konta
+i przepisy przez FK. Nie używa `TRUNCATE`, który naruszałby strażniki
+dzienników dopisywania.
+
+Wtedy rzeczywisty P0001 pozostawia działające połączenie do odczytu, a mutant
+oblewa własny marker `ODZYSKANIE_2810_ATOMOWA_ZAMIANA` na pełnych wierszach.
+Kontrolowane zdarzenia `saved` i listener SQL w tej klasie nadal nie są
+pomiarem dwóch procesów. Osobny odbiór zapisuje różne PID-y świeżego odczytu
+zatwierdzonych danych oraz istniejący rzeczywisty Dwa #2849.
+
 ---
 
 ## 6b. …a od 11.09.2026 jest na to grupa `dwa-polaczenia`

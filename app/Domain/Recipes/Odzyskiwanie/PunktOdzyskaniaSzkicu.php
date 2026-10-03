@@ -269,31 +269,43 @@ final class PunktOdzyskaniaSzkicu
         ], $kopia['steps'] ?? []));
 
         try {
-            app(PublishRecipe::class)->handle(
-                author: $swiezy,
-                attributes: $atrybuty,
-                ingredients: $skladniki,
-                steps: $kroki,
-                publish: false,
-                existing: $szkic,
-                oczekiwanaRewizja: $widzianaRewizja,
-                wersjaPoprawki: false,
-                ip: request()->ip(),
-            );
+            // Jedna zamiana (#2810): błąd zachowania zastąpionego tekstu cofa
+            // również przepis, składniki i kroki. PublishRecipe nadal bierze
+            // zdjęcia → konto → przepis; punkt blokujemy dopiero po nim.
+            DB::transaction(function () use ($swiezy, $atrybuty, $skladniki, $kroki, $szkic, $widzianaRewizja, $punkt, $kopia, $przedPrzywroceniem, $widzianyZnacznik): void {
+                $zapisany = app(PublishRecipe::class)->handle(
+                    author: $swiezy,
+                    attributes: $atrybuty,
+                    ingredients: $skladniki,
+                    steps: $kroki,
+                    publish: false,
+                    existing: $szkic,
+                    oczekiwanaRewizja: $widzianaRewizja,
+                    wersjaPoprawki: false,
+                    ip: request()->ip(),
+                );
+
+                $wiersz = DraftRestorePoint::query()->whereKey($punkt->getKey())->lockForUpdate()->first();
+
+                // Świeży punkt pod blokadą, nie model z podglądu. Odmowa musi
+                // rzucić wyjątek: zwykły return zatwierdziłby już nowy tekst.
+                if ($wiersz === null
+                    || (string) $wiersz->recipe_id !== (string) $zapisany->getKey()
+                    || (string) $wiersz->user_id !== (string) $swiezy->getKey()
+                    || $wiersz->taken_at->utc()->format(self::FORMAT_ZNACZNIKA) !== $widzianyZnacznik
+                    || $wiersz->taken_at->lessThanOrEqualTo(now()->subDays($this->dni()))
+                    || ! $this->jednakowe($wiersz->snapshot, $kopia)
+                    || (string) $zapisany->author_id !== (string) $swiezy->getKey()
+                    || $zapisany->status !== Recipe::STATUS_DRAFT
+                    || $zapisany->published_at !== null) {
+                    throw new BladDlaCzlowieka('Szkic albo kopia zmieniły się podczas przywracania. Otwórz aktualny podgląd i sprawdź różnice przed ponownym przywróceniem.');
+                }
+
+                $wiersz->forceFill(['snapshot' => $przedPrzywroceniem, 'taken_at' => now()])->save();
+            });
         } catch (BladDlaCzlowieka $e) {
             return new WynikOdzyskaniaTekstuSzkicu(self::BLAD, $e->getMessage());
         }
-
-        // Punkt trzyma teraz tekst, który właśnie zastąpiono — przywrócenie da się cofnąć.
-        DB::transaction(function () use ($punkt, $przedPrzywroceniem, $widzianyZnacznik): void {
-            $wiersz = DraftRestorePoint::query()->whereKey($punkt->getKey())->lockForUpdate()->first();
-
-            if ($wiersz === null || $wiersz->taken_at->utc()->format(self::FORMAT_ZNACZNIKA) !== $widzianyZnacznik) {
-                return;
-            }
-
-            $wiersz->forceFill(['snapshot' => $przedPrzywroceniem, 'taken_at' => now()])->save();
-        });
 
         return new WynikOdzyskaniaTekstuSzkicu(self::ODZYSKANO, null);
     }
