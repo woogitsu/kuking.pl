@@ -53,7 +53,11 @@ Koordynator zmierzył trzy pierwsze poprawki na osobnej instancji Linux,
 PG18 na porcie 55488: **66 / 2152 PASS**, wyścig retencji **1 / 18 PASS**,
 fizyczny DELETE po ID oblał z właściwą przyczyną, a dokładny restore przeszedł.
 Pełna analiza typów: zero błędów. Baza wyścigów należy do tego worktree
-(`kuking_race_repo_q`). Trzy ostatnie poprawki wymagają pomiaru wspólnej bazy.
+(`kuking_race_repo_q`). Pełny komplet sześciu poprawek zmierzony
+na wspólnej bazie: **139 / 2609 PASS**. Cztery fizyczne mutacje podpisu
+oryginału, formularza i powrotu z dopisku oraz ustawień urodzin oblały
+z właściwymi markerami; **4/4 POTWIERDZONE**, dokładny restore i zieleń.
+Pełny PHPStan po złożeniu: zero błędów.
 
 Konflikty CHANGELOG rozwiązano sumą wpisów. Q nie dodaje migracji,
 zależności ani płatnych wywołań. Wcześniejsze migracje N zachowują własne
@@ -62,9 +66,12 @@ retencji i klasę dwóch połączeń.
 
 ## Pozostałe bramki
 
-Root odświeża własną kopię Linux do kompletu sześciu poprawek z dokładnym
-lockiem i osobną bazą PG18. Pomiar całych zmienionych klas i pełna analiza typów poprzedzają
-zwykły push z niezmienionym hakiem. Następnie pełne CI dokładnego heada,
+Dołożono odebraną poprawkę przyrządów CI z #2865: ścisły cel
+`kuking_race` lub izolowany sufiks oraz właściwy marker kotwicy dokumentacji.
+Dane o 139 testach dotyczą sześciu poprawek produktu przed tą korektą
+narzędzia. Koordynator sprawdza jeszcze przyczynę dwóch porażek starszej
+bazy P; nie uznaje zielonych testów celowanych za pełną bramkę Q.
+Następnie zwykły push z niezmienionym hakiem, pełne CI dokładnego heada,
 przegląd końcowego PR i merge z expectedHeadSha do integracji.
 
 Przed zamknięciem issues: zielone wydanie do main wraz z CodeQL, terminalne
