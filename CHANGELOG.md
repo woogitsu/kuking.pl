@@ -15,6 +15,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 - Poprawione (#2835): zaproszenie do wspólnego zeszytu rozpoczęte przed zawieszeniem właściciela nie zapisuje się po zatwierdzeniu kary. Wcześniejsze zaproszenia pozostają, a zawieszony właściciel nadal może sprawdzić dostęp i go odebrać.
 - Poprawione (#2821): kiedy druga karta zajmie ostatnie miejsce na listę zakupów, odmowa zachowuje wpisaną nazwę, pokazuje błąd przy polu i działający odnośnik z podsumowania. Limit list pozostaje bez zmian.
 
+- Poprawione (#2814): po alarmie minutnika wcześniejszego kroku odnośnik do tego kroku nadal pozwala ustawić dodatkowy czas. Powrót i przeładowanie nie powtarzają alarmu ani nie uruchamiają pełnego czasu autora; zakończenie gotowania sprząta lokalny znacznik.
 - Poprawione (#2825): ponowienie przyjętego zaproszenia po odebraniu dostępu nie pokazuje nowej nazwy prywatnego zeszytu ani nie przywraca członkostwa. Gdy dostęp nadal trwa, ponowienie działa bez drugiego powiadomienia.
 - Poprawione (#2827): zamknięcie formularza odpowiedzi zatrzymuje dyktowanie. Wpisany tekst i podgląd zostają, a ponowne otwarcie nie włącza mikrofonu bez kliknięcia.
 - Poprawione (#2791): zawieszona osoba może odebrać dostęp do własnego przepisu. Po końcu kary cofnięte udostępnienie nie wraca; nowych udostępnień nadal nie można tworzyć podczas zawieszenia.
