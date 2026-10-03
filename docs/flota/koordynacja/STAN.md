@@ -29,7 +29,7 @@ dokładny lock, PostgreSQL 18+, bez pushy na gałęzie Claude.
   #2820, #2828; nowy przyrząd M i oba podziały N z kotwicą. Root Linux:
   43 / 1952, 73 / 2122, 58 / 2000 oraz kotwice 18 / 1745 PASS;
   PHPStan 0 i rzeczywisty Chrome 320 px / 200% przy zdjęciu.
-  [ODBIOR-O-CODEX-20261003.md](ODBIOR-O-CODEX-20261003.md) jest na gałęzi O.
+  `ODBIOR-O-CODEX-20261003.md` jest na gałęzi O; nie należy jeszcze do N.
   To nie dowód pełnego CI ani odbioru produkcji.
 - **P lokalnie złożone:** #2806 (wraz z usunięciem listy po odczycie),
   #2842, #2846, #2822, #2850 i #2839. Root wykonuje własny Linux odbiór.
