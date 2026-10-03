@@ -44,6 +44,7 @@
 
     <form method="POST" action="{{ route('settings.data.import.store', ['paczka' => $paczka]) }}">
         @csrf
+        <input type="hidden" name="paczka_wyboru" value="{{ $paczka }}">
 
         @foreach($sekcje as $naglowek => $pozycje)
             @if(count($pozycje) > 0)
