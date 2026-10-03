@@ -32,7 +32,7 @@ test('Laravel i Chromium: wstawienie dopisku zachowuje pola i plik w multipart (
         await uruchom(process.env.PHP_BIN || 'php', [
             'artisan', 'test', '--filter=test_przycisk_wstawia_w_biezacym_formularzu_bez_porzucajacego_linku',
             'tests/Feature/DopisekZGotowaniaTest.php',
-        ], {cwd: repo, env: {...process.env, APP_BASE_PATH: repo, APP_URL: 'http://localhost', DOPISEK_2857_HTML_KATALOG: katalog}, maxBuffer: 1024 * 1024});
+        ], {cwd: repo, env: {...process.env, APP_BASE_PATH: repo, APP_ENV: 'testing', APP_URL: 'http://localhost', DOPISEK_2857_HTML_KATALOG: katalog}, maxBuffer: 1024 * 1024});
         const [html, modul, wejscie] = await Promise.all([
             readFile(join(katalog, 'formularz.html'), 'utf8'),
             readFile(resolve(repo, 'resources/js/wstaw-dopisek-ugotowalem.js'), 'utf8'),
