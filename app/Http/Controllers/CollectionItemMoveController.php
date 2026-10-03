@@ -94,7 +94,7 @@ class CollectionItemMoveController extends Controller
                 ->withErrors(['cel' => $e->getMessage()]);
         }
 
-        $nazwa = '„'.$wynik->tytul.'”';
+        $nazwa = $wynik->tytul === null ? 'Ta pozycja' : '„'.$wynik->tytul.'”';
 
         if (! $wynik->przeniesiono) {
             return redirect()->route('collections.show', $wynik->cel)

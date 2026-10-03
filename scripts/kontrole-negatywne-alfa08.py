@@ -1358,6 +1358,11 @@ checks = [
     ("Moje rozmowy przepuszczają niemożliwą datę kursora (#2803)", "app/Domain/Comments/MojeRozmowy.php",
      "MojeRozmowyTest::test_parser_odrzuca_semantycznie_nieprawidlowy_czas_kursora",
      lambda s: replace_once(s, "if (! KursorListy::czasPasuje($m[1])) {", "if (false) {")),
+    ("Ponowienie przeniesienia ujawnia niedostępny tytuł (#2809)", "app/Domain/Collections/Actions/PrzeniesPozycjeMiedzyZeszytami.php",
+     "test_ponowienie_nie_ujawnia_nowego_niedostepnego_tytulu",
+     lambda s: replace_once(s,
+         "$tytul = $widoczna ? ($tresc instanceof Recipe ? $tresc->title : 'Wpis') : null;",
+         "$tytul = $tresc instanceof Recipe ? $tresc->title : 'Wpis';")),
     # Właściciel zatwierdził 3.10.2026 izolowaną kontrolę #2784.
     # Mechanizm zapisuje mutant tylko na czas testu i przywraca źródło.
     ("Moje rozmowy pomijają Policy wpisu (#2432)", "app/Domain/Comments/MojeRozmowy.php",

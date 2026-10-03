@@ -4,6 +4,13 @@
 
 ### collection_items — przepisy ORAZ wpisy
 
+**Ponowienie przeniesienia (#2809).** Gdy zapis jest już w zeszycie docelowym,
+odpowiedź nie zmienia relacji, dopisku, daty ani dodającej osoby. Tytuł treści
+trafia do komunikatu tylko po ponownej kontroli Policy na świeżym stanie pod
+blokadami. Przy utracie dostępu komunikat neutralnie potwierdza stan własnego
+zapisu, bez bieżącego tytułu. Zapis pozostaje; przywrócenie dostępu pozwala
+znów otworzyć treść. Schemat i kolejność blokad pozostają bez zmian.
+
 Od migracji `2026_09_06_150000_collection_items_accept_posts` zeszyt przyjmuje
 także wpisy (UI kit v2, ekran 01 — decyzja właściciela). To dwie różne
 potrzeby: zapisany przepis znaczy „chcę to ugotować i mam listę składników",

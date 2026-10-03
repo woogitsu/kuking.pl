@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -133,6 +134,72 @@ class PrzenoszenieZapisuMiedzyZeszytamiTest extends TestCase
         $inny = Recipe::factory()->create();
 
         $this->przenies($this->zrodlo, $this->cel, 'przepis', $inny->getKey())->assertNotFound();
+    }
+
+    /** @return array<string, array{string}> */
+    public static function utrataDostepuPoPrzeniesieniu(): array
+    {
+        return [
+            'prywatny przepis' => ['private'],
+            'tylko obserwujący' => ['followers'],
+            'blokada przez autora' => ['blokada_autora'],
+            'blokada przez zapisującą osobę' => ['blokada_zapisujacej'],
+            'ban autora' => ['ban'],
+        ];
+    }
+
+    #[DataProvider('utrataDostepuPoPrzeniesieniu')]
+    public function test_ponowienie_nie_ujawnia_nowego_niedostepnego_tytulu(string $zmiana): void
+    {
+        $przed = $this->wiersz($this->zrodlo, 'recipe_id', $this->przepis->getKey());
+        $this->assertNotNull($przed);
+        $this->przenies($this->zrodlo, $this->cel, 'przepis', $this->przepis->getKey())->assertRedirect();
+
+        $tytul = 'Prywatny przepis rodzinny 2809';
+        $this->przepis->forceFill(['title' => $tytul])->save();
+        if (in_array($zmiana, ['private', 'followers'], true)) {
+            $this->przepis->forceFill(['visibility' => $zmiana])->save();
+        } elseif ($zmiana === 'ban') {
+            $this->przepis->author->ban();
+        } else {
+            DB::table('blocks')->insert([
+                'blocker_id' => $zmiana === 'blokada_autora' ? $this->przepis->author_id : $this->basia->getKey(),
+                'blocked_id' => $zmiana === 'blokada_autora' ? $this->basia->getKey() : $this->przepis->author_id,
+                'created_at' => now(),
+            ]);
+        }
+
+        $odpowiedz = $this->followingRedirects()->przenies($this->zrodlo, $this->cel, 'przepis', $this->przepis->getKey())
+            ->assertOk();
+        $this->assertStringNotContainsString($tytul, (string) $odpowiedz->getContent(), 'PRZENIESIENIE_2809_TYTUL_POD_POLICY');
+        $this->assertStringNotContainsString($tytul, (string) session('status'), 'PRZENIESIENIE_2809_FLASH_POD_POLICY');
+        $odpowiedz->assertSee('Ta pozycja jest już w zeszycie');
+
+        $po = $this->wiersz($this->cel, 'recipe_id', $this->przepis->getKey());
+        $this->assertNotNull($po);
+        $this->assertSame($przed->note, $po->note);
+        $this->assertSame($przed->created_at, $po->created_at);
+        $this->assertSame($przed->added_by_id, $po->added_by_id);
+        $this->assertNull($this->wiersz($this->zrodlo, 'recipe_id', $this->przepis->getKey()));
+        $this->assertSame(1, DB::table('collection_items')->where('recipe_id', $this->przepis->getKey())->count());
+    }
+
+    public function test_ponowienie_po_przywroceniu_dostepu_i_wlasny_prywatny_przepis_maja_tytul(): void
+    {
+        $this->przenies($this->zrodlo, $this->cel, 'przepis', $this->przepis->getKey())->assertRedirect();
+        $this->przepis->forceFill(['visibility' => 'private'])->save();
+        $this->przenies($this->zrodlo, $this->cel, 'przepis', $this->przepis->getKey())->assertRedirect();
+        $this->assertStringNotContainsString('Zupa dnia', (string) session('status'));
+
+        $this->przepis->forceFill(['visibility' => 'public'])->save();
+        $this->przenies($this->zrodlo, $this->cel, 'przepis', $this->przepis->getKey())->assertRedirect();
+        $this->assertStringContainsString('Zupa dnia', (string) session('status'));
+
+        $wlasny = Recipe::factory()->create(['author_id' => $this->basia->getKey(), 'title' => 'Mój prywatny przepis', 'visibility' => 'private']);
+        $this->zrodlo->recipes()->attach($wlasny->getKey(), ['created_at' => now(), 'added_by_id' => $this->basia->getKey()]);
+        $this->przenies($this->zrodlo, $this->cel, 'przepis', $wlasny->getKey())->assertRedirect();
+        $this->przenies($this->zrodlo, $this->cel, 'przepis', $wlasny->getKey())->assertRedirect();
+        $this->assertStringContainsString('Mój prywatny przepis', (string) session('status'));
     }
 
     public function test_cofniecie_to_przeniesienie_z_powrotem_z_pozniejsza_notatka(): void
