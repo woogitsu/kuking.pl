@@ -17,8 +17,23 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
 {
     use RefreshDatabase;
 
+    private ?\PDO $poZasiewie = null;
+
+    /** Rollback nie odtwarza statystyk ani stron po dużym fixture. */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        if ($this->poZasiewie !== null) {
+            $this->poZasiewie->exec('VACUUM (ANALYZE) recipes, recipe_ingredients, pantry_items, pantry_second_packages, users');
+            $this->poZasiewie = null;
+        }
+    }
+
     public function test_ostatnia_dostepna_strona_nie_odsyla_do_siebie_w_obu_trybach(): void
     {
+        $this->poZasiewie = DB::connection()->getPdo();
+
         $widz = User::factory()->create();
         $autor = User::factory()->create();
         $produkt = $widz->pantryItems()->create(['name' => 'jajka']);
@@ -56,6 +71,8 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
         ]);
         $prywatny->ingredients()->create(['position' => 0, 'ingredient_text' => 'jajka']);
 
+        $this->odswiezStatystykiFixture();
+
         foreach ([[], ['najpierw' => 'termin']] as $tryb) {
             $pierwsza = $this->actingAs($widz)->get(route('pantry.cook', [...$tryb, 'od' => 9980]))->assertOk();
             $adresOstatniej = $this->adresPokazWiecej((string) $pierwsza->getContent());
@@ -80,6 +97,8 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
         ]);
         $dodatkowy->ingredients()->create(['position' => 0, 'ingredient_text' => 'jajka']);
 
+        $this->odswiezStatystykiFixture();
+
         foreach ([[], ['najpierw' => 'termin']] as $tryb) {
             $ostatnia = $this->actingAs($widz)->get(route('pantry.cook', [...$tryb, 'od' => 10000]))->assertOk();
             $zaLimitem = $this->actingAs($widz)->get(route('pantry.cook', [...$tryb, 'od' => 10020]))->assertOk();
@@ -99,6 +118,19 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
                 $this->tytulyKart((string) $ostatnia->getContent()),
                 $this->tytulyKart((string) $zaLimitem->getContent()),
             );
+        }
+    }
+
+    /** Planer ma widzieć ten zbiór, a nie pustą bazę lub poprzedni test. */
+    private function odswiezStatystykiFixture(): void
+    {
+        DB::statement('ANALYZE recipes, recipe_ingredients, pantry_items, pantry_second_packages, users');
+
+        foreach (['recipes', 'recipe_ingredients', 'pantry_items', 'pantry_second_packages', 'users'] as $tabela) {
+            $wierszy = (int) DB::table($tabela)->count();
+            $szacunek = (int) (DB::selectOne('SELECT reltuples::bigint AS n FROM pg_class WHERE oid = ?::regclass', ['public.'.$tabela])->n ?? -1);
+
+            $this->assertSame($wierszy, $szacunek, 'STATYSTYKI_GRANICY_2599_WIDZA_FIXTURE '.$tabela);
         }
     }
 
