@@ -82,6 +82,12 @@
             `$errors`, bo ten otwierałby niżej formularz „Załóż nowy zeszyt”.
         --}}
         <form class="panel-formularza mb-6" method="GET" action="{{ route('collections.index') }}" role="search" aria-label="Szukaj w moich zeszytach">
+            @if($bladSzukania)
+                @include('components.error-summary', [
+                    'errors' => new \Illuminate\Support\MessageBag(['szukaj' => $bladSzukania]),
+                    'fieldIds' => ['szukaj' => 'f-szukaj'],
+                ])
+            @endif
             <div class="field @if($bladSzukania) has-error @endif">
                 <label for="f-szukaj">Szukaj w moich zeszytach</label>
                 <span class="field-help" id="f-szukaj-help">Wpisz kawałek tytułu, składnik albo to, od kogo masz przepis, np. „cukinia” albo „ciocia Zosia”. Polskie znaki nie mają znaczenia — „zurek” znajdzie „Żurek”.</span>

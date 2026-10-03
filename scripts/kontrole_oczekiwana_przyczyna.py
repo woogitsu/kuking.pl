@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Błąd szukania w zeszytach nie trafia do podsumowania (#2850)': r'ZESZYTY_2850_BLAD_W_PODSUMOWANIU',
     'Wygasła prośba nadal blokuje poprawę uwagi (#2820)': r'KOREKTA_2820_WYGASLA_PROSBA_ODBLOCKOWUJE',
     'Kolejka gubi zdjęcie bieżącego kroku (#2828)': r'ZDJECIE_2828_BIEZACY_KROK',
     'Limit przepisu gubi wybraną listę zakupów (#2818)': r'LISTY_2818_WRACA_NA_WYBRANA',

@@ -1355,6 +1355,11 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Błąd szukania w zeszytach nie trafia do podsumowania (#2850)", "resources/views/pages/collections/index.blade.php",
+     "test_blad_frazy_jest_przy_polu_i_w_podsumowaniu_bez_utraty_filtrow",
+     lambda s: replace_once(s,
+         "@if($bladSzukania)\n                @include('components.error-summary', [",
+         "@if(false)\n                @include('components.error-summary', [")),
     ("Wygasła prośba nadal blokuje poprawę uwagi (#2820)", "app/Domain/Recipes/Gotowanie/PolaKorekty.php",
      "test_prosba_blokuje_przed_terminem_a_w_chwili_wygasniecia_odblokowuje_formularz_i_zapis",
      lambda s: replace_once(s,

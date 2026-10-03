@@ -7,6 +7,9 @@ namespace Tests\Feature;
 use App\Models\Collection;
 use App\Models\Recipe;
 use App\Models\User;
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -137,6 +140,70 @@ class SzukajWMoichZeszytachTest extends TestCase
             ->assertSee('Wpisz co najmniej dwie litery z tytułu przepisu, ze składnika albo z tego, od kogo masz przepis.')
             ->assertSee('value="a"', false)
             ->assertDontSee('data-wyniki-w-zeszytach', false);
+    }
+
+    public function test_blad_frazy_jest_przy_polu_i_w_podsumowaniu_bez_utraty_filtrow(): void
+    {
+        $basia = $this->user('basia2850');
+        $this->zeszyt($basia, 'Obiady');
+
+        foreach (['a', str_repeat('a', 121)] as $fraza) {
+            $html = $this->actingAs($basia)->get(route('collections.index', [
+                'szukaj' => $fraza,
+                'ugotowane' => '1',
+                'kolejnosc' => 'ostatnio-ugotowane',
+            ]))->assertOk()->getContent();
+            $xpath = $this->html($html);
+            $link = $xpath->query('//form[@role="search"]//div[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]//a[@href="#f-szukaj"]')->item(0);
+            $pole = $xpath->query('//*[@id="f-szukaj"]')->item(0);
+            $blad = $xpath->query('//*[@id="f-szukaj-error"]')->item(0);
+
+            $this->assertInstanceOf(DOMElement::class, $link, 'ZESZYTY_2850_BLAD_W_PODSUMOWANIU');
+            $this->assertInstanceOf(DOMElement::class, $pole);
+            $this->assertInstanceOf(DOMElement::class, $blad);
+            $this->assertSame($blad->textContent, $link->textContent);
+            $this->assertSame($fraza, $pole->getAttribute('value'));
+            $this->assertSame('true', $pole->getAttribute('aria-invalid'));
+            $this->assertStringContainsString('f-szukaj-error', $pole->getAttribute('aria-describedby'));
+            $this->assertSame(1, $xpath->query('//*[@id="f-zeszyt-ugotowane" and @checked]')->length);
+            $this->assertSame(1, $xpath->query('//input[@name="kolejnosc" and @value="ostatnio-ugotowane" and @checked]')->length);
+            $this->assertSame(0, $xpath->query('//details[.//summary[normalize-space(.)="Załóż nowy zeszyt"]][@open]')->length);
+        }
+    }
+
+    public function test_sesyjny_blad_zakladania_zeszytu_pozostaje_obok_bledu_get(): void
+    {
+        $basia = $this->user('basia2850sesja');
+        $this->zeszyt($basia, 'Obiady');
+        $this->actingAs($basia)->from(route('collections.index'))
+            ->post(route('collections.store'), ['name' => '', 'visibility' => 'private'])
+            ->assertRedirect(route('collections.index'));
+
+        $html = $this->get(route('collections.index', ['szukaj' => 'a']))->assertOk()->getContent();
+        $xpath = $this->html($html);
+
+        $this->assertSame(1, $xpath->query('//form[@role="search"]//div[contains(@class, "error-summary")]//a[@href="#f-szukaj"]')->length);
+        $this->assertSame(1, $xpath->query('//div[contains(@class, "error-summary")]//a[@href="#f-name"]')->length);
+        $this->assertSame(1, $xpath->query('//details[.//summary[normalize-space(.)="Załóż nowy zeszyt"]][@open]')->length);
+    }
+
+    public function test_pusta_i_poprawna_fraza_nie_tworza_pustego_podsumowania(): void
+    {
+        $basia = $this->user('basia2850dodatnie');
+        $this->zeszyt($basia, 'Obiady');
+
+        foreach (['', 'obiad'] as $fraza) {
+            $html = $this->actingAs($basia)->get(route('collections.index', ['szukaj' => $fraza]))->assertOk()->getContent();
+            $this->assertSame(0, $this->html($html)->query('//div[contains(@class, "error-summary")]')->length);
+        }
+    }
+
+    private function html(string $html): DOMXPath
+    {
+        $dokument = new DOMDocument;
+        @$dokument->loadHTML('<?xml encoding="utf-8" ?>'.$html);
+
+        return new DOMXPath($dokument);
     }
 
     private function zeszyt(User $wlasciciel, string $nazwa): Collection

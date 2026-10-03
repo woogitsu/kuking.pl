@@ -5,6 +5,14 @@
 ### collections + collection_items
 Osobisty zeszyt.
 
+Wyszukiwanie we własnych zeszytach (`GET /zeszyt?szukaj=`) pokazuje błąd
+frazy krótszej niż dwa znaki lub dłuższej niż 120 znaków przy polu i w
+podsumowaniu z odnośnikiem do `#f-szukaj`. Zachowuje frazę, filtr własnych
+wykonań i kolejność wyników. Błąd GET ma własny worek komunikatów, więc nie
+otwiera formularza „Załóż nowy zeszyt” i nie zastępuje jego błędów sesyjnych.
+To poprawka prezentacji (#2850): nie zmienia zapytania ani schematu;
+cofnięcie przywróciłoby brak podsumowania.
+
 - **`collections.name varchar(120) NOT NULL`** — nazwa zeszytu nadana przez
   właściciela, **wolny tekst**. Unikalna w obrębie JEDNEGO konta i bez
   rozróżniania wielkości liter — szczegóły i powód niżej, przy indeksie
