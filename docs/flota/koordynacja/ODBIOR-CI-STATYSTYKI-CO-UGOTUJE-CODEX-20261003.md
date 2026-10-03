@@ -1,8 +1,13 @@
-# Odbiór statystyk fixture „Co ugotuję” — Codex, 3.10.2026
+# Odbiór higieny statystyk fixture „Co ugotuję” — Codex, 3.10.2026
 
 ## Zakres i wynik
 
 **Dowiedzione: nieaktualne statystyki fixture. Przyczyna timeoutu CI nie jest dowiedziona.**
+
+Korekta po niezależnym review commita `8460fd56b0278df74b13812c002ca540d7eab07c`:
+usunięto dziesięć asercji wymagających dokładności estymaty reltuples.
+Nie wprowadzono tolerancji, listenera SQL ani nowego strażnika. Reltuples
+pozostaje diagnostyką sondy na małej kontrolowanej bazie, nie kontraktem testu.
 
 Własna gałąź `codex/ci-statystyki-co-ugotuje-20261003`, od C
 `e625ab336f04f87df7f2be7eb86fa4866e7a13a6`. Własny WT:
@@ -94,12 +99,17 @@ są w `ci-statystyki-probe.json` poza repo.
 
 W obu fazach: 20 kart i `jest_wiecej=true`. **Timeoutu nie odtworzono.**
 Błędne statystyki są udowodnione; lokalny czas nie dowodzi przyczyny CI.
+Nie wykonano kontrolowanego pomiaru dużego bloat/starych stron z wielu
+poprzednich fixture pełnego sharda. PostgreSQL nie gwarantuje dokładnego
+reltuples po ANALYZE: [katalog pg_class PG18](https://www.postgresql.org/docs/18/catalog-pg-class.html),
+[ANALYZE PG18](https://www.postgresql.org/docs/18/sql-analyze.html).
+Zaobserwowana równość w tabeli nie jest wymaganiem dla dowolnego przebiegu CI.
 
 ## Minimalna korekta i wykonawcze kontrole
 
 ANALYZE pięciu tabel po pierwszym zasiewie i po dodatkowym przepisie,
-przed obiema seriami HTTP. Dziesięć asercji porównuje COUNT(*) z
-`pg_class.reltuples`, marker `STATYSTYKI_GRANICY_2599_WIDZA_FIXTURE`.
+przed obiema seriami HTTP. Nie ma asercji estymaty ani pętli odczytu katalogu
+w teście paginacji; zachowano wszystkie **52 asercje rzeczywistego wyniku**.
 Po rollbacku VACUUM (ANALYZE) tych tabel przez zachowane PDO — jak istniejący
 CoUgotujeKosztTest, bo statystyki i strony nie są transakcyjne.
 Istniejąca mutacja #2599 i wszystkie asercje paginacji pozostają.
@@ -111,28 +121,34 @@ i SKIP są odrzucane. Przed każdym przebiegiem czyści tylko własny cache Blad
 
 | JUnit (1 właściwy testcase) | Asercje | FAIL | ERROR | SKIP |
 |---|---:|---:|---:|---:|
-| control-before.xml | 62 | 0 | 0 | 0 |
-| statistics-mutant.xml | 3 | 1 | 0 | 0 |
-| statistics-after.xml | 62 | 0 | 0 | 0 |
-| pagination-mutant.xml | 35 | 1 | 0 | 0 |
-| pagination-after.xml | 62 | 0 | 0 | 0 |
+| revised-control-before.xml | 52 | 0 | 0 | 0 |
+| revised-pagination-mutant.xml | 25 | 1 | 0 | 0 |
+| revised-pagination-after.xml | 52 | 0 | 0 | 0 |
 
-Usunięcie jedynej instrukcji ANALYZE w helperze pozostawia odczyt katalogu
-i daje właściwy FAIL `STATYSTYKI_GRANICY_2599_WIDZA_FIXTURE recipes`, nie 503.
+Po korekcie wykonano jeden dodatni przebieg (5,084 s), fizyczną mutację
+pętli stron (4,167 s) i dodatni po restore (5,048 s).
 Fizyczne przywrócenie `@if($jest_wiecej)` daje właściwy FAIL
 `PAGINACJA_2599_BEZ_PETLI`. Restore w finally odtwarza oryginalne bajty oraz
-mtime_ns; SHA256, MD5 i rozmiar poniżej są **identyczne przed i po**:
+mtime_ns widoku; źródło testu pozostaje stabilne w całym cyklu.
+SHA256, MD5, rozmiar i mtime_ns są **identyczne przed i po**:
 
 | Cel | SHA256 | MD5 | Bajty | mtime_ns |
 |---|---|---|---:|---|
-| test statystyk | 3ea071b867406df89297f1459494ed656e80ac31b2e0a351869994fc6c3d229a | ade18e7e7726a8192e65187f79fed3bd | 7124 | 1791035119325701596 |
+| test, stabilny w cyklu | f66b17a1aa77796309d0cde3761d844c01be1a03816ccf0bd828d814a696e76b | 00098e35b839acbf4db265622e4390e0 | 6561 | 1791036326450936310 |
 | widok paginacji | dc1d9097aa82d1710c5548527e98492734fc28026ca6159102b22a4dbf78d0a8 | 65a8c6229e9878eab31e6774473211bd | 8805 | 1791031739000000000 |
+
+Wcześniejszy `physical-control.json` z 8460 pozostaje historycznym pomiarem
+małej kontrolowanej bazy: usunięcie ANALYZE oblało ówczesną asercję na 0/-1,
+a odtworzenie dokładnych bajtów/mtime dało PASS. Nie jest to powszechny
+dowód dokładności statystyk ani kontrola końcowego testu. Ówczesne 1/62
+zawierało dziesięć nadmiernych asercji, usuniętych po review.
 
 Pierwszy wadliwie zacytowany filtr klasy dał zero case i został odrzucony.
 Pierwszy restore widoku odtworzył bajty/mtime, lecz miał nowszy skompilowany
 mutant Blade: dodatni przebieg oblał marker pętli. Zachowano
 `pagination-restored-stale-view-cache.xml`; nie zaliczono tej próby.
-Po view:clear powtórzono cały fizyczny cykl: oba PASS→proper FAIL→restore PASS.
+Po view:clear powtórzono ówczesny fizyczny cykl. Końcowy cykl po korekcie
+jest zapisany oddzielnie w `revised-physical-control.json`.
 Pint jednego pliku PASS, składnia PHP PASS, git diff --check PASS.
 Nie uruchamiano full gates dla tej wąskiej korekty.
 
@@ -147,8 +163,9 @@ w Windows evidence. Logi, JUnit, sonda i przyrząd są dostępne w tych kataloga
 
 | Artefakt | SHA256 |
 |---|---|
-| physical-control.json | 73ffcb5d5220d684c957160b7f9d45cc8f7525f7173507faef162c4c54c20cf9 |
-| pagination-after.xml (końcowy PASS) | 56f5301bc89e4fd57f6f1e92e288b3ae2549da9ec21242c4cde671b564038828 |
+| revised-physical-control.json (końcowy cykl) | 1535b632d93be1ea0195e833b65683d308caf96134b668db57940373d76f3c12 |
+| revised-pagination-after.xml (końcowy 1/52 PASS) | d7db836ec74b7236814d4ec3010b49d386c2f9fd0a6a0bb16320733fc7c7120b |
+| physical-control.json (historyczny pomiar 8460) | 73ffcb5d5220d684c957160b7f9d45cc8f7525f7173507faef162c4c54c20cf9 |
 | ci-statystyki-probe.json | b9e104e40cc6091633dd2b07c4832b388c5c6b6c87af1e0cf8766f38af6600d3 |
 | ci-statystyki-baseline-explicit.xml | 664c16bc30be857bbd665e725de27f72f4c469bc4ac8f93fa922825ad98fdae4 |
 

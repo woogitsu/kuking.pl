@@ -71,7 +71,7 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
         ]);
         $prywatny->ingredients()->create(['position' => 0, 'ingredient_text' => 'jajka']);
 
-        $this->odswiezStatystykiFixture();
+        DB::statement('ANALYZE recipes, recipe_ingredients, pantry_items, pantry_second_packages, users');
 
         foreach ([[], ['najpierw' => 'termin']] as $tryb) {
             $pierwsza = $this->actingAs($widz)->get(route('pantry.cook', [...$tryb, 'od' => 9980]))->assertOk();
@@ -97,7 +97,7 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
         ]);
         $dodatkowy->ingredients()->create(['position' => 0, 'ingredient_text' => 'jajka']);
 
-        $this->odswiezStatystykiFixture();
+        DB::statement('ANALYZE recipes, recipe_ingredients, pantry_items, pantry_second_packages, users');
 
         foreach ([[], ['najpierw' => 'termin']] as $tryb) {
             $ostatnia = $this->actingAs($widz)->get(route('pantry.cook', [...$tryb, 'od' => 10000]))->assertOk();
@@ -118,19 +118,6 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
                 $this->tytulyKart((string) $ostatnia->getContent()),
                 $this->tytulyKart((string) $zaLimitem->getContent()),
             );
-        }
-    }
-
-    /** Planer ma widzieć ten zbiór, a nie pustą bazę lub poprzedni test. */
-    private function odswiezStatystykiFixture(): void
-    {
-        DB::statement('ANALYZE recipes, recipe_ingredients, pantry_items, pantry_second_packages, users');
-
-        foreach (['recipes', 'recipe_ingredients', 'pantry_items', 'pantry_second_packages', 'users'] as $tabela) {
-            $wierszy = (int) DB::table($tabela)->count();
-            $szacunek = (int) (DB::selectOne('SELECT reltuples::bigint AS n FROM pg_class WHERE oid = ?::regclass', ['public.'.$tabela])->n ?? -1);
-
-            $this->assertSame($wierszy, $szacunek, 'STATYSTYKI_GRANICY_2599_WIDZA_FIXTURE '.$tabela);
         }
     }
 
