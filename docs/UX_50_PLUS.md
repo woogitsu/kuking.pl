@@ -15,6 +15,18 @@ Produkt nie jest oznaczany jako „dla seniorów”. Ma być po prostu łatwy.
 
 ## Kontrolki
 
+### Prywatny dopisek przy „Ugotowałem” (#2857)
+
+„Wstaw dopisek do pola poniżej” działa w bieżącym formularzu: nie otwiera nowej
+strony, więc wpisane uwagi, czas, wybory i wybrany plik pozostają na miejscu.
+Jeśli pole „Coś po swojemu?” ma już tekst, osoba świadomie wybiera zastąpienie
+albo pozostanie przy swoim tekście. Bez skryptu lub gdy skrypt nie dojdzie,
+przycisk nie jest pokazywany; widoczna instrukcja pozwala samodzielnie
+skopiować dopisek do pola. Samo
+wstawienie nie wysyła formularza ani nie usuwa prywatnego dopisku. Cofnięcie
+poprawki polega na przywróceniu widoku i modułu; nie ma zmiany danych ani
+migracji.
+
 Produktowa reguła:
 
 - ważne buttony min. 48 px wysokości;

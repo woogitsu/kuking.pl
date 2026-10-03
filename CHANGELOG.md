@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2857): „Wstaw dopisek” zachowuje świeżo wpisane dane formularza „Ugotowałem” i wybrane zdjęcie; zastąpienie własnego tekstu wymaga jawnego wyboru.
+
 - Poprawione (#2863): ukryty lub usunięty wpis nie wróci do kanału Atom, gdy wcześniejsze pobranie kończy budowanie kopii po jej wyczyszczeniu.
 
 - Poprawione (#2859): gdy udostępniony przepis jest chwilowo niedostępny, jego odbiorca może zrezygnować z dostępu z listy „Przepisy udostępnione mi”. Lista nie zdradza treści ani powodu niedostępności; rezygnacja wymaga potwierdzenia.
