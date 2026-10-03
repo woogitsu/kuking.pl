@@ -56,6 +56,8 @@ final class UdostepnijPrzepis
 
     public const SAM_SOBIE = 'To jest Twój przepis — zawsze go widzisz. Wpisz nazwę konta osoby, której chcesz go pokazać.';
 
+    public const PONOW_POTWIERDZENIE = 'Osoba wskazana w potwierdzeniu mogła zmienić nazwę konta. Wpisz nazwę i sprawdź odbiorcę jeszcze raz.';
+
     private const PRZESTRZEN_BLOKAD = 2650;
 
     /**
@@ -88,11 +90,41 @@ final class UdostepnijPrzepis
     {
         $odbiorcaPrzedZamkiem = $this->odbiorca($autor, $przepis, $nazwa);
 
-        return ZamekPary::zablokuj($autor, $odbiorcaPrzedZamkiem, function (?User $swiezyAutor, ?User $odbiorca) use ($przepis): array {
+        return $this->zapisz($autor, $przepis, $odbiorcaPrzedZamkiem);
+    }
+
+    /**
+     * Drugi krok formularza wskazuje tę samą osobę, którą pokazano autorowi.
+     * Id pochodzi wyłącznie z uwierzytelnionego, ograniczonego do formularza
+     * potwierdzenia; zmiana nazwy nigdy nie przenosi dostępu na jej następcę.
+     *
+     * @return array{0: RecipeShare, 1: bool}
+     */
+    public function poPotwierdzeniu(User $autor, Recipe $przepis, string $id, string $nazwa): array
+    {
+        Gate::forUser($autor)->authorize('share', $przepis);
+        $odbiorca = User::query()->find($id);
+
+        if (! $this->moznaPokazac($autor, $odbiorca) || $odbiorca->profile?->username !== $nazwa) {
+            throw new BladDlaCzlowieka(self::PONOW_POTWIERDZENIE);
+        }
+
+        return $this->zapisz($autor, $przepis, $odbiorca, $nazwa);
+    }
+
+    /** @return array{0: RecipeShare, 1: bool} */
+    private function zapisz(User $autor, Recipe $przepis, User $odbiorcaPrzedZamkiem, ?string $potwierdzonaNazwa = null): array
+    {
+
+        return ZamekPary::zablokuj($autor, $odbiorcaPrzedZamkiem, function (?User $swiezyAutor, ?User $odbiorca) use ($przepis, $potwierdzonaNazwa): array {
             // Konto mogło zniknąć, zmienić stan albo założyć blokadę między
             // odczytem a zamkiem. Jedno zdanie także tutaj.
             if ($swiezyAutor === null || ! $this->moznaPokazac($swiezyAutor, $odbiorca)) {
                 throw new BladDlaCzlowieka(self::NIE_DA_SIE);
+            }
+
+            if ($potwierdzonaNazwa !== null && $odbiorca->profile()->value('username') !== $potwierdzonaNazwa) {
+                throw new BladDlaCzlowieka(self::PONOW_POTWIERDZENIE);
             }
 
             /** @var User $odbiorca */

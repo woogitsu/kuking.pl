@@ -70,7 +70,7 @@
                 <p>Ta osoba będzie mogła czytać przepis „{{ $recipe->title }}”. Dostanie o tym powiadomienie w Kuking (bez listu i bez powiadomienia na telefonie). Przepis znajdzie też w „Moje”, w części „Przepisy udostępnione mi”.</p>
                 <form method="POST" action="{{ route('recipes.shares.store', $recipe) }}">
                     @csrf
-                    <input type="hidden" name="nazwa" value="{{ $nazwaKandydata }}">
+                    <input type="hidden" name="potwierdzenie" value="{{ $potwierdzenie }}">
                     <input type="hidden" name="potwierdzam" value="1">
                     <div class="form-actions">
                         <button class="btn btn-primary" type="submit">Tak, pokaż tej osobie</button>

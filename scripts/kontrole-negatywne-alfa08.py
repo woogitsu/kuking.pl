@@ -1397,6 +1397,11 @@ checks = [
     ("Rollback udostępnień przepisów kasuje bez pytania (#2650)", "database/migrations/2026_10_03_120000_create_recipe_shares_table.php",
      "test_rollback_odmawia_przy_udostepnieniach_i_przechodzi_na_pustej_tabeli",
      lambda s: replace_once(s, "            $this->upewnijSieZeWolnoKasowac();\n", "")),
+    ("Udostępnienie przechodzi na nowego właściciela nazwy (#2790)", "app/Http/Controllers/RecipeShareController.php",
+     "StalyOdbiorcaUdostepnieniaPrzepisuTest::test_zmieniona_nazwa_i_nowy_wlasciciel_nazwy_nie_dostaja_udostepnienia",
+     lambda s: replace_once(s,
+         "$akcja->poPotwierdzeniu($request->user(), $recipe, $danePotwierdzenia['odbiorca'], $danePotwierdzenia['nazwa'])",
+         "$akcja->poNazwie($request->user(), $recipe, $danePotwierdzenia['nazwa'])")),
     # #2291: regresja domyślnej konfiguracji ma zapalić odczyt `SHOW jit` na
     # rzeczywistym nowym połączeniu PostgreSQL, nie tylko test tekstu configu.
     ("Domyslny JIT wraca na polaczeniu PostgreSQL (#2291)", "config/database.php", "PolaczenieBazyMaWylaczonyJitTest::swieze_polaczenie_aplikacji_ma_jit_off",

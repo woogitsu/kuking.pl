@@ -665,6 +665,15 @@ przez moderację wiersza nie kasują; dostęp wstrzymuje
 dla limitu `kuking.udostepnienia.max_osob`; kolejność blokad: konta, potem
 przepis — D-079 §1).
 
+Drugi krok formularza (#2790) niesie zaszyfrowane potwierdzenie z UUID
+odbiorcy, UUID autora i przepisu, nazwą widoczną przy potwierdzeniu, wersją
+formularza i terminem 15 minut. Dwie otwarte karty zachowują osobne
+potwierdzenia. Przy zapisie `UdostepnijPrzepis::poPotwierdzeniu()` ponownie
+sprawdza tę samą osobę i jej nazwę pod `ZamekPary`; zmiana nazwy wymaga
+ponownego pierwszego kroku. Dowolny identyfikator przesłany przez klienta
+nie przyznaje dostępu. Nie zmienia to schematu `recipe_shares` ani zasad
+odczytu przepisu.
+
 **Rollback (D-088).** `down()` kasuje tabelę i funkcję wyzwalacza, więc
 **odmawia**, gdy w tabeli jest choć jeden wiersz: decyzja autora o tym, komu
 pokazał przepis, nie wróci po ponownym `up()`. Komunikat mówi, co zrobić
