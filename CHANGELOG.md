@@ -76,6 +76,11 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 - Poprawione (#2809): ponowienie przeniesienia do zeszytu potwierdza zapis bez ujawniania nowego tytułu przepisu, do którego nie ma już dostępu. Notatka i pierwotna data zapisu zostają w zeszycie.
 - Poprawione (#2790): potwierdzenie udostępnienia przepisu jest przypięte do konkretnej osoby i przepisu. Gdy ktoś zmieni nazwę konta między sprawdzeniem a zatwierdzeniem, formularz prosi o ponowne sprawdzenie odbiorcy zamiast przekazać dostęp osobie, która zajęła dawną nazwę.
 - Doprecyzowane (#2708, pyt. 6): wewnętrzny rejestr czynności osobno podaje wygaśnięcie postępu, dopisku i wspólnego gotowania po 24 godzinach oraz ZIP po przekroczeniu 2 godzin, a osobno ich fizyczne usunięcie przy nocnym sprzątaniu. Polityka prywatności i jej archiwum pozostają bez zmian; test zegara pilnuje dokładnej granicy wygaśnięcia.
+- Poprawione (#2861, #2862): spóźnione potwierdzenie albo wyłączenie weryfikacji dwuetapowej po zmianie hasła w drugiej sesji nie odnowi odwołanej sesji ani nie zmieni ochrony konta. Serwis prosi o ponowne logowanie; aktualna sesja nadal może wykonać obie czynności.
+
+
+- Poprawione (#2851, #2854): spóźniona zmiana hasła i „Wyloguj inne urządzenia” po resecie albo zmianie w drugiej sesji nie mogą użyć starego hasła do nadpisania nowego ani przywrócić odwołanej sesji. Serwis prosi wtedy o ponowne logowanie; aktualna sesja nadal może wykonać obie akcje.
+
 - Poprawione (#2844): kontrola wyścigu importu odczytuje wynik testu z raportu JUnit. Rozpoznaje dwie oczekiwane porażki po celowej mutacji i trzy przejścia po przywróceniu kodu; nie uznaje obcego błędu za dowód.
 - Poprawione (#2815): wczytywanie własnej paczki ponownie sprawdza stan konta przed każdą pozycją. Zawieszenie w trakcie żądania zatrzymuje kolejne zapisy bez śladu importu; wcześniejsze poprawnie zapisane pozycje zostają.
 - Poprawione (#2708): instrukcja odtwarzania kopii wymaga ponownego zabezpieczenia decyzji CSAM i publicznych wariantów zdjęć przed wymazaniem kont oraz wznowieniem usług. Gdy nie da się potwierdzić spraw i ich zabezpieczenia, procedura zatrzymuje się zamiast uruchamiać ruch lub nocne retencje.
