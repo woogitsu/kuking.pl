@@ -121,6 +121,15 @@ else
     zle "Werdykt kontroli negatywnych oblewa — uruchom: python3 tests/skrypty/kontrole-negatywne-przyczyna.py"
 fi
 
+# #2844: reporter wyścigów może podać zwykły tekst, a wynik i przyczynę
+# kontrola #2815 musi odczytać z JUnit. Testuje sam przyrząd bez bazy i PHP.
+krok "Werdykt wyścigu importu (#2815)"
+if python3 tests/skrypty/kontrola-negatywna-2815-wynik.py >/dev/null 2>&1; then
+    ok "Kontrola #2815 odczytuje właściwe warianty i przyczyny z JUnit"
+else
+    zle "Kontrola #2815 myli wynik wyścigu — uruchom: python3 tests/skrypty/kontrola-negatywna-2815-wynik.py"
+fi
+
 # --- 3b''. Dziennik decyzji: pliki w docs/decyzje/ zgodne z indeksem -------
 # Jedna decyzja = jeden plik; docs/DECISIONS.md jest indeksem generowanym
 # z plików. To samo pilnuje DziennikDecyzjiZgodnyZIndeksemTest.

@@ -275,6 +275,21 @@ własnego komunikatu asercji), nie ogólne „Failed asserting" — takie byłob
 niewiele lepsze od `FAILED`. Sam werdykt ma test bez bazy:
 `python3 tests/skrypty/kontrole-negatywne-przyczyna.py`.
 
+**Wyścig importu #2815 (3.10.2026).** Kontrola fizyczna naprawdę oblała dwa
+warianty oznaczonym markerem (trzeci pozostał zielony), lecz skrypt uznał to
+za błąd, bo szukał `"result":"failed"` w tekstowym wyjściu `artisan test`.
+Reporter może podać tekst albo JSON. Kontrola czyta teraz JUnit: wymaga
+dokładnie trzech wariantów bez pominięć i błędów wykonania, dwóch porażek
+asercji z własnym markerem po mutacji oraz trzech przejść po przywróceniu
+źródła. Sam niezerowy kod procesu lub marker znaleziony gdzieś w logu nie
+jest dowodem poprawnej przyczyny. Sam odczyt raportu ma siedem testów bez bazy
+i PHP w `tests/skrypty/kontrola-negatywna-2815-wynik.py`, uruchamianych przez
+`scripts/check.sh`: poprawny JUnit przy tekstowym wyjściu, brak raportu,
+zielony mutant, obca przyczyna, pominięcie, błąd wykonania, brak wariantu
+oraz czerwony przebieg po przywróceniu źródła.
+Podstawienie starej funkcji bez JUnit do tego testu fizycznie oblewa próbę
+poprawnego raportu przy tekstowym wyjściu — to kontrola samego przyrządu.
+
 **Dlaczego łańcuch, a nie wyrażenie regularne.** Łańcuch albo jest w pliku,
 albo go nie ma. Wyrażenie regularne ma trzecią możliwość — „pasuje do czegoś
 innego, niż myślałeś" — i to ona dała połowę no-opów z 19 września.
