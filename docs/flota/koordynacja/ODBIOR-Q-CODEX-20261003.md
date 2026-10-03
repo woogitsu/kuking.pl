@@ -41,12 +41,19 @@ Nie jest jeszcze wypchnięta, wydana ani uznana za pełną zieleń CI.
   w tym liczba zapytań dla jedenastu różnych oryginałów i granice dostępu.
   Fizyczny mutant: właściwy `PODPIS_2852_WIDOCZNY`, dokładny restore.
   To jest odbiór HTML i zapytań; nie wykonano oglądu PDF ani przeglądarki.
+- **#2864**, `a0e96bbad`: stara karta ustawień urodzin nie może przywrócić
+  wyłączonej widoczności. Świeży stan jest porównany pod blokadą konta
+  przed całym zapisem; konflikt zachowuje wpisane pola i prowadzi do
+  aktualnych ustawień. Rzeczywiste dwa formularze HTTP oraz przypomnienia:
+  **39 / 170 PASS** na własnym PG18. Fizyczny mutant oblał z właściwym
+  `URODZINY_2864_NOWSZA_DECYZJA`, dokładny restore przeszedł. Niezależny
+  przegląd: ACCEPT. Świadome ponowne włączenie na świeżej karcie działa.
 
 Koordynator zmierzył trzy pierwsze poprawki na osobnej instancji Linux,
 PG18 na porcie 55488: **66 / 2152 PASS**, wyścig retencji **1 / 18 PASS**,
 fizyczny DELETE po ID oblał z właściwą przyczyną, a dokładny restore przeszedł.
 Pełna analiza typów: zero błędów. Baza wyścigów należy do tego worktree
-(`kuking_race_repo_q`). Dwie ostatnie poprawki wymagają pomiaru wspólnej bazy.
+(`kuking_race_repo_q`). Trzy ostatnie poprawki wymagają pomiaru wspólnej bazy.
 
 Konflikty CHANGELOG rozwiązano sumą wpisów. Q nie dodaje migracji,
 zależności ani płatnych wywołań. Wcześniejsze migracje N zachowują własne
@@ -55,7 +62,7 @@ retencji i klasę dwóch połączeń.
 
 ## Pozostałe bramki
 
-Root odświeża własną kopię Linux do kompletu pięciu poprawek z dokładnym
+Root odświeża własną kopię Linux do kompletu sześciu poprawek z dokładnym
 lockiem i osobną bazą PG18. Pomiar całych zmienionych klas i pełna analiza typów poprzedzają
 zwykły push z niezmienionym hakiem. Następnie pełne CI dokładnego heada,
 przegląd końcowego PR i merge z expectedHeadSha do integracji.
