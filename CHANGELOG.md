@@ -11,6 +11,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 - Poprawione (#2860): po wyłączeniu i ponownym włączeniu zapamiętywania postępu stara karta nie cofnie kroków ani liczby porcji zapisanych później. Pokaże zmianę i poprosi o otwarcie aktualnego gotowania.
 - Poprawione (#2870): „Moje wpisy” pomijają zapowiedź usuniętego przepisu, jeśli wpis nie ma własnego tekstu ani zdjęcia. Własne szkice, wpisy ukryte i wpisy z własną treścią zostają; po odzyskaniu przepisu zapowiedź wraca autorowi. Szukanie i kolejne strony korzystają z tej samej listy.
 - Poprawione (#2876): wydruk całego zeszytu i wybranych przepisów pokazuje liczbę gotowych sztuk podaną przez autora, osobno od liczby porcji i czasu.
+- Poprawione (#2857): „Wstaw dopisek” zachowuje świeżo wpisane dane formularza „Ugotowałem” i wybrane zdjęcie; zastąpienie własnego tekstu wymaga jawnego wyboru.
 
 - Poprawione (#2863): ukryty lub usunięty wpis nie wróci do kanału Atom, gdy wcześniejsze pobranie kończy budowanie kopii po jej wyczyszczeniu.
 

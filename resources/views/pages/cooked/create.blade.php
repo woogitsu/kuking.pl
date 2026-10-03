@@ -158,7 +158,16 @@
             <div class="stack" role="group" aria-label="Prywatny dopisek z gotowania">
                 <p class="m-0"><strong>Masz prywatny dopisek z gotowania:</strong> {{ $dopisek['tresc'] }}</p>
                 <p class="m-0">Dotąd ten dopisek jest prywatny: widzisz go tylko Ty. Jeśli go wstawisz do pola „Coś po swojemu?”, po wysłaniu będzie widać go przy wykonaniu, podpisany „Po swojemu”. Możesz go wcześniej poprawić albo usunąć z pola.</p>
-                <a class="btn btn-secondary" href="{{ route('cooked.create', ['recipe' => $recipe->slug, 'dopisek' => 'wstaw']) }}">Wstaw dopisek do pola poniżej</a>
+                <button class="btn btn-secondary" type="button" data-wstaw-dopisek data-dopisek-tresc="{{ $dopisek['tresc'] }}" hidden>Wstaw dopisek do pola poniżej</button>
+                <p class="m-0" data-dopisek-recznie>Aby użyć dopisku, skopiuj jego tekst do pola „Coś po swojemu?” poniżej. Pozostałe pola i wybrane zdjęcie zostaną w formularzu.</p>
+                <div class="notice stack" data-dopisek-potwierdzenie hidden tabindex="-1">
+                    <p class="m-0">W polu „Coś po swojemu?” masz już własny tekst. Czy chcesz zastąpić go prywatnym dopiskiem?</p>
+                    <div class="form-actions">
+                        <button class="btn btn-secondary" type="button" data-dopisek-zastap>Zastąp mój tekst dopiskiem</button>
+                        <button class="btn btn-quiet" type="button" data-dopisek-zostaw>Zostaw mój tekst</button>
+                    </div>
+                </div>
+                <p class="m-0" data-dopisek-status role="status" hidden>Dopisek jest w polu „Coś po swojemu?”. Możesz go poprawić przed wysłaniem.</p>
             </div>
         @elseif($dopisek['stan'] === 'wstawiony')
             <p class="m-0" role="status">Wstawiliśmy dopisek z gotowania do pola poniżej. Sprawdź go: po wysłaniu będzie widać go przy wykonaniu jako „Po swojemu”. Możesz go poprawić albo wyczyścić pole.</p>

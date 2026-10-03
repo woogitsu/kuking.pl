@@ -1934,6 +1934,12 @@ checks = [
      lambda s: replace_once(s, 'org.opencontainers.image.licenses="proprietary"', 'org.opencontainers.image.licenses="MIT"')),
     ("Format UUID", WYBOR_ZESZYTU, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
+    ("Wstaw dopisek znów porzuca formularz (#2857)", "resources/views/pages/cooked/create.blade.php", "test_przycisk_wstawia_w_biezacym_formularzu_bez_porzucajacego_linku",
+     lambda s: replace_once(
+         s,
+         '<button class="btn btn-secondary" type="button" data-wstaw-dopisek data-dopisek-tresc="{{ $dopisek[\'tresc\'] }}" hidden>Wstaw dopisek do pola poniżej</button>',
+         '<a class="btn btn-secondary" href="{{ route(\'cooked.create\', [\'recipe\' => $recipe->slug, \'dopisek\' => \'wstaw\']) }}">Wstaw dopisek do pola poniżej</a>',
+     )),
     # Paginacja panelu moderacji (audyt B1, zn. 1): powrót do `links()`, czyli
     # widoku Tailwinda niewidocznego na komputerze, ma zapalić test.
     ("Kolejka zgłoszeń wraca do links()", "resources/views/pages/admin/reports.blade.php", "PaginacjaPaneluModeracjiTest",
