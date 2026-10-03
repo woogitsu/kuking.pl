@@ -6,6 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2877): zastosowanie dawnej wersji przepisu przywraca także zapisane „nie podano” liczby porcji. Brak pola w starszej wersji nadal pozostawia dzisiejszą liczbę, a pusta nazwa nie zastępuje obecnej.
 - Poprawione (#2817): „Moje próby tego przepisu” oceniają wersję i rzeczywisty czas osobno. Brak czasu albo przypiętej wersji nie oznacza już zgodności obu pól; znane różnice i brak danych są opisane także przy przejściu na kolejną stronę prób.
 - Poprawione (#2882): przelicznik porcji nie mnoży samego mianownika zapisów `1⁄2` i `1∕2`. Zachowuje cały wiersz i prosi o samodzielne sprawdzenie ilości na stronie przepisu, w gotowaniu i przy zakupach. Zwykłe ułamki `1/2` i `½` nadal się przeliczają; tekst autora pozostaje bez zmian.
 - Poprawione (#2882): odmowa ułamka obejmuje także liczby Unicode w liczniku i mianowniku, np. `¹⁄2`, `1∕₂` i `¹⁄₂`. Nie przeliczamy fragmentu takiego zapisu; całość pozostaje tekstem autora z prośbą o samodzielne sprawdzenie ilości.

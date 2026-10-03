@@ -35,6 +35,8 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Historia myli jawne NULL porcji z brakiem danych (#2877)': r'PORCJE_2877_NULL_PODGLAD',
+    'Historia pomija zapisane NULL porcji przy zastosowaniu (#2877)': r'PORCJE_2877_NULL_ZAPIS',
     'Częściowe dane prób znów potwierdzają zgodność obu pól (#2817)': r'PROBY_2817_OSOBNE_POLA_DOMENA|PROBY_2817_OSOBNE_POLA_HTTP_PAGINACJA',
     'Wycofana wskazówka podmienia tekst otwartej sprawy (#2884)': r'UWAGA_2884_ZGLOSZONY_TEKST',
     'Odrzucone zdjęcie potwierdza nieistniejące przypięcie (#2883)': r'DOLACZENIE_2883_ODMOWA_ZAMIAST_PONOWIENIA|DOLACZENIE_2883_DOMENA_SWIEZY_STAN',

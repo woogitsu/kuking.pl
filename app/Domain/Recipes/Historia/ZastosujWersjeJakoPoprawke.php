@@ -154,7 +154,7 @@ final class ZastosujWersjeJakoPoprawke
 
             $wartosc = $migawka->surowa($klucz);
 
-            if ($wartosc === null && in_array($klucz, ['title', 'servings'], true)) {
+            if ($wartosc === null && $klucz === 'title') {
                 continue;
             }
 
