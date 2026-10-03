@@ -311,6 +311,73 @@ class MojeRozmowyTest extends TestCase
         $this->assertCount(MojeRozmowy::NA_STRONE, $zly->items());
     }
 
+    public function test_parser_odrzuca_semantycznie_nieprawidlowy_czas_kursora(): void
+    {
+        $id = '12345678-1234-1234-1234-123456789abc';
+        foreach ([
+            '2026-99-01T12:00:00.000000Z',
+            '2026-02-31T12:00:00.000000Z',
+            '0000-01-01T12:00:00.000000Z',
+            '2026-01-01T25:00:00.000000Z',
+            '2026-01-01T12:61:00.000000Z',
+            '2026-01-01T12:00:61.000000Z',
+        ] as $czas) {
+            $this->assertNull(MojeRozmowy::odczytajKursor($czas.'_'.$id),
+                'ROZMOWY_2803_NIEMOZLIWY_CZAS: '.$czas);
+        }
+
+        $this->assertNull(MojeRozmowy::odczytajKursor('nie-kursor'));
+        $this->assertSame(['2024-02-29T23:59:59.123456Z', $id],
+            MojeRozmowy::odczytajKursor('2024-02-29T23:59:59.123456Z_'.$id));
+    }
+
+    public function test_niemozliwa_data_w_adresie_otwiera_pierwsza_porcje_bez_bledu_serwera(): void
+    {
+        $ja = $this->user('wadliwy_kursor');
+        $komentarz = $this->komentarz($ja, $this->wpis(), ['body' => 'Pierwsza rozmowa']);
+        $id = '12345678-1234-1234-1234-123456789abc';
+
+        foreach (['2026-02-31T12:00:00.000000Z', '2026-99-01T12:00:00.000000Z',
+            '2026-01-01T25:00:00.000000Z'] as $czas) {
+            $strona = $this->actingAs($ja)->get(route('collections.own-conversations', ['po' => $czas.'_'.$id]))
+                ->assertOk()->viewData('rozmowy');
+            $this->assertSame([(string) $komentarz->getKey()],
+                array_map(fn ($p): string => $p->idKomentarza, $strona->items()),
+                'ROZMOWY_2803_HTTP_PIERWSZA_PORCJA: '.$czas);
+        }
+    }
+
+    public function test_poprawna_data_przestepna_z_mikrosekundami_i_remisem_id_stronicuje_bez_powtorek(): void
+    {
+        $ja = $this->user('przestepny_kursor');
+        $wpis = $this->wpis();
+        $id = [];
+        for ($i = 0; $i < MojeRozmowy::NA_STRONE + 1; $i++) {
+            $komentarz = $this->komentarz($ja, $wpis, [
+                'body' => 'Rozmowa w dzień przestępny '.$i,
+                'created_at' => '2024-02-29T12:34:56Z',
+            ]);
+            $id[] = (string) $komentarz->getKey();
+        }
+
+        $pierwsza = $this->lista($ja)->assertOk()->viewData('rozmowy');
+        $this->assertCount(MojeRozmowy::NA_STRONE, $pierwsza->items());
+        $adres = $pierwsza->nextPageUrl();
+        $this->assertNotNull($adres);
+        parse_str((string) parse_url($adres, PHP_URL_QUERY), $parametry);
+        // Kolumna comments.created_at ma precyzję 0, więc wydany kursor ma
+        // sześć zer. Parser osobno przyjmuje poprawne niezerowe mikrosekundy.
+        $this->assertStringStartsWith('2024-02-29T12:34:56.000000Z_', (string) ($parametry['po'] ?? ''));
+
+        $druga = $this->actingAs($ja)->get($adres)->assertOk()->viewData('rozmowy');
+        $razem = array_merge(
+            array_map(fn ($p): string => $p->idKomentarza, $pierwsza->items()),
+            array_map(fn ($p): string => $p->idKomentarza, $druga->items()),
+        );
+        $this->assertCount(MojeRozmowy::NA_STRONE + 1, $razem);
+        $this->assertEqualsCanonicalizing($id, $razem);
+    }
+
     public function test_porcja_jest_pelna_mimo_odrzuconych_przez_policy_wierszy(): void
     {
         $ja = $this->user('przebierajaca');

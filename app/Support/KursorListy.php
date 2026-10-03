@@ -150,7 +150,7 @@ final class KursorListy
      * Sam wzorzec nie wystarcza: `2026-02-31 25:00:00` pasuje do niego,
      * a Postgres odpowiada na to błędem `22008`.
      */
-    private static function czasPasuje(string $wartosc): bool
+    public static function czasPasuje(string $wartosc): bool
     {
         if (preg_match('/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(\.\d{1,6})?(Z|[+-](\d{2})(?::?(\d{2}))?)?$/D', $wartosc, $m) !== 1) {
             return false;

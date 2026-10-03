@@ -6,6 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2803): „Moje rozmowy” otwierają pierwszą porcję, gdy w adresie jest kursor z nieistniejącą datą lub godziną. Poprawne kursory, także z dniem przestępnym i remisem czasu, nadal prowadzą do dalszej porcji bez powtórzeń.
 - Poprawione (#2790): potwierdzenie udostępnienia przepisu jest przypięte do konkretnej osoby i przepisu. Gdy ktoś zmieni nazwę konta między sprawdzeniem a zatwierdzeniem, formularz prosi o ponowne sprawdzenie odbiorcy zamiast przekazać dostęp osobie, która zajęła dawną nazwę.
 - Doprecyzowane (#2708, pyt. 6): wewnętrzny rejestr czynności osobno podaje wygaśnięcie postępu, dopisku i wspólnego gotowania po 24 godzinach oraz ZIP po przekroczeniu 2 godzin, a osobno ich fizyczne usunięcie przy nocnym sprzątaniu. Polityka prywatności i jej archiwum pozostają bez zmian; test zegara pilnuje dokładnej granicy wygaśnięcia.
 - Poprawione (#2708): instrukcja odtwarzania kopii wymaga ponownego zabezpieczenia decyzji CSAM i publicznych wariantów zdjęć przed wymazaniem kont oraz wznowieniem usług. Gdy nie da się potwierdzić spraw i ich zabezpieczenia, procedura zatrzymuje się zamiast uruchamiać ruch lub nocne retencje.
