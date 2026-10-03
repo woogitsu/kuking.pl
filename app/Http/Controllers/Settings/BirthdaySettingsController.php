@@ -76,11 +76,13 @@ class BirthdaySettingsController extends Controller
             'wants_birthday_email' => ['boolean'],
             'birthday_visible_to_followers' => ['boolean'],
             'original_birthday_email' => ['required', 'boolean'],
+            'original_birthday_visible_to_followers' => ['required', 'boolean'],
         ], [
             'birthday_wishes_enabled.*' => 'Zaznacz albo odznacz pole i zapisz ponownie.',
             'wants_birthday_email.*' => 'Zaznacz albo odznacz pole i zapisz ponownie.',
             'birthday_visible_to_followers.*' => 'Zaznacz albo odznacz pole i zapisz ponownie.',
             'original_birthday_email.*' => 'Otwórz aktualne ustawienia i wybierz ponownie zgodę na e-mail z życzeniami.',
+            'original_birthday_visible_to_followers.*' => 'Otwórz aktualne ustawienia urodzin i wybierz ponownie widoczność dla obserwujących.',
         ]);
 
         $wybory->handle(
@@ -88,6 +90,7 @@ class BirthdaySettingsController extends Controller
             $request->boolean('birthday_wishes_enabled'),
             $request->boolean('wants_birthday_email'),
             $request->boolean('original_birthday_email'),
+            $request->boolean('original_birthday_visible_to_followers'),
             $request->boolean('birthday_visible_to_followers'),
         );
 

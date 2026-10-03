@@ -119,6 +119,7 @@
                  jedyne miejsce, w którym data wychodzi poza właściciela konta,
                  a obserwować może każdy bez akceptacji. Powiadomienie, nie
                  wpis w feedzie. --}}
+            <input type="hidden" name="original_birthday_visible_to_followers" value="{{ $poBledzieWyborow ? old('original_birthday_visible_to_followers') : (int) $user->birthday_visible_to_followers }}">
             <div class="field @error('birthday_visible_to_followers') has-error @enderror mt-4">
                 <label class="choice" for="f-birthday_visible_to_followers">
                     <input id="f-birthday_visible_to_followers" type="checkbox" name="birthday_visible_to_followers" value="1"
@@ -132,6 +133,9 @@
                 @error('birthday_visible_to_followers')
                     <span class="field-error" id="f-birthday_visible_to_followers-error">{{ $message }}</span>
                 @enderror
+                @if($errors->has('birthday_visible_to_followers'))
+                    <p><a href="{{ route('settings.birthday') }}">Otwórz aktualne ustawienia</a> i wybierz ponownie.</p>
+                @endif
             </div>
 
             <button class="btn btn-primary mt-4" type="submit">Zapisz wybory</button>

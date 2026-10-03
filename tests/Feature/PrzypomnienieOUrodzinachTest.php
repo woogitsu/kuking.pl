@@ -187,6 +187,7 @@ class PrzypomnienieOUrodzinachTest extends TestCase
         $this->actingAs($ania)->put(route('settings.birthday.preferences'), [
             '_formularz' => 'wybory',
             'original_birthday_email' => '0',
+            'original_birthday_visible_to_followers' => '0',
             'birthday_wishes_enabled' => '1',
             'birthday_visible_to_followers' => '1',
         ])->assertSessionHasNoErrors();
