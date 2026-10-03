@@ -2643,6 +2643,8 @@ checks = [
      lambda s: replace_once(s, "        if ($poprawione > 0) {", "        if (false) {")),
     ("Poprawka zakupów: stara karta nadpisuje nowszą korektę (#2443)", ZAKUPY_LISTA, "ListaZakupowPoprawkaTest",
      lambda s: replace_once(s, "if (! hash_equals(self::znacznikTekstu($pozycja), $widzianyZnacznik)) {", "if (false) {")),
+    ("Anulowanie poprawki zakupów gubi nazwaną listę (#2873)", "resources/views/pages/zakupy/popraw.blade.php", "NazwaneListyZakupowTest::test_anulowanie_poprawki_wraca_do_wlasciwej_listy_bez_zmiany_pozycji_takze_po_bledzie",
+     lambda s: replace_once(s, 'href="{{ $adresAnulowania }}"', 'href="{{ route(\'shopping.index\') }}#pozycja-{{ $pozycja->getKey() }}"')),
     # #2438 (decyzja właściciela z 2.10.2026, D-333): wydruk zeszytu jest
     # DOMYŚLNIE bez notatek; powrót do „notatki, chyba że bez-notatek” musi
     # wywrócić test domyślnego wydruku.

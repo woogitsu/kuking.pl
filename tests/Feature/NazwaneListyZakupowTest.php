@@ -95,6 +95,45 @@ final class NazwaneListyZakupowTest extends TestCase
             ->orderBy('position')->orderBy('id')->pluck('text')->all();
     }
 
+    public function test_anulowanie_poprawki_wraca_do_wlasciwej_listy_bez_zmiany_pozycji_takze_po_bledzie(): void
+    {
+        $ja = $this->user('kupujaca');
+        $obca = $this->user('obca');
+        $swieta = $this->lista($ja, 'Święta');
+        $cudza = $this->lista($obca, 'Cudza lista');
+        $karp = $this->pozycja($ja, 'karp', $swieta);
+        $mleko = $this->pozycja($ja, 'mleko');
+        $cudzaPozycja = $this->pozycja($obca, 'sekret', $cudza);
+
+        foreach ([
+            [$karp, route('shopping.index', ['lista' => $swieta->getKey()]), 'Święta'],
+            [$mleko, route('shopping.index'), 'Na co dzień'],
+        ] as [$pozycja, $listaAdres, $nazwa]) {
+            $przed = $pozycja->fresh()->getAttributes();
+            $oczekiwany = $listaAdres.'#pozycja-'.$pozycja->getKey();
+            $html = (string) $this->actingAs($ja)->get(route('shopping.edit', $pozycja))->assertOk()->getContent();
+            preg_match('~<a[^>]+href="([^"]+)"[^>]*>Anuluj, zostaw jak jest</a>~', $html, $znaleziony);
+            $adres = html_entity_decode($znaleziony[1] ?? '', ENT_QUOTES, 'UTF-8');
+            $this->assertSame($oczekiwany, $adres, 'ZAKUPY_2873_ANULUJ_LISTA: przycisk nie wraca do listy pozycji.');
+
+            $cel = (string) $this->actingAs($ja)->get(explode('#', $adres, 2)[0])->assertOk()->getContent();
+            $this->assertStringContainsString('Wybrana lista: '.$nazwa, $cel);
+            $this->assertStringContainsString('id="pozycja-'.$pozycja->getKey().'"', $cel);
+            $this->assertSame($przed, $pozycja->fresh()->getAttributes(), 'Anulowanie nie może zapisać zmian.');
+        }
+
+        $wpisanyTekst = str_repeat('x', ListaZakupow::maksZnakow() + 1);
+        $this->actingAs($ja)->patch(route('shopping.update', $karp), [
+            'text' => $wpisanyTekst,
+            'stan' => ListaZakupow::znacznikTekstu($karp),
+        ])->assertRedirect(route('shopping.edit', $karp))->assertSessionHasErrors('text');
+        $poBledzie = (string) $this->actingAs($ja)->get(route('shopping.edit', $karp))->assertOk()->getContent();
+        $this->assertStringContainsString('value="'.$wpisanyTekst.'"', $poBledzie);
+        $this->assertStringContainsString('href="'.route('shopping.index', ['lista' => $swieta->getKey()]).'#pozycja-'.$karp->getKey().'"', $poBledzie);
+        $this->actingAs($ja)->get(route('shopping.edit', $cudzaPozycja))->assertForbidden();
+        $this->actingAs($ja)->get(route('shopping.index', ['lista' => $cudza->getKey()]))->assertForbidden();
+    }
+
     public function test_dotychczasowe_pozycje_sa_na_liscie_domyslnej_a_nazwana_ich_nie_miesza(): void
     {
         $ja = $this->user('kupujaca');

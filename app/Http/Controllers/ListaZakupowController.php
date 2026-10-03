@@ -580,6 +580,7 @@ class ListaZakupowController extends Controller
             'pozycja' => $pozycja,
             'znacznik' => ListaZakupow::znacznikTekstu($pozycja),
             'maksZnakow' => ListaZakupow::maksZnakow(),
+            'adresAnulowania' => $this->adres($pozycja->list_id).'#pozycja-'.$pozycja->getKey(),
         ]);
     }
 
