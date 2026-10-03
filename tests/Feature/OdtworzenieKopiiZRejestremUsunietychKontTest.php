@@ -283,24 +283,64 @@ class OdtworzenieKopiiZRejestremUsunietychKontTest extends TestCase
     public function test_runbook_kaze_zastosowac_rejestr_usuniec_przed_podpieciem_bazy_do_serwisu(): void
     {
         $dokument = (string) file_get_contents(base_path('docs/infra/KOPIE_I_ODTWORZENIE.md'));
-        $poczatek = (int) strpos($dokument, '### 3(b) Utracona cała baza');
-        $koniec = (int) strpos($dokument, '### 3.1 Po KAŻDYM odtworzeniu');
+        $poczatek = strpos($dokument, '### 3(b) Utracona cała baza');
+        $koniec = strpos($dokument, '### 3.1 Po KAŻDYM odtworzeniu');
+        $this->assertNotFalse($poczatek);
+        $this->assertNotFalse($koniec);
         $this->assertGreaterThan($poczatek, $koniec, 'Nie znaleziono sekcji 3(b) w runbooku.');
         $sekcja = substr($dokument, $poczatek, $koniec - $poczatek);
 
+        $pierwszaPara = strpos($sekcja, '# 5. Dopiero po potwierdzeniu kroku 4 zastosuj rejestr usunięć');
+        $drugaPara = strpos($sekcja, '# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie');
+        $koniecDrugiejPary = strpos($sekcja, '# 7. Dopiero teraz podepnij nowy DB_URL');
         $podpiecie = strpos($sekcja, 'railway variables --set "DB_URL=');
+        $this->assertNotFalse($pierwszaPara);
+        $this->assertNotFalse($drugaPara);
+        $this->assertNotFalse($koniecDrugiejPary);
         $this->assertNotFalse($podpiecie, 'Runbook 3(b) nie ma kroku podpięcia DB_URL do serwisu.');
 
-        $przedPodpieciem = substr($sekcja, 0, $podpiecie);
-        $this->assertSame(
-            2,
-            substr_count($przedPodpieciem, 'php artisan kuking:wymaz-ponownie'),
-            'RUNBOOK_REJESTR_PO_PODPIECIU: przed podpięciem bazy do serwisu brak podglądu i wykonania kuking:wymaz-ponownie.',
+        $this->assertTrue($pierwszaPara < $drugaPara, 'RUNBOOK_REJESTR_PO_PODPIECIU: pierwszy podgląd i wymazanie muszą poprzedzać drugą kontrolę.');
+        $this->assertTrue($drugaPara < $koniecDrugiejPary, 'RUNBOOK_DRUGI_WYMAZ_PRZED_PODPIECIEM: druga kontrola musi poprzedzać podpięcie bazy.');
+        $this->assertTrue($pierwszaPara < $podpiecie, 'RUNBOOK_REJESTR_PO_PODPIECIU: nie podpinaj bazy przed pierwszym podglądem i wymazaniem.');
+        $this->assertTrue($koniecDrugiejPary < $podpiecie, 'RUNBOOK_DRUGI_WYMAZ_PRZED_PODPIECIEM: nie podpinaj bazy przed drugim podglądem i wymazaniem.');
+
+        $this->assertParaWymazaniaWRunbooku(
+            substr($sekcja, $pierwszaPara, $drugaPara - $pierwszaPara),
+            'RUNBOOK_REJESTR_PO_PODPIECIU',
         );
-        $this->assertSame(
-            2,
-            substr_count($przedPodpieciem, 'env DB_URL="$DB_URL_NOWEJ_BAZY"'),
-            'RUNBOOK_REJESTR_PO_PODPIECIU: komenda przed podpięciem musi działać na nowej bazie (DB_URL w poleceniu).',
+        $this->assertParaWymazaniaWRunbooku(
+            substr($sekcja, $drugaPara, $koniecDrugiejPary - $drugaPara),
+            'RUNBOOK_DRUGI_WYMAZ_PRZED_PODPIECIEM',
         );
+    }
+
+    private function assertParaWymazaniaWRunbooku(string $fragment, string $marker): void
+    {
+        $linie = preg_split('/\R/', $fragment);
+        $this->assertIsArray($linie);
+        $komendy = [];
+
+        foreach ($linie as $numer => $linia) {
+            $komenda = trim($linia);
+            if (! str_starts_with($komenda, 'php artisan kuking:wymaz-ponownie')) {
+                continue;
+            }
+
+            $this->assertSame(
+                'railway run --service kuking.pl --environment production '.chr(92),
+                trim($linie[$numer - 2] ?? ''),
+                $marker.': wymazanie musi działać przez odizolowany serwis.',
+            );
+            $this->assertSame(
+                'env DB_URL="$DB_URL_NOWEJ_BAZY" '.chr(92),
+                trim($linie[$numer - 1] ?? ''),
+                $marker.': wymazanie musi dotyczyć nowej bazy.',
+            );
+            $komendy[] = $komenda;
+        }
+
+        $this->assertCount(2, $komendy, $marker.': wymagane są podgląd i wykonanie przed podpięciem bazy.');
+        $this->assertMatchesRegularExpression('/^php artisan kuking:wymaz-ponownie --od="[^"]+" --na-sucho$/', $komendy[0], $marker.': najpierw podgląd.');
+        $this->assertMatchesRegularExpression('/^php artisan kuking:wymaz-ponownie --od="[^"]+"$/', $komendy[1], $marker.': potem wykonanie.');
     }
 }

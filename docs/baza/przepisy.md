@@ -257,6 +257,15 @@ CREATE INDEX recipes_kopia_z_idx ON recipes (kopia_z_id) WHERE kopia_z_id IS NOT
   (grupy, uwagi, zamienniki, „bez ilości”, ilość i jednostka), kroki z
   minutnikami i etapami, rodzinne pochodzenie. NIE kopiowane: zdjęcia (główne,
   przy krokach, skan kartki), alergeny, koszt, wersje, wykonania, komentarze.
+- **Ograniczenie #2800:** szkic powiązany z `przepisy_z_importu` albo
+  `importy_przepisow` nie może dostać kopii. Te wiersze są przypięte do ID
+  szkicu i pilnują pochodzenia oraz sprawdzenia odczytu przed publikacją;
+  skopiowanie samej treści omijałoby tę bramkę. Akcja odmawia po sprawdzeniu
+  prawa na świeżym stanie źródła pod blokadą, a ekran nie pokazuje formularza.
+  Zwykłe szkice i własne adaptacje pozostają kopiowalne. Nie ma nowej kolumny
+  ani migracji. **Rollback kodu:** nie cofa danych, lecz ponownie otworzyłby
+  tę drogę; przed cofnięciem trzeba wyłączyć akcję kopiowania szkiców i
+  przywrócić strażnika w wersji naprawionej.
 - **Rollback (D-088):** `down()` odmawia, gdy istnieje choć jedna niepublikowana
   kopia (`kopia_z_id IS NOT NULL AND published_at IS NULL`); opublikowane kopie i
   świeża baza przechodzą bez pytania. Test:
