@@ -6,6 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2844): kontrola wyścigu importu odczytuje wynik testu z raportu JUnit. Rozpoznaje dwie oczekiwane porażki po celowej mutacji i trzy przejścia po przywróceniu kodu; nie uznaje obcego błędu za dowód.
 - Poprawione (#2815): wczytywanie własnej paczki ponownie sprawdza stan konta przed każdą pozycją. Zawieszenie w trakcie żądania zatrzymuje kolejne zapisy bez śladu importu; wcześniejsze poprawnie zapisane pozycje zostają.
 - Poprawione (#2708): instrukcja odtwarzania kopii wymaga ponownego zabezpieczenia decyzji CSAM i publicznych wariantów zdjęć przed wymazaniem kont oraz wznowieniem usług. Gdy nie da się potwierdzić spraw i ich zabezpieczenia, procedura zatrzymuje się zamiast uruchamiać ruch lub nocne retencje.
 - Poprawione (#2808): gdy autor ukryje starszą wersję przepisu po otwarciu formularza „Gotuj z tej wersji”, zapis nowego wykonania sprawdza jej aktualną widoczność i odmawia bez zdjęcia ani powiadomienia. Autor i moderator nadal mogą użyć dostępnej dla nich wersji, a zwykłe „Ugotowałem” zachowuje dotychczasowe przypinanie.

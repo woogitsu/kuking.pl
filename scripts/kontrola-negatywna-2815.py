@@ -5,6 +5,8 @@ Wywoływane po przygotowaniu izolowanej bazy grupy `dwa-polaczenia`.
 
 import os
 import subprocess
+import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
@@ -26,19 +28,37 @@ if os.environ.get("CI") != "true":
 def test(expected_success: bool) -> None:
     env = os.environ.copy()
     env["APP_BASE_PATH"] = str(ROOT)
-    result = subprocess.run(
-        ["php", "artisan", "test", "--group=dwa-polaczenia", "--filter=" + TEST, "--no-ansi"],
-        cwd=ROOT, env=env, text=True, encoding="utf-8", errors="replace",
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300, check=False,
-    )
-    print(result.stdout, flush=True)
-    if "No tests found" in result.stdout or '"tests":0' in result.stdout:
-        raise RuntimeError("Nie uruchomił się żaden test #2815.")
-    if expected_success:
-        if result.returncode != 0 or '"result":"passed"' not in result.stdout:
-            raise RuntimeError("Test #2815 nie przeszedł po przywróceniu źródła.")
-    elif result.returncode == 0 or MARKER not in result.stdout or '"result":"failed"' not in result.stdout:
-        raise RuntimeError("Mutant #2815 nie oblał testu z oczekiwanej przyczyny.")
+    with tempfile.TemporaryDirectory(prefix="kuking-2815-result-") as directory:
+        report = Path(directory) / "junit.xml"
+        result = subprocess.run(
+            ["php", "artisan", "test", "--group=dwa-polaczenia", "--filter=" + TEST,
+             "--no-ansi", "--log-junit=" + str(report)],
+            cwd=ROOT, env=env, text=True, encoding="utf-8", errors="replace",
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300, check=False,
+        )
+        print(result.stdout, flush=True)
+        if not report.is_file():
+            raise RuntimeError("Brak raportu JUnit #2815; błąd środowiska nie jest dowodem.")
+        cases = list(ET.parse(report).getroot().iter("testcase"))
+        names = {case.get("name") for case in cases}
+        expected_names = {f'{TEST} with data set "{rodzaj}"' for rodzaj in ("przepis", "wpis", "zeszyt")}
+        if len(cases) != 3 or names != expected_names or any(
+            case.find("skipped") is not None or case.find("error") is not None for case in cases
+        ):
+            raise RuntimeError("Trzy warianty testu #2815 nie wykonały się bez błędu środowiska.")
+        failures = {
+            case.get("name"): case.findall("failure") for case in cases if case.findall("failure")
+        }
+        if expected_success:
+            if result.returncode != 0 or failures:
+                raise RuntimeError("Test #2815 nie przeszedł po przywróceniu źródła.")
+        elif result.returncode == 0 or set(failures) != {
+            f'{TEST} with data set "wpis"', f'{TEST} with data set "zeszyt"'
+        } or any(
+            len(found) != 1 or MARKER not in ((found[0].text or "") + found[0].get("message", ""))
+            for found in failures.values()
+        ):
+            raise RuntimeError("Mutant #2815 nie oblał dwóch wariantów z oczekiwanej przyczyny.")
 
 
 original = SOURCE.read_bytes()
