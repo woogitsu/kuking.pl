@@ -6,6 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2881): starsze wersje przepisu pozostają z nim przez 30 dni w koszu. Nocne sprzątanie historii nie usuwa ich przed terminem; po odzyskaniu znów obowiązuje zwykła retencja wersji.
 - Poprawione (#2869): nowa paczka danych zachowuje historię otrzymanego zaproszenia, lecz nie pokazuje późniejszej nazwy cudzego prywatnego zeszytu po odebraniu dostępu lub odejściu.
 - Poprawione (#2868): ekran „Usunięte przepisy” pokazuje starsze odzyskiwalne przepisy mimo nowszych pozycji objętych moderacją. „Pokaż więcej” prowadzi przez kolejne porcje bez ujawniania chronionych przepisów.
 - Poprawione (#2860): po wyłączeniu i ponownym włączeniu zapamiętywania postępu stara karta nie cofnie kroków ani liczby porcji zapisanych później. Pokaże zmianę i poprosi o otwarcie aktualnego gotowania.

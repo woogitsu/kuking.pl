@@ -1356,6 +1356,10 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Kosz nie chroni wersji przed nocną retencją (#2881)",
+     "app/Domain/Compliance/PrzedawnioneWersjePrzepisow.php",
+     "test_wersje_usunietego_przepisu_nie_sa_ruszane_przez_te_retencje_i_ida_z_przepisem",
+     lambda s: replace_once(s, "->whereNull('recipes.deleted_at');", "->whereNotNull('recipes.deleted_at');")),
     ("Planer pomija błąd frazy w podsumowaniu (#2846)", "resources/views/pages/planer/show.blade.php",
      "test_blad_frazy_jest_przy_polu_i_w_podsumowaniu_z_zywym_odnosnikiem",
      lambda s: replace_once(s,
