@@ -13,6 +13,9 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Models\WczytanaZPaczki;
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -228,6 +231,79 @@ class WczytanieDanychEkranTest extends TestCase
         $this->assertSame(1, Recipe::query()->count());
     }
 
+    public function test_kolejna_partia_zachowuje_tylko_pozostaly_wybor_a_nie_wznawia_wykluczonych(): void
+    {
+        config(['kuking.import_paczki.max_naraz' => 2]);
+        $zenek = $this->user('zenek');
+        $adres = (string) $this->actingAs($zenek)->post(route('settings.data.import.check'), [
+            'plik' => $this->plikPaczki(['Pierwszy', 'Drugi', 'Trzeci', 'Czwarty'], true),
+        ])->headers->get('Location');
+        [$pierwszy, $drugi, $trzeci, $czwarty] = $this->odcisk($zenek, $adres);
+
+        $this->assertSame([$pierwszy, $drugi], $this->zaznaczone($this->actingAs($zenek)->get($adres)->assertOk()->getContent()));
+        $this->actingAs($zenek)->post($adres, [
+            'paczka_wyboru' => basename($adres),
+            'pozycje' => [$drugi, $trzeci, $czwarty],
+        ])->assertRedirect($adres);
+
+        $pozostale = $this->zaznaczone($this->actingAs($zenek)->get($adres)->assertOk()->getContent());
+        $this->assertSame([$czwarty], $pozostale, 'WYBOR_2843_NIE_WRACA_WYKLUCZONA');
+        $this->assertSame($pozostale, $this->zaznaczone($this->actingAs($zenek)->get($adres)->assertOk()->getContent()));
+        $this->assertSame(2, Recipe::query()->where('author_id', $zenek->getKey())->count());
+
+        $this->actingAs($zenek)->post($adres, [
+            'paczka_wyboru' => basename($adres),
+            'pozycje' => $pozostale,
+        ])->assertRedirect(route('settings.data'));
+        $this->assertSame(['Czwarty', 'Drugi', 'Trzeci'], Recipe::query()->where('author_id', $zenek->getKey())->orderBy('title')->pluck('title')->all());
+        $this->assertSame(3, WczytanaZPaczki::query()->where('user_id', $zenek->getKey())->count());
+
+        $drugiImport = (string) $this->actingAs($zenek)->post(route('settings.data.import.check'), [
+            'plik' => $this->plikPaczki(['Pierwszy', 'Drugi', 'Trzeci', 'Czwarty'], true),
+        ])->headers->get('Location');
+        $this->actingAs($zenek)->get($drugiImport)->assertOk();
+        $this->assertSame(1, count($this->zaznaczone($this->actingAs($zenek)->get($drugiImport)->getContent())));
+        $this->assertSame(3, Recipe::query()->count());
+    }
+
+    public function test_reczny_wybor_blad_walidacji_i_inna_paczka_nie_przywracaja_starych_zaznaczen(): void
+    {
+        config(['kuking.import_paczki.max_naraz' => 2]);
+        $zenek = $this->user('zenek');
+        $adres = (string) $this->actingAs($zenek)->post(route('settings.data.import.check'), [
+            'plik' => $this->plikPaczki(['Pierwszy', 'Drugi', 'Trzeci', 'Czwarty'], true),
+        ])->headers->get('Location');
+        [$pierwszy, $drugi, $trzeci, $czwarty] = $this->odcisk($zenek, $adres);
+        $this->actingAs($zenek)->post($adres, [
+            'paczka_wyboru' => basename($adres),
+            'pozycje' => [$drugi, $trzeci, $czwarty],
+        ])->assertRedirect($adres);
+
+        $this->actingAs($zenek)->from($adres)->post($adres, [
+            'paczka_wyboru' => basename($adres),
+            'pozycje' => [$pierwszy, 'niepoprawny'],
+        ])->assertSessionHasErrors('pozycje.1');
+        $this->assertSame([$pierwszy], $this->zaznaczone($this->actingAs($zenek)->get($adres)->assertOk()->getContent()));
+
+        $this->actingAs($zenek)->from($adres)->post($adres, [
+            'paczka_wyboru' => basename($adres),
+        ])->assertSessionHasErrors('pozycje');
+        $this->assertSame([], $this->zaznaczone($this->actingAs($zenek)->get($adres)->assertOk()->getContent()));
+
+        $inny = (string) $this->actingAs($zenek)->post(route('settings.data.import.check'), [
+            'plik' => $this->plikPaczki(['Inny pierwszy', 'Inny drugi'], true),
+        ])->headers->get('Location');
+        $this->assertCount(2, $this->zaznaczone($this->actingAs($zenek)->get($inny)->assertOk()->getContent()));
+        $this->assertSame([$czwarty], $this->zaznaczone($this->actingAs($zenek)->get($adres)->assertOk()->getContent()));
+
+        $this->actingAs($zenek)->post($adres, [
+            'paczka_wyboru' => basename($adres),
+            'pozycje' => [$pierwszy],
+        ])->assertRedirect(route('settings.data'));
+        $this->assertSame(0, Recipe::query()->where('title', 'Czwarty')->count());
+        $this->assertSame(1, Recipe::query()->where('title', 'Pierwszy')->count());
+    }
+
     public function test_zapis_bez_zaznaczenia_mowi_co_zrobic_i_nic_nie_tworzy(): void
     {
         $zenek = $this->user('zenek');
@@ -367,7 +443,7 @@ class WczytanieDanychEkranTest extends TestCase
     }
 
     /** @param  list<string>  $tytuly */
-    private function plikPaczki(array $tytuly = ['Rosół z kury']): UploadedFile
+    private function plikPaczki(array $tytuly = ['Rosół z kury'], bool $tylkoPrzepisy = false): UploadedFile
     {
         $dane = [
             'o_tym_pliku' => ['serwis' => 'Kuking.pl', 'wersja_formatu' => WersjaFormatuPaczki::AKTUALNA, 'wygenerowano' => '2027-03-14T10:00:00+00:00'],
@@ -379,8 +455,8 @@ class WczytanieDanychEkranTest extends TestCase
                 'skladniki' => [['grupa' => null, 'zapis' => '2 jajka', 'uwaga' => null, 'zamienniki' => null]],
                 'kroki' => [['numer' => 1, 'opis' => 'Wymieszaj.']],
             ], $tytuly),
-            'wpisy' => [['rodzaj' => Post::KIND_DISH, 'tytul' => null, 'tresc' => 'Obiad u Basi.', 'widocznosc' => 'public', 'status' => Post::STATUS_PUBLISHED]],
-            'kolekcje' => [['nazwa' => 'Na święta', 'opis' => null, 'widocznosc' => 'private', 'domyslna' => false]],
+            'wpisy' => $tylkoPrzepisy ? [] : [['rodzaj' => Post::KIND_DISH, 'tytul' => null, 'tresc' => 'Obiad u Basi.', 'widocznosc' => 'public', 'status' => Post::STATUS_PUBLISHED]],
+            'kolekcje' => $tylkoPrzepisy ? [] : [['nazwa' => 'Na święta', 'opis' => null, 'widocznosc' => 'private', 'domyslna' => false]],
         ];
 
         $sciezka = tempnam(sys_get_temp_dir(), 'kuking-ekran-');
@@ -393,5 +469,22 @@ class WczytanieDanychEkranTest extends TestCase
         $this->assertTrue($zip->close());
 
         return new UploadedFile($sciezka, 'paczka.zip', 'application/zip', null, true);
+    }
+
+    /** @return list<string> */
+    private function zaznaczone(string $html): array
+    {
+        $dom = new DOMDocument;
+        @$dom->loadHTML($html);
+        $xpath = new DOMXPath($dom);
+        $wynik = [];
+
+        foreach ($xpath->query('//input[@name="pozycje[]"][@checked]') as $pole) {
+            if ($pole instanceof DOMElement) {
+                $wynik[] = $pole->getAttribute('value');
+            }
+        }
+
+        return $wynik;
     }
 }

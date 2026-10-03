@@ -12,6 +12,7 @@ use App\Domain\Search\SearchQuery;
 use App\Http\Middleware\ParametryAdresuBezTablic;
 use App\Models\Tag;
 use Illuminate\Http\Request;
+use Illuminate\Support\MessageBag;
 use Illuminate\View\View;
 
 /**
@@ -168,6 +169,12 @@ class SearchController extends Controller
                 $section = 'przepisy';
             }
         }
+        // Błąd filtra jest widoczny razem z błędem frazy, ale nie może
+        // zatrzymać wyszukiwania poprawnej frazy bez tego filtra.
+        $formErrors = new MessageBag($searchErrors->messages());
+        if ($bladSkladnika !== null) {
+            $formErrors->add('bez_skladnika', $bladSkladnika);
+        }
         // „Do 20 zł" to przepisy z kosztem wg autora (D-286).
         $maksKosztZl = $section === 'tanie' ? KosztPrzepisu::TANIE_DO : null;
         $szukaPrzepisow = in_array($section, ['wszystko', 'przepisy', 'tanie'], true);
@@ -311,6 +318,7 @@ class SearchController extends Controller
             'board' => $this->dailyBoard->forViewer($request->user()),
             'phrase' => $phrase,
             'searchErrors' => $searchErrors,
+            'formErrors' => $formErrors,
             'promowaneTagi' => $phrase === '' ? Tag::promowane()->get() : collect(),
             'section' => $section,
             'maksMinut' => $maksMinut,

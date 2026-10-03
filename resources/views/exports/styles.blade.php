@@ -162,6 +162,7 @@
     .skladniki .ile { font-weight: bold; }
 
     .kroki li { margin-bottom: 22px; }
+    .tekst-z-wierszami { white-space: pre-line; overflow-wrap: anywhere; }
 
     img.zdjecie {
         display: block;

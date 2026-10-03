@@ -1,6 +1,82 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
-## Aktualny odbiór Codex — 3.10.2026, 04:14 UTC
+## Aktualny odbiór Codex — 3.10.2026, 06:45 UTC
+
+- **M wydana:** main `6c3d2a936ee10c672b542e0814bacc41586399e7`, CI push
+  `37101361410` SUCCESS; web, worker i harmonogram SUCCESS tego SHA.
+  `/wydanie` 200 z dokładnym SHA i `/health` 200. Pełny dowód:
+  [odbiór #2866](https://github.com/woogitsu/kuking.pl/pull/2866#issuecomment-5966380433).
+  Wszystkie 17 źródłowych PR-ów już scalone. 14 issues pozostaje na
+  konkretny pilot/UX/panele i późniejsze poprawki; mapa:
+  [brakujące kryteria](https://github.com/woogitsu/kuking.pl/pull/2866#issuecomment-5966440675).
+- **P1 kont ma pierwszeństwo:** #2851/#2854/#2861/#2862, frozen head
+  `588a1fafc016ed4ad067c4a7d4f7eca3fbf9d23e`. Normalny pełny push trwa;
+  bez odbioru zdalnego i PR-a.
+- **N/O #2865:** przygotowany `d4fd5c5d94da0a853bb756206162f2745cbc2db1`;
+  normalny push trwa. Stara czerwień zdalna nie jest wynikiem nowej wersji.
+- **P:** `3da0c1721507c60ce92c547fa3c1e7f6d85f4b82`; dwie wcześniejsze
+  porażki naprawione w fixture. Planer/Livewire18PASS przy debug false/true
+  na pięciu własnych kopiach; pełny push trwa.
+- **Q:** `8dd86399bfdcb50a0083fa8075dc30b4741910d3`; pełny push trwa.
+- **R:** #2863/#2855/#2859/#2867 lokalnie odebrane: 102/4765 funkcjonalnych,
+  8/153 dwóch połączeń, właściwe fizyczne mutanty i restore, pełny PHPStan zero.
+  [Dowody i pozostałe bramki](ODBIOR-R-CODEX-20261003.md).
+  Po zapisie odbioru normalny push i pełne CI pozostają do wykonania.
+- **#2871:** fixture haków izoluje lokalne zmienne Gita; kontrola dziedziczenia
+  PASS w S/O/P/Q/R, wywołujące repo zachowane. Stare odmowy i logi zachowane poza repo.
+- **Kolejna praca:** #2869 lokalnie gotowa, bez push; #2860 w odbiorze,
+  #2868 i #2870 u dwóch agentów w rozłącznych kopiach. Root plus trzy subagenty.
+
+Panelowe #2025/#2708/#2713, prawo i pilot zachowują kryteria. Nie zamykać
+issues samym CI, nie zmieniać kontrolowanego heada, nie anulować/ponawiać
+masowo przebiegów. Starsze bloki poniżej są historycznymi migawkami.
+
+## Aktualny odbiór Codex — 3.10.2026, 06:14 UTC
+
+Ten blok zastępuje wcześniejsze migawki. Aktualne AGENTS.md, D-333,
+root i trzy subagenty; pełne haki, CI dokładnego heada i expectedHeadSha.
+
+- **M scalona do main przez #2866:**
+  `6c3d2a936ee10c672b542e0814bacc41586399e7`.
+  Przed merge pełne CI `37099907287` SUCCESS 24/24 i CodeQL
+  `37099905554` SUCCESS 3/3 heada `90b233bfaf063e96d9a76af24755c6d1fceec22e`.
+  Terminalny push main `37101361410` jeszcze trwa. Worker i harmonogram
+  SUCCESS nowego SHA; web WAITING na bramkę CI. Nie ma jeszcze pełnego
+  odbioru produkcji M; nie zamykać źródeł ani issues. L odebrana na b913.
+- **N i O, PR #2865 do C:** pierwsze CI `37099745006` odrzuciło przyrząd
+  #2783 dla prawidłowego celu CI oraz wzorzec przyczyny linku dokumentacji.
+  Naprawa na `41bc95bac819360bda52aa67cd2e9206c873116d` ma 11 przypadków
+  celu PASS, fizyczny link FAIL z właściwym markerem i dokładny restore,
+  412 / 6693 testów dwóch połączeń PASS oraz oba mutanty #2783 potwierdzone.
+  Nowy pełny normalny push trwa. N jest zachowana zdalnie na 2fdc49aa7;
+  nie otwierać duplikatu N.
+- **P:** pełny normalny push odmówił: 13994 PASS, dwie porażki w
+  PlanerPorcjeTest i dodatniej kontroli StanLivewireNiePrzeciekaMiedzyTestamiTest.
+  Obie potwierdzono również samymi klasami na Linux. Agent bada przyczynę
+  w osobnej kopii; nie osłabiać asercji ani omijać haka. P nie jest zdalna.
+- **Q:** sześć poprawek #2856, #2849, #2848, #2858, #2852, #2864.
+  Własny Linux/worktree/PG18: wspólne 139 / 2609 PASS, cztery fizyczne
+  kontrole POTWIERDZONE i dokładnie przywrócone; pełny PHPStan zero.
+  Wyścig retencji osobno 1 / 18 PASS oraz właściwy mutant DELETE po ID.
+  Dołożono przyrządy CI z O. Pełny normalny push i CI pozostają do odbioru.
+- **Osobna P1 #2851/#2854/#2861/#2862:** frozen head
+  `6ed012127f9962c734d67ad4d1ae2ed7875566ec`, normalny push trwa.
+  Root: 86 / 2317 Feature PASS i 15 / 503 Dwa PASS, cztery fizyczne
+  kontrole właściwie czerwone, exact bytes/mtime restore, pełny PHPStan zero.
+  Test 2FA rzeczywiście używa pierwotnego cookie drugiej sesji po odmowie
+  pierwszej; nie loguje jej ponownie. Po odbiorze M te P1 mają pierwszeństwo.
+- **Następna R:** #2863 Atom/cache ACCEPT niezależnego przeglądu,
+  #2855 historia OFF→ON gotowa lokalnie; #2859 rezygnacja z niedostępnego
+  udostępnienia i #2867 kopia zeszytu ABA w pracy. Nie dublować gałęzi.
+- **#2784 kontrola ujemna odebrana** za zgodą właściciela, dowód 5963122000.
+  Panelowe #2025, #2708 i #2713 oraz pilot/prawo pozostają otwarte.
+
+Następny merge do main dopiero po odbiorze M: terminalne CI push,
+SUCCESS wszystkich trzech usług dokładnego SHA, /wydanie i /health.
+W tym czasie naprawiać konkretne czerwienie i odbierać następne gałęzie;
+nie przesuwać zamrożonych headów w trakcie kontroli.
+
+## Poprzedni odbiór Codex — migawka 3.10.2026, 04:14 UTC
 
 Ten blok zastępuje stan operacyjny historycznego handoveru poniżej.
 Obowiązują aktualne AGENTS.md, decyzje D-333 i nowsze polecenia właściciela.

@@ -163,6 +163,13 @@ przepisu KASUJĄ wiersz — nic nie może go po cichu przywrócić (odblokowanie
 zmiana widoczności). Zawieszenie, ban, zamykanie konta i ukrycie przepisu
 przez moderację wiersza nie kasują; dostęp wstrzymuje
 `RecipePolicy::readShared()`, która pyta bazę przy każdym żądaniu (bez cache).
+Lista odbiorcy zachowuje wtedy anonimowy wiersz grantu z potwierdzoną
+rezygnacją po jego `id` (#2859). Nie pokazuje tytułu, autora, zdjęcia,
+adresu przepisu ani powodu niedostępności. Strona czytania nadal odmawia.
+Każde potwierdzenie dotyczy jednego grantu; zmiana widoczności między
+wyświetleniem listy a wysłaniem formularza nie rozszerza zakresu usunięcia.
+Bez zmian schematu; wycofanie tej poprawki przywraca dawną listę, na której
+odbiorca nie mógł sam zrezygnować podczas czasowej niedostępności.
 
 `$fillable` modelu `RecipeShare` jest puste — klucze ustawia wyłącznie
 `UdostepnijPrzepis` (pod `ZamekPary`, potem blokada doradcza `2650` na przepis
@@ -214,6 +221,12 @@ odpiąć obecne zdjęcie kroku. Sprzątanie: `PrzedawnionePunktyOdzyskaniaSzkicu
 oraz punkty szkiców opublikowanych/usuniętych miękko. Wymazanie konta kasuje
 punkty jawnie (`EraseAccountData`). Paczka danych: sekcja `kopie_tekstu_szkicow`;
 rejestr czynności: §3.32.
+
+Sprzątanie wybiera najwyżej 1000 kandydatów, ale przy kasowaniu ponownie
+sprawdza termin i stan przepisu w warunku `DELETE` (#2849). Przywrócenie
+odnawia `taken_at` tego samego punktu: stary odczyt listy kandydatów nie może
+usunąć świeżej kopii, która pozwala wrócić do tekstu sprzed przywrócenia.
+Tryb `--dry-run` pozostaje tylko odczytem.
 
 Rollback (D-088): `down()` usuwa tabelę, ale ODMAWIA, gdy jest choć jeden punkt
 w oknie odzyskania. Na pustej tabeli, przy samych przedawnionych punktach i w CI

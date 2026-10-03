@@ -69,7 +69,7 @@ final class OdzyskanieZeszytuKontraSprzatanieTest extends TestDwochPolaczen
 
         $bariera = $this->barieraNaKopii($kopiaId);
 
-        $odzyskanie = $this->wTle('odzyskaj-zeszyt-2567', ['konto' => (string) $wlasciciel->getKey(), 'zeszyt' => $zeszytId]);
+        $odzyskanie = $this->wTle('odzyskaj-zeszyt-2567', ['konto' => (string) $wlasciciel->getKey(), 'zeszyt' => $zeszytId, 'kopia' => $kopiaId]);
         $this->czekajNaZablokowane(1);
 
         $sprzatanie = $this->wTle('sprzataj-zeszyty-2567', ['dni' => '29']);
@@ -104,7 +104,7 @@ final class OdzyskanieZeszytuKontraSprzatanieTest extends TestDwochPolaczen
         $sprzatanie = $this->wTle('sprzataj-zeszyty-2567', ['dni' => '29']);
         $this->czekajNaZablokowane(1);
 
-        $odzyskanie = $this->wTle('odzyskaj-zeszyt-2567', ['konto' => (string) $wlasciciel->getKey(), 'zeszyt' => $zeszytId]);
+        $odzyskanie = $this->wTle('odzyskaj-zeszyt-2567', ['konto' => (string) $wlasciciel->getKey(), 'zeszyt' => $zeszytId, 'kopia' => $kopiaId]);
         $this->czekajNaZablokowane(2);
 
         $this->zwolnijBariere($bariera);
@@ -132,9 +132,9 @@ final class OdzyskanieZeszytuKontraSprzatanieTest extends TestDwochPolaczen
 
         $bariera = $this->barieraNaKopii($kopiaId);
 
-        $pierwsze = $this->wTle('odzyskaj-zeszyt-2567', ['konto' => (string) $wlasciciel->getKey(), 'zeszyt' => $zeszytId]);
+        $pierwsze = $this->wTle('odzyskaj-zeszyt-2567', ['konto' => (string) $wlasciciel->getKey(), 'zeszyt' => $zeszytId, 'kopia' => $kopiaId]);
         $this->czekajNaZablokowane(1);
-        $drugie = $this->wTle('odzyskaj-zeszyt-2567', ['konto' => (string) $wlasciciel->getKey(), 'zeszyt' => $zeszytId]);
+        $drugie = $this->wTle('odzyskaj-zeszyt-2567', ['konto' => (string) $wlasciciel->getKey(), 'zeszyt' => $zeszytId, 'kopia' => $kopiaId]);
         $this->czekajNaZablokowane(2);
 
         $this->zwolnijBariere($bariera);

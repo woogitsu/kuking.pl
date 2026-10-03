@@ -60,10 +60,12 @@ use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
 use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
+use App\Domain\Recipes\Gotowanie\NieaktualnyPostepGotowania;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Gotowanie\Wspolne\PostepWspolnegoGotowania;
 use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
 use App\Domain\Recipes\OdzyskajUsunietyPrzepis;
+use App\Domain\Recipes\Odzyskiwanie\PrzedawnionePunktyOdzyskaniaSzkicu;
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
@@ -113,6 +115,7 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Vite;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Artisan;
@@ -120,6 +123,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
@@ -632,6 +636,33 @@ try {
             return (string) $przepis->getKey();
         })(),
 
+        // #2855: żądanie naprawdę buduje stronę przepisu i odracza zapis wizyty.
+        // Bariera stoi PO odpowiedzi, ale PRZED terminate/defer; w tym czasie
+        // druga karta może wyłączyć i ponownie włączyć prywatną listę.
+        'obejrzyj-przepis-2855' => (function () use ($argumenty): array {
+            app()->instance(Vite::class, new class extends Vite
+            {
+                public function __invoke($entrypoints, $buildDirectory = null): HtmlString
+                {
+                    return new HtmlString('');
+                }
+            });
+            $osoba = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            $przepis = Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail();
+            Auth::guard('web')->setUser($osoba);
+            $zadanie = Request::create($przepis->url(), 'GET');
+            $kernel = app(HttpKernel::class);
+            $odpowiedz = $kernel->handle($zadanie);
+
+            if (isset($argumenty['bariera'])) {
+                DB::select('SELECT pg_advisory_xact_lock(2855, 1)');
+            }
+
+            $kernel->terminate($zadanie, $odpowiedz);
+
+            return ['status' => $odpowiedz->getStatusCode()];
+        })(),
+
         // #2112: prawdziwe żądanie HTTP przełącznika. Route binding i Policy
         // czytają stan przed decyzją moderatora, a zapis czeka na blokadę.
         'przelacz-wartosci-2112' => (function () use ($argumenty): array {
@@ -724,12 +755,17 @@ try {
         // test ma pęknąć, jeśli zniknie `lockForUpdate()` w `PostepGotowania`.
         'postep-ustaw' => (function () use ($argumenty): int {
             $postep = CookingProgress::query()->whereKey($argumenty['postep'])->firstOrFail();
-            $po = app(PostepGotowania::class)->ustaw(
-                $postep,
-                $argumenty['krok'],
-                true,
-                (array) json_decode($argumenty['kroki'], true),
-            );
+            try {
+                $po = app(PostepGotowania::class)->ustaw(
+                    $postep,
+                    $argumenty['krok'],
+                    true,
+                    (array) json_decode($argumenty['kroki'], true),
+                    $argumenty['widziany'] ?? null,
+                );
+            } catch (NieaktualnyPostepGotowania) {
+                return -2;
+            }
 
             return $po === null ? -1 : $po->revision;
         })(),
@@ -740,6 +776,7 @@ try {
             $wynik = app(OdzyskajUsunietyZeszyt::class)->handle(
                 User::query()->whereKey($argumenty['konto'])->firstOrFail(),
                 $argumenty['zeszyt'],
+                $argumenty['kopia'],
             );
 
             return ['juz' => $wynik->juzOdzyskany];
@@ -1360,6 +1397,23 @@ try {
         // workerem, czyli jedyny sposób, w jaki kandydat sprzątania może
         // jeszcze zostać odzyskany.
         'sprzataj-usuniete-2620' => app(PrzedawnioneUsunieteTresci::class)->posprzataj((int) $argumenty['dni']),
+
+        // #2849: bariera następuje po rzeczywistym SELECT kandydatów,
+        // przed warunkowym DELETE. Odzyskanie ma czas odnowić ten sam punkt.
+        'sprzataj-punkty-2849' => (function () use ($argumenty): int {
+            config()->set('kuking.przepisy.szkic_punkt_odzyskania_dni', (int) $argumenty['dni']);
+            $zatrzymany = false;
+            DB::listen(static function (QueryExecuted $query) use (&$zatrzymany): void {
+                if (! $zatrzymany
+                    && str_contains($query->sql, 'from "draft_restore_points" as "p"')
+                    && str_contains($query->sql, 'left join "recipes"')) {
+                    $zatrzymany = true;
+                    DB::select('SELECT pg_advisory_lock(2849, 1)');
+                }
+            });
+
+            return app(PrzedawnionePunktyOdzyskaniaSzkicu::class)->posprzataj();
+        })(),
 
         // Dwa równoległe wpisy z tym samym NOWYM tagiem albo z nazwami o wspólnym
         // slugu (ta sama akcja co publikacja wpisu). Bariera stoi w zdarzeniu

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Import;
 
+use App\Domain\Import\BramkaPublikacjiOdczytu;
 use App\Domain\Import\KlientLuna;
 use App\Domain\Import\KomunikatImportu;
 use App\Domain\Media\Actions\StoreUploadedImage;
@@ -776,11 +777,91 @@ final class OdczytZdjeciaKartkiTest extends TestCase
 
     public function test_zwykly_przepis_z_nawiasem_publikuje_sie_jak_dotad(): void
     {
-        $przepis = app(PublishRecipe::class)->handle($this->osoba, ['title' => 'Zwykły', 'visibility' => 'private'], [['text' => 'sól [?]']], [['instruction' => 'Gotuj.']], false);
+        $przepis = app(PublishRecipe::class)->handle($this->osoba, ['title' => 'Zwykły', 'visibility' => 'private'], [['text' => 'sól [?]', 'group_name' => '[?Przyprawy?]']], [['instruction' => 'Gotuj.']], false);
 
-        app(PublishRecipe::class)->handle($this->osoba, ['title' => 'Zwykły', 'visibility' => 'public'], [['text' => 'sól [?]']], [['instruction' => 'Gotuj.']], true, $przepis);
+        app(PublishRecipe::class)->handle($this->osoba, ['title' => 'Zwykły', 'visibility' => 'public'], [['text' => 'sól [?]', 'group_name' => '[?Przyprawy?]']], [['instruction' => 'Gotuj.']], true, $przepis);
 
         $this->assertSame(Recipe::STATUS_PUBLISHED, $przepis->fresh()->status);
+    }
+
+    public function test_niepewna_grupa_z_odczytu_blokuje_bezposrednia_publikacje_az_do_poprawy(): void
+    {
+        $szkic = $this->gotowySzkic([['tekst' => '200 g masła', 'grupa' => '[?Krem?]']]);
+        $this->assertSame(Recipe::STATUS_DRAFT, $szkic->status);
+        $this->assertSame('private', $szkic->visibility);
+        $this->assertNotNull($szkic->source_scan_media_id);
+        $this->assertSame('[?Krem?]', $szkic->ingredients->first()->group_name);
+
+        $publikuj = fn (string $grupa) => app(PublishRecipe::class)->handle(
+            author: $this->osoba,
+            attributes: DanePublikacji::atrybuty(
+                title: 'Sernik babci Hani', summary: '', servings: '', estimatedCostPln: '',
+                prepMinutes: '', cookMinutes: '', difficulty: '', visibility: 'public',
+                sourceType: Recipe::SOURCE_OWN, sourcePerson: '', sourceNote: '', sourceUrl: '',
+                familySinceYear: '', heroMediaId: $szkic->hero_media_id,
+                sourceScanMediaId: $szkic->source_scan_media_id, sprawdzilemOdczyt: false,
+                odczytSprawdzony: true,
+            ),
+            ingredients: [['text' => '200 g masła', 'group_name' => $grupa]],
+            steps: [['instruction' => 'Wymieszaj.']],
+            publish: true,
+            existing: $szkic->fresh(),
+        );
+
+        try {
+            $publikuj('[?Krem?]');
+            $this->fail('OCR_2853_GRUPA_NIEPEWNA_PUBLIKACJA: niepewna grupa została opublikowana.');
+        } catch (ValidationException $e) {
+            $this->assertSame(
+                ['Sprawdź słowo oznaczone [?] w nazwie grupy przy 1. składniku i usuń znaczniki [? ?].'],
+                $e->errors()['ingredients.0.group_name'] ?? null,
+                'OCR_2853_GRUPA_NIEPEWNA_PUBLIKACJA',
+            );
+        }
+        $this->assertSame(Recipe::STATUS_DRAFT, $szkic->fresh()->status);
+
+        $publikuj('Krem');
+        $this->assertSame(Recipe::STATUS_PUBLISHED, $szkic->fresh()->status);
+        $this->assertSame('Krem', $szkic->fresh()->ingredients->first()->group_name);
+        $this->assertSame('200 g masła', $szkic->fresh()->ingredients->first()->ingredient_text);
+        $this->assertNotNull($szkic->fresh()->source_scan_media_id);
+    }
+
+    public function test_niepewne_grupy_licza_fragmenty_w_tym_polskie_i_nie_licza_pustych(): void
+    {
+        $grupy = ['Żurek[?gęsty?]', '', 'Sos [?śmietanowy?]'];
+        $this->assertSame(2, BramkaPublikacjiOdczytu::ileNiepewnych(...$grupy));
+        $bledy = BramkaPublikacjiOdczytu::znaczniki('Zupa', '', ['mąka', 'masło', 'śmietana'], ['Wymieszaj.'], $grupy);
+        $this->assertSame(['ingredients.0.group_name', 'ingredients.2.group_name'], array_keys($bledy));
+    }
+
+    public function test_kreator_i_zwykly_formularz_wskazuja_niepewna_grupe_i_licza_ja_w_banerze(): void
+    {
+        $szkic = $this->gotowySzkic([['tekst' => '200 g masła', 'grupa' => '[?Krem?]']]);
+
+        $kreator = Livewire::actingAs($this->osoba)->test('recipe-wizard', ['recipeId' => $szkic->getKey()])
+            ->assertSee('Do sprawdzenia: 1 fragment oznaczony znakiem [?].');
+        $kreator->set('odczytSprawdzony', true)->set('step', 4)->call('publish')
+            ->assertHasErrors(['ingredients.0.group_name'])
+            ->assertSet('step', 2)
+            ->assertSee('Sprawdź słowo oznaczone [?] w nazwie grupy');
+
+        $strona = $this->actingAs($this->osoba)->get(route('recipes.edit', $szkic))->assertOk()
+            ->assertSee('Do sprawdzenia: 1 fragment oznaczony znakiem [?].');
+        $this->assertStringContainsString('name="ingredients[0][group_name]"', $strona->getContent());
+        $this->actingAs($this->osoba)->from(route('recipes.edit', $szkic))->followingRedirects()->put(route('recipes.update', $szkic), [
+            'title' => 'Sernik babci Hani', 'visibility' => 'private', 'source_type' => 'own', 'action' => 'publish',
+            'content_revision' => $szkic->content_revision, 'odczyt_sprawdzony' => '1',
+            'ingredients' => [
+                ['text' => '', 'group_name' => null],
+                ['text' => '200 g masła', 'group_name' => '[?Krem?]'],
+            ],
+            'steps' => [['instruction' => 'Wymieszaj.']],
+        ])->assertOk()
+            ->assertSee('href="#f-ingredients-1-group_name"', false)
+            ->assertSee('value="[?Krem?]"', false);
+        $this->assertSame(Recipe::STATUS_DRAFT, $szkic->fresh()->status);
+        $this->assertNotNull($szkic->fresh()->source_scan_media_id);
     }
 
     public function test_kreator_pokazuje_baner_oryginal_i_blokuje_publikacje_przy_polu(): void
@@ -917,10 +998,15 @@ final class OdczytZdjeciaKartkiTest extends TestCase
         return $zlecenie;
     }
 
-    private function gotowySzkic(): Recipe
+    /** @param  list<array{tekst: string, grupa: ?string}>|null  $skladniki */
+    private function gotowySzkic(?array $skladniki = null): Recipe
     {
         $this->zgoda();
-        Http::fake(['api.openai.com/*' => Http::response($this->odpowiedzModelu(self::ODPOWIEDZ))]);
+        $odpowiedz = self::ODPOWIEDZ;
+        if ($skladniki !== null) {
+            $odpowiedz['skladniki'] = $skladniki;
+        }
+        Http::fake(['api.openai.com/*' => Http::response($this->odpowiedzModelu($odpowiedz))]);
         $this->actingAs($this->osoba)->post(route('import.zlec'), ['zdjecie' => $this->kartka()]);
 
         return ImportPrzepisu::query()->sole()->recipe;

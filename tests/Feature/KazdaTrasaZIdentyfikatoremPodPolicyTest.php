@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Collections\Odzyskiwanie\OdzyskajUsunietyZeszyt;
 use App\Domain\Collections\Odzyskiwanie\UsunZeszyt;
 use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
 use App\Domain\Recipes\Gotowanie\Wspolne\SesjaWspolnegoGotowania;
@@ -16,6 +17,7 @@ use App\Models\Comment;
 use App\Models\ContactMessage;
 use App\Models\CookedEvent;
 use App\Models\DataExport;
+use App\Models\DeletedCollection;
 use App\Models\Hide;
 use App\Models\ImportPrzepisu;
 use App\Models\MealPlanEntry;
@@ -1457,7 +1459,9 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // Odzyskanie własnego, usuniętego zeszytu (#2567): TYLKO właściciel z aktywnym
         // kontem. Moderator nie ma tu furtki — cudzy „kosz” jest prywatny.
         $dodaj('collections.deleted.recover', 'odzyskanie usuniętego zeszytu', 'post',
-            route('collections.deleted.recover', $zeszytUsuniety->getKey()), [], [$W, $O, $O, $O, $O]);
+            route('collections.deleted.recover', $zeszytUsuniety->getKey()),
+            [OdzyskajUsunietyZeszyt::POLE_KOPII => DeletedCollection::query()->where('collection_id', $zeszytUsuniety->getKey())->firstOrFail()->getKey()],
+            [$W, $O, $O, $O, $O]);
 
         // ─── „CO MAM W DOMU” (D-285) ─────────────────────────────────────
         // Lista prywatna: produkt usuwa wyłącznie właściciel — moderator

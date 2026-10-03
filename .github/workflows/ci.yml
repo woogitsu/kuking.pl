@@ -2244,6 +2244,18 @@ jobs:
           createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -O "$DB_USERNAME" "$DB_DATABASE"
           node --test scripts/przegladarka/powiadomienia-2807-laravel.test.mjs
 
+      # #2857: Laravel renderuje formularz, a Chromium zachowuje FileList i
+      # wysyła plik w multipart po świadomym wstawieniu dopisku.
+      - name: Dopisek w Ugotowałem zachowuje formularz i plik
+        env:
+          DB_DATABASE: kuking_test_2857_browser
+          DB_URL: ""
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$DB_PASSWORD"
+          createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -O "$DB_USERNAME" "$DB_DATABASE"
+          node --test scripts/przegladarka/dopisek-2857-laravel.test.mjs
+
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
       # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.

@@ -77,6 +77,46 @@ final class PostepGotowaniaNaDwochPolaczeniachTest extends TestDwochPolaczen
         $this->assertSame(3, (int) $wiersz->revision, 'Dwie zmiany = rewizja 1 + 2.');
     }
 
+    public function test_stara_karta_odmawia_pod_blokada_nowego_wiersza_a_swieza_zapisuje_2860(): void
+    {
+        $osoba = $this->konto();
+        [$przepis, $kroki] = $this->przepisZKrokami((string) $osoba->getKey());
+        $staryId = (string) Str::uuid();
+        $nowyId = (string) Str::uuid();
+        DB::table('cooking_progress')->insert([
+            'id' => $nowyId,
+            'user_id' => $osoba->getKey(),
+            'recipe_id' => $przepis->getKey(),
+            'done_step_ids' => '[]',
+            'revision' => 1,
+            'expires_at' => now()->addHours(24),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Oba procesy rzeczywiście czekają na ten sam wiersz. Dawna karta
+        // widzi rewizję 1, ale jej UUID pochodzi sprzed OFF→ON.
+        $bariera = $this->bariera('SELECT 1 FROM cooking_progress WHERE id = ? FOR UPDATE', [$nowyId]);
+        $stara = $this->wTle('postep-ustaw', ['postep' => $nowyId, 'widziany' => $staryId, 'krok' => $kroki[0], 'kroki' => json_encode($kroki)]);
+        $this->czekajNaZablokowane(1);
+        $swieza = $this->wTle('postep-ustaw', ['postep' => $nowyId, 'widziany' => $nowyId, 'krok' => $kroki[1], 'kroki' => json_encode($kroki)]);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        $wynikStarej = $stara->wynik();
+        $wynikSwiezej = $swieza->wynik();
+        $this->assertBezZakleszczenia($wynikStarej, 'stara karta');
+        $this->assertBezZakleszczenia($wynikSwiezej, 'świeża karta');
+        $this->assertTrue($wynikStarej['ok'], $wynikStarej['komunikat']);
+        $this->assertTrue($wynikSwiezej['ok'], $wynikSwiezej['komunikat']);
+        $this->assertSame(-2, $wynikStarej['wartosc'], 'POSTEP_2860_STARA_KARTA_ODMAWIA_POD_LOCKIEM');
+        $this->assertSame(2, $wynikSwiezej['wartosc']);
+        $wiersz = DB::table('cooking_progress')->where('id', $nowyId)->first();
+        $this->assertNotNull($wiersz);
+        $this->assertSame([$kroki[1]], json_decode((string) $wiersz->done_step_ids, true));
+        $this->assertSame(2, (int) $wiersz->revision);
+    }
+
     public function test_dwa_urzadzenia_zaznaczajace_rozne_skladniki_naraz_nic_sobie_nie_gubia(): void
     {
         $osoba = $this->konto();

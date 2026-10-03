@@ -216,6 +216,11 @@ CREATE INDEX recipes_forked_from_idx ON recipes (forked_from_id)
 - Indeks częściowy obsługuje listę „Wersje innych osób" na stronie oryginału
   i `ON DELETE SET NULL`.
 
+Wydruk zeszytu (#2852) pokazuje ten sam nieusuwalny podpis „Mojej wersji” co
+strona przepisu. Oryginały widoczne dla oglądającego są pobierane zbiorczo;
+gdy oryginał jest niedostępny, na papier trafia neutralny podpis bez jego
+tytułu, autora i adresu. Opcje zdjęć i notatek nie wpływają na podpis.
+
 DDL na istniejącej tabeli: `ADD COLUMN` bez `DEFAULT` (bez przepisania
 tabeli), klucz obcy i CHECK przez `NOT VALID` + `VALIDATE`, indeks
 `CONCURRENTLY`, poza jedną transakcją.
@@ -344,6 +349,11 @@ ALTER TABLE recipes VALIDATE CONSTRAINT recipes_yield_unit_check;
   wartości** (`PublishRecipe` zapisuje ją tylko, gdy klucz przyszedł).
 - Przeliczenie żyje w adresie (`?sztuki=36`, `WyborSztuk`), nigdy w bazie.
   Wybór sztuk i wybór porcji wykluczają się: liczy się jedna podstawa.
+  Jawne `?sztuki=24` przy 24 sztukach autora nadal wybiera podstawę autora,
+  nawet gdy osoba ma zapamiętane inne porcje. Niepoprawne `?sztuki=0` pokazuje
+  ilości autora z komunikatem; powrót z innej liczby sztuk prowadzi do
+  `?porcje=autor`. Sam adres bez parametrów zachowuje preferencję porcji.
+  Link wydruku przenosi wybraną podstawę, nie zmieniając preferencji.
   Koszt przeliczony jest proporcjonalny do sztuk; wartości odżywcze zostają
   „na porcję” (sztuki ich nie zmieniają).
 - Idzie do migawki wersji (`SnapshotRecipeVersion`, porównanie wersji),

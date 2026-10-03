@@ -13,6 +13,7 @@ use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
+use App\Models\RecipeServingPreference;
 use App\Models\User;
 use DOMDocument;
 use DOMXPath;
@@ -212,6 +213,47 @@ class LiczbaSztukPrzepisuTest extends TestCase
             ->assertSee('sztuki=36#jak-wydrukowac', false);
     }
 
+    #[Test]
+    public function test_jawne_sztuki_i_powrot_do_autora_nie_reaktywuja_zapamietanych_porcji(): void
+    {
+        $widz = $this->user();
+        $przepis = $this->przepis(['servings' => 4]);
+        $this->actingAs($widz)->post(route('recipes.porcje.store', $przepis->slug), ['porcje' => '8'])
+            ->assertRedirect();
+
+        $zwykly = $this->actingAs($widz)->get(route('recipes.show', $przepis->slug))->assertOk();
+        $this->assertSame('400 g mąki', $this->skladniki($zwykly)[0]);
+
+        $autorSztuk = $this->actingAs($widz)->get(route('recipes.show', [$przepis->slug, 'sztuki' => 24]))->assertOk();
+        $this->assertSame('200 g mąki', $this->skladniki($autorSztuk)[0], 'SZTUKI_2848_JAWNE_24_TO_AUTOR');
+        $this->assertStringContainsString('druk=1&amp;sztuki=24#jak-wydrukowac', (string) $autorSztuk->getContent(), 'SZTUKI_2848_DRUK_PODSTAWA');
+        $druk24 = $this->element($this->xpath($autorSztuk)->query('//a[@data-drukuj-przepis]')->item(0))->getAttribute('href');
+        $this->assertSame('200 g mąki', $this->skladniki($this->actingAs($widz)->get($druk24)->assertOk())[0]);
+        $this->assertSame(0, $this->xpath($autorSztuk)->query('//label[normalize-space(.)="Na ile porcji?"]')->length);
+
+        $wieksze = $this->actingAs($widz)->get(route('recipes.show', [$przepis->slug, 'sztuki' => 36]))->assertOk();
+        $this->assertSame('300 g mąki', $this->skladniki($wieksze)[0]);
+        $powrot = $this->xpath($wieksze)->query('//a[normalize-space(.)="Pokaż ilości z przepisu"]')->item(0);
+        $this->assertNotNull($powrot);
+        $adresPowrotu = $this->element($powrot)->getAttribute('href');
+        $this->assertSame(route('recipes.show', [$przepis->slug, 'porcje' => 'autor']).'#skladniki', $adresPowrotu, 'SZTUKI_2848_POWROT_LINK');
+        $poKliknieciu = $this->actingAs($widz)->get($adresPowrotu)->assertOk();
+        $this->assertSame('200 g mąki', $this->skladniki($poKliknieciu)[0], 'SZTUKI_2848_POWROT_DO_AUTORA');
+        $this->assertStringContainsString('druk=1&amp;porcje=autor#jak-wydrukowac', (string) $poKliknieciu->getContent());
+        $drukAutora = $this->element($this->xpath($poKliknieciu)->query('//a[@data-drukuj-przepis]')->item(0))->getAttribute('href');
+        $this->assertSame('200 g mąki', $this->skladniki($this->actingAs($widz)->get($drukAutora)->assertOk())[0]);
+
+        $odrzucone = $this->actingAs($widz)->get(route('recipes.show', [$przepis->slug, 'sztuki' => 0]))->assertOk()
+            ->assertSee('Pokazujemy ilości z przepisu.');
+        $this->assertSame('200 g mąki', $this->skladniki($odrzucone)[0], 'SZTUKI_2848_ZERO_POKAZUJE_AUTORA');
+        $this->assertSame('0', $this->element($this->xpath($odrzucone)->query('//input[@id="f-sztuki"]')->item(0))->getAttribute('value'));
+        $this->assertStringContainsString('druk=1&amp;porcje=autor#jak-wydrukowac', (string) $odrzucone->getContent());
+
+        $this->assertSame(8.0, (float) RecipeServingPreference::query()
+            ->where('user_id', $widz->getKey())->where('recipe_id', $przepis->getKey())->value('servings'));
+        $this->assertSame('400 g mąki', $this->skladniki($this->actingAs($widz)->get(route('recipes.show', $przepis->slug))->assertOk())[0]);
+    }
+
     // ------------------------------------------------------------------
     // Zapis przez autora
     // ------------------------------------------------------------------
@@ -367,7 +409,8 @@ class LiczbaSztukPrzepisuTest extends TestCase
         $this->assertSame(1.5, WyborSztuk::dla($przepis, '36')->mnoznik());
         $this->assertSame(1.0, WyborSztuk::dla($przepis, '24')->mnoznik());
         $this->assertSame('36', WyborSztuk::dla($przepis, 36)->doAdresu());
-        $this->assertNull(WyborSztuk::dla($przepis, '24')->doAdresu(), 'Powrót do liczby autora to adres bez parametru.');
+        $this->assertSame('24', WyborSztuk::dla($przepis, '24')->doAdresu(), 'Jawne sztuki są podstawą także przy mnożniku 1.');
+        $this->assertNull(WyborSztuk::dla($przepis, null)->doAdresu());
         $this->assertFalse(WyborSztuk::dla(new Recipe, '36')->dostepny());
         $this->assertSame('24 szt.', GotoweSztuki::etykieta(24));
         $this->assertTrue(WyborSztuk::dla($przepis, ['36'])->odrzucone);

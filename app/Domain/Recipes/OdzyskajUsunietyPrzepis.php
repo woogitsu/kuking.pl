@@ -9,6 +9,7 @@ use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Media;
 use App\Models\Recipe;
 use App\Models\User;
+use App\Support\KursorListy;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -122,19 +123,76 @@ final class OdzyskajUsunietyPrzepis
      * Przepisów objętych sprawą moderacyjną nie pokazujemy ani nie nazywamy —
      * ekran ma jedno zdanie o tym, dlaczego czegoś może brakować.
      *
-     * @return Collection<int, Recipe>
+     * Skanuje ograniczone porcje kandydatów, aż zbierze 51 dostępnych albo
+     * dojdzie do końca. Limit strony działa PO filtrze moderacji; pamięć nie
+     * rośnie wraz z liczbą chronionych przepisów (#2868).
+     *
+     * @return array{przepisy: Collection<int, Recipe>, nastepny: ?string, dalsza: bool}
      */
-    public function dlaEkranu(User $autor, int $limit = 50): Collection
+    public function dlaEkranu(User $autor, ?string $od = null): array
     {
+        $po = self::odczytajKursor($od);
+        $przepisy = new Collection;
+
         if (! $autor->isActive()) {
-            return new Collection;
+            return ['przepisy' => $przepisy, 'nastepny' => null, 'dalsza' => false];
         }
 
-        return $this->kandydaci($autor)
-            ->limit($limit)
-            ->get()
-            ->reject(fn (Recipe $przepis): bool => $this->wSprawieModeracyjnej($przepis))
-            ->values();
+        $skan = $po;
+
+        do {
+            $partia = $this->kandydaci($autor)
+                ->when($skan !== null, fn (Builder $q) => $q->whereRaw(
+                    '(recipes.deleted_at, recipes.id) < (?::timestamptz, ?::uuid)',
+                    $skan,
+                ))
+                ->limit(50)
+                ->get();
+
+            foreach ($partia as $przepis) {
+                if ($this->wSprawieModeracyjnej($przepis)) {
+                    continue;
+                }
+
+                if ($przepisy->count() === 50) {
+                    /** @var Recipe $ostatni */
+                    $ostatni = $przepisy->last();
+
+                    return ['przepisy' => $przepisy, 'nastepny' => self::kursor($ostatni), 'dalsza' => $po !== null];
+                }
+
+                $przepisy->push($przepis);
+            }
+
+            $ostatniSkanowany = $partia->last();
+            if ($ostatniSkanowany !== null) {
+                $skan = [self::czasKursora($ostatniSkanowany), (string) $ostatniSkanowany->getKey()];
+            }
+        } while ($partia->count() === 50);
+
+        return ['przepisy' => $przepisy, 'nastepny' => null, 'dalsza' => $po !== null];
+    }
+
+    private static function kursor(Recipe $przepis): string
+    {
+        return self::czasKursora($przepis).'_'.$przepis->getKey();
+    }
+
+    private static function czasKursora(Recipe $przepis): string
+    {
+        return $przepis->deleted_at->copy()->utc()->format('Y-m-d\TH:i:s.u\Z');
+    }
+
+    /** @return array{0: string, 1: string}|null */
+    private static function odczytajKursor(?string $od): ?array
+    {
+        if ($od === null || strlen($od) > 80
+            || preg_match('/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/D', $od, $m) !== 1
+            || ! KursorListy::czasPasuje($m[1])) {
+            return null;
+        }
+
+        return [$m[1], $m[2]];
     }
 
     /**

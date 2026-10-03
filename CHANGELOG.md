@@ -6,11 +6,47 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2869): nowa paczka danych zachowuje historię otrzymanego zaproszenia, lecz nie pokazuje późniejszej nazwy cudzego prywatnego zeszytu po odebraniu dostępu lub odejściu.
+- Poprawione (#2868): ekran „Usunięte przepisy” pokazuje starsze odzyskiwalne przepisy mimo nowszych pozycji objętych moderacją. „Pokaż więcej” prowadzi przez kolejne porcje bez ujawniania chronionych przepisów.
+- Poprawione (#2860): po wyłączeniu i ponownym włączeniu zapamiętywania postępu stara karta nie cofnie kroków ani liczby porcji zapisanych później. Pokaże zmianę i poprosi o otwarcie aktualnego gotowania.
+- Poprawione (#2870): „Moje wpisy” pomijają zapowiedź usuniętego przepisu, jeśli wpis nie ma własnego tekstu ani zdjęcia. Własne szkice, wpisy ukryte i wpisy z własną treścią zostają; po odzyskaniu przepisu zapowiedź wraca autorowi. Szukanie i kolejne strony korzystają z tej samej listy.
+- Poprawione (#2876): wydruk całego zeszytu i wybranych przepisów pokazuje liczbę gotowych sztuk podaną przez autora, osobno od liczby porcji i czasu.
+- Poprawione (#2857): „Wstaw dopisek” zachowuje świeżo wpisane dane formularza „Ugotowałem” i wybrane zdjęcie; zastąpienie własnego tekstu wymaga jawnego wyboru.
+
+- Poprawione (#2863): ukryty lub usunięty wpis nie wróci do kanału Atom, gdy wcześniejsze pobranie kończy budowanie kopii po jej wyczyszczeniu.
+
+- Poprawione (#2859): gdy udostępniony przepis jest chwilowo niedostępny, jego odbiorca może zrezygnować z dostępu z listy „Przepisy udostępnione mi”. Lista nie zdradza treści ani powodu niedostępności; rezygnacja wymaga potwierdzenia.
+- Poprawione (#2867): stary przycisk „Odzyskaj zeszyt” nie odtworzy już nowszej kopii tego samego zeszytu. Otwórz ponownie „Usunięte zeszyty”, aby wybrać aktualną kopię.
+- Poprawione (#2855): opóźnione otwarcie przepisu sprzed wyłączenia listy „Ostatnio oglądane” nie odtwarza usuniętej historii po ponownym włączeniu. Nowe wizyty nadal trafiają na prywatną listę.
+
+- Podgląd ostatniego kroku ze spisu pozostaje podglądem także po zapisie lub błędzie prywatnego dopisku; nie wywołuje omyłkowego pytania „Jak wyszło?” (#2858).
+- Poprawione (#2852): wydruk zeszytu pokazuje przy „Mojej wersji” podpis oryginału. Gdy oryginał nie jest dostępny, podpis zostaje bez jego tytułu i autora.
+- Poprawione (#2864): stara karta ustawień urodzin nie przywróci widoczności dla obserwujących wyłączonej później w drugiej karcie. Przy konflikcie pokaże, jak otworzyć aktualne ustawienia.
+
+- Poprawione (#2846): przy błędnej frazie w „Szukaj w moich planach” komunikat jest także w podsumowaniu z odnośnikiem do pola. Wpisana fraza i błędy pozostałych formularzy zostają na miejscu.
+
+- Poprawione (#2822): po odejściu ze wspólnego zeszytu lub odebraniu udziału komunikat mówi o końcu współtworzenia. Publiczny zeszyt może nadal być dostępny do czytania, zależnie od aktualnych uprawnień.
+
+- Poprawione (#2850): błąd szukania w moich zeszytach widać przy polu i w podsumowaniu z odnośnikiem. Wpisana fraza i wybory pozostają do poprawy.
+
+- Poprawione (#2839): kopia HTML własnego przepisu zachowuje osobne wiersze i puste linie instrukcji oraz rodzinnej historii, także po wydrukowaniu. Treść nadal pozostaje zwykłym, bezpiecznie zapisanym tekstem.
+
+- Poprawione (#2843): po wczytaniu pierwszej części paczki podgląd zachowuje pozostałe zaznaczenia tej osoby i tej paczki. Nie zaznacza ponownie pozycji odznaczonych ani już wczytanych; wybór można zmienić przed kolejną częścią.
+
+- Poprawione (#2853): niepewna nazwa grupy składników odczytana ze zdjęcia kartki wstrzymuje pierwszą publikację przepisu. Błąd wskazuje pole grupy, a oba ekrany liczą taki fragment w przypomnieniu o sprawdzeniu tekstu.
+- Poprawione (#2856): uszkodzony odnośnik do dalszych wyników wyszukiwania nie kończy się błędem serwera. Gdy miara w adresie jest zbyt mała dla bazy, wyszukiwarka pokazuje właściwe dalsze okno wyników.
+- Poprawione (#2849): nocne sprzątanie nie usuwa kopii tekstu szkicu, która została właśnie odnowiona przy przywróceniu. Poprzedni tekst nadal można przywrócić ponownie.
+- Jawny wybór liczby sztuk przepisu i powrót do ilości autora nie przywracają po cichu zapamiętanych porcji; wydruk zachowuje wybraną podstawę (#2848).
+
 - Poprawione (#2871): test instalatora hooków odcina zmienne Git przekazane przez `pre-push`, dzięki czemu tymczasowe repozytorium nie zmienia konfiguracji drzewa, z którego uruchomiono kontrolę.
 
 - Poprawione (#2820): po wygaśnięciu prośby o wskazówkę można ponownie poprawić własną uwagę przy wykonaniu. Przyjęta wskazówka i otwarte zgłoszenie nadal chronią tekst.
 
 - Poprawione (#2828): przy gotowaniu kilku potraw zdjęcie bieżącego kroku widać obok instrukcji. Zmiana kroku lub potrawy pokazuje właściwe zdjęcie; powiększenie nie zatrzymuje minutników.
+
+- Poprawione (#2806): po błędzie dodawania zakupów do spiżarni wracasz do wybranej nazwanej listy z zachowanymi nazwami i zaznaczeniami. Formularz nie przełącza się na listę domyślną. Jeśli lista została w międzyczasie usunięta, wracasz bezpośrednio do list zakupów z wyjaśnieniem; produkty nie są dopisywane.
+
+- Poprawione (#2842): błąd filtra „Pomiń przepisy ze składnikiem” w wyszukiwarce pojawia się przy polu i w podsumowaniu z odnośnikiem do pola. Wpisana nazwa zostaje, a wyniki nadal pokazują się bez błędnego filtra.
 
 - Poprawione (#2829): gdy notatka przy zapisie z dalszej porcji zeszytu ma błąd albo została zmieniona w innej karcie, formularz wraca przy właściwym przepisie lub wpisie z zachowanym tekstem. Pozostałe notatki nie przejmują tego tekstu.
 

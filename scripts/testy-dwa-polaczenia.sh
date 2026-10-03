@@ -107,6 +107,15 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna przeplotów opakowań #2783 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        # #2855: wizyta sprzed wyłączenia nie może wejść do nowego okresu zgody.
+        if ! python3 tests/skrypty/kontrola-negatywna-2855-cel.py; then
+            printf "${CZERWONY}Kontrola celu bazy dla #2855 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2855.py; then
+            printf "${CZERWONY}Kontrola ujemna okresu zgody historii #2855 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2402.py; then
             printf "${CZERWONY}Kontrola ujemna atomowości importów #2402 nie przeszła.${RESET}\n" >&2
             exit 1
@@ -129,6 +138,14 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
         fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2838.py; then
             printf "${CZERWONY}Kontrola ujemna kolejności odpowiedzi na link #2838 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2849.py; then
+            printf "${CZERWONY}Kontrola ujemna odnowionego punktu odzyskania #2849 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2863.py; then
+            printf "${CZERWONY}Kontrola ujemna spóźnionego kanału Atom #2863 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
         # #2403: usunięcie retry slugu musi ujawnić 23505/recipes_slug_unique.
