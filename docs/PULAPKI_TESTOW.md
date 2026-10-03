@@ -1115,3 +1115,10 @@ Odtworzenie na własnej PostgreSQL18, przy pozostałych parametrach CI bez zmian
 `APP_ENV=testing` przeszło ten sam test (1 test, 8 asercji). Nie wyłączamy CSRF
 w aplikacji ani middleware w teście. Przełączamy tylko środowisko jego procesu
 potomnego. Rzeczywisty Chromium i multipart nadal mierzy pełny job CI.
+
+### Import przyrządu też jest wejściem joba (#2811)
+
+Kontrola wyścigu importuje `kontrola_przyczyny.py`, która używa
+`zawezenie_testow.py`. Zmiana wyłącznie tych plików musi uruchomić job
+`dwa-polaczenia`. Tabela `tests/skrypty/zakres.sh` sprawdza oba wejścia
+z prawdziwym skryptem; celowe usunięcie każdego filtra oblewa tabelę.
