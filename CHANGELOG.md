@@ -7,6 +7,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 ## Nieopublikowane
 
 - Podgląd ostatniego kroku ze spisu pozostaje podglądem także po zapisie lub błędzie prywatnego dopisku; nie wywołuje omyłkowego pytania „Jak wyszło?” (#2858).
+- Poprawione (#2852): wydruk zeszytu pokazuje przy „Mojej wersji” podpis oryginału. Gdy oryginał nie jest dostępny, podpis zostaje bez jego tytułu i autora.
 
 - Poprawione (#2846): przy błędnej frazie w „Szukaj w moich planach” komunikat jest także w podsumowaniu z odnośnikiem do pola. Wpisana fraza i błędy pozostałych formularzy zostają na miejscu.
 

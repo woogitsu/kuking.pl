@@ -145,6 +145,7 @@
             @endphp
             <article class="zeszyt-przepis" id="przepis-{{ $loop->iteration }}" aria-labelledby="przepis-{{ $loop->iteration }}-tytul">
                 <p class="meta zeszyt-numer">Przepis {{ $loop->iteration }} z {{ $liczbaPrzepisow }}</p>
+                <x-na-podstawie-przepisu :recipe="$przepis" :oryginal="$oryginalyDlaPodpisu->get($przepis->forked_from_id)" :oryginal-ustalony="true" />
                 <h2 id="przepis-{{ $loop->iteration }}-tytul">{{ $przepis->title }}</h2>
                 <p class="meta m-0">{{ $przepis->attributionLine() }}</p>
                 @if($przepis->family_since_year)

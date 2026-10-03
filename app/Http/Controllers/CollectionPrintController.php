@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Collections\KolejnoscPrzepisow;
 use App\Domain\Collections\WidocznaZawartoscZeszytu;
 use App\Models\Collection;
+use App\Models\Recipe;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -97,6 +98,17 @@ class CollectionPrintController extends Controller
         $obcieto = $przepisy->count() > $limit;
         $przepisy = $przepisy->take($limit)->values();
 
+        // Podpis „Mojej wersji” także na papierze (#2852). Oryginały
+        // wybieramy jedną kwerendą z tą samą bramką widoczności co zeszyt;
+        // nie wolno odczytywać relacji osobno dla każdej kartki.
+        $oryginalyDlaPodpisu = Recipe::query()
+            ->whereIn('id', $przepisy->pluck('forked_from_id')->filter()->unique())
+            ->widoczneDla($widz)
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->with('author.profile')
+            ->get()
+            ->keyBy('id');
+
         // Ile z wybranych nie jest już dostępnych (zmiana widoczności, usunięcie,
         // cofnięta współpraca między wyborem a podglądem). Tylko liczba, nigdy
         // nazwa. Przy obciętej liście nie da się jej policzyć uczciwie.
@@ -124,6 +136,7 @@ class CollectionPrintController extends Controller
         return view('pages.collections.do-druku', [
             'collection' => $collection,
             'przepisy' => $przepisy,
+            'oryginalyDlaPodpisu' => $oryginalyDlaPodpisu,
             'obcieto' => $obcieto,
             'kolejnoscReczna' => KolejnoscPrzepisow::jestUlozony($collection),
             'limit' => $limit,
