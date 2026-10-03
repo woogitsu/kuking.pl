@@ -42,6 +42,7 @@ OCZEKUJ = {
     'Kopię cudzego szkicu zrobi każdy (#2507)': r'KOPIA_2507_WLASCICIEL',
     'Kolaż hero bez podpisu autora przy zdjęciu (#2708)': r'Kafel nie ma podpisu z nazwą dokładnie jednego autora',
     'Dołączenie zdjęcia: podmiana UUID kucharza (#2500)': r'DOLACZENIE_2500_PODMIANA_UUID',
+    'Ponowiony multipart zapisuje osierocone zdjęcie (#2811)': r'DOLACZENIE_2811_BEZ_OSIEROCONEGO_MEDIA',
     'Dołączenie zdjęcia liczy limit bez przypiętych (#2500)': r'DOLACZENIE_2500_LIMIT',
     'Dołączenie zdjęcia ignoruje świeży stan pod blokadą (#2500)': r'DOLACZENIE_2500_SWIEZY_STAN',
     'Dołączenie zdjęcia przejmuje cudze albo cudzo-przypięte (#2500)': r'DOLACZENIE_2500_WLASNOSC_MEDIOW',

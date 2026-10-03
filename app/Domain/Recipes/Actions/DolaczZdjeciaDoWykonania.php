@@ -33,8 +33,9 @@ use Illuminate\Support\Facades\DB;
  * międzyczasie. Limit zdjęć liczy zdjęcia JUŻ przypięte i nowe razem; dwie
  * równoległe wysyłki ustawiają się w kolejkę na wierszu wykonania.
  *
- * Ponowienie tej samej wysyłki jest bezpieczne: zdjęcie już przypięte do tego
- * wykonania jest pomijane (wynik 0), a zdjęcie przypięte do INNEGO wykonania
+ * Ponowienie tej samej wysyłki jest bezpieczne: klucz udanego multipart
+ * pozostaje przy wykonaniu także po usunięciu zdjęcia; już przypięte Media
+ * również jest pomijane (wynik 0). Zdjęcie przypięte do INNEGO wykonania
  * nie zostaje przejęte.
  */
 final class DolaczZdjeciaDoWykonania
@@ -45,9 +46,9 @@ final class DolaczZdjeciaDoWykonania
      *
      * @throws BladDlaCzlowieka
      */
-    public function handle(User $kucharz, CookedEvent $wykonanie, array $mediaIds): int
+    public function handle(User $kucharz, CookedEvent $wykonanie, array $mediaIds, ?string $kluczWyslania = null): int
     {
-        return DB::transaction(function () use ($kucharz, $wykonanie, $mediaIds): int {
+        return DB::transaction(function () use ($kucharz, $wykonanie, $mediaIds, $kluczWyslania): int {
             $wlasne = ZdjeciaDoPrzypiecia::zablokuj((string) $kucharz->getKey(), $mediaIds);
 
             $swiezyKucharz = User::query()->whereKey($kucharz->getKey())->lockForUpdate()->first();
@@ -63,6 +64,10 @@ final class DolaczZdjeciaDoWykonania
                     .(int) config('kuking.wykonania.dolaczenie_zdjec_dni').' dni od zapisania wykonania, '
                     .'gdy konto jest w pełni aktywne, a przepis wciąż dostępny. Nic nie zostało zapisane.',
                 );
+            }
+
+            if ($kluczWyslania !== null && in_array($kluczWyslania, $swiezeWykonanie->photo_submission_keys ?? [], true)) {
+                return 0;
             }
 
             /** @var list<string> $przypiete */
@@ -109,7 +114,11 @@ final class DolaczZdjeciaDoWykonania
             }
 
             // Zapytaniem po kluczu: bez zdarzeń modelu i bez dotykania innych kolumn.
-            CookedEvent::query()->whereKey($swiezeWykonanie->getKey())->update(['photos_added_at' => now()]);
+            $zmiany = ['photos_added_at' => now()];
+            if ($kluczWyslania !== null) {
+                $zmiany['photo_submission_keys'] = array_merge($swiezeWykonanie->photo_submission_keys ?? [], [$kluczWyslania]);
+            }
+            CookedEvent::query()->whereKey($swiezeWykonanie->getKey())->update($zmiany);
 
             return count($nowe);
         });
