@@ -103,6 +103,11 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna przeplot?w opakowa? #2783 nie przesz?a.${RESET}\n" >&2
             exit 1
         fi
+        # #2855: wizyta sprzed wyłączenia nie może wejść do nowego okresu zgody.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2855.py; then
+            printf "${CZERWONY}Kontrola ujemna okresu zgody historii #2855 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2402.py; then
             printf "${CZERWONY}Kontrola ujemna atomowości importów #2402 nie przeszła.${RESET}\n" >&2
             exit 1

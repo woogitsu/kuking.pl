@@ -54,7 +54,9 @@ class OstatnioOgladane
         DB::table('users')
             ->where('id', $osoba->getKey())
             ->whereNull('ostatnio_ogladane_wlaczone_at')
-            ->update(['ostatnio_ogladane_wlaczone_at' => now()]);
+            // Laravel formatuje Carbon do pełnych sekund; dwa kliknięcia
+            // OFF→ON w tej samej sekundzie miałyby identyczny okres zgody.
+            ->update(['ostatnio_ogladane_wlaczone_at' => now()->format('Y-m-d H:i:s.uP')]);
 
         $osoba->refresh();
     }
@@ -97,14 +99,20 @@ class OstatnioOgladane
         $osobaId = (string) $osoba->getKey();
         $przepisId = (string) $recipe->getKey();
         $chwila = now();
+        $wlaczoneOd = $osoba->ostatnio_ogladane_wlaczone_at;
 
-        defer(fn () => $this->zapiszPoOdpowiedzi($osobaId, $przepisId, $chwila), self::ODROCZONY);
+        defer(fn () => $this->zapiszPoOdpowiedzi($osobaId, $przepisId, $chwila, $wlaczoneOd), self::ODROCZONY);
     }
 
     /** Zapis teraz — dla testów domeny i wywołań spoza HTTP. */
     public function zapisz(User $osoba, Recipe $recipe): void
     {
-        $this->zapiszPoOdpowiedzi((string) $osoba->getKey(), (string) $recipe->getKey(), now());
+        $this->zapiszPoOdpowiedzi(
+            (string) $osoba->getKey(),
+            (string) $recipe->getKey(),
+            now(),
+            $osoba->ostatnio_ogladane_wlaczone_at,
+        );
     }
 
     /**
@@ -192,10 +200,10 @@ class OstatnioOgladane
     }
 
     /**
-     * Właściwy zapis, uruchamiany PO odpowiedzi. Dostaje tylko identyfikatory
-     * i chwilę żądania — nie modele (po odpowiedzi mogły się zmienić).
+     * Właściwy zapis, uruchamiany PO odpowiedzi. Dostaje identyfikatory,
+     * chwilę wizyty i okres zgody — nie modele (po odpowiedzi mogły się zmienić).
      */
-    private function zapiszPoOdpowiedzi(string $osobaId, string $przepisId, CarbonInterface $chwila): void
+    private function zapiszPoOdpowiedzi(string $osobaId, string $przepisId, CarbonInterface $chwila, ?CarbonInterface $wlaczoneOd): void
     {
         try {
             $osoba = User::query()->find($osobaId);
@@ -212,7 +220,7 @@ class OstatnioOgladane
                 return;
             }
 
-            DB::transaction(function () use ($osobaId, $przepisId, $chwila): void {
+            DB::transaction(function () use ($osobaId, $przepisId, $chwila, $wlaczoneOd): void {
                 // `FOR SHARE` na wierszu konta: wyłączenie funkcji (UPDATE tego
                 // wiersza) czeka na ten zapis albo ten zapis czeka na nie i po
                 // wyłączeniu nie wstawia już nic. Warunki stanu są w samym
@@ -221,11 +229,11 @@ class OstatnioOgladane
                 DB::statement(
                     'INSERT INTO recent_recipe_views (id, user_id, recipe_id, viewed_at) '
                     .'SELECT ?::uuid, u.id, ?::uuid, ?::timestamptz FROM users u '
-                    .'WHERE u.id = ?::uuid AND u.ostatnio_ogladane_wlaczone_at IS NOT NULL '
+                    .'WHERE u.id = ?::uuid AND u.ostatnio_ogladane_wlaczone_at = ?::timestamptz '
                     .'AND u.status NOT IN ('.implode(',', array_fill(0, count($zamkniete), '?')).') '
                     .'FOR SHARE OF u '
                     .'ON CONFLICT (user_id, recipe_id) DO UPDATE SET viewed_at = EXCLUDED.viewed_at',
-                    [(string) Str::uuid7(), $przepisId, $chwila->toIso8601String(), $osobaId, ...$zamkniete],
+                    [(string) Str::uuid7(), $przepisId, $chwila->format('Y-m-d H:i:s.uP'), $osobaId, $wlaczoneOd?->format('Y-m-d H:i:s.uP'), ...$zamkniete],
                 );
 
                 $this->przytnijDoLimitu($osobaId);
