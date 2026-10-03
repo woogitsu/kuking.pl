@@ -181,6 +181,14 @@ etap 2 (pytanie 3).
 
 ## 6. Wspólny postęp i odświeżanie
 
+- Odhaczenie, cofnięcie i „Zacznij od początku” wymagają aktywnego konta
+  odczytanego pod dotychczasowym zamkiem `FOR KEY SHARE`, przed zamkiem sesji.
+  Publiczne `User::suspend()` bierze `FOR UPDATE` konta, więc zawieszenie
+  zatwierdzone przed tym odczytem powoduje odmowę bez zmiany kroków i rewizji
+  (#2879). W odwrotnej kolejności zapis kończy się przed zawieszeniem.
+  Wstępna Policy na starym modelu nie zastępuje tego sprawdzenia. Nie jest to
+  obietnica serializacji z dowolnym gołym `UPDATE status` (`NO KEY UPDATE`
+  jest zgodne z `KEY SHARE`), tylko z rzeczywistą publiczną akcją zawieszenia.
 - Stan: tabela `cooking_session_steps` — jeden wiersz = „ten krok jest
   zrobiony”, klucz główny `(session_id, step_id)`. Zapis `INSERT … ON CONFLICT
   DO NOTHING`, więc **dwa równoczesne odhaczenia tego samego kroku dają jeden

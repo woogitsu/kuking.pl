@@ -163,6 +163,14 @@ else
     zle "Kontrola cookies S4 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-s4-cookies-wynik.py"
 fi
 
+# #2879: pięć odmów i pięć odwrotnych przeplotów musi być rzeczywiście wykonanych.
+krok "Werdykt wspólnego postępu po zawieszeniu (#2879)"
+if python3 tests/skrypty/kontrola-negatywna-2879-wynik.py >/dev/null 2>&1; then
+    ok "Kontrola #2879 wymaga właściwych odmów bez błędów SQLSTATE i timeoutów"
+else
+    zle "Kontrola #2879 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-2879-wynik.py"
+fi
+
 # --- 3b''. Dziennik decyzji: pliki w docs/decyzje/ zgodne z indeksem -------
 # Jedna decyzja = jeden plik; docs/DECISIONS.md jest indeksem generowanym
 # z plików. To samo pilnuje DziennikDecyzjiZgodnyZIndeksemTest.

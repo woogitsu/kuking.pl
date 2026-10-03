@@ -41,6 +41,7 @@ OCZEKUJ = {
     'Przywrócenie szkicu czyta punkt sprzed blokady (#2810)': r'ODZYSKANIE_2810_ZMIENIONY_PUNKT',
     'Przywrócenie szkicu zatwierdza odmowę jako sukces (#2810)': r'ODZYSKANIE_2810_ZMIENIONY_PUNKT',
     'Przywrócenie szkicu pomija termin podczas zamiany (#2810)': r'ODZYSKANIE_2810_ZMIENIONY_PUNKT',
+    'Stare konto zapisuje wspólny postęp po zawieszeniu (#2879)': r'WSPOLNE_2879_SWIEZE_KONTO_ODMOWA',
     'Częściowe dane prób znów potwierdzają zgodność obu pól (#2817)': r'PROBY_2817_OSOBNE_POLA_DOMENA|PROBY_2817_OSOBNE_POLA_HTTP_PAGINACJA',
     'Kopia dnia gubi wybrane porcje (#2836)': r'PLANER_2836_KOPIA_PORCJI_DANE|PLANER_2836_KOPIA_PORCJI_LINK',
     'Kopia dnia gubi prywatny dopisek (#2836)': r'PLANER_2836_KOPIA_DOPISKU',
