@@ -1589,7 +1589,7 @@ checks = [
      lambda s: replace_once(s, 'id="f-potwierdzam"', 'id="stary-nieistniejacy-cel"')),
     ("Odmowa usunięcia listy zwija pytanie (#2872)", "resources/views/pages/zakupy/index.blade.php",
      "NazwaneListyZakupowTest::test_odmowa_starego_potwierdzenia_otwiera_wlasciwe_pytanie_z_zywym_linkiem",
-     lambda s: replace_once(s, '<details class="confirm" @if($blad_potwierdzenia) open @endif>', '<details class="confirm">')),
+     lambda s: replace_once(s, '<details class="confirm zakupy-potwierdzenie" @if($blad_potwierdzenia) open @endif>', '<details class="confirm zakupy-potwierdzenie">')),
     # #2611: wyłączenie preflightu musi oblać izolowane procesy PHP 256M
     # konkretną odmową (w starym kodzie kończyły się fatalem), a nie bazę CI.
     ("Paczka JSON bez budżetu struktury (#2611)", "app/Domain/Users/Import/PodgladPaczkiEksportu.php",
