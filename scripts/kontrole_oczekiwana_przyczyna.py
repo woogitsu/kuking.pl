@@ -174,6 +174,8 @@ OCZEKUJ = {
     'Wspólna sesja traci zdjęcie kroku (#2486)': r'WSPOLNE_2486_ZDJECIE_PRZY_KROKU',
     'Historia ignoruje wybór Bez ilości (#2449)': r'HISTORIA_BEZ_ILOSCI_ZMIANA',
     'Historia zgaduje wybór w starej migawce (#2449)': r'HISTORIA_BEZ_ILOSCI_BRAK_DANYCH',
+    'Ułamek Unicode przelicza tylko mianownik (#2882)': r'ULAMEK_2882_CALY_ZAPIS',
+    'Ułamek Unicode zmienia ilość w HTTP (#2882)': r'ULAMEK_2882_HTTP_CALY_ZAPIS',
     'Grupowanie tysięcy rozbite na fragmenty (#2455)': r'GRUPOWANIE_TYSIECY_WYNIK',
     'Pasteryzacja wraca do słownika bez przeglądu (#2434)': r'PASTERYZACJA_USUNIETA_DO_PRZEGLADU',
     'Sparzyć znów łapie oparzenie (#2343)': r'SLOWNIK_RDZEN_INNE_ZNACZENIE',

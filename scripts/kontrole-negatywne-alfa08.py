@@ -1886,6 +1886,10 @@ checks = [
          "@if($recipe->source_note || $recipe->source_person || $recipe->source_url || $recipe->family_since_year)",
          "@if($recipe->source_note || $recipe->source_person || $recipe->source_url)")),
     # #2455: bez gałęzi liczby grupowanej parser zostawia ilość bez zmiany.
+    ("Ułamek Unicode przelicza tylko mianownik (#2882)", "app/Domain/Recipes/Porcje/PrzeliczSkladnik.php", "PrzeliczSkladnikTest::test_niewspierany_ulamek_nie_przelicza_samego_mianownika",
+     lambda s: replace_once(s, "return preg_match('/\\d\\s*[⁄∕]\\s*\\d/u', $tekst) === 1;", "return false;")),
+    ("Ułamek Unicode zmienia ilość w HTTP (#2882)", "app/Domain/Recipes/Porcje/PrzeliczSkladnik.php", "SkalowaniePorcjiNaStroniePrzepisuTest::test_niewspierany_ulamek_zostaje_w_calosci_na_stronie_i_w_gotowaniu",
+     lambda s: replace_once(s, "return preg_match('/\\d\\s*[⁄∕]\\s*\\d/u', $tekst) === 1;", "return false;")),
     # Data provider wymaga prawidłowego wyniku także dla NBSP i zakresów.
     ("Grupowanie tysięcy rozbite na fragmenty (#2455)", "app/Domain/Recipes/Porcje/PrzeliczSkladnik.php", "test_grupowanie_tysiecy_przelicza_cala_ilosc",
      lambda s: replace_once(s, "|'.self::GRUPOWANA.'|", "|")),

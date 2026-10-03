@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Recipes\Porcje\PrzeliczonySkladnik;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
@@ -31,6 +32,49 @@ use Tests\TestCase;
 final class SkalowaniePorcjiNaStroniePrzepisuTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_niewspierany_ulamek_zostaje_w_calosci_na_stronie_i_w_gotowaniu(): void
+    {
+        foreach (['⁄', '∕'] as $ukosnik) {
+            foreach (['1{u}2 kg mąki', 'mąka: 1{u}2 kg', 'mąka – 1{u}2 kg', 'mąka 1{u}2 kg'] as $wzorzec) {
+                $tekst = str_replace('{u}', $ukosnik, $wzorzec);
+                $przepis = $this->przepis(4);
+                $skladnik = $przepis->ingredients()->orderBy('position')->firstOrFail();
+                $skladnik->update(['ingredient_text' => $tekst]);
+                RecipeStep::create(['recipe_id' => $przepis->getKey(), 'position' => 0, 'instruction' => 'Krok.']);
+                foreach (['1/2 kg mąki', '½ kg mąki'] as $i => $kontrola) {
+                    RecipeIngredient::create(['recipe_id' => $przepis->getKey(), 'ingredient_text' => $kontrola, 'position' => 5 + $i]);
+                }
+
+                foreach ([2 => '0,25 kg', 8 => '1 kg'] as $porcje => $oczekiwanaIlosc) {
+                    foreach (['recipes.show', 'cooking.show'] as $trasa) {
+                        $odpowiedz = $this->get(route($trasa, ['recipe' => $przepis->slug, 'porcje' => $porcje]))->assertOk();
+                        $xpath = $this->xpath($odpowiedz);
+                        $wiersz = $xpath->query('//ul[@class="ingredient-list"]/li')->item(0);
+                        $this->assertNotNull($wiersz);
+                        $tresc = $trasa === 'cooking.show'
+                            ? $xpath->query('.//span[@class="cook-skladnik-tresc"]', $wiersz)->item(0)
+                            : $wiersz;
+                        $this->assertNotNull($tresc);
+                        $this->assertSame($tekst.' — '.PrzeliczonySkladnik::UWAGA_ULAMKA,
+                            trim((string) preg_replace('/\s+/u', ' ', $tresc->textContent)), 'ULAMEK_2882_HTTP_CALY_ZAPIS');
+                        $this->assertSame(0, $xpath->query('.//strong[@class="skladnik-przeliczony"] | .//*[@data-przelicz-miare]', $wiersz)->length);
+                        foreach ([6, 7] as $pozycja) {
+                            $ilosc = $xpath->query('//ul[@class="ingredient-list"]/li['.$pozycja.']//strong[@class="skladnik-przeliczony"]')->item(0);
+                            $this->assertNotNull($ilosc);
+                            $this->assertSame($oczekiwanaIlosc, $ilosc->textContent, 'ULAMEK_2882_ASCII_I_ZNAK');
+                        }
+                    }
+                    $wybor = WyborPorcji::dla($przepis, (string) $porcje)->przelicz($skladnik);
+                    $this->assertSame($tekst, $wybor->tekst(), 'ULAMEK_2882_WYBOR');
+                    $this->assertTrue($wybor->nieprzeliczony);
+                }
+
+                $this->assertSame($tekst, $skladnik->fresh()->ingredient_text);
+                $this->assertSame(4.0, $przepis->fresh()->servings);
+            }
+        }
+    }
 
     public function test_bez_parametru_strona_pokazuje_tekst_autora_i_przyciski(): void
     {

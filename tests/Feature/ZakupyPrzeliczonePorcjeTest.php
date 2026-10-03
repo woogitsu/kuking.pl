@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Recipes\Porcje\PrzeliczonySkladnik;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
@@ -30,6 +31,25 @@ use Tests\TestCase;
 final class ZakupyPrzeliczonePorcjeTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_ulamek_w_podgladzie_zakupow_ma_prawdziwa_odmowe_i_nie_dostaje_metadanych_przeliczenia(): void
+    {
+        $przepis = $this->przepis(['1⁄2 kg mąki', '1∕2 kg cukru', '1/2 kg mąki', '½ kg cukru', '1 kg i 200 g mąki']);
+        $wybor = WyborPorcji::dla($przepis, '8');
+        $podglad = app(ListaZakupow::class)->podgladPorcji($przepis, $wybor);
+        $this->assertSame(2, $podglad['przeliczono']);
+        foreach ([0, 1] as $i) {
+            $this->assertSame($podglad['linie'][$i]['oryginal'], $podglad['linie'][$i]['tekst'], 'ULAMEK_2882_ZAKUPY');
+            $this->assertFalse($podglad['linie'][$i]['przeliczona']);
+            $this->assertSame(PrzeliczonySkladnik::UWAGA_ULAMKA, $podglad['linie'][$i]['uwaga']);
+        }
+        $this->assertSame('Ilość podana jako suma – nie została przeliczona. Sprawdź ją samodzielnie.', $podglad['linie'][4]['uwaga']);
+        $odcisk = $this->odcisk('8', $przepis);
+        $this->dodaj(['porcje' => '8', 'odcisk' => $odcisk], $przepis)->assertRedirect();
+        $pozycje = ShoppingListItem::query()->where('user_id', $this->ja->getKey())->orderBy('position')->get();
+        $this->assertSame(['1⁄2 kg mąki', '1∕2 kg cukru', '1 kg mąki', '1 kg cukru', '1 kg i 200 g mąki'], $pozycje->pluck('text')->all());
+        $this->assertSame([null, null, 8.0, 8.0, null], $pozycje->pluck('scaled_servings')->all());
+    }
 
     private const SCIEZKA_MIGRACJI = 'database/migrations/2026_10_06_200200_add_scaled_servings_to_shopping_list_items.php';
 

@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Domain\Recipes\Porcje\IloscKuchenna;
 use App\Domain\Recipes\Porcje\JednostkaKuchenna;
+use App\Domain\Recipes\Porcje\PrzeliczonySkladnik;
 use App\Domain\Recipes\Porcje\PrzeliczSkladnik;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -30,6 +31,56 @@ use PHPUnit\Framework\TestCase;
  */
 final class PrzeliczSkladnikTest extends TestCase
 {
+    /** @return array<string, array{string, float}> */
+    public static function niewspieraneUlamki(): array
+    {
+        $przypadki = [];
+        foreach (['⁄', '∕'] as $ukosnik) {
+            foreach ([
+                '1{u}2 kg mąki',
+                'ok. 1{u}2 kg mąki',
+                'mąka: 1{u}2 kg',
+                'mąka – 1{u}2 kg',
+                'mąka 1{u}2 kg',
+                '1 1{u}2 kg mąki',
+                '1 {u} 2 kg mąki',
+            ] as $wzorzec) {
+                $tekst = str_replace('{u}', $ukosnik, $wzorzec);
+                foreach ([0.5, 2.0] as $mnoznik) {
+                    $przypadki[$tekst.' × '.$mnoznik] = [$tekst, $mnoznik];
+                }
+            }
+        }
+
+        return $przypadki;
+    }
+
+    #[DataProvider('niewspieraneUlamki')]
+    public function test_niewspierany_ulamek_nie_przelicza_samego_mianownika(string $tekst, float $mnoznik): void
+    {
+        $wynik = PrzeliczSkladnik::przelicz($tekst, false, $mnoznik);
+
+        $this->assertSame($tekst, $wynik->tekst(), 'ULAMEK_2882_CALY_ZAPIS');
+        $this->assertFalse($wynik->zmieniony, 'ULAMEK_2882_CALY_ZAPIS');
+        $this->assertTrue($wynik->nieprzeliczony, 'ULAMEK_2882_ODMOWA');
+        $this->assertSame(PrzeliczonySkladnik::UWAGA_ULAMKA, $wynik->uwagaNieprzeliczenia);
+        $this->assertNull(PrzeliczSkladnik::odczytaj($tekst), 'ULAMEK_2882_ODCZYT');
+    }
+
+    public function test_odmowa_ulamka_zachowuje_brak_ilosci_porcje_autora_i_komunikat_sumy(): void
+    {
+        foreach ([[true, 2.0], [false, 1.0]] as [$bezIlosci, $mnoznik]) {
+            $wynik = PrzeliczSkladnik::przelicz('1⁄2 kg mąki', $bezIlosci, $mnoznik);
+            $this->assertSame('1⁄2 kg mąki', $wynik->tekst());
+            $this->assertFalse($wynik->zmieniony);
+            $this->assertFalse($wynik->nieprzeliczony);
+        }
+
+        $suma = PrzeliczSkladnik::przelicz('1 kg i 200 g mąki', false, 2.0);
+        $this->assertSame('Ilość podana jako suma – nie została przeliczona. Sprawdź ją samodzielnie.', $suma->uwagaNieprzeliczenia);
+        $this->assertTrue($suma->nieprzeliczony);
+    }
+
     /** @return array<string, array{0: string, 1: float, 2: string}> */
     public static function przeliczane(): array
     {
