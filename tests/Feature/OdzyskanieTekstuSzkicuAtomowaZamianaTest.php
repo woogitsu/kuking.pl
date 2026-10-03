@@ -11,6 +11,7 @@ use App\Models\Ingredient;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +69,10 @@ class OdzyskanieTekstuSzkicuAtomowaZamianaTest extends TestCase
             DB::table('ingredients')->whereIn('normalized_name', $this->nazwySkladnikow)->pluck('id')->all(),
             $this->zastaneSkladniki,
         );
+        $wlasneSkladniki = DB::table('ingredients')->whereIn('id', $wlasneSkladniki)
+            ->whereNotExists(static function (Builder $wiersze): void {
+                $wiersze->selectRaw('1')->from('recipe_ingredients')->whereColumn('recipe_ingredients.ingredient_id', 'ingredients.id');
+            })->pluck('id')->all();
         DB::table('ingredients')->whereIn('id', $wlasneSkladniki)->delete();
         $this->assertSame(0, DB::table('ingredients')->whereIn('id', $wlasneSkladniki)->count(), 'ODZYSKANIE_2810_CZYSTY_SLOWNIK: sprzątanie pozostawiło własne składniki następnym testom.');
     }
@@ -231,15 +236,27 @@ class OdzyskanieTekstuSzkicuAtomowaZamianaTest extends TestCase
             attributes: ['title' => 'Przepis sprzed fixture', 'visibility' => 'private'],
             ingredients: [['text' => 'mąka kopii B']],
         );
+        $pozostalyPrzepis = null;
 
         try {
             $this->fixture();
+            $nowySkladnik = Ingredient::query()->where('normalized_name', Ingredient::normalize('woda kopii B'))->sole();
+            $this->assertNotContains($nowySkladnik->getKey(), $this->zastaneSkladniki, 'Próba musi korzystać także z nowego ID fixture.');
+            $pozostalyPrzepis = app(PublishRecipe::class)->handle(
+                author: $zastanyAutor,
+                attributes: ['title' => 'Przepis korzystający z nowego składnika', 'visibility' => 'private'],
+                ingredients: [['text' => 'woda kopii B']],
+            );
             $this->sprzatnijFixture();
 
             $this->assertSame($zastanySkladnik->getKey(), $zastanyPrzepis->ingredients()->sole()->ingredient_id, 'ODZYSKANIE_2810_ZASTANY_SLOWNIK: sprzątanie odebrało składnik wcześniejszemu przepisowi.');
+            $this->assertSame($nowySkladnik->getKey(), $pozostalyPrzepis->ingredients()->sole()->ingredient_id, 'ODZYSKANIE_2810_ZASTANY_SLOWNIK: sprzątanie odebrało nowe ID pozostającemu przepisowi.');
             $this->assertSame('mąka kopii B', $zastanySkladnik->fresh()->canonical_name);
             $this->assertSame($zastanyAutor->getKey(), $zastanyPrzepis->fresh()->author_id);
         } finally {
+            if ($pozostalyPrzepis !== null) {
+                DB::table('recipes')->where('id', $pozostalyPrzepis->getKey())->delete();
+            }
             DB::table('recipes')->where('id', $zastanyPrzepis->getKey())->delete();
             DB::table('users')->where('id', $zastanyAutor->getKey())->delete();
             if ($zastanySkladnik->wasRecentlyCreated) {

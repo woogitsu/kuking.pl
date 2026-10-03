@@ -476,11 +476,15 @@ przepisu, ale słownik jest wspólny i nie należy do autora. Przy pustym
 ustawiony; kolejna klasa zaczyna transakcję na istniejącym schemacie.
 
 Fixture #2810 zapisuje zastane ID swoich nazw przed utworzeniem danych,
-a po własnych przepisach i kontach usuwa tylko nowe ID tych składników.
-Zastany składnik oraz jego wcześniejszy przepis pozostają, co mierzy osobny
-przypadek danych. Asercja `ODZYSKANIE_2810_CZYSTY_SLOWNIK` po sprzątaniu
+a po własnych przepisach i kontach usuwa tylko nowe, nieużywane ID tych
+składników. `whereNotExists` chroni każde pozostające powiązanie
+`recipe_ingredients`, bo jego FK ma `ON DELETE SET NULL`. Zastany składnik
+oraz nowe ID użyte przez drugi pozostający przepis zachowują oba powiązania,
+co mierzy osobny przypadek danych. Asercja `ODZYSKANIE_2810_CZYSTY_SLOWNIK` po sprzątaniu
 oblewa po fizycznym usunięciu samego DELETE własnych ID. Fizyczne poszerzenie
-DELETE na cały słownik oblewa `ODZYSKANIE_2810_ZASTANY_SLOWNIK`. Te kontrole
+DELETE na cały słownik oblewa `ODZYSKANIE_2810_ZASTANY_SLOWNIK`; zdjęcie
+samego filtra referencji oblewa drugą asercję tego markera, po zachowaniu
+pierwszego powiązania. Te kontrole
 mają nazwane ASSERTFAIL bez ERROR; historyczna reprodukcja ośmiu wyjątków
 jest diagnozą zanieczyszczenia, nie właściwą kontrolą ujemną reguły domenowej.
 Zachowane są rzeczywiste commity #2810, poziom transakcji 0 i wszystkie
