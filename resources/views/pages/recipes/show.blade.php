@@ -18,7 +18,7 @@
         'druk' => 1,
         'dla' => $pomocnik ? 'pomocnika' : null,
         'qr' => $pomocnik && $qr ? 1 : null,
-        'porcje' => $wyborSztuk->przeliczone() ? null : $zapamietanePorcje->parametrBiezacego(),
+        'porcje' => $wyborSztuk->podstawa() ? null : ($wyborSztuk->wskazane() ? 'autor' : $zapamietanePorcje->parametrBiezacego()),
         'sztuki' => $wyborSztuk->doAdresu(),
     ], fn ($wartosc) => $wartosc !== null)).'#jak-wydrukowac';
     $parametrPorcjiGotowania = $wyborPorcji->przeliczone()
@@ -424,7 +424,7 @@
                     @if($total)Autor podaje około {{ \App\Support\Czas::czasPrzepisu($total) }}. @endif{{ $typowyCzas->zdanie() }}
                 </p>
             @endif
-            @if($dlaPomocnika && $wyborSztuk->przeliczone())
+            @if($dlaPomocnika && $wyborSztuk->podstawa())
                 {{-- Wybór sztuk (#2645) zastępuje porcje: jedna podstawa. --}}
                 <p class="druk-pomocnik-porcje m-0"><strong>Ilość: {{ $wyborSztuk->etykieta() }}</strong> <span class="meta">(w przepisie autora: {{ $wyborSztuk->etykietaAutora() }})</span></p>
             @elseif($dlaPomocnika && ($wyborPorcji->dostepny() || $porcje))
@@ -734,7 +734,7 @@
                 @if($recipe->ingredients->isEmpty())
                     <p class="meta">Autor jeszcze nie dodał składników.</p>
                 @else
-                    @unless($wyborSztuk->przeliczone())
+                    @unless($wyborSztuk->podstawa())
                         @include('pages.recipes._wybor-porcji', ['wyborPorcji' => $wyborPorcji, 'zapamietanePorcje' => $zapamietanePorcje, 'recipe' => $recipe, 'dlaPomocnika' => $dlaPomocnika, 'qrNaKartce' => $qrNaKartce])
                         @include('pages.recipes._zapamietaj-porcje', ['wyborPorcji' => $wyborPorcji, 'zapamietanePorcje' => $zapamietanePorcje, 'recipe' => $recipe])
                     @endunless
@@ -773,7 +773,7 @@
                         @endif
                         <ul class="ingredient-list">
                             @foreach($grupaSkladnikow['skladniki'] as $ingredient)
-                                @php($przeliczony = $wyborSztuk->przeliczone() ? $wyborSztuk->przelicz($ingredient) : $wyborPorcji->przelicz($ingredient))
+                                @php($przeliczony = $wyborSztuk->podstawa() ? $wyborSztuk->przelicz($ingredient) : $wyborPorcji->przelicz($ingredient))
                                 <li>
                                     {{-- Przeliczona ilość jest pogrubiona, reszta to zdanie
                                          autora co do znaku (D-284). Bez przeliczenia —
@@ -819,7 +819,7 @@
                         </form>
                         {{-- Przeliczone porcje (#2489): osobny, jawny wybór z podglądem; przycisk
                              wyżej dalej kopiuje ilości autora. --}}
-                        @if($wyborPorcji->przeliczone() && ! $wyborSztuk->przeliczone())
+                        @if($wyborPorcji->przeliczone() && ! $wyborSztuk->podstawa())
                             <p class="mt-3 mb-0">
                                 <a class="btn btn-secondary" href="{{ route('shopping.recipe.scaled', ['recipe' => $recipe->slug, 'porcje' => $wyborPorcji->doAdresu((float) $wyborPorcji->wybrane)]) }}">Dodaj składniki na {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta((float) $wyborPorcji->wybrane) }} do listy zakupów</a>
                             </p>

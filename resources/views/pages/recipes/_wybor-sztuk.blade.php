@@ -11,7 +11,8 @@
 
     JEDNA PODSTAWA. Gdy wybrano sztuki, wybór porcji jest ukryty
     (`_wybor-porcji`), a współczynnik liczy się tylko ze sztuk. Powrót do
-    ilości autora to zwykły link bez parametru.
+    ilości autora przy zapamiętanych porcjach to jawne `?porcje=autor`,
+    bo adres bez parametru przywraca wtedy tę preferencję.
 
     Przepis bez podanej liczby sztuk nie ma tu nic.
 --}}
@@ -22,6 +23,7 @@
             'druk' => ($dlaPomocnika ?? false) ? 1 : null,
             'dla' => ($dlaPomocnika ?? false) ? 'pomocnika' : null,
             'qr' => ($dlaPomocnika ?? false) && ($qrNaKartce ?? false) ? 1 : null,
+            'porcje' => $zapamietanePorcje->maUstawienie() ? 'autor' : null,
         ], fn ($wartosc) => $wartosc !== null)).'#skladniki';
     @endphp
     <form class="porcje-wybor" method="get" action="{{ route('recipes.show', $recipe->slug) }}#skladniki" novalidate
