@@ -47,14 +47,17 @@ use Throwable;
  * (`SnapshotRecipeVersion`), a ekrany historii liczą sąsiadów z faktycznej
  * listy numerów (`HistoriaWersji::numery()`), nie z arytmetyki.
  *
- * WERSJE USUNIĘTEGO PRZEPISU nie potrzebują tej reguły: idą razem z nim
- * (`PrzedawnioneUsunieteTresci`, 30 dni; nagrobek też je kasuje).
+ * WERSJE USUNIĘTEGO PRZEPISU nie podlegają tej regule: idą razem z nim
+ * (`PrzedawnioneUsunieteTresci`, 30 dni; nagrobek też je kasuje). Ten sam
+ * warunek rodzica sprawdzamy przy wyborze, dry-run i końcowym DELETE.
  *
  * PARTIE. Kandydaci idą po kluczu (`id > ostatni`) partiami po
  * `ROZMIAR_PARTII`, każda w jednej transakcji; jeden przebieg rusza najwyżej
  * `BUDZET_PRZEBIEGU` wierszy, reszta czeka na następną noc. Warunek
  * kandydata wraca w samym `DELETE`, więc wersja, która w międzyczasie
- * przestała być kandydatem (np. przepis dostał zgłoszenie), zostaje. Błąd
+ * przestała być kandydatem (np. przepis dostał zgłoszenie), zostaje. Przed
+ * DELETE blokujemy rodziców w stałej kolejności, by soft delete nie mógł
+ * zatwierdzić kosza pomiędzy ponowną kontrolą a kasowaniem wersji. Błąd
  * partii jest logowany i liczony; komenda kończy się wtedy kodem ≠ 0.
  *
  * `--na-sucho` i przebieg prawdziwy liczą ten sam predykat.
@@ -122,7 +125,16 @@ final class PrzedawnioneWersjePrzepisow
             $ostatniId = end($partia);
 
             try {
-                $skasowano += DB::transaction(static fn (): int => $kandydaci()->whereIn('recipe_versions.id', $partia)->delete());
+                $skasowano += DB::transaction(static function () use ($kandydaci, $partia): int {
+                    // Rodzic jest blokowany przed DELETE: soft delete przepisu
+                    // i sprzątanie wersji mają wtedy jedno rozstrzygnięcie.
+                    $przepisy = DB::table('recipe_versions')->whereIn('id', $partia)
+                        ->distinct()->pluck('recipe_id');
+                    DB::table('recipes')->whereIn('id', $przepisy)
+                        ->orderBy('id')->sharedLock()->pluck('id');
+
+                    return $kandydaci()->whereIn('recipe_versions.id', $partia)->delete();
+                });
             } catch (Throwable $e) {
                 $bledy += count($partia);
                 Log::error('Retencja wersji przepisów: nie udało się skasować partii', [
@@ -151,6 +163,11 @@ final class PrzedawnioneWersjePrzepisow
     {
         return RecipeVersion::query()
             ->where('recipe_versions.created_at', '<', $prog)
+            ->whereExists(function ($q): void {
+                $q->select(DB::raw(1))->from('recipes')
+                    ->whereColumn('recipes.id', 'recipe_versions.recipe_id')
+                    ->whereNull('recipes.deleted_at');
+            })
             // Ile wersji tego przepisu jest NOWSZYCH; wersja wśród K
             // najnowszych ma ich mniej niż K.
             ->whereRaw(

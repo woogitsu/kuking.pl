@@ -23,6 +23,15 @@ Snapshot po istotnych zmianach.
   stanem normalnym;
 - `created_at`.
 
+Przy „Zastosuj jako nową poprawkę” (#2525, poprawka #2877) zapisany klucz
+`servings` z wartością `NULL` oznacza znane „nie podano”. Podgląd pokazuje
+różnicę wobec dzisiejszej liczby, a zastosowanie danych zapisuje NULL także
+w nowej wersji. **Brak klucza** nadal oznacza brak danych i pozostawia
+dzisiejszą wartość. Pusta nazwa przepisu nie jest przywracana. Dawne wersje,
+zakres przywracanych pól, autoryzacja, rewizja i atomowość pozostają bez zmian;
+nie ma migracji. Cofnięcie samej poprawki kodu znów pomijałoby jawne NULL,
+ale nie zmienia zapisanych już migawek.
+
 Porównanie dwóch migawek (#2451) sprawdza również **widoczną kolejność**
 grup i składników po zastosowaniu `GrupySkladnikow::ulozyc()`. Porównuje
 wspólne wiersze, nie numery `position`: dodanie albo usunięcie składnika nie
@@ -57,8 +66,13 @@ końca miesiąca) **i nie należy do 3 najnowszych wersji swojego przepisu**
 minimum 2). Pierwsza wersja NIE jest chroniona — historia jest publiczna,
 a w najstarszych wersjach zostaje treść, którą autor później usunął.
 Nie kasujemy wersji przepisu, na który wskazuje `reports` albo
-`moderation_actions`. Wersje usuniętego przepisu idą razem z nim
-(`PrzedawnioneUsunieteTresci`, 30 dni). Kasowanie idzie partiami po 500,
+`moderation_actions`. Wersje przepisu przeniesionego do kosza nie są kandydatami
+tej retencji ani w podglądzie, ani przy kasowaniu (#2881). Zostają z przepisem
+przez 30 dni; potem usuwa je `PrzedawnioneUsunieteTresci`. Przed końcowym
+kasowaniem partii blokujemy wiersz przepisu i ponownie sprawdzamy kosz, więc
+równoległe usunięcie nie może odebrać historii po zatwierdzeniu kosza.
+Po odzyskaniu przepisu obowiązuje zwykły próg wieku wersji, bez resetowania
+ich dat. Kasowanie idzie partiami po 500,
 budżet przebiegu to 20 000 wierszy; błąd partii daje kod wyjścia ≠ 0, który
 harmonogram zamienia w wyjątek. **Luki w `version_number` są normalne**:
 numer nowej wersji to `max + 1`, ekrany historii liczą sąsiadów z faktycznej
@@ -216,7 +230,23 @@ Indeksy: `recipe_id` (UNIQUE), `taken_at` (nocne sprzątanie), `user_id`.
 
 Przywrócenie idzie przez `PublishRecipe` (zapis szkicu, `publish: false`), z
 kontrolą rewizji treści i znacznika kopii z podglądu. Odmawia, gdy musiałoby
-odpiąć obecne zdjęcie kroku. Sprzątanie: `PrzedawnionePunktyOdzyskaniaSzkicu`
+odpiąć obecne zdjęcie kroku. Zapis przywróconego tekstu i zachowanie tekstu
+zastąpionego są jedną transakcją (#2810): błąd zapisu punktu cofa także
+przepis, składniki, kroki i rewizję. Kolejność blokad pozostaje
+zdjęcia → konto → przepis → punkt. Po `PublishRecipe` przywrócenie pobiera
+punkt ponownie pod blokadą i sprawdza jego tożsamość, przepis, właściciela,
+znacznik, zawartość i termin oraz świeży stan przepisu. Zmiana albo brak
+punktu rzuca odmowę wewnątrz transakcji; dopiero po rollbacku kontroler
+może pokazać błąd. Stary formularz nie wykonuje drugiej zamiany.
+
+Regresja: `tests/Feature/OdzyskanieTekstuSzkicuAtomowaZamianaTest.php` —
+rzeczywisty błąd PostgreSQL drugiego zapisu, pełne wiersze po rollbacku,
+zamiana/cofnięcie, zmiany punktu i świeże prawo, a także wynik POST.
+Fizyczne mutacje są w istniejącym rejestrze
+`scripts/kontrole-negatywne-alfa08.py`; odbiór:
+`docs/flota/koordynacja/ODBIOR-2810-ATOMOWA-ZAMIANA-CODEX-20261003.md`.
+
+Sprzątanie: `PrzedawnionePunktyOdzyskaniaSzkicu`
 (wołane przez `kuking:sprzataj-usuniete-tresci`) kasuje punkty starsze niż okno
 oraz punkty szkiców opublikowanych/usuniętych miękko. Wymazanie konta kasuje
 punkty jawnie (`EraseAccountData`). Paczka danych: sekcja `kopie_tekstu_szkicow`;

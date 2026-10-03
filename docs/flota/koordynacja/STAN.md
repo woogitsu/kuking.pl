@@ -1,10 +1,472 @@
-# Aktualizacja koordynatora — 3.10.2026, 11:39 UTC
+# Stan koordynacji — aktualizacja 3.10.2026, 18:39 UTC
+
+## Aktualny odbiór i kolejność
+
+- O #2890 odebrane na main i produkcji `5ae32b5785a642f8dd643de7606b0ecbe5a2040b`:
+  pełne PR CI, zagregowany CodeQL, terminalne main CI 24/24, trzy Railway SUCCESS,
+  `/wydanie` dokładnego SHA i `/health` 200/ok. Zamknięto 43 issues z własnymi
+  dowodami: 39 z pierwotnej mapy oraz #2821, #2822, #2839 i #2814 po odbiorach
+  rzeczywistej przeglądarki/PDF. Root ponownie potwierdził CLOSED/completed
+  wszystkich 43 oraz zachowanie ich treści. Dawne liczby 39 poniżej to historia.
+- C `0dade39187d8143cb557cd1a968161584360667b` ma terminalne pełne push CI
+  37137412709: 24/24 SUCCESS. Nie wymaga ponawiania. Fresh fetch o 18:38
+  potwierdził main 5ae i C 0dade; przed scalaniem odczytać je ponownie.
+- Jedna wspólna W/X/Y nadal korzysta z #2891. Remote PR pozostał na W622,
+  którego dawna zieleń nie zatwierdza całej paczki. Zwykły pełny seryjny hook
+  W6b zakończył się EXIT 1: 14235 PASS, 8 FAIL, 174995 asercji. Canonical
+  `transfer/push-wxy.sh/log/exit` oraz pełny surowy log pozostają zachowane.
+  Nie było publikacji nowego heada. Wszystkie osiem porażek dotyczyło
+  `Ingredient::sole()` w `PelnaNazwaSkladnikaTest`, nie `Recipe::sole()`.
+- Potwierdzona przyczyna: rzeczywiście zatwierdzane transakcje fixture #2810
+  pozostawiały pięć składników przed następną klasą. Poprawka
+  `dcafcc8aab474c71e21487dbeda1e1fe98e26a72` odebrana przez root i peer,
+  normalnie scalona do W. Cleanup usuwa tylko nowe nieużywane ID swojej
+  fixture; zachowuje zastany słownik i istniejące referencje. Para 24/267 PASS,
+  oryginalne 8/114 bez zmian, trzy właściwe ASSERTFAIL bez ERROR/SKIP oraz
+  dokładne odtworzenie bajtów/mtime. Root i peer sprawdzili 164 surowe pliki.
+  Stare 15 przypadków #2810 i rejestry 580/580 pozostają bez zmian.
+- Po tym checkpointcie root uruchamia nowy zwykły pełny seryjny hook W
+  w `repo-w`, baza `kuking_test_w20261003`, PG 18.6 / 127.0.0.1:55488,
+  owner `kuking_pg18_owner`. Nowy canonical: `transfer/push-wxy-fixture.sh/log/exit`.
+  Przed ponowieniem odczytaj ten exit/log i właściwy proces. Nie zmieniaj heada
+  podczas bramki. Pełna kontrola podzbioru nie zastępuje pełnego hooka.
+- Po poprawnym pełnym pushu: zaktualizować istniejący #2891 do W/X/Y,
+  nowe pełne niedraftowe CI exact head/base, review, merge-tree i expectedHeadSha;
+  następnie terminalnie zielony push C. Jedno końcowe wydanie do main dodatkowo
+  wymaga zagregowanego CodeQL, pełnego main CI i odbioru produkcji trzech usług.
+  Dopiero wtedy kwalifikujące issues W/X/Y i cztery issues kont.
+
+## Dalsze rozłączne poprawki i otwarte kryteria
+
+- Następna Z, lokalnie `ca6335617c394c695f51f579333219d30c131a04`, zawiera odebrane
+  #2796 (trzy nazwane DELETE), #2893 (izolowane fixture Env) oraz #2895
+  (uczciwy komunikat przywróconego minutnika). Merge bez konfliktu kodu,
+  CHANGELOG sumą obu stron. Root i peer odebrali #2895: rzeczywisty HTTP/alarm,
+  poprawna kontrola fizyczna, exact restore; nie zmieniono zegara ani deadline.
+  Z czeka na faktyczną W/X/Y i świeżą bazę; jeszcze bez pełnego pusha/PR/wdrożenia.
+- #2878 zarezerwowane przez root, agent pracuje na własnej kopii i izolowanej
+  bazie. Rzeczywisty Laravel potwierdził, że „masła za 5 zł” dawało wymyśloną
+  ilość i koszt. Wąska poprawka odrzuca liczbę z jednoznaczną walutą,
+  zachowując gramy i prawidłowe ilości. Odbiór końcowy/peer/push nadal wymagane;
+  nie rozszerzać tego na OCR, ceny ani nowe koszty.
+- Pomiar CI za dobę 2.10 16:16–3.10 16:16 UTC zakończony i niezależnie
+  sprawdzony: 256 przebiegów, średnio 7,94 wykonywanego zadania, p90 23,
+  maksymalnie 58. To nakładanie wykonań w określonym zbiorze, nie CPU,
+  kolejka, rachunek ani dowód przyczynowego efektu #2734. Pełna metoda
+  i ograniczenia: https://github.com/woogitsu/kuking.pl/issues/2713#issuecomment-5971888665.
+  Nie zmieniono runnerów, kosztów ani sekretów.
+- Otwarte pozostają rzeczywiste kryteria pilota 50+, telefonów, prawa,
+  CSAM/R2/CDN, kopii i paneli. #598 nadal wymaga gęstego pomiaru wdrożenia,
+  #601 statusów wariantów i zasobów. #2810/#2849 oraz konta
+  #2851/#2854/#2861/#2862 czekają na W/X/Y w produkcji. Nie zamykać ich
+  na podstawie samego podzbioru testów lub starej zieleni.
+
+---
+
+## Zachowany checkpoint historyczny
+
+# Stan koordynacji — 3.10.2026, 17:10 UTC
+
+## Odebrane wydanie O i naprawiona integracja
+
+- O #2890 scalone z expectedHeadSha 91e58bd07b719c27f12b7973c526f906cbefd2db.
+  Main i produkcja: 5ae32b5785a642f8dd643de7606b0ecbe5a2040b.
+  Zwykły pełny seryjny pre-push EXIT 0; pełne PR CI 37134398858 24/24 SUCCESS
+  i zagregowany CodeQL 111235948787 SUCCESS dokładnego heada. Main CI
+  37136405016 terminalnie 24/24 SUCCESS, zero pominięć/anulowania.
+  Railway web e28ad0f4, worker c45b23f8, scheduler 9b5bcf1f: wszystkie SUCCESS
+  tego SHA. Root odczytał /wydanie exact SHA i /health 200/ok o 16:59 UTC.
+  Komentarz odbioru produkcji: 5971349861; opis PR aktualizowany z zachowaniem historii.
+- Zamknięto 39 kwalifikujących issues O, każde z własnym dowodem. Root ponownie
+  odczytał wszystkie 39 stanów CLOSED/completed i komentarze; treści issues
+  zachowane. Audyt 66 surowych plików i 9 źródeł zweryfikowany niezależnie.
+  Sześć zastąpionych draftów było już zamkniętych/scalonych; brak nowych
+  zamknięć tych PR. Piloty, prawo, urządzenia i panele nie są automatycznie wykonane.
+- #2894 odebrane: normalny pełny pre-push EXIT 0, oficjalny pełny dispatch
+  37135146749 24/24 SUCCESS. Auto PR CI miało osiem scope skipów i nie było
+  dowodem pełnej bramki. ExpectedHeadSha merge c0 dał C
+  0dade39187d8143cb557cd1a968161584360667b. Push C 37137412709 terminalnie
+  24/24 SUCCESS, zero pominięć. Nie trzeba dodatkowego dispatch push C:
+  scripts/ci/zakres.sh zawęża ciężkie zadania tylko dla pull_request.
+
+## Jedna wspólna paczka W/X/Y — istniejący PR #2891
+
+- Root normalnie połączył W622, X5f, Y0b i faktyczną zieloną C 0dade.
+  Przewidywany i wykonany merge-tree: 5b1e24debb8daecaf0f5bf75f3a66bcbcf1c2b39.
+  Pięć odebranych blobów C zachowanych, pozostałe 7037 blobów W bez zmian.
+  Niezależny review ACCEPT: źródła W/X/Y jak odebrane Y, 580/580 unikalnych
+  kontroli, wszystkie ścieżki/filtry oraz pojedyncze wywołania siedmiu mechanizmów.
+- Dołączono wyłącznie dokumenty odebranych #2852, #2839, #2821/#2822 i #2814.
+  Root dla nowych odbiorów: 306 surowych plików i 24 źródła układu; 99 plików
+  i 8 źródeł eksportu; 109 plików i wszystkie 6977 źródeł minutnika.
+  Reprezentatywne obrazy obejrzane niezależnie. Natywne 200% potwierdzone
+  przez rzeczywiste ustawienia Chrome, DPR i viewport, bez CSS zoom.
+  Przycięte historyczne fullPage PNG i błędy przygotowania nie są PASS.
+- Root przygotowuje jeden zwykły pełny seryjny push W/X/Y z własnego repo-w
+  i izolowanej bazy kuking_test_w20261003 na PG 18.6 / 127.0.0.1:55488,
+  owner kuking_pg18_owner. Stary canonical push-w EXIT 0 dotyczy wyłącznie
+  W622. Nowa bramka ma osobne push-wxy.sh/log/exit, bez nadpisania starego dowodu.
+  Remote #2891 przed tą nową bramką nadal W622; stara zieleń nie zatwierdza
+  wspólnej paczki. Nie zmieniać heada podczas nowego haka ani CI.
+- Po nowym zwykłym pełnym pushu: aktualizacja opisu #2891 do W/X/Y, pełne
+  niedraftowe CI dokładnego heada i świeżej C, review/merge-tree/diffcheck,
+  expectedHeadSha merge oraz zielony push C. Następnie jedno końcowe wydanie
+  do main: pełne PR CI, zagregowany CodeQL, main CI, trzy Railway SUCCESS,
+  /wydanie exact SHA i /health. Dopiero potem kwalifikujące issues W/X/Y.
+
+## Następna mała paczka i otwarte kryteria
+
+- Po W/X/Y osobna mała paczka #2796 + #2893. Head 708ea63fb7fb48bee1588ec3f8f5ed7722717074:
+  dokładnie trzy DELETE z D-302 pkt 10, root+peer ACCEPT, 32/444 HTTP,
+  99/800 regresje, 93/2539 strażniki, trzy właściwe kontrole i exact restore,
+  Pint/full PHPStan 0. Zachowane Policy, domena, #2791/#2889 i odmowy grantów.
+- Head d204483086d8080adf95987ddbfb43de8a2784a1: #2893 root+peer ACCEPT,
+  35 starych identities + 9 macierzy, 44/154 serial i official parallel 4,
+  właściwe 13/2/3 FAIL, exact restore, 73 raw. Izolowany proces rzeczywistego
+  config; brak zmian Env aplikacji, .env, CI lub globalnych flag. Pint i wąski
+  PHPStan 0; całego nowego haka/pusha/PR jeszcze nie wykonano. Odbiór podzbioru
+  nie zastępuje dawnych całych parallel hooków FAIL zachowanych jako historia.
+- #598: hourly 5 połączeń i rachunek 110 nie są pomiarem szczytu. Nadal potrzebne
+  gęste próbki 1 s podczas normalnego wdrożenia, bez progów/kosztów/sekretów.
+  #601: historyczne ProcessUploadedImage DONE nie dowodzi ready/processed_at,
+  trzech wariantów ani CPU/RSS. Kryteria pozostają jawnie otwarte.
+- Manualne piloty 50+, realne telefony, prawo/CSAM/DPA, R2/CDN, kopie i panele
+  wymagają własnych dowodów. #2810 i #2849 oraz odbiór literalnych cookies/2861
+  należą do W/X/Y, nie do wydania O. Nie nazywać starego fixture session.store
+  nowym potwierdzonym błędem aplikacji.
+- Zgoda właściciela na dokładny izolowany ReportContent #2887 zapisana w D-333
+  i wykonana. Nie pytać ponownie. Zachować dirty primary checkout i cudze zakresy.
+
+## Historia koordynacji — zapis z 16:27 UTC
+
+# Stan koordynacji — 3.10.2026, 16:27 UTC
+
+- Wydanie O #2890 SCALONE z expectedHeadSha91. Nowy main to
+  5ae32b5785a642f8dd643de7606b0ecbe5a2040b; PR CI37134398858 terminalnie
+  24/24 SUCCESS, zagregowany CodeQL111235948787 SUCCESS exact91,
+  zwykły pełny seryjny pre-push80957 EXIT0, świeży main/base09,
+  review/bezkonfliktowy merge-tree495e0f14 i diffcheck odebrane.
+  Rootcomment5971004585. Nowy push main CI37136405016 w toku;
+  Railway web e28ad0f4 WAITING, worker c45b23f8 i scheduler9b5bcf1f
+  BUILDING na nowym5ae. /wydanie nadal09f8, /health200. Bramka produkcji
+  NIE odebrana, nie zamykać issues ani zastąpionych draftów.
+- Naprawa czerwonej C #2894: c0c78f013b75e0cae75c471b1a9d61a48ee9baeb
+  do Ce625, dokładnie5plików, zwykły pełny seryjny pre-push14471 EXIT0.
+  AutoCI37134534040 zakończone SUCCESS14zadań i8skipów przez zakres;
+  to NIE pełna bramka. Oficjalny dispatch ci.yml37135146749 exactc0
+  ma wszystkie zakresy w osobnej grupie concurrency; nadal trwa.
+  Wymagaj jego pełnego24/24 SUCCESS, świeżej base/review/merge-tree,
+  expectedHeadSha merge wyłącznie naprawy, potem terminalny pushC.
+  Starsze całe parallel hooki FAIL zachowane .parallel-4; bez bypassów.
+- Jedna paczka W/X/Y w istniejącym #2891: normalne lokalne merge
+  W622→X5f→Y0b, niezależny audit bez konfliktów; źródła app/config,
+  migracje/locki/scripts/tests identyczne odebranemu Y,580/580kontroli.
+  Lokalny W zawiera aktualny STAN i wyłącznie dokumentacyjny receipt2852.
+  Remote2891 nadal W622; stara zieleń nie zatwierdza wspólnej paczki.
+  Po odebranej rzeczywistej C: merge aktualnejC, jeden normalny pełny
+  push, aktualny opis2891, nowy pełny niedraftowy CI/review/expectedmerge,
+  zielony pushC oraz jedno zweryfikowane wydanie WXY do main.
+- #2796 root+peer ACCEPT708ea63fb7fb48bee1588ec3f8f5ed7722717074:
+  32/444HTTP,99/800regresje,93/2539strażniki,3właściwe fizyczne kontrole,
+  exactrestore/Pint/fullPHPStan0. Dokładnie3DELETE D-302pkt10;
+  Policy/domena/odmowy nowych grantów i2791/2889 zachowane.
+- #2893 root+peer ACCEPTd204483086d8080adf95987ddbfb43de8a2784a1:
+  35starych identities+9wykonawczych macierzy,44/154serial i officialparallel4;
+  13/2/3properFAIL→exactrestore→PASS,73raw sprawdzone. Odizolowany proces
+  wykonuje rzeczywisty config, bez zmian Env aplikacji/.env/global/CI.
+  Pint/wąskiPHPStan0; pełny check/push/PR jeszcze NIE wykonane.
+  Rootcomment5971029588. Mała paczka2796+2893 PO WXY, nie do aktywnych
+  C/O ani zamrożonego WXY. Read-only merge-tree obu kolejności bez konfliktów,
+  13/13blobów obu napraw zachowane,583/583rejestrów (580starych+3nowe).
+- #2852 root techniczny ACCEPT O91:8/8actualLaravel/Chromium,4PDF A4,
+  30/30stron obejrzanych przez autora; root99/99artefaktów,9źródeł i4arkusze.
+  16pt podpis,24chronione wartości nieobecne HTML/PDFtext/URI.
+  Receipt65acddff dodany tylko dokumentacyjnie doW; issueOPENdoOprodukcji,
+  comment5970925440. #2821/#2822 odbiór320/native200/keyboard w toku.
+  #2839 brakujący PDF/offlineHTML: własny WT/runtime/baza odO91 po fresh
+  preflight; agent przerwany przez chwilowy błąd capacity modelu, do wznowienia
+  po sprawdzeniu jego faktycznych procesów. Brak odbioru nie jest PASS.
+- Repo delete_branch_on_merge=true; O miało oddzielną gałąź wydania,
+  brak otwartych PR z bazą na niej. C i zależne2891/2894 zachowane.
+  Primarycheckout dirty bez zmian. Manualpilot50+/prawa/telefonów/paneli OPEN.
+
+## Historia koordynatora — 3.10.2026, 11:39 UTC
 
 S #2886 odebrane na main i produkcji `09f8af1c738789c4498d35158f940ac237c30eee`: pełne CI24/24, CodeQL, trzy Railway SUCCESS i live wydanie/health200. #2851/#2854/#2862 zamknięte z dowodem; #2861 czeka na dwa dodatkowe kryteria Dwa w Y. N–U #2865 zdalny `c31238b012518345fa807daee71e82e8f8525e27` przeszedł pełny normalny hook i czeka na świeże CI37119391938. #2810 NIE jest jego naprawionym zakresem; rzeczywistą awarię punktu odtworzono i naprawia ją agent w Y. V po zwykłym merge N–U i S zachowuje dokładnie wcześniejszy kod app/views/Dwa i rozpoczyna własną pełną bramkę przed PR. W i X idą potem zgodnie z odbiorami; zamrożonych headów w trwającym hooku nie zmieniamy. Właściciel zatwierdził dokładny izolowany test opóźnionego ReportContent; wcześniejszy niepotwierdzony wyścig nie jest jeszcze naprawą ani zamknięciem issue.
 
 Poniżej zachowany wcześniejszy handover i pomiary; dawne liczby/SHA są migawką.
 
 # Stan koordynacji: jak przejąć pracę w nowej sesji
+
+## Aktualny odbiór koordynatora Codex — 3.10.2026, 15:32 UTC
+
+- SSH normalhp chwilowo odmawiał połączenia około 15:16–15:26 UTC.
+  Po powrocie root odczytał canonical log/exit i właściwe procesy.
+  Cc0 sesja14471 oraz O91 sesja80957 nadal pracują w normalnej pełnej
+  baterii szeregowej; heady czyste i zgodne, exit jeszcze nie istnieje.
+  Nie ponowiono żadnego pushu ani testu. Nadal nie zmieniać tych headów.
+- Świeży odczyt 15:29 UTC: main09f8, CI24/24 SUCCESS, trzy usługi Railway
+  SUCCESS na tym SHA, /wydanie exact09f8 i /health200. C nadal e625;
+  #2890 nadal zdalny30be i wymaga nowego CI oraz zagregowanego CodeQL
+  po pushu91; #2891 nadal W622, czeka na naprawę C i świeżą bramkę.
+- #2796 ma końcowe HTTP32/444 PASS i wcześniejsze wspólne99/800 PASS.
+  Finalny test SHAee8e40a5 rozszerza rzeczywisty odczyt i cudzy UUID;
+  stare kontrole fizyczne dotyczą SHA8658b458 i nie zastępują końcowych.
+  Po sprawdzeniu serwera autor wrócił tylko do własnego WT i bazy,
+  aby wykonać trzy właściwe kontrole, strażniki oraz pełny PHPStan.
+  Peer czeka na stabilny commit i surowe końcowe dowody; bez ACCEPT/pushu.
+- Utworzono #2893 P2/bug po deduplikacji: fixture SES/rejestracji nie
+  ustanawia wartości w oficjalnym parallel4. Niezależnie35/90 PASS →
+  28PASS+7FAIL/71 →35/90 PASS, zero ERROR/SKIP, exit0→1→0.
+  Root sprawdził30/30 surowych artefaktów i manifest SHA256c04c0b63.
+  Parent bootstrap dziedziczy zmienne do workera jako zewnętrzne;
+  immutable Env odmawia clear/set. AWS_ACCESS_KEY_ID był pusty,
+  KUKING_REGISTRATION_OPEN niepusty; wynik taki sam bez TEST_TOKEN.
+  Zielony dataset null również nie ustanowił fixture. Trzeci agent
+  pracuje osobno nad przyrządem z prawdziwym config i zachowaniem35
+  przypadków, ochrony Env oraz głównej baterii. O/C pozostają nietknięte.
+
+## Historia odbioru koordynatora Codex — 3.10.2026, 15:04 UTC
+
+- Oficjalny lokalny parallel4 zakończył oba zwykłe hooki porażką,
+  nie publikuje nowych headów: O91 — 14026 testów, 7 FAIL; Cc0 —
+  14029 testów, 10 FAIL. W obu siedem porażek dotyczy fixture środowiska
+  SES oraz przełącznika rejestracji; ścisłe powtórzenie obu klas w O91
+  bez parallel daje 35/90 PASS, zero ERROR/SKIP. Niezależny agent otrzymał
+  także 35 PASS → 7 tych samych FAIL w parallel4, bez zmian źródeł/.env.
+  Dokładna analiza adaptera środowiska jest w toku.
+- Trzy dodatkowe porażki C używały niezmigrowanej bazy głównej
+  (brak recipes.source_url i daily_picks); te testy nie mają RefreshDatabase.
+  Migration:refresh na końcu hooka przeszedł. Te same trzy metody w tej
+  własnej bazie mają później 3/17 PASS. Nie jest to pełna zieleń C.
+  Paginacja z timeoutem 57014 nie oblała tego przebiegu, lecz cały hook FAIL.
+- Po terminalnym zakończeniu starych procesów zachowano ich pełne logi,
+  skrypty i exit pod .parallel-4 oraz raw parallel-*-full-tests.log.
+  Bez zmian kodu, hooków lub testów wrócono do normalnego domyślnego
+  wykonania szeregowego. Nowe pełne pushe: Cc0 sesja14471,
+  O91 sesja80957; canonical transfer/push-ci-c-repair.exit/log oraz
+  transfer/push-release-o.exit/log. Headów nie zmieniać ani nie ponawiać
+  bez sprawdzenia właściwego procesu i canonical exit. PR naprawy C
+  dopiero po hook0; O2890 nadal wymaga nowych CI i CodeQL po pushu91.
+- W622 ma terminalne CI37127706259 24/24 SUCCESS. Niezależny merge-tree
+  W622+Cc0 jest bezkonfliktowy, drzewo e8b36a507cfdfda46c768835964257275d1f761d;
+  wszystkie22plikiW identyczne, C dodaje tylko5zaakceptowanych plików.
+  Nie scalać W przed odbiorem naprawy czerwonej C i świeżą pełną bramką.
+- Nowa rozłączna praca po Y: #2796, trzy nazwane DELETE zawężające dostęp
+  do wspólnego zeszytu zgodnie z D-302 pkt10. Agent ma własny WT/bazę,
+  najpierw odtwarza HTTP, potem wąska poprawka i kontrole fizyczne.
+  Wyjątki #2791/#2889 zachować. Triage pozostałych P0/P1 nie znalazł
+  wolnego bugfixu poza odebranymi paczkami i kryteriami właściciela.
+- #601 ma historyczne3RUNNING/3DONE ProcessUploadedImage na worker
+  14609aeb-87d1-4a3f-922b-f5f28b416414, SHA6f0bf661, 2.10 13:34:54–57 UTC,
+  bez FAIL w filtrze. To nie dowodzi ready/processed_at/trzech wariantów
+  ani CPU/RSS. Root dopisał dowód i braki w issue; pozostaje OPEN.
+
+## Historia odbioru koordynatora Codex — 3.10.2026, 14:35 UTC
+
+- Wydanie O #2890 na starym 30be ma terminalne CI 24/24 SUCCESS,
+  lecz zagregowany CodeQL FAILURE z dwoma alertami high. Po zakończeniu
+  obu bramek włączono niezależnie odebrany parser DOM 91e58bd07b,
+  bez zmian aplikacji ani zależności. Kontrola fizyczna: 3 PASS →
+  2 właściwe FAIL i formularz PASS → 3 PASS, bez ERROR/SKIP, exact restore.
+  Zwykły pełny push nowego heada trwa: sesja 20575,
+  transfer/push-release-o.exit/log. Świeże pełne CI oraz zielony
+  zagregowany CodeQL nowego heada są nadal wymagane przed merge.
+- C e625 pozostaje czerwone. Minimalna higiena fixture a7ffbdd2c4
+  zachowuje wszystkie 52 asercje, SQL i limit 15 s; nie zawiera
+  błędnego założenia COUNT = reltuples. Własny timeout nie został
+  odtworzony i jego przyczyna pozostaje nieudowodniona. Root połączył
+  tę poprawkę z odebranym parserem: codex/ci-naprawa-c-20261003,
+  head c0c78f013b75e0cae75c471b1a9d61a48ee9baeb. Zwykły pełny push
+  trwa w sesji 53198, transfer/push-ci-c-repair.exit/log, osobna baza
+  kuking_test_ci_c_repair_20261003 na PG18.6:55488. #2892 opisuje
+  błąd i kryteria. PR dopiero po prawidłowym pełnym push; W czeka
+  na terminalnie zieloną C po tej naprawie.
+- Oba nowe skrypty używają oficjalnego KUKING_TESTY_ROWNOLEGLE=4
+  bez późniejszego unset. Faktyczne uruchomienie czterech procesów
+  i terminalny wynik sprawdzać w logu; sam eksport nie jest dowodem.
+  Nie zmieniać tych headów ani ponawiać push bez kontroli procesu/exit.
+- Y8f02481a ma wspólny odbiór root: 58/2032 Dwa, 83/2396 Feature,
+  właściwe kontrole fizyczne, dokładne przywrócenie i pozostałe narzędzia
+  PASS; canonical Y-root-8f.exit=0. Receipt i bieżący STAN są lokalnie
+  zapisane. Y nie ma jeszcze pełnego push ani PR; oczekuje zależności
+  W/X w odebranej C. Trzej subagenci szukają rozłącznie następnych
+  zatwierdzonych, niezajętych usterek, bez dublowania paczek W–Y.
+
+## Historia odbioru koordynatora Codex — 3.10.2026, 14:05 UTC
+
+- N–U #2865 są w C30be; źródło i push C30 miały pełne 24/24 SUCCESS.
+  Zwykły pełny push wydania O zakończył się 0. Niedraftowy PR #2890 jest
+  na 30be87d7; pełne CI37127299783 trwa. Zagregowany CodeQL odmówił:
+  dwa nowe alerty high w scripts/przegladarka/dopisek-2857-laravel.test.mjs:55.
+  Trzy Analyze SUCCESS oznaczają skan, nie zielony security-check. Osobny
+  worker przygotowuje DOMParser bez nowej zależności; frozen O bez zmian.
+- V #2888 scalona do C e625 po pełnym zielonym źródle. Push C37124099712
+  terminalnie czerwony w zwykłej części 1/4: timeout 15 s ciężkiego fixture.
+  Lokalnie nie odtworzono timeoutu; potwierdzono stare statystyki.
+  Korekta wyłącznie higieny fixture jest w recenzji. Exact COUNT=reltuples
+  nie jest kontraktem PostgreSQL: nadmierna asercja została odrzucona przed
+  pushem. Wszystkie 52 asercje paginacji, SQL i limit pozostają bez zmian.
+  Nie scalać kolejnej W do czerwonej C.
+- W622554cce0 ma jedną bazę C e625 i 22 pliki wyłącznie W. Pełny zwykły
+  push zakończył się 0; niedraftowy #2891, pełne CI37127706259 trwa.
+  Korekta historycznego opisu: bateria biegła szeregowo, ponieważ po
+  export KUKING_TESTY_ROWNOLEGLE następował unset. Nie liczyć samego
+  eksportu jako dowodu czterech procesów. Hook nie był pominięty.
+  X5f28 ma pełny zwykły push 0 i czeka na odbiór W w C.
+- Y8f02481a zawiera także niezależnie odebrane #2887 i #2889.
+  Root po wspólnym merge otrzymał 58/2032 Dwa i 83/2396 Feature, zero
+  failure/error/skip. Właściwe kontrole #2879/#2887, exact restore,
+  mechanizmy, Pint, pełny PHPStan i build przechodzą; Y-root-8f.exit=0.
+  ODBIOR-Y-WSPOLNY-CODEX-20261003.md podaje dokładny head i artefakty.
+  Rejestry580/580 i pojedyncze wywołania mechanizmów niezależnie sprawdzone.
+  Zgoda na dokładny test ReportContent jest w D-333, test wykonano;
+  nie pytać ponownie. Y nie ma jeszcze pełnego push/PR.
+- #2851/#2854/#2861/#2862 oraz #2810/#2849 są otwarte do produkcji Y.
+  Sześć dawnych draftów ma zero unikalnej pracy do wydania O; zdalna N
+  zachowuje tylko dwie dodatkowe historyczne notatki. Zamykać po produkcji,
+  sprawdziwszy świeże heady i unikalną pracę.
+- #598 pozostaje otwarte do gęstego pomiaru wdrożenia; 5 z próbek godzinnych
+  nie jest szczytem, rachunek110 nie jest pomiarem. Pilot50+, telefony/PDF,
+  dostępność, prawo, panele, CSAM, R2/CDN i kopie pozostają otwarte tam,
+  gdzie nie ma dowodu. SHA/CI/procesy to migawki; przed retry sprawdzić
+  canonical exit/log i właściwy proces. Bez pomijania hooków i masowych CI.
+
+## Historia odbioru koordynatora Codex — 3.10.2026, 13:28 UTC
+
+- Produkcja S pozostaje odebrana na main09f8; dane przed merge odświeżyć.
+  N–U #2865 odebrane i scalone do C30; push37121666287 terminalnie24/24.
+  Wydanie O jest osobno zamrożone na30be87d7. Pierwszy pełny push miał
+  2FAIL/14024PASS wyłącznie przez lokalne APP_URL z IP: te same dwie metody
+  po procesowym localhost PASS2/21. Kod i .env bez zmian; normalny pełny
+  push53456 trwa. Sprawdź transfer/push-release-o.exit/log i rzeczywisty
+  proces przed ponowieniem, nie obchodź haka.
+- V #2888 po sourceCI37121885979 terminalnie24/24 i świeżych bramkach
+  scalona expectedHeadSha do C e625ab336f04f87df7f2be7eb86fa4866e7a13a6.
+  PushC37124099712 ma FAIL zwykłej części1/4: fixture10021 przepisów,
+  HTTP503 po SQLSTATE57014/statement_timeout15000ms. Ta sama metoda
+  na identycznym drzewie V PASS3,90s, na C16,65s. Nie jest to properFAIL
+  mutanta ani dowód logicznej pętli. Agent mierzy plan/statystyki przed
+  i po ANALYZE w osobnej kopii, bez podnoszenia limitu/asercji i rerunCI.
+  Kolejne merge do C dopiero po naprawie i terminalnym odbiorze.
+- W4f16 i X5f28 zwykłe pełne pushe exit0. W preflight wykazał dwie
+  bazy Git i kumulujący diff40 zamiast22; normalny merge aktualnej C
+  dał622554cce0ad5fcca63d71cf66b81388c6f9eac7 z identycznym drzewem
+  i pojedynczą bazą. Pełny push83603 trwa z oficjalnym
+  KUKING_TESTY_ROWNOLEGLE=4 na własnych jawnych bazach PG18.6.
+  X5f28 czeka na odebraną W. Nie kumulować PR-ów bez zależności.
+- Y8028249e561ef4badbe831f365f13ad6d035f050 zawiera #2877, #2810,
+  literalny dowód czterech issues kont oraz niezależnie odebrane #2879.
+  Rejestry580/580 unikalnych; wszystkie stare/incoming AST zachowane.
+  Root37/1500Dwa PASS; fizyczne kontrole cookies/okna2FA/błęduB, exactrestore,
+  Pint3307/fullPHPStan0/mechanizmy i indeks PASS. Pierwsze exit1 przez brak
+  opt-in zachowano; z jawnym opt-in kontynuowano wyłącznie pozostałe kroki.
+  Rzeczywisty B42P01/timeout nie może udawać właściwej mutacji.
+  #2851/#2854/#2861/#2862 i #2810/#2849 zamykać dopiero po produkcji Y.
+- #2879:10/235Dwa,18/337wspólnie,59/443Feature oraz pięć właściwych
+  fizycznych FAIL+restore; świeży User pod istniejącym zamkiem konto→sesja.
+  #2887: właściciel zatwierdził dokładny test i zgoda jest w D-333.
+  Wąska poprawka ma niezależny ACCEPT, pełny check14195PASS i końcowe
+  11/297Dwa z rzeczywistym INSERT/dedup siedmiu pozostałych typów.
+  Worker domyka lokalny commit przed przyjęciem do Y.
+- Osobny #2889P2: poprawka dwóch nazwanych HTTPleave/destroy po zawieszeniu,
+  d79289b28bab38ac616d4369eec3fcca1cde3e72,28/267HTTP,135/1043wspólnie,
+  dwie propermutacje zexactrestore. Policy i domena bez zmian; root
+  jeszcze odbiera. Nie mieszać tego kryterium z domenową poprawką #2879.
+- #598: siedem rzeczywistych próbek po5 zajętych,limit500; Discord już
+  odebrany29.09 w#599. Dzisiejsze48wątków i4workerów zmieniają rachunek
+  budżetu16 na110;110 nie jest pomiarem,5 nie jest szczytem. Gęsty pomiar
+  regularnego wdrożenia nadal wymagany, bez zmiany progów/kosztu/sekretów.
+- Otwarte kryteria pilota50+,prawa,paneli,R2/CDN,kopii/PDF/klawiatury
+  zachować. Mapa59issues:37bugs O dopiero po produkcji,16ręcznych kryteriów
+  nie zamykać. Brak CENY_WARZYW_PAT opisany#2713,bezrerun.
+  Trzej subagenci mają rozłączne zakresy. SHA/CI/procesy to migawki.
+
+## Historia odbioru koordynatora — 3.10.2026, 12:22 UTC
+
+- **Produkcja S odebrana:** main `09f8af1c738789c4498d35158f940ac237c30eee`,
+  PR #2886, CI push `37117754335` 24/24 SUCCESS, CodeQL SUCCESS;
+  Railway web/worker/scheduler SUCCESS na tym samym SHA, `/wydanie`
+  zgodne i `/health` 200. Każdy z tych stanów przed kolejnym merge odświeżyć.
+- **#2851/#2854/#2862 ponownie otwarte.** Dawny przyrząd mógł odczytywać
+  stary singleton `session.store`, różny od sesji rzeczywistego żądania.
+  Wcześniejsze zamknięcie literalnego kryterium było zbyt wczesne; nie jest
+  to potwierdzenie nowego błędu aplikacji. Uzupełnienie w Y: dziewięć
+  kombinacji cookies A/B w osobnych procesach, 9/649 PASS, wspólna
+  regresja 29/1371, fizyczna podmiana A→B daje dziewięć właściwych FAIL,
+  dokładny restore i ponowny PASS. Receipt: ODBIOR-S4-LITERALNE-COOKIES-CODEX-20261003.md.
+- **#2861 pozostaje otwarte.** Dodatkowe literalne żądanie moderatora i
+  okno confirm→invalidate lokalnie odtworzone. Niezależny przegląd wykrył,
+  że awaria lub timeout procesu B mogły dostać marker właściwej mutacji.
+  Agent naprawia tylko ten przyrząd; bez tego naprawionego werdyktu nie
+  ogłaszać uzupełnienia terminalnie odebranym.
+- **N–U #2865 scalone do C:** exact head `c31238b012518345fa807daee71e82e8f8525e27`,
+  pełne CI `37119391938` terminalnie 24/24 SUCCESS, lokalny merge-tree i
+  review sprawdzone. Nowa C `30be87d7d6c140275cce12d05f8a253b29452951`.
+  CI push C `37121666287` trwa. Własna gałąź wydania O wskazuje C30;
+  zwykły pełny push procesu 34631 trwa na `normalhp` w `repo-release-o`.
+  Nie ponawiać go bez sprawdzenia `transfer/push-release-o.exit`, logu i procesu.
+  Issues i zastąpione drafty zamykać dopiero po pełnym odbiorze produkcji.
+- **V #2888:** head `4d3f5d3ba01b32482ef54da2f8390af174e7f414`, pełny
+  zwykły hook exit 0; niedraftowy PR do świeżej C30, merge-tree identyczne
+  z V. Pełne CI nowej bazy trwa; nie zmieniać tego heada.
+- **W i X trwałe na origin:** W `19b565455c73df8fe32565d725680081992957d1`,
+  X `23b6ab6532a845d0fd0cf160be4d23ba984c6fa2`, zwykłe pełne pushe exit 0.
+  Nowe PR-y wymagają świeżych zależności po V i W, bez kumulujących duplikatów.
+- **Y lokalna:** #2877, atomowa zamiana #2810 oraz dodatkowe testy kont.
+  Root łączy zwykłymi merge, konflikty rejestrów sumą; wszystkie stare
+  AST wpisy zachowane, 579 unikalnych kontroli i 579 oczekiwanych przyczyn.
+  Root wspólny zakres Feature 55/2124 PASS, 37+22 testy mechanizmów PASS,
+  indeks decyzji zgodny, zero błędów/pominięć. To nie jest pełny push ani CI.
+  #2810 ma własny P0001 i dokładny odczyt drugiego PID, 4 właściwe mutacje;
+  istniejący Dwa #2849 1/18 PASS. Oba issues czekają na wspólne wydanie.
+- **#2887 nowy potwierdzony P1:** opóźniony INSERT zgłoszenia po wycofaniu
+  wskazówki cytował poprawiony tekst. Właściciel jawnie zatwierdził dokładny
+  izolowany test po odmowie przeglądu; zgoda dopisana w tabeli D-333,
+  indeks odświeżony. Agent wykonuje wąską poprawkę ReportContent z dwoma
+  kierunkami barier. Nie traktować jako incydentu produkcji ani zgody na
+  obchodzenie nowych odmów. #2879 ma odtworzony baseline i jest poprawiane
+  w oddzielnym zakresie przez trzeci agenta.
+- Otwarte pozostają pełne kryteria pilota 50+, prawa, paneli, R2/CDN,
+  kopii i rzeczywistego PDF/klawiatury tam, gdzie nie ma jeszcze pomiaru.
+  Harmonogram cen ma brak `CENY_WARZYW_PAT`; dowód w #2713, nie ponawiać
+  importu i nie konfigurować kosztu/poświadczeń bez właściciela.
+
+## Historia wcześniejszych przekazań — migawki
+
+
+## Aktualny odbiór Codex — 3.10.2026, 11:06 UTC
+
+- S #2886 scalone do main `09f8af1c738789c4498d35158f940ac237c30eee`
+  po terminalnym CI PR37116208973 24/24 i CodeQL37116207815 3/3,
+  expected head0f5085e2 i zwykłym pełnym pushu. Nowe CI pushmain37117754335
+  oraz produkcyjna bramka jeszcze trwają; nie ogłaszać ich odebranych.
+  Zamknięcia #2851/#2854/#2862 dopiero po pełnej produkcji; #2861 ma jeszcze
+  dwa brakujące wykonawcze scenariusze, przydzielone osobno do Y.
+- N–U pozostaje jednym #2865. Poprawione trzy błędy CI i odnośnik handoveru
+  do dokumentu dostępnego tylko w V. O c31238b012518345fa807daee71e82e8f8525e27
+  przechodzi nowy zwykły pełny push. Poprzedni05a hook exit1 zachowano;
+  konkretny test dokumentów po korekcie3/49PASS. Stary remote1bd/CIczerwony
+  nie jest dowodem nowego heada. [Odbiór N–U](ODBIOR-N-U-CODEX-20261003.md).
+- V remote762b0ad po zwykłym pełnym pushu; local a37ddc56 przyjmuje
+  poprawki N–U. [Odbiór V](ODBIOR-V-CODEX-20261003.md). Najpierw świeża C
+  po N–U, dopiero potem końcowy PR; bez kumulujących duplikatów.
+- W remote19b565455c73df8fe32565d725680081992957d1: zwykły pełny push
+  exit0, rootFeature136/7150, Dwa17/209 i właściwe kontrole przyjęte.
+  [Odbiór W](ODBIOR-W-CODEX-20261003.md). Czeka na wcześniejsze N–U/V.
+- X kod a6fc170368f201e12e99d64e554e8fa6446524ee: zamrożone sześć zakresów
+  #2882/#2883/#2884/#598/#2817/#2836, review ACCEPT, kontrole root PASS
+  i pełny PHPStan0. [Odbiór X](ODBIOR-X-CODEX-20261003.md). Zwykły push
+  dokumentacji końcowego heada jeszcze przed nami; nie dokładać Y do X.
+- Y #2877 pracuje w osobnym WT; #2861 uzupełnia dowody w osobnych plikachDwa.
+  ReportContent pozostaje bez odtworzenia po odmowie automatycznego przeglądu
+  do osobnej odpowiedzi właściciela; nie obchodzić tej odmowy.
+- #2713 ma dowód braku sekretuCENY_WARZYW_PAT, run37114331446; krokpanelowy
+  już opisany w #1895, zgoda na import osobna. Zbiorczy #598 nadal wymaga
+  pomiarów produkcji. Ręczne kryteria pilota/prawa/CDN/kopii zachowane.
+
+Poniższe bloki są wcześniejszymi migawkami; zawsze odśwież stan zdalny.
+
 
 ## Aktualny odbiór Codex — 3.10.2026, 09:50 UTC
 

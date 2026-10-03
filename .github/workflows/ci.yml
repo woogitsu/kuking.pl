@@ -500,13 +500,22 @@ jobs:
       - name: Testy bramki Railway po CI
         run: python3 -m unittest discover -s scripts -p test_railway_ci_gated_deploy.py -v
 
+      - name: Werdykt uzupełnienia 2FA (#2861)
+        run: python3 tests/skrypty/kontrola-negatywna-2861-uzupelnienie-wynik.py
+
+      - name: Werdykt literalnych cookies S4 (#2851, #2854, #2862)
+        run: python3 tests/skrypty/kontrola-negatywna-s4-cookies-wynik.py
+
       - name: Kontrole ujemne budżetu pominiętych testów
         run: python3 -m unittest discover -s scripts -p test_sprawdz_pominiete_testy.py -v
 
-      - name: Testy werdyktu kontroli wyścigów (#2811, #2815)
+      - name: Testy werdyktów kontroli wyścigów (#2811, #2815, #2879, #2880, #2887)
         run: |
           python3 tests/skrypty/kontrola-negatywna-2811-wynik.py
           python3 tests/skrypty/kontrola-negatywna-2815-wynik.py
+          python3 tests/skrypty/kontrola-negatywna-2879-wynik.py
+          python3 tests/skrypty/kontrola-negatywna-2880-wynik.py
+          python3 tests/skrypty/kontrola-negatywna-2887-wynik.py
 
       # Bramka audytu zależności (#2215) decyduje o czerwieni joba `audit`;
       # jej własne kontrole muszą biec, zanim zaczniemy jej ufać.
@@ -1126,7 +1135,7 @@ jobs:
     # Na PR-ze tylko przy zmianie kodu, danych albo zaplecza tej grupy (wyjście `wyscigi`).
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.wyscigi == 'true' && needs.zakres.outputs.pelny == 'true'
     runs-on: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '"ubuntu-latest"') || (github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CI_RUNS_ON_MAIN) || vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     services:
       postgres:

@@ -32,6 +32,20 @@ do składnika (placeholder kreatora wprost podpowiadał „albo masło roślinne
    jednostką; „szklanka mąki” bez liczby to jedna szklanka. Przeliczana jest
    tylko ta jedna liczba, reszta zdania autora zostaje co do znaku.
 
+   **Poprawka #2882.** Ukośniki ułamkowe `⁄` (U+2044) i `∕` (U+2215)
+   pozostają niewspieranym zapisem. Cały wiersz zostaje bez przeliczenia,
+   z informacją „Zapis ułamka nie został przeliczony. Sprawdź ilość
+   samodzielnie.”; odczyt ilości dla przelicznika miar zwraca brak wyniku.
+   Nie wolno przemnożyć samego mianownika. To ta sama odmowa na stronie,
+   w gotowaniu i podglądzie zakupów, bez metadanych o przeliczeniu
+   odmówionej pozycji. ASCII `1/2`, liczby mieszane i gotowy znak `½`
+   zachowują dotychczasowe działanie; tekst autora w bazie się nie zmienia.
+
+   Odmowa obejmuje liczby Unicode po obu stronach kreski, także indeksy
+   górne i dolne (`¹⁄2`, `1∕₂`, `¹⁄₂`) oraz liczby rzymskie. Kategoria
+   `\p{N}` służy wyłącznie wykryciu zapisu wymagającego odmowy; nie rozszerza
+   zbioru ilości, które parser potrafi przeliczyć.
+
    **Doprecyzowanie #2629.** Procent tłuszczu przy produkcie („30 %”,
    „30 proc.”, „30 procent”) opisuje produkt, więc nie jest ilością do
    pomnożenia. Szukamy dalej w tym samym wierszu: przy „30 % śmietanki —

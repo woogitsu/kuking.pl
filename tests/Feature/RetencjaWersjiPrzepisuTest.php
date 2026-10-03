@@ -262,14 +262,31 @@ final class RetencjaWersjiPrzepisuTest extends TestCase
 
     public function test_wersje_usunietego_przepisu_nie_sa_ruszane_przez_te_retencje_i_ida_z_przepisem(): void
     {
-        // Przepis usunięty przez autora traktuje `PrzedawnioneUsunieteTresci`
-        // (30 dni, forceDelete kaskaduje na wersje) — tu tylko dowód, że
-        // kaskada istnieje, więc osobnej reguły nie trzeba.
-        [$przepis] = $this->przepisZPiecioma();
-        $this->assertSame(5, RecipeVersion::where('recipe_id', $przepis->getKey())->count());
+        Date::setTestNow('2026-10-03 12:00:00');
+        $przepis = Recipe::factory()->create();
+        $stara = $this->wersja($przepis, 1, '2024-10-03 10:00:00');
+        foreach ([2, 3, 4] as $numer) {
+            $this->wersja($przepis, $numer, '2026-10-03 10:00:00');
+        }
+        $this->assertSame(0, (new PrzedawnioneWersjePrzepisow)->posprzataj(24, 3, naSucho: true)['skasowano']);
 
+        $przepis->delete();
+        Date::setTestNow('2026-10-04 12:00:00');
+        $retencja = new PrzedawnioneWersjePrzepisow;
+
+        // Nazajutrz wersja przekracza próg 24 miesięcy, ale w koszu
+        // wszystkie wersje czekają na 30-dniowe sprzątanie przepisu.
+        $this->assertSame(0, $retencja->posprzataj(24, 3, naSucho: true)['skasowano'], 'KOSZ_2881_WERSJE_CZEKAJA_NA_PRZEPIS');
+        $this->assertSame(0, $retencja->posprzataj(24, 3)['skasowano'], 'KOSZ_2881_WERSJE_CZEKAJA_NA_PRZEPIS');
+        $this->assertDatabaseHas('recipe_versions', ['id' => $stara->getKey()]);
+
+        $przepis->restore();
+        $this->assertSame(1, $retencja->posprzataj(24, 3, naSucho: true)['skasowano']);
+        $this->assertSame(1, $retencja->posprzataj(24, 3)['skasowano']);
+        $this->assertDatabaseMissing('recipe_versions', ['id' => $stara->getKey()]);
+
+        $this->assertSame(3, RecipeVersion::where('recipe_id', $przepis->getKey())->count());
         $przepis->forceDelete();
-
         $this->assertSame(0, RecipeVersion::where('recipe_id', $przepis->getKey())->count());
     }
 

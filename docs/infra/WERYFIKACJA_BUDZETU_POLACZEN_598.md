@@ -1,5 +1,22 @@
 # Weryfikacja budżetu połączeń PostgreSQL — 19 września 2026 (#598)
 
+## Korekta ciągłości pomiaru — 3 października 2026
+
+Nieudany odczyt połączenia albo zapytania zostawia pojedynczy rekord
+`kuking:budzet-polaczen` w istniejącym kanale `pomiary`: stan `niedostepny`,
+niezmierzone liczniki `null`, a nie `0`. Budżet i próg z konfiguracji pozostają
+liczbami obliczonymi, zgodnie z dotychczasowym formatem. Rekord nie zawiera
+treści wyjątku, nazwy bazy, hosta ani poświadczeń. Kod wyjścia pozostaje `1`,
+a `--bez-alarmu` wyłącza tylko alarm. Kanał, poziom i retencja są bez zmian.
+
+Test regresyjny czyta rzeczywisty rekord Monologa zapisany do własnego pliku;
+awarie połączenia i zapytania bada z alarmem oraz bez alarmu. Fizyczne kontrole
+usunięcia zapisu i zamiany `null` na zero są w istniejącym rejestrze kontroli
+CI, z odrębnymi wzorcami przyczyn. Dowód lokalny opisuje
+[odbiór #598](../flota/koordynacja/ODBIOR-598-CODEX-20261003.md).
+To naprawa ciągłości dziennika, bez nowego pomiaru produkcyjnego i bez
+zamknięcia pozostałych kryteriów #598.
+
 > **Ten dokument NIE zakłada budżetu połączeń od nowa.** Pomiar, wyprowadzenie
 > progów i czujka powstały 17–18.09.2026 i stoją w
 > [`docs/DATABASE.md`, §„Budżet połączeń PostgreSQL — issue #598"](../DATABASE.md).

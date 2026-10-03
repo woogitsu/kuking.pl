@@ -71,6 +71,12 @@ final class PrzeliczSkladnik
             return PrzeliczonySkladnik::bezZmian($tekst);
         }
 
+        // #2882: niewspierany ukośnik nie może zostawić mianownika jako
+        // osobnej ilości. Odmawiamy całego wiersza, bez zmiany zapisu autora.
+        if (self::nieobslugiwanyUlamek($tekst)) {
+            return PrzeliczonySkladnik::nieprzeliczony($tekst, PrzeliczonySkladnik::UWAGA_ULAMKA);
+        }
+
         $trafienie = self::znajdzIlosc($tekst);
 
         if ($trafienie === null) {
@@ -140,7 +146,7 @@ final class PrzeliczSkladnik
      */
     public static function odczytaj(string $tekst): ?array
     {
-        if (preg_match(self::BEZ_PRZELICZANIA, $tekst) === 1) {
+        if (self::nieobslugiwanyUlamek($tekst) || preg_match(self::BEZ_PRZELICZANIA, $tekst) === 1) {
             return null;
         }
 
@@ -165,6 +171,13 @@ final class PrzeliczSkladnik
         }
 
         return ['od' => $od, 'do' => $do, 'jednostka' => $jednostka];
+    }
+
+    private static function nieobslugiwanyUlamek(string $tekst): bool
+    {
+        // Unicode ma także liczby w indeksie górnym/dolnym i liczby rzymskie.
+        // Rozpoznajemy je wyłącznie do odmowy, nie do przeliczania (#2882).
+        return preg_match('/\p{N}\s*[⁄∕]\s*\p{N}/u', $tekst) === 1;
     }
 
     /**

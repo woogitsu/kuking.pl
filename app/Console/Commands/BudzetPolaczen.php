@@ -54,6 +54,7 @@ class BudzetPolaczen extends Command
         }
 
         if ($wynik['stan'] === StanPolaczenBazy::NIEDOSTEPNY) {
+            $this->zapiszWDzienniku($wynik);
             $this->error('Nie udało się odczytać stanu połączeń z serwera bazy.');
 
             if (! $this->option('bez-alarmu')) {

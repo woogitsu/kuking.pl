@@ -6,11 +6,27 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2887): zgłoszenie wskazówki sprawdza jej aktualną dostępność przy zapisie. Wycofanie wskazówki przed przyjęciem zgłoszenia odcina spóźnioną próbę; wcześniej przyjęta sprawa nadal chroni uwagę przed podmianą.
+- Poprawione (#2889): podczas zawieszenia konta pomocnik może wyjść ze wspólnego gotowania, a gospodarz zakończyć własną sesję. Wyjście zachowuje odhaczone kroki pozostałych osób; zmiana postępu i zaproszenia nadal są niedostępne.
+- Poprawione (#2877): zastosowanie dawnej wersji przepisu przywraca także zapisane „nie podano” liczby porcji. Brak pola w starszej wersji nadal pozostawia dzisiejszą liczbę, a pusta nazwa nie zastępuje obecnej.
+- **Wspólny postęp po zawieszeniu (#2879):** odhaczenie, cofnięcie i „Zacznij od początku” sprawdzają aktualny stan konta pod dotychczasową blokadą. Żądanie czekające po wcześniejszej autoryzacji nie zapisuje kroków ani rewizji, gdy w tym czasie zatwierdzono zawieszenie. Kolejność konto → sesja, czytanie, odejście i zakończenie sesji pozostają bez zmian.
+
+- Poprawione (#2817): „Moje próby tego przepisu” oceniają wersję i rzeczywisty czas osobno. Brak czasu albo przypiętej wersji nie oznacza już zgodności obu pól; znane różnice i brak danych są opisane także przy przejściu na kolejną stronę prób.
+- Poprawione (#2836): „Skopiuj ten dzień” zachowuje wybrane porcje i prywatny dopisek. Ich zmiana po podglądzie wymaga nowego podglądu; istniejące pozycje celu pozostają bez zmian, a nowe kopie nie dziedziczą „Zrobione”.
+
+- Poprawione (#2882): przelicznik porcji nie mnoży samego mianownika zapisów `1⁄2` i `1∕2`. Zachowuje cały wiersz i prosi o samodzielne sprawdzenie ilości na stronie przepisu, w gotowaniu i przy zakupach. Zwykłe ułamki `1/2` i `½` nadal się przeliczają; tekst autora pozostaje bez zmian.
+- Poprawione (#2882): odmowa ułamka obejmuje także liczby Unicode w liczniku i mianowniku, np. `¹⁄2`, `1∕₂` i `¹⁄₂`. Nie przeliczamy fragmentu takiego zapisu; całość pozostaje tekstem autora z prośbą o samodzielne sprawdzenie ilości.
+
+- Poprawione (#2884): wycofanie wskazówki od gotujących nie pozwala podmienić uwagi, której zgłoszenie nadal czeka na rozpatrzenie. Czas i opis zmian pozostają do poprawy, a po zakończeniu sprawy można znów poprawić uwagę.
+- Poprawione (#2883): gdy wybranego zdjęcia nie można już dołączyć do wykonania, formularz prosi o ponowny wybór. Nie potwierdza nieistniejącego przypięcia i nie pokazuje niedostępnego zdjęcia jako zachowanego. Rzeczywiste ponowienie udanej wysyłki pozostaje bezpieczne.
+- Poprawione (#2787): link do wspólnego gotowania nie pokazuje przycisku „Dołączam” osobie, której istniejąca blokada z pomocnikiem i tak uniemożliwiłaby dołączenie. Odmowa nie wskazuje osoby ani powodu.
 - Poprawione (#2847): paczka danych pokazuje nazwy list zakupów i ich pozycje z jednej chwili. Przemianowanie listy podczas przygotowywania paczki nie przypisuje pozycji innej liście o dawnej nazwie.
 - Poprawione (#2872): po odmowie usunięcia listy zakupów podsumowanie prowadzi do otwartego pytania o właściwą listę, pokazuje aktualną liczbę pozycji i komunikat przy potwierdzeniu.
 
 - Poprawione (#2875): przy stosowaniu starszej wersji przepisu błąd pustego wyboru prowadzi do widocznej grupy „Co zastosować?”, także gdy dane przepisu są bez zmian. Wybrane składniki lub kroki pozostają zaznaczone po innym błędzie formularza.
 - Poprawione (#2873): „Anuluj” podczas poprawiania pozycji zakupów wraca do jej nazwanej listy, zamiast do listy domyślnej. Pozycja pozostaje bez zmian.
+- Poprawione (#2881): starsze wersje przepisu pozostają z nim przez 30 dni w koszu. Nocne sprzątanie historii nie usuwa ich przed terminem; po odzyskaniu znów obowiązuje zwykła retencja wersji.
+- Poprawione (#2880): wyłączenie widoczności urodzin lub zmiana daty podczas przebiegu przypomnień odcina nowe powiadomienie dla obserwujących. Gdy powiadomienie powstało wcześniej, pozostaje w historii.
 - Poprawione (#2869): nowa paczka danych zachowuje historię otrzymanego zaproszenia, lecz nie pokazuje późniejszej nazwy cudzego prywatnego zeszytu po odebraniu dostępu lub odejściu.
 - Poprawione (#2868): ekran „Usunięte przepisy” pokazuje starsze odzyskiwalne przepisy mimo nowszych pozycji objętych moderacją. „Pokaż więcej” prowadzi przez kolejne porcje bez ujawniania chronionych przepisów.
 - Poprawione (#2860): po wyłączeniu i ponownym włączeniu zapamiętywania postępu stara karta nie cofnie kroków ani liczby porcji zapisanych później. Pokaże zmianę i poprosi o otwarcie aktualnego gotowania.
@@ -82,6 +98,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 - Poprawione (#2851, #2854): spóźniona zmiana hasła i „Wyloguj inne urządzenia” po resecie albo zmianie w drugiej sesji nie mogą użyć starego hasła do nadpisania nowego ani przywrócić odwołanej sesji. Serwis prosi wtedy o ponowne logowanie; aktualna sesja nadal może wykonać obie akcje.
 
+- Poprawione (#598): nieudany pomiar puli połączeń zostawia w dzienniku stan niedostępny i puste liczniki zamiast znikać ze szeregu. Kod błędu oraz dotychczasowy alarm pozostają bez zmian.
 - Poprawione (#2844): kontrola wyścigu importu odczytuje wynik testu z raportu JUnit. Rozpoznaje dwie oczekiwane porażki po celowej mutacji i trzy przejścia po przywróceniu kodu; nie uznaje obcego błędu za dowód.
 - Poprawione (#2815): wczytywanie własnej paczki ponownie sprawdza stan konta przed każdą pozycją. Zawieszenie w trakcie żądania zatrzymuje kolejne zapisy bez śladu importu; wcześniejsze poprawnie zapisane pozycje zostają.
 - Poprawione (#2708): instrukcja odtwarzania kopii wymaga ponownego zabezpieczenia decyzji CSAM i publicznych wariantów zdjęć przed wymazaniem kont oraz wznowieniem usług. Gdy nie da się potwierdzić spraw i ich zabezpieczenia, procedura zatrzymuje się zamiast uruchamiać ruch lub nocne retencje.

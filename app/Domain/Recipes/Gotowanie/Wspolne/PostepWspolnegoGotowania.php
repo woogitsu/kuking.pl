@@ -136,7 +136,9 @@ final class PostepWspolnegoGotowania
         // konto i czekały na sesję: zakleszczenie (40P01) wtedy, gdy gospodarz
         // odhacza krok w chwili, gdy ktoś dołącza do jego sesji. Teraz
         // odhaczenie najpierw czeka na konto, potem bierze sesję.
-        DB::table('users')->where('id', $osoba->getKey())->lock('for key share')->value('id');
+        // Publiczne suspend() bierze FOR UPDATE konta. Odczyt pod tym samym
+        // zamkiem sprawdza stan po czekaniu, zamiast modelu sprzed transakcji.
+        $swiezaOsoba = User::query()->whereKey($osoba->getKey())->lock('for key share')->first();
 
         $swieza = CookingSession::query()->whereKey($sesja->getKey())->lockForUpdate()->first();
 
@@ -148,7 +150,7 @@ final class PostepWspolnegoGotowania
             throw new BladDlaCzlowieka('Nie jesteś już uczestnikiem tej sesji, więc nic nie zostało zapisane.');
         }
 
-        if (! $osoba->isActive()) {
+        if ($swiezaOsoba === null || ! $swiezaOsoba->isActive()) {
             throw new BladDlaCzlowieka('Konto jest zawieszone, więc możesz tylko czytać.');
         }
 

@@ -6,7 +6,6 @@ namespace App\Domain\Zakupy;
 
 use App\Domain\Planer\PlanerTygodnia;
 use App\Domain\Recipes\GrupySkladnikow;
-use App\Domain\Recipes\Porcje\PrzeliczonySkladnik;
 use App\Domain\Recipes\Porcje\WyborPorcji;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
@@ -367,7 +366,7 @@ final class ListaZakupow
                     'oryginal' => $oryginal,
                     'przeliczona' => false,
                     'uwaga' => $wynik->nieprzeliczony
-                        ? PrzeliczonySkladnik::UWAGA_SUMA
+                        ? $wynik->uwagaNieprzeliczenia
                         : ($tekst !== null ? 'Po przeliczeniu linia byłaby za długa, więc zostaje oryginalna. Sprawdź ją samodzielnie.' : 'Tej linii nie przeliczamy (bez ilości, „do smaku” albo brak liczby). Sprawdź ją samodzielnie.'),
                 ];
             }

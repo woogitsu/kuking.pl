@@ -30,6 +30,7 @@ use App\Http\Requests\Cooked\PoprawkaWykonaniaRequest;
 use App\Http\Requests\Cooked\ZapisWykonaniaRequest;
 use App\Models\Comment;
 use App\Models\CookedEvent;
+use App\Models\Media;
 use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\RecipeHint;
@@ -594,7 +595,13 @@ class CookedEventController extends Controller
             try {
                 $ile = $dolacz->handle($user, $cookedEvent, $mediaIds, $kluczWyslania);
             } catch (BladDlaCzlowieka $e) {
-                return back()->withInput($wejscie($mediaIds))->withErrors(['photos' => $e->getMessage()]);
+                // Niedostępnego wyboru nie pokazujemy jako zdjęcia zachowanego do ponowienia (#2883).
+                $zachowane = $this->zdjecia->zachowane($mediaIds, $user)
+                    ->reject(fn (Media $media): bool => in_array($media->status, [Media::STATUS_DELETED, Media::STATUS_SECURED], true))
+                    ->map(fn (Media $media): string => (string) $media->getKey())
+                    ->all();
+
+                return back()->withInput($wejscie($zachowane))->withErrors(['photos' => $e->getMessage()]);
             }
 
             return redirect()->route('cooked.show', $cookedEvent)->with($ile === 0

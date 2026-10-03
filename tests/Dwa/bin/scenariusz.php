@@ -35,6 +35,7 @@ use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Compliance\PrzedawnioneUsunieteTresci;
+use App\Domain\Compliance\PrzedawnioneWersjePrzepisow;
 use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
@@ -78,6 +79,7 @@ use App\Domain\Users\Actions\ChangeUserRole;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\RequestAccountDeletion;
+use App\Domain\Users\Actions\ZapiszWyboryUrodzin;
 use App\Domain\Users\Exports\WersjaFormatuPaczki;
 use App\Domain\Users\Import\PodgladPaczki;
 use App\Domain\Users\Import\PozycjaPodgladu;
@@ -921,6 +923,21 @@ try {
             return Artisan::call('kuking:przypomnij-o-urodzinach');
         })(),
 
+        // #2880: prawdziwy zapis wyboru pod blokadą w drugim procesie.
+        'ukryj-urodziny' => (function () use ($argumenty): string {
+            $user = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            app(ZapiszWyboryUrodzin::class)->handle(
+                $user,
+                (bool) $user->birthday_wishes_enabled,
+                (bool) $user->wants_birthday_email,
+                (bool) $user->wants_birthday_email,
+                (bool) $user->birthday_visible_to_followers,
+                false,
+            );
+
+            return 'ukryto';
+        })(),
+
         // Notatka współpracownika kontra odebranie dostępu (#2311).
         'notatka-w-zeszycie' => (function () use ($argumenty): string {
             barieraPoSprawdzeniuCzlonkostwa((int) $argumenty['stop_po']);
@@ -1678,6 +1695,8 @@ try {
         // workerem, czyli jedyny sposób, w jaki kandydat sprzątania może
         // jeszcze zostać odzyskany.
         'sprzataj-usuniete-2620' => app(PrzedawnioneUsunieteTresci::class)->posprzataj((int) $argumenty['dni']),
+
+        'sprzataj-wersje-2881' => app(PrzedawnioneWersjePrzepisow::class)->posprzataj(24, 3),
 
         // #2849: bariera następuje po rzeczywistym SELECT kandydatów,
         // przed warunkowym DELETE. Odzyskanie ma czas odnowić ten sam punkt.
