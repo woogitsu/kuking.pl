@@ -1,5 +1,58 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
+## Aktualny odbiór koordynatora Codex — 3.10.2026, 12:22 UTC
+
+- **Produkcja S odebrana:** main `09f8af1c738789c4498d35158f940ac237c30eee`,
+  PR #2886, CI push `37117754335` 24/24 SUCCESS, CodeQL SUCCESS;
+  Railway web/worker/scheduler SUCCESS na tym samym SHA, `/wydanie`
+  zgodne i `/health` 200. Każdy z tych stanów przed kolejnym merge odświeżyć.
+- **#2851/#2854/#2862 ponownie otwarte.** Dawny przyrząd mógł odczytywać
+  stary singleton `session.store`, różny od sesji rzeczywistego żądania.
+  Wcześniejsze zamknięcie literalnego kryterium było zbyt wczesne; nie jest
+  to potwierdzenie nowego błędu aplikacji. Uzupełnienie w Y: dziewięć
+  kombinacji cookies A/B w osobnych procesach, 9/649 PASS, wspólna
+  regresja 29/1371, fizyczna podmiana A→B daje dziewięć właściwych FAIL,
+  dokładny restore i ponowny PASS. Receipt: ODBIOR-S4-LITERALNE-COOKIES-CODEX-20261003.md.
+- **#2861 pozostaje otwarte.** Dodatkowe literalne żądanie moderatora i
+  okno confirm→invalidate lokalnie odtworzone. Niezależny przegląd wykrył,
+  że awaria lub timeout procesu B mogły dostać marker właściwej mutacji.
+  Agent naprawia tylko ten przyrząd; bez tego naprawionego werdyktu nie
+  ogłaszać uzupełnienia terminalnie odebranym.
+- **N–U #2865 scalone do C:** exact head `c31238b012518345fa807daee71e82e8f8525e27`,
+  pełne CI `37119391938` terminalnie 24/24 SUCCESS, lokalny merge-tree i
+  review sprawdzone. Nowa C `30be87d7d6c140275cce12d05f8a253b29452951`.
+  CI push C `37121666287` trwa. Własna gałąź wydania O wskazuje C30;
+  zwykły pełny push procesu 34631 trwa na `normalhp` w `repo-release-o`.
+  Nie ponawiać go bez sprawdzenia `transfer/push-release-o.exit`, logu i procesu.
+  Issues i zastąpione drafty zamykać dopiero po pełnym odbiorze produkcji.
+- **V #2888:** head `4d3f5d3ba01b32482ef54da2f8390af174e7f414`, pełny
+  zwykły hook exit 0; niedraftowy PR do świeżej C30, merge-tree identyczne
+  z V. Pełne CI nowej bazy trwa; nie zmieniać tego heada.
+- **W i X trwałe na origin:** W `19b565455c73df8fe32565d725680081992957d1`,
+  X `23b6ab6532a845d0fd0cf160be4d23ba984c6fa2`, zwykłe pełne pushe exit 0.
+  Nowe PR-y wymagają świeżych zależności po V i W, bez kumulujących duplikatów.
+- **Y lokalna:** #2877, atomowa zamiana #2810 oraz dodatkowe testy kont.
+  Root łączy zwykłymi merge, konflikty rejestrów sumą; wszystkie stare
+  AST wpisy zachowane, 579 unikalnych kontroli i 579 oczekiwanych przyczyn.
+  Root wspólny zakres Feature 55/2124 PASS, 37+22 testy mechanizmów PASS,
+  indeks decyzji zgodny, zero błędów/pominięć. To nie jest pełny push ani CI.
+  #2810 ma własny P0001 i dokładny odczyt drugiego PID, 4 właściwe mutacje;
+  istniejący Dwa #2849 1/18 PASS. Oba issues czekają na wspólne wydanie.
+- **#2887 nowy potwierdzony P1:** opóźniony INSERT zgłoszenia po wycofaniu
+  wskazówki cytował poprawiony tekst. Właściciel jawnie zatwierdził dokładny
+  izolowany test po odmowie przeglądu; zgoda dopisana w tabeli D-333,
+  indeks odświeżony. Agent wykonuje wąską poprawkę ReportContent z dwoma
+  kierunkami barier. Nie traktować jako incydentu produkcji ani zgody na
+  obchodzenie nowych odmów. #2879 ma odtworzony baseline i jest poprawiane
+  w oddzielnym zakresie przez trzeci agenta.
+- Otwarte pozostają pełne kryteria pilota 50+, prawa, paneli, R2/CDN,
+  kopii i rzeczywistego PDF/klawiatury tam, gdzie nie ma jeszcze pomiaru.
+  Harmonogram cen ma brak `CENY_WARZYW_PAT`; dowód w #2713, nie ponawiać
+  importu i nie konfigurować kosztu/poświadczeń bez właściciela.
+
+## Historia wcześniejszych przekazań — migawki
+
+
 ## Aktualny odbiór Codex — 3.10.2026, 11:06 UTC
 
 - S #2886 scalone do main `09f8af1c738789c4498d35158f940ac237c30eee`
