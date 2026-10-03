@@ -10,6 +10,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 - Poprawione (#2859): gdy udostępniony przepis jest chwilowo niedostępny, jego odbiorca może zrezygnować z dostępu z listy „Przepisy udostępnione mi”. Lista nie zdradza treści ani powodu niedostępności; rezygnacja wymaga potwierdzenia.
 - Poprawione (#2867): stary przycisk „Odzyskaj zeszyt” nie odtworzy już nowszej kopii tego samego zeszytu. Otwórz ponownie „Usunięte zeszyty”, aby wybrać aktualną kopię.
+- Poprawione (#2855): opóźnione otwarcie przepisu sprzed wyłączenia listy „Ostatnio oglądane” nie odtwarza usuniętej historii po ponownym włączeniu. Nowe wizyty nadal trafiają na prywatną listę.
+
 - Podgląd ostatniego kroku ze spisu pozostaje podglądem także po zapisie lub błędzie prywatnego dopisku; nie wywołuje omyłkowego pytania „Jak wyszło?” (#2858).
 - Poprawione (#2852): wydruk zeszytu pokazuje przy „Mojej wersji” podpis oryginału. Gdy oryginał nie jest dostępny, podpis zostaje bez jego tytułu i autora.
 - Poprawione (#2864): stara karta ustawień urodzin nie przywróci widoczności dla obserwujących wyłączonej później w drugiej karcie. Przy konflikcie pokaże, jak otworzyć aktualne ustawienia.

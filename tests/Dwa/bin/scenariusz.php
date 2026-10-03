@@ -114,6 +114,7 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Vite;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Artisan;
@@ -121,6 +122,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
@@ -631,6 +633,33 @@ try {
             );
 
             return (string) $przepis->getKey();
+        })(),
+
+        // #2855: żądanie naprawdę buduje stronę przepisu i odracza zapis wizyty.
+        // Bariera stoi PO odpowiedzi, ale PRZED terminate/defer; w tym czasie
+        // druga karta może wyłączyć i ponownie włączyć prywatną listę.
+        'obejrzyj-przepis-2855' => (function () use ($argumenty): array {
+            app()->instance(Vite::class, new class extends Vite
+            {
+                public function __invoke($entrypoints, $buildDirectory = null): HtmlString
+                {
+                    return new HtmlString('');
+                }
+            });
+            $osoba = User::query()->whereKey($argumenty['kto'])->firstOrFail();
+            $przepis = Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail();
+            Auth::guard('web')->setUser($osoba);
+            $zadanie = Request::create($przepis->url(), 'GET');
+            $kernel = app(HttpKernel::class);
+            $odpowiedz = $kernel->handle($zadanie);
+
+            if (isset($argumenty['bariera'])) {
+                DB::select('SELECT pg_advisory_xact_lock(2855, 1)');
+            }
+
+            $kernel->terminate($zadanie, $odpowiedz);
+
+            return ['status' => $odpowiedz->getStatusCode()];
         })(),
 
         // #2112: prawdziwe żądanie HTTP przełącznika. Route binding i Policy

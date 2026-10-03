@@ -474,8 +474,12 @@ wyłączoną funkcją nie robią nic, a pozostali odkładają zapis przez `defer
 czas PO odpowiedzi, bez żadnego zapytania w ścieżce żądania (stan zgody jest w
 zalogowanym modelu). Odroczony zapis ponownie pyta Policy `view` jak o konto
 BEZ roli obsługi — wgląd moderacyjny nie jest wizytą — i robi `INSERT … ON
-CONFLICT DO UPDATE` z warunkiem zgody oraz `FOR SHARE` na wierszu konta, więc
-wyłączenie funkcji w trakcie żądania nie odtworzy historii. Strona przepisu
+CONFLICT DO UPDATE` z warunkiem zgody oraz `FOR SHARE` na wierszu konta. Żądanie
+zapamiętuje chwilę aktualnego włączenia z już wczytanego konta; pod blokadą
+zapis przechodzi tylko wtedy, gdy w bazie nadal jest **ten sam okres zgody**
+(pełna precyzja `timestamptz`, także mikrosekundy). Wyłączenie i ponowne
+włączenie nie wpuszcza więc starego odroczonego zapisu do nowej historii.
+Strona przepisu
 gościa nie zmienia się ani o bajt (cache publiczny bez zmian); zalogowany ma
 `private, no-store`, a lista nie trafia do localStorage ani do cache
 service workera (`public/sw.js` nie trzyma stron).
