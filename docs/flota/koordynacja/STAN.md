@@ -1,6 +1,56 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
-## Aktualny odbiór koordynatora Codex — 3.10.2026, 12:22 UTC
+## Aktualny odbiór koordynatora Codex — 3.10.2026, 13:28 UTC
+
+- Produkcja S pozostaje odebrana na main09f8; dane przed merge odświeżyć.
+  N–U #2865 odebrane i scalone do C30; push37121666287 terminalnie24/24.
+  Wydanie O jest osobno zamrożone na30be87d7. Pierwszy pełny push miał
+  2FAIL/14024PASS wyłącznie przez lokalne APP_URL z IP: te same dwie metody
+  po procesowym localhost PASS2/21. Kod i .env bez zmian; normalny pełny
+  push53456 trwa. Sprawdź transfer/push-release-o.exit/log i rzeczywisty
+  proces przed ponowieniem, nie obchodź haka.
+- V #2888 po sourceCI37121885979 terminalnie24/24 i świeżych bramkach
+  scalona expectedHeadSha do C e625ab336f04f87df7f2be7eb86fa4866e7a13a6.
+  PushC37124099712 ma FAIL zwykłej części1/4: fixture10021 przepisów,
+  HTTP503 po SQLSTATE57014/statement_timeout15000ms. Ta sama metoda
+  na identycznym drzewie V PASS3,90s, na C16,65s. Nie jest to properFAIL
+  mutanta ani dowód logicznej pętli. Agent mierzy plan/statystyki przed
+  i po ANALYZE w osobnej kopii, bez podnoszenia limitu/asercji i rerunCI.
+  Kolejne merge do C dopiero po naprawie i terminalnym odbiorze.
+- W4f16 i X5f28 zwykłe pełne pushe exit0. W preflight wykazał dwie
+  bazy Git i kumulujący diff40 zamiast22; normalny merge aktualnej C
+  dał622554cce0ad5fcca63d71cf66b81388c6f9eac7 z identycznym drzewem
+  i pojedynczą bazą. Pełny push83603 trwa z oficjalnym
+  KUKING_TESTY_ROWNOLEGLE=4 na własnych jawnych bazach PG18.6.
+  X5f28 czeka na odebraną W. Nie kumulować PR-ów bez zależności.
+- Y8028249e561ef4badbe831f365f13ad6d035f050 zawiera #2877, #2810,
+  literalny dowód czterech issues kont oraz niezależnie odebrane #2879.
+  Rejestry580/580 unikalnych; wszystkie stare/incoming AST zachowane.
+  Root37/1500Dwa PASS; fizyczne kontrole cookies/okna2FA/błęduB, exactrestore,
+  Pint3307/fullPHPStan0/mechanizmy i indeks PASS. Pierwsze exit1 przez brak
+  opt-in zachowano; z jawnym opt-in kontynuowano wyłącznie pozostałe kroki.
+  Rzeczywisty B42P01/timeout nie może udawać właściwej mutacji.
+  #2851/#2854/#2861/#2862 i #2810/#2849 zamykać dopiero po produkcji Y.
+- #2879:10/235Dwa,18/337wspólnie,59/443Feature oraz pięć właściwych
+  fizycznych FAIL+restore; świeży User pod istniejącym zamkiem konto→sesja.
+  #2887: właściciel zatwierdził dokładny test i zgoda jest w D-333.
+  Wąska poprawka ma niezależny ACCEPT, pełny check14195PASS i końcowe
+  11/297Dwa z rzeczywistym INSERT/dedup siedmiu pozostałych typów.
+  Worker domyka lokalny commit przed przyjęciem do Y.
+- Osobny #2889P2: poprawka dwóch nazwanych HTTPleave/destroy po zawieszeniu,
+  d79289b28bab38ac616d4369eec3fcca1cde3e72,28/267HTTP,135/1043wspólnie,
+  dwie propermutacje zexactrestore. Policy i domena bez zmian; root
+  jeszcze odbiera. Nie mieszać tego kryterium z domenową poprawką #2879.
+- #598: siedem rzeczywistych próbek po5 zajętych,limit500; Discord już
+  odebrany29.09 w#599. Dzisiejsze48wątków i4workerów zmieniają rachunek
+  budżetu16 na110;110 nie jest pomiarem,5 nie jest szczytem. Gęsty pomiar
+  regularnego wdrożenia nadal wymagany, bez zmiany progów/kosztu/sekretów.
+- Otwarte kryteria pilota50+,prawa,paneli,R2/CDN,kopii/PDF/klawiatury
+  zachować. Mapa59issues:37bugs O dopiero po produkcji,16ręcznych kryteriów
+  nie zamykać. Brak CENY_WARZYW_PAT opisany#2713,bezrerun.
+  Trzej subagenci mają rozłączne zakresy. SHA/CI/procesy to migawki.
+
+## Historia odbioru koordynatora — 3.10.2026, 12:22 UTC
 
 - **Produkcja S odebrana:** main `09f8af1c738789c4498d35158f940ac237c30eee`,
   PR #2886, CI push `37117754335` 24/24 SUCCESS, CodeQL SUCCESS;
