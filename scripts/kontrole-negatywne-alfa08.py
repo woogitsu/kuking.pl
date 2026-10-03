@@ -1356,6 +1356,18 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Odrzucone zdjęcie potwierdza nieistniejące przypięcie (#2883)",
+     "app/Domain/Recipes/Actions/DolaczZdjeciaDoWykonania.php",
+     "OdrzuconeZdjecieDoWykonaniaTest",
+     lambda s: replace_once(s,
+         "if ($mediaIds !== [] && array_diff($mediaIds, $przypiete) === []) {",
+         "if (true) {")),
+    ("Odmowa dołączenia zachowuje niedostępny wybór (#2883)",
+     "app/Http/Controllers/CookedEventController.php",
+     "test_odmowa_limitu_zachowuje_poprawny_wybor_i_klucz_a_odrzuca_niedostepny_uuid",
+     lambda s: replace_once(s,
+         "->reject(fn (Media $media): bool => in_array($media->status, [Media::STATUS_DELETED, Media::STATUS_SECURED], true))",
+         "->reject(fn (Media $media): bool => false)")),
     ("Historia przepisu: błąd wyboru prowadzi do nieistniejącej sekcji (#2875)",
      "resources/views/pages/recipes/historia-poprawka.blade.php",
      "test_blad_pustego_wyboru_prowadzi_do_widocznej_grupy_gdy_dane_sa_bez_zmian",

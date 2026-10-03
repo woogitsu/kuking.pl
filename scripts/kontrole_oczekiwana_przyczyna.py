@@ -35,6 +35,8 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Odrzucone zdjęcie potwierdza nieistniejące przypięcie (#2883)': r'DOLACZENIE_2883_ODMOWA_ZAMIAST_PONOWIENIA|DOLACZENIE_2883_DOMENA_SWIEZY_STAN',
+    'Odmowa dołączenia zachowuje niedostępny wybór (#2883)': r'DOLACZENIE_2883_BEZ_FALSZYWEGO_ZACHOWANIA',
     'Link oferuje dołączenie mimo blokady pomocnika (#2787)': r'WSPOLNE_2787_GET_BEZ_OFERTY',
     'Historia przepisu: błąd wyboru prowadzi do nieistniejącej sekcji (#2875)': r'KOTWICA_2875_ZYWA',
     'Anulowanie poprawki zakupów gubi nazwaną listę (#2873)': r'ZAKUPY_2873_ANULUJ_LISTA',

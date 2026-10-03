@@ -129,6 +129,21 @@ klucz: utrata historii pozwoliłaby ponowieniu utworzyć nowe zdjęcie.
 Migracja dodaje CHECK jako `NOT VALID`, następnie osobno go waliduje,
 poza jedną transakcją (AGENTS.md §6). Przerwane DDL można ponowić;
 istniejąca kolumna lub ograniczenie nie przerywa kolejnej próby.
+
+**Odrzucony wybór zdjęcia (#2883):** wynik domenowy `0` oznacza wyłącznie
+rozpoznany udany klucz albo cały wybór już przypięty do tego wykonania.
+Po sprawdzeniu świeżego stanu pod blokadą brak nowego zdjęcia bez takiego
+dowodu jest odmową: pole `photos` i podsumowanie proszą o ponowny wybór.
+Nie zmieniają się relacje, `photos_added_at` ani historia udanych kluczy.
+Dotychczasowy helper może odzyskać UUID wiersza przejętego przez sprzątacza;
+nie jest to pozwolenie na przypięcie `deleted` lub `secured`. Po odmowie
+formularz usuwa te niedostępne UUID z wyboru, zachowując dozwolone zdjęcia,
+ich kolejność i pozostałe dane wejściowe. Mieszany wybór z nowym dozwolonym
+zdjęciem nadal dołącza dozwolone zdjęcia, zgodnie z wcześniejszym kontraktem.
+Retencja, pipeline zdjęć i schemat pozostają bez zmian. Regresja HTTP,
+bezpośredniej domeny i deterministycznego przeplotu helper → rzeczywiste
+przejęcie przez `KasujZdjecie` → domena:
+`tests/Feature/OdrzuconeZdjecieDoWykonaniaTest.php`.
 - **`faktyczne_porcje numeric(5,2) NULL`** (CHECK `faktyczne_porcje IS NULL OR
   (faktyczne_porcje >= 0.5 AND faktyczne_porcje <= 100)`, migracja
   `2026_10_03_180000_add_faktyczne_porcje_to_cooked_events`, #2540, decyzja
