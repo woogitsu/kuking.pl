@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Wycofana wskazówka podmienia tekst otwartej sprawy (#2884)': r'UWAGA_2884_ZGLOSZONY_TEKST',
     'Link oferuje dołączenie mimo blokady pomocnika (#2787)': r'WSPOLNE_2787_GET_BEZ_OFERTY',
     'Historia przepisu: błąd wyboru prowadzi do nieistniejącej sekcji (#2875)': r'KOTWICA_2875_ZYWA',
     'Anulowanie poprawki zakupów gubi nazwaną listę (#2873)': r'ZAKUPY_2873_ANULUJ_LISTA',
