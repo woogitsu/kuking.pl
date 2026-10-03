@@ -37,6 +37,7 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 OCZEKUJ = {
     'Historia przepisu: błąd wyboru prowadzi do nieistniejącej sekcji (#2875)': r'KOTWICA_2875_ZYWA',
     'Anulowanie poprawki zakupów gubi nazwaną listę (#2873)': r'ZAKUPY_2873_ANULUJ_LISTA',
+    'Kosz nie chroni wersji przed nocną retencją (#2881)': r'KOSZ_2881_WERSJE_CZEKAJA_NA_PRZEPIS',
     'Planer pomija błąd frazy w podsumowaniu (#2846)': r'PLANER_2846_BLAD_W_PODSUMOWANIU',
     'Odebranie współtworzenia obiecuje brak widoku zeszytu (#2822)': r'ZESZYT_2822_KONIEC_WSPOLTWORZENIA',
     'Potwierdzenie odejścia obiecuje brak widoku zeszytu (#2822)': r'ZESZYT_2822_POTWIERDZENIE_BEZ_OBIETNICY',

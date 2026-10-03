@@ -57,8 +57,13 @@ końca miesiąca) **i nie należy do 3 najnowszych wersji swojego przepisu**
 minimum 2). Pierwsza wersja NIE jest chroniona — historia jest publiczna,
 a w najstarszych wersjach zostaje treść, którą autor później usunął.
 Nie kasujemy wersji przepisu, na który wskazuje `reports` albo
-`moderation_actions`. Wersje usuniętego przepisu idą razem z nim
-(`PrzedawnioneUsunieteTresci`, 30 dni). Kasowanie idzie partiami po 500,
+`moderation_actions`. Wersje przepisu przeniesionego do kosza nie są kandydatami
+tej retencji ani w podglądzie, ani przy kasowaniu (#2881). Zostają z przepisem
+przez 30 dni; potem usuwa je `PrzedawnioneUsunieteTresci`. Przed końcowym
+kasowaniem partii blokujemy wiersz przepisu i ponownie sprawdzamy kosz, więc
+równoległe usunięcie nie może odebrać historii po zatwierdzeniu kosza.
+Po odzyskaniu przepisu obowiązuje zwykły próg wieku wersji, bez resetowania
+ich dat. Kasowanie idzie partiami po 500,
 budżet przebiegu to 20 000 wierszy; błąd partii daje kod wyjścia ≠ 0, który
 harmonogram zamienia w wyjątek. **Luki w `version_number` są normalne**:
 numer nowej wersji to `max + 1`, ekrany historii liczą sąsiadów z faktycznej

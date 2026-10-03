@@ -35,6 +35,7 @@ use App\Domain\Comments\Actions\DeleteComment;
 use App\Domain\Comments\Actions\EditComment;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Compliance\PrzedawnioneUsunieteTresci;
+use App\Domain\Compliance\PrzedawnioneWersjePrzepisow;
 use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Domain\Feed\Actions\ZapiszKolaz;
 use App\Domain\Feed\Actions\ZapiszTabliceDnia;
@@ -1678,6 +1679,8 @@ try {
         // workerem, czyli jedyny sposób, w jaki kandydat sprzątania może
         // jeszcze zostać odzyskany.
         'sprzataj-usuniete-2620' => app(PrzedawnioneUsunieteTresci::class)->posprzataj((int) $argumenty['dni']),
+
+        'sprzataj-wersje-2881' => app(PrzedawnioneWersjePrzepisow::class)->posprzataj(24, 3),
 
         // #2849: bariera następuje po rzeczywistym SELECT kandydatów,
         // przed warunkowym DELETE. Odzyskanie ma czas odnowić ten sam punkt.
