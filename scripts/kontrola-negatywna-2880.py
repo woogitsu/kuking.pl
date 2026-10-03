@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 
 from kontrola_przyczyny import POTWIERDZONA, WynikTestu, czytaj_junit, werdykt
 
@@ -14,6 +15,7 @@ from kontrola_przyczyny import POTWIERDZONA, WynikTestu, czytaj_junit, werdykt
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "app/Console/Commands/PrzypomnijOUrodzinach.php"
 TEST_FILE = "tests/Dwa/PrzypomnieniaUrodzinPoZmianieDecyzjiTest.php"
+TEST_CLASS = r"Tests\Dwa\PrzypomnieniaUrodzinPoZmianieDecyzjiTest"
 MUTANTS = (
     (
         "wyłączona widoczność",
@@ -28,6 +30,13 @@ MUTANTS = (
         b"|| false /* mutant 2880: date */",
         "test_zmiana_daty_na_inny_dzien_przed_zapisem_nie_tworzy_powiadomienia",
         r"URODZINY_2880_INNY_DZIEN_NIE_TWORZY",
+    ),
+    (
+        "odbiorca bez blokady wiersza",
+        b"->sharedLock()",
+        b"->when($id !== $idOdbiorcy, static fn (Builder $konto): Builder => $konto->sharedLock())",
+        "test_blokada_przy_mniejszym_odbiorcy_nie_zakleszcza_powiadomienia",
+        r"Zakleszczenie \(40P01\).*URODZINY_2880_BLOKADA_PARY_NIE_ZAKLESZCZA",
     ),
 )
 
@@ -64,13 +73,36 @@ def run_test(name: str) -> WynikTestu:
     return WynikTestu(result.returncode, result.stdout, junit)
 
 
+def wykonany_test(name: str, result: WynikTestu) -> None:
+    """Jeden właściwy przypadek musi się wykonać, także przed i po mutacji."""
+    if result.junit is None:
+        raise RuntimeError("PRZYRZAD_2880_BRAK_JUNIT: " + result.wyjscie)
+    try:
+        cases = list(ET.fromstring(result.junit).iter("testcase"))
+    except ET.ParseError as error:
+        raise RuntimeError("PRZYRZAD_2880_NIECZYTELNY_JUNIT: " + str(error)) from error
+    if len(cases) != 1:
+        raise RuntimeError("PRZYRZAD_2880_LICZBA_TESTOW: oczekiwano jednego przypadku.")
+    case = cases[0]
+    if case.get("class") != TEST_CLASS or case.get("name") != name:
+        raise RuntimeError("PRZYRZAD_2880_OBCY_TEST: raport nie dotyczy właściwej klasy i metody.")
+    if case.find("skipped") is not None or case.find("error") is not None:
+        raise RuntimeError("PRZYRZAD_2880_NIE_WYKONANO: test pominięto albo wystąpił błąd wykonania.")
+
+
 def positive(name: str) -> None:
     result = run_test(name)
-    if result.junit is None:
-        raise RuntimeError("Brak JUnit w dodatnim przebiegu #2880: " + result.wyjscie)
+    wykonany_test(name, result)
     number, failures = czytaj_junit(result.junit)
     if result.kod != 0 or number != 1 or failures:
         raise RuntimeError("Dodatni przeplot #2880 nie przeszedł: " + result.wyjscie)
+
+
+def negative(name: str, marker: str, result: WynikTestu) -> None:
+    wykonany_test(name, result)
+    verdict = werdykt(name, marker, result)
+    if verdict.werdykt != POTWIERDZONA:
+        raise RuntimeError("Niewłaściwa przyczyna porażki #2880: " + verdict.powod + "\n" + result.wyjscie)
 
 
 original = SOURCE.read_bytes()
@@ -82,11 +114,7 @@ for label, old, new, test, marker in MUTANTS:
     try:
         SOURCE.write_bytes(original.replace(old, new, 1))
         result = run_test(test)
-        if result.junit is None or czytaj_junit(result.junit)[0] != 1:
-            raise RuntimeError(label + ": mutant #2880 nie uruchomił dokładnie jednego testu.")
-        verdict = werdykt(test, marker, result)
-        if verdict.werdykt != POTWIERDZONA:
-            raise RuntimeError(label + ": niewłaściwa przyczyna porażki: " + verdict.powod + "\n" + result.wyjscie)
+        negative(test, marker, result)
     finally:
         SOURCE.write_bytes(original)
         os.utime(SOURCE, ns=(SOURCE.stat().st_atime_ns, mtime_ns))
