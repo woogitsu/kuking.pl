@@ -60,10 +60,13 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
         'co_mam_w_domu' => '| Lista „Co mam w domu” |',
         // Paczka J (#27) dopisuje tę sekcję i wiersz polityki — fraza czeka tu na scalenie.
         'lista_zakupow' => '| Lista zakupów |',
+        // Nazwane listy zakupów (#2528): nazwa to wolny tekst osoby, opisana w tym samym wierszu.
+        'listy_zakupow' => 'nazwy dodatkowych list zakupów',
         'postep_gotowania' => '| Zapamiętany postęp w trybie gotowania |',
         'wspolne_gotowanie' => '| Wspólne gotowanie |',
         'dopiski_z_gotowania' => '| Prywatny dopisek z gotowania |',
         'usuniete_zeszyty' => '| Odzyskanie usuniętego zeszytu |',
+        'kopie_tekstu_szkicow' => '| Odzyskanie wcześniejszego tekstu szkicu |',
         'ostatnio_ogladane' => '| Lista ostatnio oglądanych przepisów',
         'zapamietane_porcje' => '| Zapamiętana liczba porcji przy przepisie |',
         'ukryte' => '| Ukrywanie wpisów i osób',
@@ -213,6 +216,13 @@ class PolitykaOpisujeKazdaSekcjePaczkiTest extends TestCase
             '/^\| Lista ostatnio oglądanych przepisów .*Najwyżej \*\*'.$limitOgladanych.'\*\* różnych przepisów z ostatnich \*\*'.$dniOgladanych.' dni\*\*/mu',
             $polityka,
             "Lista ostatnio oglądanych trzyma {$limitOgladanych} przepisów z {$dniOgladanych} dni, a polityka podaje inne liczby.",
+        );
+
+        $dniSzkicow = (int) config('kuking.przepisy.szkic_punkt_odzyskania_dni');
+        $this->assertMatchesRegularExpression(
+            '/^\| Odzyskanie wcześniejszego tekstu szkicu .*\*\*'.$dniSzkicow.' dni\*\*/mu',
+            $polityka,
+            "Kopia tekstu szkicu żyje {$dniSzkicow} dni, a polityka podaje inny termin.",
         );
 
         $godzinPaczki = (int) config('kuking.import_paczki.przechowanie_godzin');

@@ -49,12 +49,15 @@ use App\Http\Controllers\DopisekGotowaniaController;
 use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\GotowanieZapamietaneController;
+use App\Http\Controllers\GotowanieZWersjiController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HistoriaPrzepisuController;
 use App\Http\Controllers\ImportPrzepisuController;
 use App\Http\Controllers\JakWyszloController;
 use App\Http\Controllers\KartaQrController;
 use App\Http\Controllers\KolejkaGotowaniaController;
+use App\Http\Controllers\KopiaPrzepisuController;
+use App\Http\Controllers\KopiaSzkicuController;
 use App\Http\Controllers\ListaZakupowController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeProbyPrzepisuController;
@@ -66,6 +69,7 @@ use App\Http\Controllers\NapiszDoNasController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NowosciController;
 use App\Http\Controllers\OdlozenieSzkicuController;
+use App\Http\Controllers\OdzyskanieTekstuSzkicuController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PantryController;
 use App\Http\Controllers\PlanerController;
@@ -75,6 +79,7 @@ use App\Http\Controllers\PorcjeZapamietaneController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublikacjaPrzywroconegoWpisuController;
 use App\Http\Controllers\PwaInstallController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\RecipeController;
@@ -117,6 +122,7 @@ use App\Http\Controllers\WartosciOdzywczeController;
 use App\Http\Controllers\WskazowkaController;
 use App\Http\Controllers\WspolneGotowanieController;
 use App\Http\Controllers\WspomnienieController;
+use App\Http\Controllers\WyborStronPdfController;
 use App\Http\Controllers\ZakupyDoSpizarniController;
 use App\Http\Controllers\ZeszytDoPlaneraController;
 use App\Http\Controllers\ZeszytyUsunieteController;
@@ -952,6 +958,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/wpisy/{post}', [PostController::class, 'update'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('posts.update');
+    // Autor publikuje ponownie wpis, który moderacja przywróciła jako szkic
+    // (#2461): ekran potwierdzenia i zwykły POST. Ten sam limit co przy
+    // publikacji; bramka to PostPolicy::publishRestored + akcja pod blokadą.
+    Route::get('/wpisy/{post}/publikacja', [PublikacjaPrzywroconegoWpisuController::class, 'potwierdz'])->name('posts.restored.confirm');
+    Route::post('/wpisy/{post}/publikacja', [PublikacjaPrzywroconegoWpisuController::class, 'publikuj'])
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('posts.restored.publish');
     Route::delete('/wpisy/{post}', [PostController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('posts.destroy');
@@ -1054,6 +1067,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
 
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
     Route::get('/dodaj/szkice', [RecipeController::class, 'drafts'])->name('recipes.drafts');
+    // „Zrób kopię” własnego szkicu do drugiego wariantu (#2507, V2): ekran
+    // potwierdzenia zakresu (GET, nic nie zapisuje) i POST; Policy `copyDraft`.
+    Route::get('/dodaj/szkice/{szkic}/kopia', [KopiaSzkicuController::class, 'potwierdz'])
+        ->whereUuid('szkic')
+        ->name('recipes.drafts.copy');
+    Route::post('/dodaj/szkice/{szkic}/kopia', [KopiaSzkicuController::class, 'zrob'])
+        ->whereUuid('szkic')
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('recipes.drafts.copy.store');
     // „Odłóż na później” / „Wróć do pracy” przy własnym szkicu (#2550, V2):
     // prywatne oznaczenie listy, nie status. Zwykłe formularze bez JS, Policy `postpone`.
     Route::post('/dodaj/szkice/{szkic}/odlozenie', [OdlozenieSzkicuController::class, 'odloz'])
@@ -1064,6 +1086,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereUuid('szkic')
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('recipes.drafts.resume');
+    // Odzyskanie wcześniejszego tekstu własnego szkicu (#2512, V2): podgląd
+    // różnicy (GET) i przywrócenie po potwierdzeniu (POST), bez JavaScriptu.
+    Route::get('/dodaj/szkice/{szkic}/odzyskanie-tekstu', [OdzyskanieTekstuSzkicuController::class, 'pokaz'])
+        ->whereUuid('szkic')
+        ->name('recipes.drafts.restore.show');
+    Route::post('/dodaj/szkice/{szkic}/odzyskanie-tekstu', [OdzyskanieTekstuSzkicuController::class, 'przywroc'])
+        ->whereUuid('szkic')
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('recipes.drafts.restore');
     Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');
     // Import przepisu z adresu strony i z pliku PDF (V2, D-300). Wynik to
     // zawsze prywatny szkic w kreatorze; limit na osobę w `LimitImportu`,
@@ -1077,6 +1108,27 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/dodaj/przepis/z-pdf', [ImportPrzepisuController::class, 'pdf'])
         ->middleware("throttle:{$limits['import']},import")
         ->name('recipes.import.pdf.store');
+    // Wybór stron krótkiego PDF-a przed odczytem (#2535, V2): plik czeka w prywatnej
+    // poczekalni osoby (`PoczekalniaPdf`), podgląd robi zadanie bez AI, a odczyt
+    // rusza po osobnym zatwierdzeniu z jawną zgodą. Token nie jest autoryzacją.
+    Route::post('/dodaj/przepis/z-pdf/wybor', [WyborStronPdfController::class, 'przyjmij'])
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('recipes.import.pdf.wybor.przyjmij');
+    Route::get('/dodaj/przepis/z-pdf/wybor/{token}', [WyborStronPdfController::class, 'pokaz'])
+        ->whereUuid('token')
+        ->name('recipes.import.pdf.wybor');
+    Route::get('/dodaj/przepis/z-pdf/wybor/{token}/strona/{numer}', [WyborStronPdfController::class, 'miniatura'])
+        ->whereUuid('token')
+        ->whereNumber('numer')
+        ->name('recipes.import.pdf.miniatura');
+    Route::post('/dodaj/przepis/z-pdf/wybor/{token}', [WyborStronPdfController::class, 'zatwierdz'])
+        ->whereUuid('token')
+        ->middleware("throttle:{$limits['import']},import")
+        ->name('recipes.import.pdf.wybor.store');
+    Route::delete('/dodaj/przepis/z-pdf/wybor/{token}', [WyborStronPdfController::class, 'odrzuc'])
+        ->whereUuid('token')
+        ->middleware("throttle:{$limits['usuwanie']},usuwanie")
+        ->name('recipes.import.pdf.wybor.destroy');
     // „Dopisz przepis” z własnego wpisu ze zdjęciem (#1334): ten sam
     // formularz sześciu rzeczy, ze zdjęciem wpisu zamiast nowego pliku.
     Route::get('/wpisy/{post}/dopisz-przepis', [RecipeController::class, 'createFromPost'])->name('recipes.create.from-post');
@@ -1130,6 +1182,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->whereUuid('share')
         ->middleware("throttle:{$limits['udostepnienia']},udostepnienia")
         ->name('recipes.shares.destroy');
+    // Przenośna kopia JEDNEGO własnego przepisu (#2531, V2): ekran z opisem
+    // zawartości (GET) i pobranie ZIP po osobnym kliknięciu (POST). Tylko
+    // autor (`RecipePolicy::exportCopy`); odpowiedź prywatna, bez stałego adresu.
+    Route::get('/przepisy/{recipe}/kopia', [KopiaPrzepisuController::class, 'pokaz'])
+        ->name('recipes.copy.show');
+    Route::post('/przepisy/{recipe}/kopia', [KopiaPrzepisuController::class, 'pobierz'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('recipes.copy.download');
     Route::get('/przepisy/{recipe}/udostepniony', [SharedRecipeController::class, 'show'])
         ->name('recipes.shared.show');
     Route::get('/udostepnione-mi', [SharedRecipeController::class, 'index'])
@@ -1143,6 +1203,15 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // Kto: `RecipeVersionPolicy`; stan: `UkrywanieWersji`. Limit
     // `usuwanie`: ukrycie zdejmuje treść z widoku jak usunięcie, a to samo
     // tempo (potwierdzenie + klik) mieści porządki w długiej historii.
+    // „Zastosuj jako nową poprawkę” (#2525): GET to odczytowy podgląd (nic nie
+    // zapisuje), POST — jawne zastosowanie. Kto: `RecipePolicy::applyVersion`.
+    Route::get('/przepisy/{recipe}/historia/{numer}/zastosuj', [HistoriaPrzepisuController::class, 'podgladPoprawki'])
+        ->where('numer', '[1-9][0-9]{0,8}')
+        ->name('recipes.history.apply');
+    Route::post('/przepisy/{recipe}/historia/{numer}/zastosuj', [HistoriaPrzepisuController::class, 'zastosujPoprawke'])
+        ->where('numer', '[1-9][0-9]{0,8}')
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('recipes.history.apply.store');
     Route::get('/przepisy/{recipe}/historia/{numer}/ukryj', [HistoriaPrzepisuController::class, 'potwierdzUkrycie'])
         ->where('numer', '[1-9][0-9]{0,8}')
         ->name('recipes.history.hide');
@@ -1189,6 +1258,13 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/ugotowane/{cookedEvent}', [CookedEventController::class, 'update'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('cooked.update');
+    // Zdjęcie dołączone do zapisanego wykonania (#2500): tylko kucharz
+    // (Policy `addPhotos`), bez nowego wykonania i powiadomienia.
+    Route::get('/ugotowane/{cookedEvent}/zdjecia', [CookedEventController::class, 'zdjecia'])
+        ->name('cooked.photos.create');
+    Route::post('/ugotowane/{cookedEvent}/zdjecia', [CookedEventController::class, 'dolaczZdjecia'])
+        ->middleware("throttle:{$limits['post']},post")
+        ->name('cooked.photos.store');
     Route::delete('/ugotowane/{cookedEvent}', [CookedEventController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('cooked.destroy');
@@ -1199,6 +1275,16 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/ugotowane/{cookedEvent}/wyszlo', [CookedEventController::class, 'celebrate'])->name('cooked.celebrate');
     // Wersja przepisu z tego gotowania (#2378) — prywatna, tylko kucharz.
     Route::get('/ugotowane/{cookedEvent}/wersja', [CookedEventController::class, 'wersja'])->name('cooked.version');
+    // „Gotuj z tej wersji” (#2491): prywatny, krokowy tryb z migawki wersji własnej próby
+    // i osobny formularz zakończenia z jawnie wskazaną wersją historyczną.
+    Route::get('/ugotowane/{cookedEvent}/gotuj-z-wersji', [GotowanieZWersjiController::class, 'show'])->name('cooked.version.cook');
+    Route::post('/ugotowane/{cookedEvent}/gotuj-z-wersji/krok', [GotowanieZWersjiController::class, 'mark'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('cooked.version.cook.mark');
+    Route::post('/ugotowane/{cookedEvent}/gotuj-z-wersji/od-poczatku', [GotowanieZWersjiController::class, 'restart'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('cooked.version.cook.restart');
+    Route::get('/ugotowane/{cookedEvent}/gotuj-z-wersji/ugotowalem', [CookedEventController::class, 'zakonczZWersji'])->name('cooked.version.finish');
     Route::post('/ugotowane/{cookedEvent}/podziekuj', [CookedEventController::class, 'thank'])
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('cooked.thank');
@@ -1245,6 +1331,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/planer', [PlanerController::class, 'store'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.store');
+    // Plik kalendarza (#2529): wybór pozycji (GET) i jednorazowe pobranie (POST,
+    // prywatna odpowiedź bez stałego adresu i bez tokenu).
+    Route::get('/planer/kalendarz', [PlanerController::class, 'calendar'])
+        ->middleware("throttle:{$limits['planer_szukaj']},planer_szukaj")
+        ->name('planer.calendar');
+    Route::post('/planer/kalendarz', [PlanerController::class, 'calendarDownload'])
+        ->middleware("throttle:{$limits['planer']},planer")
+        ->name('planer.calendar.download');
     Route::post('/planer/kopiuj-tydzien', [PlanerController::class, 'copy'])
         ->middleware("throttle:{$limits['planer']},planer")
         ->name('planer.copy');
@@ -1299,6 +1393,19 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::post('/lista-zakupow/cofnij', [ListaZakupowController::class, 'undo'])
         ->middleware("throttle:{$limits['zakupy']},zakupy")
         ->name('shopping.undo');
+    // Nazwane listy (#2528): zakładanie, zmiana nazwy i usunięcie (z pytaniem o
+    // pozycje). Lista po UUID, ale decyduje `ShoppingListPolicy`, nie adres.
+    Route::post('/lista-zakupow/listy', [ListaZakupowController::class, 'storeList'])
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.lists.store');
+    Route::patch('/lista-zakupow/listy/{lista}', [ListaZakupowController::class, 'renameList'])
+        ->whereUuid('lista')
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.lists.rename');
+    Route::delete('/lista-zakupow/listy/{lista}', [ListaZakupowController::class, 'destroyList'])
+        ->whereUuid('lista')
+        ->middleware("throttle:{$limits['zakupy']},zakupy")
+        ->name('shopping.lists.destroy');
     Route::patch('/lista-zakupow/{pozycja}', [ListaZakupowController::class, 'toggle'])
         ->whereUuid('pozycja')
         ->middleware("throttle:{$limits['zakupy']},zakupy")

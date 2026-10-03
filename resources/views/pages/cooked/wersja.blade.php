@@ -27,6 +27,12 @@
         <p>
             <a class="btn btn-secondary" href="{{ route('recipes.show', $recipe->slug) }}">Zobacz dzisiejszy przepis</a>
         </p>
+        {{-- „Gotuj z tej wersji” (#2491): krokowy tryb z TEJ migawki, nazwany osobno
+             od zwykłego „Gotuję” z dzisiejszego przepisu. --}}
+        <p>
+            <a class="btn btn-primary" href="{{ route('cooked.version.cook', $event) }}">Gotuj z tej wersji</a>
+        </p>
+        <p class="meta meta-samodzielne">Krok po kroku, z tej starszej wersji, nie z dzisiejszego przepisu autora. Dzisiejszy przepis zostaje dostępny osobnym przyciskiem powyżej.</p>
 
         @include('pages.recipes.partials.migawka-tresc', ['migawka' => $migawka])
     @endif

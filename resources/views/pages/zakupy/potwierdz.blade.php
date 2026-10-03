@@ -9,7 +9,7 @@
     <h1>Te składniki już są na liście</h1>
 
     <p class="mb-5">
-        Składniki przepisu „{{ $recipe->title }}” trafiły na Twoją listę zakupów już {{ $kiedy }}
+        Składniki przepisu „{{ $recipe->title }}” trafiły na Twoją listę zakupów{{ $maInneListy ? ' „'.$nazwaListy.'”' : '' }} już {{ $kiedy }}
         ({{ $ile }} {{ \App\Support\Odmiana::rzeczownik($ile, 'pozycja', 'pozycje', 'pozycji') }}, część mogła już zostać odhaczona albo usunięta).
         Jeśli dodasz je jeszcze raz, każda pozycja pojawi się drugi raz — łączenia ani sumowania nie robimy.@if(($porcje ?? null) !== null && ($odcisk ?? null) !== null) Dodamy je tak, jak pokazał podgląd, czyli przeliczone na {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta((float) $porcje) }}.@endif
     </p>
@@ -22,12 +22,15 @@
             <input type="hidden" name="porcje" value="{{ $porcje }}">
             <input type="hidden" name="odcisk" value="{{ $odcisk }}">
         @endif
+        @if($docelowa !== null)
+            <input type="hidden" name="lista" value="{{ $docelowa->getKey() }}">
+        @endif
         @if(request()->boolean('z_planera'))
             <input type="hidden" name="z_planera" value="1">
         @endif
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Dodaj jeszcze raz</button>
-            <a class="btn btn-secondary" href="{{ route('shopping.index') }}">Nie dodawaj, otwórz listę</a>
+            <a class="btn btn-secondary" href="{{ $docelowa !== null ? route('shopping.index', ['lista' => $docelowa->getKey()]) : route('shopping.index') }}">Nie dodawaj, otwórz listę</a>
             <a class="btn btn-quiet" href="{{ request()->boolean('z_planera') ? route('planer.show') : route('recipes.show', $recipe->slug) }}">Wróć bez dodawania</a>
         </div>
     </form>

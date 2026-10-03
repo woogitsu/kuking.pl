@@ -22,7 +22,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Poza `$fillable`, ustawia wyłącznie `ListaZakupow`. Kolumnę dodaje
  * migracja surowym SQL-em, którego Larastan nie odczyta — stąd deklaracja.
  *
+ * `list_id` (#2528): nazwana lista pozycji; `NULL` = lista domyślna. Kolumna
+ * dochodzi surowym DDL-em (AGENTS.md §6), więc Larastan nie wyczyta jej z migracji.
+ *
  * @property float|null $scaled_servings
+ * @property string|null $list_id
  */
 class ShoppingListItem extends Model
 {
@@ -55,6 +59,16 @@ class ShoppingListItem extends Model
     public function jestOdhaczona(): bool
     {
         return $this->checked_at !== null;
+    }
+
+    /**
+     * Nazwana lista pozycji; `list_id = NULL` to lista domyślna („Na co dzień”).
+     *
+     * @return BelongsTo<ShoppingList, $this>
+     */
+    public function list(): BelongsTo
+    {
+        return $this->belongsTo(ShoppingList::class, 'list_id');
     }
 
     public function user(): BelongsTo

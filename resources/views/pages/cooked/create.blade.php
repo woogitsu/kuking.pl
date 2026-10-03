@@ -38,6 +38,17 @@
             <input type="hidden" name="wersja_przepisu" value="{{ $wersjaPrzepisu }}">
         @endif
 
+        {{-- „Gotuj z tej wersji” (#2491): wersję historyczną wskazuje własna próba.
+             Serwer sprawdza ją od nowa i przy braku dostępu odmawia, zamiast
+             podstawić dzisiejszą wersję. --}}
+        @if(($zProby ?? null) !== null)
+            <input type="hidden" name="z_proby" value="{{ $zProby->getKey() }}">
+            <p class="notice">
+                <strong>Zapisujesz gotowanie według starszej wersji przepisu.</strong>
+                To wersja {{ $wersjaHistoryczna->version_number }} z {{ $wersjaHistoryczna->created_at->locale('pl')->isoFormat('D MMMM YYYY') }}, z której gotowano przy Twoim wcześniejszym wykonaniu — autor mógł ją później zmienić. To nowe, osobne wykonanie; poprzednie zostaje bez zmian.
+            </p>
+        @endif
+
         {{-- KTO TO ZOBACZY — PRZED PIERWSZYM POLEM, NIE DOPIERO PRZY „WYŚLIJ" (#2071).
 
              Wykonanie nie ma własnej widoczności: `CookedEventPolicy::view()`

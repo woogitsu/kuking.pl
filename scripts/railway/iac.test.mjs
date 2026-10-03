@@ -470,6 +470,10 @@ const DLUZSZE_NIZ_OKNO = {
   // Import jest wyłączony na produkcji do podpisania DPA (D-333, #2214).
   ImportujPrzepisZAdresu: "IN-14: import z adresu, zlecenie domyka odzyskiwanie",
   ImportujPrzepisZPdf: "IN-14: import z PDF, zlecenie domyka odzyskiwanie",
+  // #2535: podgląd stron PDF, `tries = 1`; przerwany przy wdrożeniu kończy
+  // `failed()` zdaniem „wyślij plik jeszcze raz”, a porzuconą poczekalnię
+  // sprząta `kuking:odzyskaj-importy` (najpóźniej po 2 godzinach).
+  PrzygotujPodgladPdf: "#2535: podgląd stron PDF, poczekalnię domyka odzyskiwanie",
 };
 
 function limityZadan() {

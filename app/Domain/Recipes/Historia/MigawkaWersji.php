@@ -173,6 +173,26 @@ final class MigawkaWersji
         return $wynik;
     }
 
+    /** Surowa wartość klucza migawki (`null` także przy braku klucza — do odróżnienia służy `maKlucz()`). */
+    public function surowa(string $klucz): mixed
+    {
+        return $this->dane[$klucz] ?? null;
+    }
+
+    /**
+     * Surowe wiersze składników w kolejności zapisu (z `quantity` i kodem jednostki) —
+     * dla „Zastosuj jako nową poprawkę” (#2525), które odtwarza wiersze, a nie tekst.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function wierszeSkladnikow(): array
+    {
+        $wiersze = $this->wiersze('ingredients');
+        usort($wiersze, fn (array $a, array $b): int => (int) ($a['position'] ?? 0) <=> (int) ($b['position'] ?? 0));
+
+        return $wiersze;
+    }
+
     /**
      * @return list<array{instruction: string, timer_seconds: ?int, section_name: ?string}>
      */

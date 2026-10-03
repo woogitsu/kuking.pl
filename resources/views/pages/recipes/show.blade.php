@@ -814,7 +814,8 @@
                     @auth
                         <form class="mt-4" method="POST" action="{{ route('shopping.recipe.store', $recipe->slug) }}">
                             @csrf
-                            <button class="btn btn-secondary" type="submit">Dodaj składniki do listy zakupów</button>
+                            <x-zakupy-wybor-listy wiersz="przepis" />
+                            <button class="btn btn-secondary mt-3" type="submit">Dodaj składniki do listy zakupów</button>
                         </form>
                         {{-- Przeliczone porcje (#2489): osobny, jawny wybór z podglądem; przycisk
                              wyżej dalej kopiuje ilości autora. --}}
@@ -936,6 +937,10 @@
                              (`RecipeController::store()`) — dwie odpowiedzi na
                              to samo pytanie muszą być tą samą odpowiedzią. --}}
                         <a class="btn btn-secondary" href="{{ route('recipes.edit', $recipe->slug) }}">{{ \App\Domain\Recipes\CoMoznaDopisac::jest($recipe) ? 'Dopisz szczegóły' : 'Edytuj przepis' }}</a>
+                    @endcan
+                    {{-- Kopia tego jednego przepisu poza serwisem (#2531): tylko autor (`exportCopy`). --}}
+                    @can('exportCopy', $recipe)
+                        <a class="btn btn-secondary" href="{{ route('recipes.copy.show', $recipe->slug) }}" data-kopia-przepisu>Pobierz kopię przepisu</a>
                     @endcan
                     {{-- Udostępnienie wybranej osobie (#2650): tylko autor, tylko
                          opublikowany przepis, który NIE jest dla wszystkich —

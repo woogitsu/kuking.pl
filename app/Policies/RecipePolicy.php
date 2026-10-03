@@ -128,6 +128,16 @@ class RecipePolicy
     }
 
     /**
+     * Przenośna kopia JEDNEGO własnego przepisu (#2531): wyłącznie autor, w
+     * każdym stanie przepisu i konta — to wydanie własnych danych, nie
+     * rozszerzenie dostępu. UUID ani adres cudzego przepisu nie dają prawa.
+     */
+    public function exportCopy(User $user, Recipe $recipe): bool
+    {
+        return $user->getKey() === $recipe->author_id;
+    }
+
+    /**
      * Ekran „Komu pokazuję ten przepis" i odbieranie dostępu — wyłącznie
      * autor, w każdym stanie konta i przepisu: zawężanie dostępu wolno zawsze.
      */
@@ -167,6 +177,34 @@ class RecipePolicy
     }
 
     /**
+     * „Zastosuj jako nową poprawkę” z historii (#2525): wyłącznie autor
+     * własnego, OPUBLIKOWANEGO przepisu, z aktywnym kontem (zawieszenie
+     * odcina od zmiany treści publicznej) i przy statusie, który dopuszcza
+     * edycję przez autora (nie przepis zamrożony przez moderację).
+     */
+    public function applyVersion(User $user, Recipe $recipe): bool
+    {
+        return $user->getKey() === $recipe->author_id
+            && $user->isActive()
+            && $recipe->isPublished()
+            && RecipeStatusTransitions::authorMayEdit($recipe->status);
+    }
+
+    /**
+     * „Zrób kopię” własnego szkicu do drugiego wariantu (#2507): wyłącznie AKTYWNY
+     * autor własnego, nieopublikowanego szkicu. Przepis opublikowany, zamrożony
+     * przez moderację i cudzy nie mają tej akcji — własny opublikowany przepis
+     * poprawia się albo (cudzy) robi się z niego „Moją wersję” (`fork`, D-301).
+     */
+    public function copyDraft(User $user, Recipe $recipe): bool
+    {
+        return $user->getKey() === $recipe->author_id
+            && $user->isActive()
+            && $recipe->status === Recipe::STATUS_DRAFT
+            && $recipe->published_at === null;
+    }
+
+    /**
      * „Odłóż na później” / „Wróć do pracy” (#2550): wyłącznie autor własnego
      * szkicu. Przepis opublikowany albo zamrożony przez moderację (`hidden`,
      * `removed`) nie ma czego odkładać — oznaczenie nie zmienia widoczności.
@@ -174,6 +212,19 @@ class RecipePolicy
     public function postpone(User $user, Recipe $recipe): bool
     {
         return $user->getKey() === $recipe->author_id
+            && $recipe->status === Recipe::STATUS_DRAFT
+            && $recipe->published_at === null;
+    }
+
+    /**
+     * Odzyskanie wcześniejszego tekstu własnego szkicu (#2512): wyłącznie autor
+     * z aktywnym kontem i tylko szkic. Kopię widzi tylko on; moderator nie ma
+     * tu furtki.
+     */
+    public function restoreDraftText(User $user, Recipe $recipe): bool
+    {
+        return $user->getKey() === $recipe->author_id
+            && $user->isActive()
             && $recipe->status === Recipe::STATUS_DRAFT
             && $recipe->published_at === null;
     }

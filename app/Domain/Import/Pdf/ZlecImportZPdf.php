@@ -52,7 +52,10 @@ final class ZlecImportZPdf
      * @throws ImportOdrzucony plik nie jest PDF-em w limicie rozmiaru albo limit osoby
      * @throws BladDlaCzlowieka próba z tym kluczem już istnieje, ale nie jest zleceniem z PDF-a; dysk odmówił zapisu
      */
-    public function handle(User $osoba, string $sciezkaPliku, bool $zgodaAi, ?string $kluczWyslania = null): ImportPrzepisu
+    /**
+     * @param  list<int>  $strony  wybrane strony (#2535, już sprawdzone względem pliku); puste = wszystkie w limicie
+     */
+    public function handle(User $osoba, string $sciezkaPliku, bool $zgodaAi, ?string $kluczWyslania = null, array $strony = []): ImportPrzepisu
     {
         $klucz = $kluczWyslania !== null && Str::isUuid($kluczWyslania) ? $kluczWyslania : (string) Str::uuid7();
 
@@ -70,7 +73,7 @@ final class ZlecImportZPdf
         }
 
         try {
-            $zlecenie = $this->zapiszZlecenie($osoba, $plik, $zgodaAi, $klucz);
+            $zlecenie = $this->zapiszZlecenie($osoba, $plik, $zgodaAi, $klucz, $strony);
         } catch (Throwable $e) {
             $this->pliki->skasuj($plik);
 
@@ -85,10 +88,11 @@ final class ZlecImportZPdf
         return $zlecenie;
     }
 
-    private function zapiszZlecenie(User $osoba, string $plik, bool $zgodaAi, string $klucz): ImportPrzepisu
+    /** @param list<int> $strony */
+    private function zapiszZlecenie(User $osoba, string $plik, bool $zgodaAi, string $klucz, array $strony = []): ImportPrzepisu
     {
         try {
-            return DB::transaction(function () use ($osoba, $plik, $zgodaAi, $klucz): ImportPrzepisu {
+            return DB::transaction(function () use ($osoba, $plik, $zgodaAi, $klucz, $strony): ImportPrzepisu {
                 $this->limit->zablokuj($osoba);
 
                 if ($juz = $this->zTegoWyslania($osoba, $klucz)) {
@@ -123,7 +127,7 @@ final class ZlecImportZPdf
 
                 DB::table('proby_importu')->where('id', $proba['id'])->update(['import_id' => $zlecenie->getKey()]);
 
-                ImportujPrzepisZPdf::dispatch((string) $zlecenie->getKey(), $zgodaAi);
+                ImportujPrzepisZPdf::dispatch((string) $zlecenie->getKey(), $zgodaAi, $strony);
 
                 return $zlecenie;
             });

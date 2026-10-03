@@ -30,13 +30,14 @@ final class ZbierzZdjeciaWykonania
      *
      * @param  mixed  $mediaIds  lista z pola `media_ids` (dane od klienta)
      * @param  array<array-key, UploadedFile>  $pliki  pliki z pola `photos`
+     * @param  int  $juzPrzypiete  zdjęcia już przypięte do wykonania (#2500: dołączanie do zapisanego); wchodzą do limitu sumy
      * @return list<string>
      *
      * @throws BladZdjecFormularza gdy suma zdjęć przekracza limit albo plik
      *                             zawiódł; niesie zdjęcia, które formularz
      *                             ma zachować
      */
-    public function handle(mixed $mediaIds, array $pliki, User $user): array
+    public function handle(mixed $mediaIds, array $pliki, User $user, int $juzPrzypiete = 0): array
     {
         $odzyskane = array_values(array_unique($this->zachowane($mediaIds, $user)
             ->map(fn (Media $media): string => (string) $media->getKey())
@@ -49,7 +50,7 @@ final class ZbierzZdjeciaWykonania
         // odnośnika (`withInput()` bez `media_ids`), a zachowane zdjęcia
         // znikały z formularza razem z nimi. Teraz nic nowego nie powstaje,
         // a zachowane wracają w wyjątku.
-        if (count($odzyskane) + count($pliki) > LimityZdjec::maksZdjecNaWysylke()) {
+        if ($juzPrzypiete + count($odzyskane) + count($pliki) > LimityZdjec::maksZdjecNaWysylke()) {
             throw new BladZdjecFormularza(
                 LimityZdjec::komunikatZaDuzoZdjec().' Nowych zdjęć nie dodano. Usuń część zachowanych zdjęć albo wybierz mniej nowych.',
                 $odzyskane,

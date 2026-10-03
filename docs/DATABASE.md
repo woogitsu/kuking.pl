@@ -34,7 +34,7 @@ Przy zmianie schematu dopisz opis do pliku obszaru (z planem wycofania, AGENTS.m
 | [`konta-2fa-i-tozsamosci`](baza/konta-2fa-i-tozsamosci.md) | Konta — 2FA, indeksy panelu, logowanie zewnętrzne | users (2FA, indeksy), facebook_connection_proofs, tozsamosci_zewnetrzne |
 | [`profile-relacje-reakcje`](baza/profile-relacje-reakcje.md) | Profile, obserwowanie, blokady, reakcje, ukrywanie | profiles, follows, blocks, post_reactions, hides |
 | [`media-i-wpisy`](baza/media-i-wpisy.md) | Media i wpisy | media, posts, post_media, zalegle_czyszczenia_cdn |
-| [`przepisy`](baza/przepisy.md) | Przepisy, ceny, wersje i udostępnienia | recipes, ceny_skladnikow, recipe_slug_redirects, recipe_versions, recipe_shares |
+| [`przepisy`](baza/przepisy.md) | Przepisy, ceny, wersje i udostępnienia | recipes, ceny_skladnikow, recipe_slug_redirects, recipe_versions, recipe_shares, draft_restore_points |
 | [`skladniki-kroki-i-miary`](baza/skladniki-kroki-i-miary.md) | Składniki, kroki, miary | ingredients, units, recipe_ingredients, recipe_steps, skladniki_odzywcze, miary_domowe, aliasy_skladnikow, users.moj_stol_enabled |
 | [`wspomnienia-i-urodziny`](baza/wspomnienia-i-urodziny.md) | Wspomnienia „Rok temu gotowałaś…" i urodziny bez roku | wspomnienia (issue #34), urodziny bez roku (users) |
 | [`ugotowalem-komentarze-zeszyty`](baza/ugotowalem-komentarze-zeszyty.md) | Ugotowałem, komentarze, zeszyty | collection_items, cooked_events, cooked_event_media, comment_thanks, comments, collections, deleted_collections, users.ulubiony_zeszyt_id, collection_members, collection_invitations, first_post_events |
@@ -47,7 +47,7 @@ Przy zmianie schematu dopisz opis do pliku obszaru (z planem wycofania, AGENTS.m
 | [`logowanie-sesje-tokeny`](baza/logowanie-sesje-tokeny.md) | Logowanie bez hasła, zaproszenia, sesje, tokeny | pending_email_changes, login_link_tokens, registration_invites, cache, password_reset_tokens, personal_access_tokens, sessions |
 | [`sygnaly-i-tagi`](baza/sygnaly-i-tagi.md) | Sygnały produktowe i tagi | product_signals, tags, tag_aliases, post_tags, tag_follows, tag_promotions, tag_highlights |
 | [`wskazowki-i-wspolne-gotowanie`](baza/wskazowki-i-wspolne-gotowanie.md) | Wskazówki od gotujących (#2352) i wspólne gotowanie (#2385) | recipe_hints, cooking_sessions, cooking_session_participants, cooking_session_steps, cooking_session_invitations |
-| [`planowanie-v2`](baza/planowanie-v2.md) | Planer, lista zakupów i gotowanie (V2) | meal_plan_entries, shopping_list_items, shopping_list_undos, cooking_progress, weekly_recipe_picks, cooking_notes, recipe_serving_preferences, recent_recipe_views |
+| [`planowanie-v2`](baza/planowanie-v2.md) | Planer, lista zakupów i gotowanie (V2) | meal_plan_entries, shopping_list_items, shopping_lists, shopping_list_undos, cooking_progress, weekly_recipe_picks, cooking_notes, recipe_serving_preferences, recent_recipe_views |
 | [`spizarnia-v2`](baza/spizarnia-v2.md) | Spiżarnia „Co mam w domu” (V2) | pantry_items, pantry_second_packages |
 | [`wyszukiwarka-i-wybory-dnia`](baza/wyszukiwarka-i-wybory-dnia.md) | Wyszukiwarka i wybory redakcyjne | daily_picks, hero_picks (+ funkcja kuking_normalize, kolumny *_search) |
 | [`budzet-polaczen`](baza/budzet-polaczen.md) | Budżet połączeń PostgreSQL (issue #598) | (bez tabel: połączenia PostgreSQL) |

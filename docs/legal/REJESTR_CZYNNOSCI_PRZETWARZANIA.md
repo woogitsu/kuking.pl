@@ -94,6 +94,37 @@ Kolumna „termin usunięcia" podaje **to, co egzekwuje kod**, a nie to, co
 byłoby ładne. Gdzie kod nie egzekwuje niczego, napisane jest, że nie
 egzekwuje.
 
+**Podstawy prawne: przegląd z 2 października 2026 (#2708).** Wg analizy
+[`../prawo/OPINIA_AI_2026-10-02.md`](../prawo/OPINIA_AI_2026-10-02.md), pytanie 5
+(analiza AI, nie podpisana opinia prawnika), nie każda funkcja opisana w
+regulaminie jest „niezbędna do wykonania umowy”. Podstawa jest przypisana do
+celu, nie do całego serwisu:
+
+| Cel | Podstawa | Sekcje |
+|---|---|---|
+| Konto, logowanie, profil, własne treści, relacje, prywatne funkcje (zeszyty, planer, spiżarnia, porcje, dopisek, udostępnienie) | art. 6 ust. 1 lit. b | 3.1–3.5, 3.20–3.31 |
+| Obsługa zgłoszeń nielegalnych treści i obowiązkowe uzasadnienia (art. 16–18 DSA) | lit. c | 3.6 |
+| Moderacja naruszeń własnych zasad, skarga przy zwolnieniu z art. 20, logi bezpieczeństwa, ochrona formularzy, wstępna klasyfikacja przez AI, własna analityka | lit. f, każdy cel z osobnym **testem równowagi** (stan: brak, patrz §7 pkt 4) | 3.6, 3.7, 3.9, 3.10, 3.15, 3.16 |
+| Odpowiedź na żądania osób (dostęp, usunięcie) | lit. c; minimalny ślad po załatwieniu: rozliczalność i lit. f, z własnym terminem | 3.17 |
+| Tygodniowy list, urodziny (wpisanie daty, list, przypomnienie) | lit. a (oraz PKE); zgoda na list nie obejmuje pomiaru otwarć | 3.13, 3.18 |
+| Dane o zdrowiu w treściach prywatnych | **art. 9 ust. 2**: sama lit. b nie wystarcza; patrz niżej | 3.22, 3.26, 3.29 (dopisek) |
+
+**Dane o zdrowiu (art. 9).** „Mniej soli” nie musi być daną o zdrowiu, ale
+„dieta po operacji”, diagnoza, alergia konkretnej osoby czy informacja o
+leczeniu mogą nią być. Art. 6 ust. 1 lit. b nie zastępuje przesłanki z art. 9
+ust. 2, a „użytkownik podał dobrowolnie” jej nie jest. Serwis o dane
+zdrowotne **nie pyta**; mogą się pojawić w notatkach, dopiskach i spiżarni.
+Do czasu odrębnej koncepcji z art. 9 (wyraźna zgoda, ograniczenie zakresu albo
+rezygnacja z funkcji) rejestr tego nie rozstrzyga i **nie dopisuje** ogólnego
+checkboxa. Nie wolno natomiast deklarować, że danych o zdrowiu w serwisie nie
+ma (zob. też Railway DPA, Exhibit A, `REJESTR_UMOW_POWIERZENIA.md` §2.1).
+
+Dostawcy: Google i Meta (§3.8) są **odrębnymi administratorami**, a
+Cloudflare Turnstile (§3.9) ma **rolę mieszaną** (procesor oraz administrator
+dla własnego celu), zob. `REJESTR_UMOW_POWIERZENIA.md`. Obowiązek umów
+powierzenia dotyczy **obecnego przetwarzania**, nie „pierwszej osoby spoza
+bety”.
+
 ### 3.1 Prowadzenie konta i uwierzytelnianie
 
 - **Cel:** założenie konta, wejście na nie, odzyskanie dostępu, potwierdzenie
@@ -213,10 +244,17 @@ egzekwuje.
 - **Dane:** dane zgłaszającego (także bez konta — wtedy sam adres e-mail),
   dane zgłaszanego, treść zgłoszenia, powód, decyzja, uzasadnienie,
   odwołanie i jego wynik.
-- **Podstawa:** art. 6 ust. 1 lit. c RODO (obowiązek prawny z DSA)
-  oraz art. 6 ust. 1 lit. f RODO (bezpieczeństwo platformy). Przeniesienie
-  podstawy retencji na lit. f jest decyzją właściciela po zewnętrznej
-  ocenie prawnej — `docs/decyzje/ADR_RETENCJE.md` §10.
+- **Podstawa (wg analizy z 2.10.2026, pyt. 5):** rozpatrywanie zgłoszeń
+  nielegalnych treści i obowiązkowe uzasadnienia, czyli czynności z art. 16–18
+  DSA (przyjęcie zgłoszenia, potwierdzenie, uzasadnienie decyzji, zawiadomienie
+  z art. 18): **art. 6 ust. 1 lit. c RODO**, ze wskazaniem przepisu
+  odpowiednio do czynności. **Moderacja naruszeń własnych zasad** oraz
+  dobrowolna skarga (przy zwolnieniu z art. 20): zwykle **lit. f** (konkretny
+  interes: bezpieczeństwo i rzetelność społeczności, z testem równowagi), a
+  dla niezbędnej obsługi relacji także właściwy zakres lit. b. Lit. c nie
+  obejmuje całej moderacji obyczajowej ani dowolnie długiej retencji;
+  przeniesienie podstawy retencji na lit. f jest decyzją właściciela po
+  zewnętrznej ocenie prawnej — `docs/decyzje/ADR_RETENCJE.md` §10.
 - **Odbiorcy:** Railway, EmailLabs (potwierdzenie przyjęcia i informacja
   o decyzji idą e-mailem), Cloudflare Turnstile (formularz zgłoszenia).
 - **Termin usunięcia:** **36 miesięcy od zamknięcia sprawy**
@@ -245,16 +283,33 @@ egzekwuje.
   To nie jest więc zautomatyzowane podejmowanie decyzji w rozumieniu
   art. 22 RODO. **Ta kwalifikacja jest do potwierdzenia przez prawnika.**
 - **Podstawa:** art. 6 ust. 1 lit. f RODO — uzasadniony interes
-  w bezpieczeństwie serwisu.
-- **Odbiorca:** OpenAI, L.L.C. (Stany Zjednoczone).
-- **Podstawa przekazania poza EOG:** polityka prywatności wskazuje
-  uczestnictwo OpenAI, L.L.C. w **EU-US Data Privacy Framework** oraz
-  standardowe klauzule umowne. **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:**
-  data sprawdzenia wpisu na liście `dataprivacyframework.gov` i numer/data
-  zawartych SCC — z kodu tego nie widać i widać nie będzie.
+  w bezpieczeństwie serwisu (analiza z 2.10.2026, pyt. 5 i 9: co do zasady
+  lit. f). **Test równowagi do przeprowadzenia i spisania**, z uwzględnieniem
+  błędów klasyfikacji, danych szczególnych kategorii, zakresu dostępu
+  moderatora i braku wtórnego profilowania. Granicę publiczności sprawdzamy
+  w chwili wysyłki (`GranicaWysylki`), nie przy dodaniu zadania do kolejki.
+- **Odbiorca:** OpenAI. Dla klientów z EOG strona umowy to co do zasady
+  **OpenAI Ireland Ltd**, nie „OpenAI, L.L.C.” (publiczny DPA OpenAI od
+  1.01.2026). **DO POTWIERDZENIA PRZEZ WŁAŚCICIELA** w panelu: przyjęta
+  umowa, organizacja, region. Irlandzka strona umowy nie dowodzi, że całe
+  przetwarzanie zostaje w EOG.
+- **Dane osobowe w treści:** nie wysyłamy identyfikatora konta, e-maila ani
+  IP, ale sama treść lub zdjęcie mogą zawierać dane osobowe (nazwisko, opis
+  osoby, rozpoznawalna twarz). Traktujemy to jako przetwarzanie mogące
+  obejmować dane osobowe; zdanie „nic, co pozwoliłoby Cię wskazać” jest
+  zbyt mocne (zmiana tekstu publicznego jest osobnym zadaniem).
+- **Podstawa przekazania poza EOG:** **DO USTALENIA.** „DPF + SCC” wymaga
+  dowodu: który podmiot, czy jego wpis DPF obejmuje właściwą kategorię
+  danych, które SCC i moduł, jak oceniono dalsze transfery.
+  **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** data sprawdzenia wpisu na liście
+  `dataprivacyframework.gov` dla właściwego podmiotu i numer/data SCC.
+  Do czasu wyjaśnienia możliwa jest moderacja ręczna (analiza pyt. 9); o
+  pozostawieniu integracji zdecydował właściciel 2.10.2026 (D-333).
 - **Termin usunięcia:** po stronie OpenAI, zgodnie z jego warunkami usługi.
-  **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** deklarowany okres przechowywania
-  treści przekazanych do API moderacji, odczytany z aktualnych warunków.
+  **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** okres przechowywania odczytany z
+  dokumentacji **dla rzeczywistego endpointu `/v1/moderations`**, modelu i
+  trybu organizacji. **Nie wpisujemy „30 dni”** (to informacja właściwa
+  innym konfiguracjom API).
 - **Wyłączenie jest możliwe bez zmiany kodu:** brak klucza
   (`kuking.moderation.model.klucz`) znaczy, że funkcja nie działa
   i **żadne żądanie nie wychodzi** (`KlientOpenAI::oceniamy()`).
@@ -281,14 +336,28 @@ egzekwuje.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO — wykonanie umowy na żądanie
   osoby, która tę drogę wybrała.
 - **Odbiorcy:** Google Ireland Limited / Google LLC; Meta Platforms Ireland
-  Limited. **Meta występuje tu jako OSOBNY ADMINISTRATOR**, nie jako
-  podmiot przetwarzający — przetwarza dane użytkownika Facebooka na
-  własnych zasadach i własną odpowiedzialność.
+  Limited. **Google i Meta występują tu jako ODRĘBNI ADMINISTRATORZY**,
+  nie jako podmioty przetwarzające (analiza z 2.10.2026, §5.1 i §5.2):
+  każdy przetwarza dane użytkownika dla własnych etapów i celów
+  (uwierzytelnianie, bezpieczeństwo), a SAMSUFI odpowiada za użycie danych
+  otrzymanych do utworzenia lub połączenia konta Kuking. Nie szukamy DPA
+  Google Cloud: logowanie przez projekt OAuth nie jest hostingiem w Google
+  Cloud. Analiza nie wyklucza z góry współadministrowania etapu osadzenia
+  (TSUE C-40/17 Fashion ID), jeśli doszłyby SDK, piksele lub analityka
+  przed kliknięciem. Obecny przepływ to zwykłe przekierowanie OAuth;
+  brak dodatkowych integracji po naszej stronie **do potwierdzenia
+  konfiguracją**.
+- **Lista pól** (wymóg z analizy §5.2): **odbieramy** od Google `sub`,
+  `email`, `email_verified`, imię; od Facebooka identyfikator, imię, e-mail.
+  **Ignorujemy** adres zdjęcia z tokenu Google. **Zapisujemy** identyfikator
+  zewnętrzny i datę połączenia; tokenów dostępu nie zapisujemy. Prywatnych
+  zeszytów, planera i listy zakupów dostawcom nie udostępniamy.
 - **Przekazanie poza EOG:** przy Google — grupa Google przetwarza dane
-  także w USA, podstawą jest DPF i SCC. Przy Meta **administrator nie
-  przekazuje danych poza EOG**: kontrahentem jest spółka irlandzka,
-  a dalsze przetwarzanie w grupie Meta dzieje się na jej własnych
-  podstawach, nie na zlecenie Kuking.
+  także w USA na własnych podstawach jako administrator. Przy Meta
+  kontrahentem jest spółka irlandzka, ale **sama tożsamość kontrahenta nie
+  rozstrzyga całego przepływu ani dostępu z innego państwa**, więc rejestr
+  nie twierdzi już, że „administrator nie przekazuje danych poza EOG”. To,
+  co dzieje się w grupie dostawcy, dzieje się na jego własnych podstawach.
 - **Termin usunięcia:** do usunięcia konta albo rozłączenia powiązania.
 
 ### 3.9 Ochrona formularzy przed automatami (Cloudflare Turnstile)
@@ -301,9 +370,14 @@ egzekwuje.
 - **Dane:** adres IP i techniczne cechy przeglądarki. **Treść formularza
   ani adres e-mail do Cloudflare nie idą.**
 - **Podstawa:** art. 6 ust. 1 lit. f RODO — uzasadniony interes w obronie
-  przed zakładaniem kont automatem.
+  przed zakładaniem kont automatem (z testem równowagi). Osobno ocenić PKE
+  i niezbędność każdego sygnału dla bezpieczeństwa formularza.
 - **Odbiorca:** Cloudflare, Inc. (USA) — przekazanie poza EOG, podstawą
-  DPF i SCC.
+  DPF i SCC. **Rola mieszana** (analiza §5.3, Turnstile Privacy Addendum z
+  18.06.2025): procesor dla przetwarzania sygnałów na naszą rzecz oraz
+  **odrębny administrator** dla własnego celu Cloudflare, czyli ulepszania
+  wykrywania botów. Ogólne zdanie „wszystkim odbiorcom powierzamy dane na
+  podstawie art. 28” nie opisuje tego przetwarzania.
 - **Termin usunięcia:** po stronie Cloudflare; serwis nie trzyma kopii.
 - **Wyłączenie jest możliwe bez zmiany kodu:** puste klucze znaczą, że
   widget się nie renderuje i nikt nikogo nie odpytuje.
@@ -314,7 +388,13 @@ egzekwuje.
   usunięcia konta.
 - **Dane:** **skrót** adresu IP (samego adresu w bazie nie ma; skrót liczony
   z kluczem żyjącym poza bazą), znacznik czasu, typ zdarzenia.
-- **Podstawa:** art. 6 ust. 1 lit. f RODO.
+- **Podstawa:** art. 6 ust. 1 lit. f RODO (logi bezpieczeństwa i
+  przeciwdziałanie nadużyciom; art. 32 RODO wyjaśnia obowiązek
+  bezpieczeństwa). Wymaga minimalizacji, uzasadnienia okresu i testu
+  równowagi; dla dowodów żądań usunięcia dochodzi rozliczalność, ale
+  „bezterminowo, bo dziennik jest dopisywany” nie jest uzasadnieniem
+  (analiza, pyt. 5 i 7). Zdanie o wpisach „na stałe” poniżej opisuje stan
+  kodu, nie jest zatwierdzone przez analizę.
 - **Odbiorcy:** Railway.
 - **Termin usunięcia:** **12 miesięcy**
   (`config/kuking.php` → `audit_log.retention_months`), egzekwuje
@@ -413,7 +493,9 @@ egzekwuje.
 - **Dane:** adres e-mail, data wysłania ostatniego listu
   (`users.weekly_digest_sent_at`), rezerwacja tygodnia wysyłki
   (`weekly_digest_sends`: konto, poniedziałek tygodnia, chwila rezerwacji).
-- **Podstawa:** **art. 6 ust. 1 lit. a RODO — zgoda.** Na zgodzie opiera
+- **Podstawa:** **art. 6 ust. 1 lit. a RODO — zgoda** (oraz zgoda z PKE na
+  informację handlową; analiza z 2.10.2026, pyt. 5 i 14). Zgoda na wysyłkę nie
+  obejmuje pomiaru otwarć, który jest wyłączony (D-333). Na zgodzie opiera
   się też §3.18 (urodziny i list z życzeniami). Wycofanie: odnośnik na dole
   każdego listu, bez logowania i bez pytania o powód.
 - **Odbiorcy:** Railway, EmailLabs.
@@ -451,9 +533,14 @@ egzekwuje.
   wczytanie strony.
 - **Kod:** `app/Support/AnalitykaCloudflare.php`; bezciasteczkowość pilnują
   `AnalitykaBezCiasteczekTest` i `WdrozenieAnalitykiOdwiedzinTest`.
-- **Podstawa:** art. 6 ust. 1 lit. f RODO. Prawo komunikacji elektronicznej
-  nie wchodzi w grę, bo nie ma ani zapisu, ani odczytu na urządzeniu
-  (D-092, `COMPLIANCE.md` §5.5).
+- **Podstawa:** art. 6 ust. 1 lit. f RODO, jeśli test równowagi to
+  uzasadnia. **PKE oceniamy odrębnie:** analiza z 2.10.2026 (pyt. 15) uznaje,
+  że brak ciasteczek to za mało, bo art. 399 PKE obejmuje też odczyt informacji
+  z urządzenia (skrypt wysyła adres strony, referrer i cechy przeglądarki), a
+  stanowiska UODO zatwierdzającego taki wariant nie ma. Dotychczasowe
+  twierdzenie „PKE nie wchodzi w grę” (D-092, `COMPLIANCE.md` §5.5) nie jest
+  już podtrzymywane. Właściciel zdecydował 2.10.2026, że analityka zostaje i
+  przyjmuje to ryzyko (D-333).
 - **Odbiorca:** Cloudflare, Inc. (USA) — przekazanie poza EOG, DPF i SCC.
 - **Sprzeciw (art. 21, #2277):** zalogowana osoba klika „Nie licz mnie
   w statystykach” (`/ustawienia/prywatnosc`, `users.sprzeciw_statystyk_at`);
@@ -500,7 +587,10 @@ egzekwuje.
 - **Cel:** realizacja art. 15, 17 i 20 RODO.
 - **Dane:** paczka z danymi użytkownika, zamówienie usunięcia konta,
   zakres usunięcia (`users.delete_scope`).
-- **Podstawa:** art. 6 ust. 1 lit. c RODO — obowiązek prawny.
+- **Podstawa:** art. 6 ust. 1 lit. c RODO — obowiązek prawny (odpowiedź na
+  żądanie dostępu lub usunięcia). Zachowanie minimalnego śladu po załatwieniu
+  sprawy wymaga własnego uzasadnienia i terminu (rozliczalność, lit. f), a nie
+  jest objęte lit. c automatycznie (analiza, pyt. 5 i 7).
 - **Odbiorcy:** Railway, Cloudflare R2 (paczka leży na dysku obiektowym).
 - **Termin usunięcia:** paczka **7 dni**, kasuje `kuking:sprzataj-eksporty`
   (także plik próby, która padła przed zapisaniem paczki); przy wymazaniu
@@ -539,7 +629,10 @@ egzekwuje.
 - **Dane:** dzień i miesiąc urodzin, **bez roku** (`users.birthday_day`,
   `users.birthday_month`).
 - **Podstawa:** art. 6 ust. 1 lit. a RODO — zgoda wyrażona dobrowolnym
-  podaniem daty; wycofanie przyciskiem „Usuń datę” w `/ustawienia/urodziny`.
+  podaniem daty (analiza z 2.10.2026, pyt. 5: możliwa lit. a przy obecnym
+  modelu; samo wpisanie jest działaniem potwierdzającym tylko przy jasnej
+  informacji, a publikacja i e-mail wymagają rozdzielenia wyborów, co tu
+  jest spełnione osobnymi polami); wycofanie przyciskiem „Usuń datę” w `/ustawienia/urodziny`.
 - **List z życzeniami (etap c):** wyłącznie za **osobną** zgodą
   (`users.wants_birthday_email`, domyślnie `false`; podanie daty zgody na
   list nie daje). Każda zmiana zgody zapisuje wiersz w dzienniku zgód
@@ -663,7 +756,9 @@ egzekwuje.
   (`quantity_note`) i oznaczenie „mrożone” (`frozen`). Termin jest notatką
   osoby; serwis nie ocenia, czy produkt nadaje się do jedzenia.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO — **do potwierdzenia przez
-  prawnika**.
+  prawnika**. Nazwy produktów i notatki mogą ujawniać dietę lub alergię
+  konkretnej osoby, czyli potencjalnie dane o zdrowiu: wtedy lit. b nie
+  zastępuje przesłanki z art. 9 ust. 2 (analiza z 2.10.2026, pyt. 5).
 - **Sobotnie przypomnienie o produktach do zużycia (#1903):** wyłącznie za
   **osobną** zgodą (`users.wants_pantry_reminder`, domyślnie `false`; założenie
   listy ani ustawienie terminu zgody nie daje). Podstawa: art. 6 ust. 1 lit. a
@@ -721,8 +816,9 @@ trafi tam pierwszy rekord.
   zapisuje). Zgoda na jedno źródło **nie odblokowuje** pozostałych —
   pilnuje tego `PlatnyOdczytImportu` i test
   `ZgodaPrzedTekstemZrodlaTest`.
-- **Odbiorca:** OpenAI, L.L.C. (USA) — podmiot przetwarzający; **DPA: DO
-  PODPISANIA PRZED WŁĄCZENIEM** (`REJESTR_UMOW_POWIERZENIA.md` §2.5).
+- **Odbiorca:** OpenAI (dla EOG co do zasady OpenAI Ireland Ltd; strona
+  umowy do potwierdzenia przez właściciela, zob. §3.7) — podmiot
+  przetwarzający; **DPA: DO PODPISANIA PRZED WŁĄCZENIEM** (`REJESTR_UMOW_POWIERZENIA.md` §2.5).
 - **Przekazanie poza EOG:** EU-US Data Privacy Framework + SCC (jak §3.7).
   **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** data sprawdzenia wpisu OpenAI na
   liście DPF, dokument SCC i jego data, ewentualne Zero Data Retention.
@@ -827,7 +923,10 @@ trafi tam pierwszy rekord.
   nawzajem; zaproszona osoba dostaje powiadomienie
   (`Notification::TYPE_COLLECTION_INVITED`). Obcy przy publicznym zeszycie nie
   widzi współpracowników.
-- **Podstawa:** art. 6 ust. 1 lit. b RODO.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO dla wybranej funkcji. Osobnej
+  oceny wymaga informacja o zaproszonych nieużytkownikach i kontakt z nimi
+  (analiza z 2.10.2026, pyt. 5); notatki w zeszycie mogą dotyczyć zdrowia
+  (art. 9 ust. 2, zob. akapit na początku §3).
 - **Odbiorcy:** Railway.
 - **Termin usunięcia:** członkostwo — do wyjścia, usunięcia przez właściciela,
   blokady między osobami (`ZerwijWspoldzielenie::miedzy()`), usunięcia zeszytu
@@ -924,6 +1023,10 @@ trafi tam pierwszy rekord.
   (`cooking_notes`). Tylko dla zalogowanych; goście tej funkcji nie mają.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO — funkcja, z której osoba świadomie
   korzysta, tak jak z planu na tydzień. Weryfikacja przez prawnika zostaje w #8.
+  **Dopisek może zawierać dane o zdrowiu** (np. „bez glutenu po operacji”):
+  wtedy sama lit. b nie wystarcza i potrzebna jest przesłanka z art. 9 ust. 2
+  (analiza z 2.10.2026, pyt. 5); rejestr tego nie rozstrzyga, zob. akapit
+  o danych o zdrowiu na początku §3.
 - **Odbiorcy:** Railway. Dane widzi wyłącznie właściciel
   (`CookingNotePolicy`); nic nie jest wysyłane do podmiotów trzecich, nie
   trafia do adresu, cache, telemetrii ani do autora przepisu. Do pola „Coś po
@@ -983,6 +1086,32 @@ trafi tam pierwszy rekord.
   (kasuje też zgodę) albo wymazanie konta (`EraseAccountData`).
 - **Eksport:** `ostatnio_ogladane` (przepis — tytuł tylko gdy przepis jest dziś
   widoczny dla osoby — i czas) oraz `konto.ostatnio_ogladane_wlaczone_od`.
+
+### 3.32 Kopia tekstu szkicu do odzyskania po pomyłce (V2, issue #2512)
+
+- **Cel:** umożliwienie autorowi powrotu do tekstu własnego, nieopublikowanego
+  szkicu, który przypadkiem zastąpił albo skasował, a który zdążył się
+  zapisać automatycznie.
+- **Dane:** identyfikator konta i szkicu, data zrobienia kopii oraz tekst
+  szkicu sprzed sesji pisania: nazwa, opis, porcje, czasy, trudność, pochodzenie
+  („od kogo”, historia, rok), składniki z grupami, uwagami i zamiennikami, kroki
+  z nazwą etapu i minutnikiem oraz wskazanie zdjęcia przy kroku
+  (`draft_restore_points`). Bez zdjęć, alergenów, widoczności i danych innych
+  osób. Jedna kopia na szkic; powstaje przy otwarciu szkicu do pisania, nie przy
+  każdym autozapisie.
+- **Podstawa:** art. 6 ust. 1 lit. b RODO — funkcja, z której osoba świadomie
+  korzysta (ochrona jej własnej pracy). Weryfikacja przez prawnika zostaje w #8.
+- **Odbiorcy:** Railway. Kopię widzi wyłącznie autor szkicu
+  (`RecipePolicy::restoreDraftText`); nie trafia do historii wersji, strony
+  publicznej, SEO, kanału, wspólnego zeszytu, moderatorów, podmiotów trzecich,
+  cache ani telemetrii.
+- **Termin usunięcia:** `kuking.przepisy.szkic_punkt_odzyskania_dni` (14 dni od
+  zrobienia kopii; wartość do potwierdzenia przez właściciela, D-333); co noc
+  kasuje ją `kuking:sprzataj-usuniete-tresci`. Wcześniej: opublikowanie albo
+  usunięcie szkicu (sprzątanie / klucz obcy) i wymazanie konta
+  (`EraseAccountData`).
+- **Eksport:** `kopie_tekstu_szkicow` (tytuł szkicu, daty i tekst kopii bez
+  identyfikatorów zdjęć).
 
 ---
 
@@ -1061,15 +1190,18 @@ w ramach konkretnego postępowania (art. 4 pkt 9 RODO) — w tym organy
 
 | Przekazanie | Co wychodzi | Deklarowana podstawa | Czego brakuje |
 |---|---|---|---|
-| OpenAI, L.L.C. (USA) | treść wpisu/komentarza i pomniejszone zdjęcie, bez EXIF-u i bez danych wskazujących osobę (`app/Moderacja/KlientOpenAI.php`) | EU-US Data Privacy Framework + standardowe klauzule umowne | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** data sprawdzenia wpisu na liście DPF, dokument SCC i jego data |
-| OpenAI, L.L.C. (USA) — odczyt przepisu na żądanie (§3.23), **funkcja niewłączona** | zdjęcie kartki (JPEG ≤ 2000 px, bez EXIF/GPS), wiersze tekstu strony (≤ 12 000 znaków, bez adresu i komentarzy), obrazy stron PDF bez warstwy tekstu (JPEG ≤ 1600 px); bez e-maila, nazwy konta, IP i identyfikatorów (`app/Domain/Import/KlientLuna.php`) | EU-US Data Privacy Framework + SCC, umowa powierzenia **niepodpisana** (`REJESTR_UMOW_POWIERZENIA.md` §2.5) | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** DPA, data sprawdzenia DPF, SCC, okres przechowywania po stronie OpenAI |
+| OpenAI (strona umowy dla EOG co do zasady OpenAI Ireland Ltd, do potwierdzenia; USA) | treść wpisu/komentarza i pomniejszone zdjęcie, bez EXIF-u, bez identyfikatora konta, e-maila i IP; sama treść może zawierać dane osobowe (`app/Moderacja/KlientOpenAI.php`) | deklarowane: EU-US Data Privacy Framework + standardowe klauzule umowne, **bez dowodu** (analiza z 2.10.2026, pyt. 9) | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** właściwy podmiot, data sprawdzenia jego wpisu na liście DPF, dokument SCC i moduł, retencja dla `/v1/moderations` (bez „30 dni”) |
+| OpenAI (USA) — odczyt przepisu na żądanie (§3.23), **funkcja niewłączona** | zdjęcie kartki (JPEG ≤ 2000 px, bez EXIF/GPS), wiersze tekstu strony (≤ 12 000 znaków, bez adresu i komentarzy), obrazy stron PDF bez warstwy tekstu (JPEG ≤ 1600 px); bez e-maila, nazwy konta, IP i identyfikatorów (`app/Domain/Import/KlientLuna.php`) | EU-US Data Privacy Framework + SCC, umowa powierzenia **niepodpisana** (`REJESTR_UMOW_POWIERZENIA.md` §2.5) | **DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:** DPA, data sprawdzenia DPF, SCC, okres przechowywania po stronie OpenAI |
 | Cloudflare, Inc. (USA) — sieć i ochrona (pośrednik całego ruchu, §3.28), Turnstile i Web Analytics | całe żądania i odpowiedzi (sieć); adres IP i cechy przeglądarki (Turnstile); adresy stron (Web Analytics) | EU-US Data Privacy Framework + SCC | jw. |
 | Google LLC (USA) — tylko przy logowaniu kontem Google | potwierdzenie tożsamości, e-mail, imię | EU-US Data Privacy Framework + SCC | jw. |
 
-**Meta świadomie nie jest w tej tabeli.** Kontrahentem jest Meta Platforms
-Ireland Limited z siedzibą w UE, więc **administrator nie dokonuje tu
-przekazania poza EOG**. To, że grupa Meta przetwarza dane także w USA,
-dzieje się na jej własnych podstawach, jako osobnego administratora.
+**Meta nie jest w tej tabeli, bo to odrębny administrator** (zob. §3.8):
+nie przekazujemy jej danych na zlecenie, a przetwarzanie w grupie Meta dzieje
+się na jej własnych podstawach. Nie opieramy tego na zdaniu „kontrahent jest
+spółką irlandzką, więc nie ma transferu”: tożsamość kontrahenta nie
+rozstrzyga całego przepływu ani dostępu z innego państwa (analiza z
+2.10.2026, §5.2). Google LLC w wierszu wyżej to również odrębny
+administrator, nie nasz procesor; wiersz zostaje informacyjnie.
 
 **Najważniejsze zdanie tej sekcji:** z kodu widać, **co** wychodzi i **do
 kogo**. Tego, **na jakiej podstawie**, z kodu nie widać nigdy — to jest

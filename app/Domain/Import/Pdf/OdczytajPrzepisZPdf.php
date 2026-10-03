@@ -21,18 +21,20 @@ final class OdczytajPrzepisZPdf
     ) {}
 
     /**
+     * @param  list<int>|null  $wybraneStrony  tylko te strony (#2535); `null` = jak dotąd, pierwsze strony w limicie
+     *
      * @throws ImportOdrzucony
      */
-    public function handle(string $sciezka, User $osoba, bool $chceZgody, string $probaId): OdczytanyPdf
+    public function handle(string $sciezka, User $osoba, bool $chceZgody, string $probaId, ?array $wybraneStrony = null): OdczytanyPdf
     {
         try {
-            $tekst = $this->tekst->odczytaj($sciezka);
+            $tekst = $this->tekst->odczytaj($sciezka, $wybraneStrony);
         } catch (ImportOdrzucony $e) {
             if ($e->kod !== ImportOdrzucony::PDF_BEZ_TEKSTU) {
                 throw $e;
             }
 
-            return new OdczytanyPdf($this->skan->handle($sciezka, $osoba, $chceZgody, $probaId), 'ocr');
+            return new OdczytanyPdf($this->skan->handle($sciezka, $osoba, $chceZgody, $probaId, $wybraneStrony), 'ocr');
         }
 
         $przepis = $this->parser->odczytaj($tekst);

@@ -84,7 +84,7 @@
         <form class="panel-formularza mb-6" method="GET" action="{{ route('collections.index') }}" role="search" aria-label="Szukaj w moich zeszytach">
             <div class="field @if($bladSzukania) has-error @endif">
                 <label for="f-szukaj">Szukaj w moich zeszytach</label>
-                <span class="field-help" id="f-szukaj-help">Wpisz kawałek tytułu albo składnik, np. „cukinia”. Polskie znaki nie mają znaczenia — „zurek” znajdzie „Żurek”.</span>
+                <span class="field-help" id="f-szukaj-help">Wpisz kawałek tytułu, składnik albo to, od kogo masz przepis, np. „cukinia” albo „ciocia Zosia”. Polskie znaki nie mają znaczenia — „zurek” znajdzie „Żurek”.</span>
                 <input class="field-input" id="f-szukaj" name="szukaj" type="search" value="{{ $szukaj }}"
                        maxlength="{{ \App\Domain\Search\SearchQuery::MAX_PHRASE_LENGTH }}"
                        aria-describedby="f-szukaj-help{{ $bladSzukania ? ' f-szukaj-error' : '' }}"
@@ -134,9 +134,9 @@
                     @if($tylkoUgotowane && $szukaj === '')
                         <p class="m-0">Żaden z zapisanych przepisów nie ma jeszcze Twojego wykonania „Ugotowałem”. Odznacz „Ugotowane przeze mnie”, żeby zobaczyć wszystkie zapisy.</p>
                     @elseif($tylkoUgotowane)
-                        <p class="m-0">Nie znaleźliśmy wśród zapisanych przepisów z Twoim wykonaniem takiego, który ma w tytule albo w składnikach „{{ $szukaj }}”. Odznacz „Ugotowane przeze mnie” albo spróbuj krótszego słowa.</p>
+                        <p class="m-0">Nie znaleźliśmy wśród zapisanych przepisów z Twoim wykonaniem takiego, który ma w tytule, w składnikach albo w polu „Od kogo albo skąd masz ten przepis” „{{ $szukaj }}”. Odznacz „Ugotowane przeze mnie” albo spróbuj krótszego słowa.</p>
                     @else
-                        <p class="m-0">Nie znaleźliśmy w Twoich zeszytach przepisu, który ma w tytule albo w składnikach „{{ $szukaj }}”. Spróbuj krótszego słowa, np. bez końcówki, albo <a href="{{ route('search', ['q' => $szukaj, 'sekcja' => 'przepisy']) }}">poszukaj w całym Kuking</a>.</p>
+                        <p class="m-0">Nie znaleźliśmy w Twoich zeszytach przepisu, który ma w tytule, w składnikach albo w polu „Od kogo albo skąd masz ten przepis” „{{ $szukaj }}”. Spróbuj krótszego słowa, np. bez końcówki, albo <a href="{{ route('search', ['q' => $szukaj, 'sekcja' => 'przepisy']) }}">poszukaj w całym Kuking</a>.</p>
                     @endif
                 @else
                     <ul class="stack list-none p-0 m-0">
@@ -150,7 +150,12 @@
                                     @endforeach
                                 </p>
                                 @if($szukaj !== '' && ! $przepis->w_tytule)
-                                    <p class="meta m-0">Pasuje przez składnik.</p>
+                                    {{-- #2504: samo trafienie w pochodzeniu nie udaje trafienia w składniku. --}}
+                                    @if($przepis->w_zrodle)
+                                        <p class="meta m-0">Pasuje przez pole „Od kogo albo skąd masz ten przepis”.</p>
+                                    @else
+                                        <p class="meta m-0">Pasuje przez składnik.</p>
+                                    @endif
                                 @endif
                                 @if($przepis->ostatnio_ugotowane_at !== null && ($tylkoUgotowane || $kolejnoscZapisow === \App\Http\Controllers\CollectionController::KOLEJNOSC_OSTATNIO_UGOTOWANE))
                                     <p class="meta m-0">Ostatnio ugotowane przez Ciebie: <time datetime="{{ \Illuminate\Support\Carbon::parse($przepis->ostatnio_ugotowane_at)->toIso8601String() }}">{{ \App\Support\Czas::data(\Illuminate\Support\Carbon::parse($przepis->ostatnio_ugotowane_at), 'j F Y') }}</time>. Widzisz to tylko Ty.</p>
@@ -159,7 +164,7 @@
                         @endforeach
                     </ul>
                     @if($wiecejWynikow)
-                        <p class="meta m-0">Pokazujemy pierwsze {{ $wynikiSzukania->count() }} przepisów. Wpisz dłuższy kawałek tytułu albo składnika, żeby zawęzić wyniki.</p>
+                        <p class="meta m-0">Pokazujemy pierwsze {{ $wynikiSzukania->count() }} przepisów. Wpisz dłuższy kawałek tytułu, składnika albo pochodzenia, żeby zawęzić wyniki.</p>
                     @endif
                 @endif
                 <p class="m-0"><a class="btn btn-secondary" href="{{ route('collections.index') }}">Wyczyść wyszukiwanie</a></p>
