@@ -92,6 +92,31 @@ final class AnonimoweSygnalySzanujaSprzeciwTest extends TestCase
         $this->assertSame(0, ProductSignal::query()->count(), 'SPRZECIW_2837_SWIEZA_BLOKADA: nieaktualny model ominął sprzeciw.');
     }
 
+    public function test_cofniecie_sprzeciwu_liczy_tylko_nowe_gotowanie_bez_odtwarzania_pominietego(): void
+    {
+        $osoba = $this->user('wracam_do_statystyk');
+        $autor = $this->user('autor');
+        $przed = $this->przepis($autor, 'Gotowanie przed sprzeciwem');
+        $pominiete = $this->przepis($autor, 'Gotowanie przy sprzeciwie');
+        $po = $this->przepis($autor, 'Gotowanie po cofnięciu');
+
+        $licznik = static fn (): int => ProductSignal::query()
+            ->where('signal_name', ZapiszSygnal::COOKING_LAST_STEP_REACHED)->count();
+
+        $this->actingAs($osoba)->get(route('cooking.show', [$przed->slug, 'krok' => 2]))->assertOk();
+        $this->assertSame(1, $licznik());
+        $this->actingAs($osoba)->post(route('settings.privacy.sprzeciw-statystyk'))->assertRedirect();
+        $this->actingAs($osoba)->get(route('cooking.show', [$pominiete->slug, 'krok' => 2]))->assertOk();
+        $this->assertSame(1, $licznik(), 'SPRZECIW_2837_ANI_ANONIMOWO: pominięte gotowanie dopisało sygnał.');
+
+        $this->actingAs($osoba)->delete(route('settings.privacy.sprzeciw-statystyk.cofnij'))->assertRedirect();
+        $this->assertSame(1, $licznik(), 'Cofnięcie nie może dopisać historii pominiętych działań.');
+        $this->actingAs($osoba)->get(route('cooking.show', [$po->slug, 'krok' => 2]))->assertOk();
+        $this->assertSame(2, $licznik(), 'Przyszłe gotowanie znów zapisuje sygnał.');
+        $this->assertSame(0, ProductSignal::query()->where('signal_name', ZapiszSygnal::COOKING_LAST_STEP_REACHED)
+            ->whereNotNull('user_id')->count(), 'Cofnięcie sprzeciwu nie przypisuje historii do konta.');
+    }
+
     private function scenariusze(User $osoba): void
     {
         $autor = $this->user('autor');
