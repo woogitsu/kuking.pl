@@ -102,7 +102,7 @@ class RecipeShareController extends Controller
         try {
             [$udostepnienie, $nowe] = $akcja->poPotwierdzeniu($request->user(), $recipe, $danePotwierdzenia['odbiorca'], $danePotwierdzenia['nazwa']);
         } catch (BladDlaCzlowieka $e) {
-            return $wroc->withInput()->withErrors(['nazwa' => $e->getMessage()]);
+            return $wroc->withInput(['nazwa' => $danePotwierdzenia['nazwa']])->withErrors(['nazwa' => $e->getMessage()]);
         }
 
         /** @var User|null $odbiorca */

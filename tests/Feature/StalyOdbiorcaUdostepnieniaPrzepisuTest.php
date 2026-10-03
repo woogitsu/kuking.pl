@@ -71,6 +71,9 @@ class StalyOdbiorcaUdostepnieniaPrzepisuTest extends TestCase
         $odpowiedz->assertRedirect()->assertSessionHasErrors([
             'nazwa' => UdostepnijPrzepis::PONOW_POTWIERDZENIE,
         ]);
+        self::assertSame('odbiorca_2790', session()->getOldInput('nazwa'));
+        $this->actingAs($this->autor)->get(route('recipes.shares.index', $this->przepis))
+            ->assertOk()->assertSee('value="odbiorca_2790"', false);
         self::assertSame(0, RecipeShare::query()->count());
         self::assertSame(0, DB::table('notifications')->where('user_id', $nowy->getKey())->count());
 
