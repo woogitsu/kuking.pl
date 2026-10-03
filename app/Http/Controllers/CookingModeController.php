@@ -219,6 +219,7 @@ class CookingModeController extends Controller
             'hasProgress' => $steps->contains(fn ($step) => in_array($step->getKey(), $zrobione, true)),
             'wyborPorcji' => $wyborPorcji,
             'parametrPorcji' => $parametrPorcji,
+            'podgladZeSpisu' => $request->query('spis') === '1',
         ]);
     }
 

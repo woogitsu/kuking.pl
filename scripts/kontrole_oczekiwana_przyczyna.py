@@ -121,6 +121,8 @@ OCZEKUJ = {
     "Jawne sztuki ustępują zapamiętanym porcjom (#2848)": r'SZTUKI_2848_(JAWNE_24_TO_AUTOR|ZERO_POKAZUJE_AUTORA)',
     "Powrót ze sztuk przywraca zapamiętane porcje (#2848)": r'SZTUKI_2848_POWROT_LINK',
     "Wydruk gubi jawną podstawę sztuk autora (#2848)": r'SZTUKI_2848_DRUK_PODSTAWA',
+    "Dopisek ze spisu gubi kontekst w formularzu (#2858)": r'SPIS_2858_FORMULARZ_NIESIE_PODGLAD',
+    "Dopisek ze spisu gubi kontekst w powrocie (#2858)": r'SPIS_2858_BLEDNY_DOPISEK_WRACA_DO_PODGLADU',
     'Robots: awaria PCRE nie daje zgody (#2617)': r'ROBOTS_2617_AWARIA_PCRE_NIE_JEST_ZGODA',
     'Robots: zakodowane litery omijają zakaz (#2569)': r'ROBOTS_2569_OKTETY_ZAKAZANE',
     'Robots: znaki zarezerwowane dekodowane bez ograniczenia (#2569)': r'ROBOTS_2569_BEZ_PONOWNEGO_DEKODOWANIA',

@@ -98,7 +98,7 @@ class DopisekGotowaniaController extends Controller
         return $this->wroc($request, $model)->with(Komunikat::sukces('Dopisek usunięty.'));
     }
 
-    /** Wraca do tego samego kroku i tych samych porcji, w których osoba była. */
+    /** Wraca do kroku, porcji i ewentualnego podglądu ze spisu. */
     private function wroc(Request $request, Recipe $model): RedirectResponse
     {
         $kroki = max(1, $model->steps()->count());
@@ -109,6 +109,7 @@ class DopisekGotowaniaController extends Controller
             'recipe' => $model->slug,
             'krok' => max(1, min($krok, $kroki)),
             'porcje' => $wybor->przeliczone() ? $wybor->doAdresu((float) $wybor->wybrane) : null,
+            'spis' => $request->input('spis') === '1' ? 1 : null,
         ], fn ($wartosc) => $wartosc !== null));
     }
 }
