@@ -67,7 +67,7 @@ final class BramkaPublikacjiOdczytu implements BramkaPublikacjiSzkicu
 
     public static function komunikatSprawdzenia(Recipe $przepis): string
     {
-        return self::pominiete($przepis) === null ? self::KOMUNIKAT_SPRAWDZENIE : self::KOMUNIKAT_SPRAWDZENIE_NIEPELNY;
+        return self::pominiete($przepis)?->niepelny() ? self::KOMUNIKAT_SPRAWDZENIE_NIEPELNY : self::KOMUNIKAT_SPRAWDZENIE;
     }
 
     /**

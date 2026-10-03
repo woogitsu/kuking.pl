@@ -25,7 +25,7 @@ final class KomunikatImportu
 
             if ($niepelny !== null) {
                 return [
-                    'tytul' => 'Szkic gotowy, ale import jest niepełny',
+                    'tytul' => $niepelny->niepelny() ? 'Szkic gotowy, ale import jest niepełny' : 'Szkic gotowy, są pola do uzupełnienia',
                     'tresc' => $niepelny->komunikat().' '.$komunikat['tresc'],
                 ];
             }

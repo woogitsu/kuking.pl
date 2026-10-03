@@ -1345,6 +1345,12 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Import odrzuca ułamek czasu bez ostrzeżenia (#2546)", "app/Domain/Import/Url/ParserJsonLdPrzepisu.php",
+     "OstrzezeniaParseraWImporcieTest::test_odrzucony_ulamek_minuty_jest_wskazany_przy_polach_json_ld_i_mikrodanych",
+     lambda s: replace_once(s, "ostrzezeniaParsera: $ostrzezenia,", "ostrzezeniaParsera: [],")),
+    ("Import nie zapisuje ostrzeżeń parsera przy szkicu (#2548)", "app/Domain/Import/PominieteWImporcie.php",
+     "OstrzezeniaParseraWImporcieTest::test_mieszany_import_pamieta_liczbe_pominietych_skladnikow_i_czas_po_ponownym_otwarciu",
+     lambda s: replace_once(s, "['ostrzezenia_parsera' => $this->ostrzezeniaParsera]", "['ostrzezenia_parsera' => []]")),
     ("Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
      lambda s: replace_once(s, "return $request->user() !== null", "return false")),
     ("Dyktowanie daje mikrofon gościowi (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
