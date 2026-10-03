@@ -49,6 +49,10 @@ class StanLivewireNiePrzeciekaMiedzyTestamiTest extends TestCase
 {
     use RefreshDatabase;
 
+    // Livewire 4 podaje livewire.js przy APP_DEBUG=true, a livewire.min.js
+    // przy APP_DEBUG=false. Oba są tym samym skryptem z auto-injection.
+    private const SKRYPT_LIVEWIRE = '~<script\b[^>]*\bsrc="[^"]*/livewire(?:\.min)?\.js(?:\?[^\"]*)?"~';
+
     /**
      * KROK 1 — TRUCICIEL.
      *
@@ -73,8 +77,8 @@ class StanLivewireNiePrzeciekaMiedzyTestamiTest extends TestCase
 
         $html = (string) $this->get(route('kontakt'))->assertOk()->getContent();
 
-        $this->assertStringContainsString(
-            'livewire.js',
+        $this->assertMatchesRegularExpression(
+            self::SKRYPT_LIVEWIRE,
             $html,
             'KONTROLA DODATNIA PADŁA: przy podniesionej fladze `/kontakt` NIE dostaje '
             .'skryptu Livewire\'a. Skoro tak, to asercja w kroku 2 niczego już nie mierzy '
@@ -111,8 +115,8 @@ class StanLivewireNiePrzeciekaMiedzyTestamiTest extends TestCase
 
         $html = (string) $this->get(route('kontakt'))->assertOk()->getContent();
 
-        $this->assertStringNotContainsString(
-            'livewire.js',
+        $this->assertDoesNotMatchRegularExpression(
+            self::SKRYPT_LIVEWIRE,
             $html,
             'Do `/kontakt` doklejony został skrypt Livewire\'a, choć ten test nie renderował '
             .'żadnego komponentu. To jest dokładnie ta czerwień, którą łapie '
