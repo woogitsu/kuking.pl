@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Notification;
@@ -104,6 +105,48 @@ final class DolaczenieZdjeciaPonowienieUploaduTest extends TestCase
         $this->assertEquals($znacznik, $wykonanie->fresh()->photos_added_at);
     }
 
+    public function test_siodme_wyslanie_po_usunieciu_zdjecia_przechodzi_a_stary_klucz_nadal_nie_dodaje_media(): void
+    {
+        $kucharz = $this->user('kucharka');
+        $autor = $this->user('autor');
+        $przepis = Recipe::factory()->create([
+            'author_id' => $autor->getKey(), 'status' => Recipe::STATUS_PUBLISHED, 'visibility' => 'public',
+        ]);
+        $wykonanie = CookedEvent::factory()->create([
+            'user_id' => $kucharz->getKey(), 'recipe_id' => $przepis->getKey(), 'cooked_at' => now()->subDay(),
+        ]);
+        $klucze = [];
+
+        for ($i = 0; $i < 7; $i++) {
+            if ($i > 0) {
+                $stareMedia = (string) $wykonanie->fresh()->media()->first()?->getKey();
+                DB::table('cooked_event_media')->where('media_id', $stareMedia)->delete();
+                Media::query()->whereKey($stareMedia)->delete();
+            }
+
+            $klucz = (string) Str::uuid7();
+            $klucze[] = $klucz;
+            $odpowiedz = $this->actingAs($kucharz)->post(route('cooked.photos.store', $wykonanie), [
+                'klucz_wyslania' => $klucz,
+                'photos' => [UploadedFile::fake()->image('obiad.jpg', 800, 600)],
+            ]);
+            if ($i === 6) {
+                $this->assertTrue($odpowiedz->isRedirect(), 'DOLACZENIE_2811_SIODME_WYSLANIE_PO_USUNIECIU');
+            }
+            $odpowiedz->assertRedirect(route('cooked.show', $wykonanie));
+            $this->assertSame(1, $wykonanie->fresh()->media()->count(), 'DOLACZENIE_2811_SIODME_WYSLANIE_PO_USUNIECIU');
+        }
+
+        $this->assertSame($klucze, $wykonanie->fresh()->photo_submission_keys, 'DOLACZENIE_2811_HISTORIA_KLUCZY');
+        $this->actingAs($kucharz)->post(route('cooked.photos.store', $wykonanie), [
+            'klucz_wyslania' => $klucze[0],
+            'photos' => [UploadedFile::fake()->image('obiad.jpg', 800, 600)],
+        ])->assertRedirect(route('cooked.show', $wykonanie));
+
+        $this->assertSame(1, $wykonanie->fresh()->media()->count(), 'DOLACZENIE_2811_STARY_KLUCZ_PO_SIODMYM');
+        $this->assertSame($klucze, $wykonanie->fresh()->photo_submission_keys);
+    }
+
     public function test_cudzy_klucz_i_wygasle_okno_nie_obchodza_uprawnien(): void
     {
         $kucharz = $this->user('kucharka');
@@ -132,5 +175,30 @@ final class DolaczenieZdjeciaPonowienieUploaduTest extends TestCase
             'photos' => [UploadedFile::fake()->image('obiad.jpg', 800, 600)],
         ])->assertForbidden();
         $this->assertSame(1, Media::query()->where('owner_id', $kucharz->getKey())->count(), 'DOLACZENIE_2811_POLICY_PRZY_PONOWIENIU');
+    }
+
+    public function test_wymazanie_konta_usuwa_prywatna_historie_kluczy_lecz_zostawia_wykonanie(): void
+    {
+        $kucharz = $this->user('kucharka');
+        $autor = $this->user('autor');
+        $przepis = Recipe::factory()->create([
+            'author_id' => $autor->getKey(), 'status' => Recipe::STATUS_PUBLISHED, 'visibility' => 'public',
+        ]);
+        $wykonanie = CookedEvent::factory()->create([
+            'user_id' => $kucharz->getKey(), 'recipe_id' => $przepis->getKey(), 'cooked_at' => now()->subDay(),
+        ]);
+        $klucz = (string) Str::uuid7();
+        $this->actingAs($kucharz)->post(route('cooked.photos.store', $wykonanie), [
+            'klucz_wyslania' => $klucz,
+            'photos' => [UploadedFile::fake()->image('obiad.jpg', 800, 600)],
+        ])->assertRedirect(route('cooked.show', $wykonanie));
+        $this->assertSame([$klucz], $wykonanie->fresh()->photo_submission_keys);
+
+        $kucharz->markForDeletion();
+        $this->assertTrue(app(EraseAccountData::class)->handle($kucharz->fresh()));
+
+        $zachowane = CookedEvent::query()->find($wykonanie->getKey());
+        $this->assertNotNull($zachowane);
+        $this->assertSame([], $zachowane->photo_submission_keys, 'DOLACZENIE_2811_WYMAZANE_KLUCZE');
     }
 }

@@ -104,8 +104,15 @@ Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
 
 Ponowienie multipart dołączenia zdjęcia (#2811) niesie osobny UUID
 `klucz_wyslania`. Udane klucze są w `cooked_events.photo_submission_keys`
-(JSONB, domyślnie `[]`, maksymalnie sześć, poza masowym przypisaniem).
+(JSONB z bazowym CHECK typu tablicy, domyślnie `[]`, poza masowym przypisaniem).
 Klucz jest przypięty do konkretnego wykonania i zostaje po usunięciu zdjęcia;
+historia udanych UUID nie jest obcinana do limitu bieżących zdjęć, bo siódme
+wysłanie po usunięciu jednego zdjęcia musi działać, a starsze ponowienie nadal
+nie może utworzyć duplikatu. UUID sprawdza formularz przed akcją; klucze
+pozostają prywatnym śladem wykonania i nie są renderowane ani eksportowane.
+Przy wymazaniu konta z zachowaniem wykonania historia tych kluczy jest
+czyszczona: wymazane konto nie może ponowić żądania, a prywatny ślad nie jest
+potrzebny do zachowania publicznego wykonania.
 nie oznacza nowego gotowania ani nowego powiadomienia. Przed zapisem pliku
 sesyjna blokada PostgreSQL serializuje ten sam klucz, potem dotychczasowa
 transakcja zachowuje kolejność media → users → cooked_events i ponownie

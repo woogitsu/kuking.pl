@@ -346,6 +346,12 @@ final class EraseAccountData
              */
             $fresh->cookedEvents()->whereNotNull('faktyczne_porcje')->update(['faktyczne_porcje' => null]);
 
+            // Identyfikatory udanych wysłań zdjęć służą tylko do ponowienia
+            // żądania przez to konto. Po wymazaniu nie ma już tej drogi, a
+            // samo wykonanie może zostać przy zakresie minimum.
+            $fresh->cookedEvents()->whereRaw("photo_submission_keys <> '[]'::jsonb")
+                ->update(['photo_submission_keys' => []]);
+
             /*
              * „CO MAM W DOMU” ZNIKA RAZEM Z KONTEM (D-285).
              *

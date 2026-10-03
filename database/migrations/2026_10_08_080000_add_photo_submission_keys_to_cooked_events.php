@@ -10,7 +10,7 @@ return new class extends Migration
     public function up(): void
     {
         DB::statement("ALTER TABLE cooked_events ADD COLUMN photo_submission_keys jsonb NOT NULL DEFAULT '[]'::jsonb");
-        DB::statement("ALTER TABLE cooked_events ADD CONSTRAINT cooked_events_photo_submission_keys_array CHECK (jsonb_typeof(photo_submission_keys) = 'array' AND jsonb_array_length(photo_submission_keys) <= 6)");
+        DB::statement("ALTER TABLE cooked_events ADD CONSTRAINT cooked_events_photo_submission_keys_array CHECK (jsonb_typeof(photo_submission_keys) = 'array')");
     }
 
     public function down(): void

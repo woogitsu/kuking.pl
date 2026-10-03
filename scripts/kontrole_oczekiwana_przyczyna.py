@@ -43,6 +43,8 @@ OCZEKUJ = {
     'Kolaż hero bez podpisu autora przy zdjęciu (#2708)': r'Kafel nie ma podpisu z nazwą dokładnie jednego autora',
     'Dołączenie zdjęcia: podmiana UUID kucharza (#2500)': r'DOLACZENIE_2500_PODMIANA_UUID',
     'Ponowiony multipart zapisuje osierocone zdjęcie (#2811)': r'DOLACZENIE_2811_BEZ_OSIEROCONEGO_MEDIA',
+    'Historia zdjęć urywa się po szóstym wysłaniu (#2811)': r'DOLACZENIE_2811_SIODME_WYSLANIE_PO_USUNIECIU',
+    'Wymazanie zostawia prywatne klucze zdjęć (#2811)': r'DOLACZENIE_2811_WYMAZANE_KLUCZE',
     'Dołączenie zdjęcia liczy limit bez przypiętych (#2500)': r'DOLACZENIE_2500_LIMIT',
     'Dołączenie zdjęcia ignoruje świeży stan pod blokadą (#2500)': r'DOLACZENIE_2500_SWIEZY_STAN',
     'Dołączenie zdjęcia przejmuje cudze albo cudzo-przypięte (#2500)': r'DOLACZENIE_2500_WLASNOSC_MEDIOW',
