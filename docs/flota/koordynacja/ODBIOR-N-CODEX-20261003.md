@@ -66,3 +66,25 @@ Złożenie `59e2141a1d411847c4d3002568f68e3233d4883e`: **337 testów / 4018 aser
 Root `tests/skrypty/zakres.sh`: 43 przypadki tabeli, ścieżki bez listy, duży diff i kontrole ujemne wszystkich siedmiu wyjść PASS. Preflight kotwic jest wyłącznie odczytem. Pełne Windows check agentów nie są deklarowane jako zielone. Powyższe wyniki wykonawców odróżniono od pomiarów root i niezależnego review.
 
 N ma dwie nowe migracje: `first_package_id` (#2783) i `photo_submission_keys` (#2811), z wąską odmową rollbacku chroniącą zachowaną tożsamość/historię. Nie cofać produkcyjnej bazy automatycznie. CSAM/passkey, produkcyjne R2/CDN, prawo i pilot 50+ nadal mają otwarte kryteria. Kolejne poprawki trafiają do osobnych gałęzi po zamrożeniu N.
+
+## Odmowa normalnego pusha N — 3.10.2026, 03:40 UTC
+
+Na dokładnym `c088b2208f629776dff203a05174151ade394a01` zwykły pre-push
+zakończył się kodem 1: 13 954 testy PASS, 1 FAIL, 171 062 asercje.
+Jedyny błąd `IndeksDokumentacjiBazyTest`: opis przepisów 46 237 bajtów,
+powyżej istniejących 46 080. PHPStan i kontrola odwracalności migracji
+PASS. Hook odmówił wysłania; N nie została wtedy opublikowana.
+
+Korekta `64453edb3` przenosi bez zmiany treści sekcje recipe_versions,
+recipe_shares i draft_restore_points do osobnego dokumentu i dopisuje
+indeks. Nie podwyższa progu ani nie omija testu. Następnie do N przyjęto
+odczyt JUnit i siedem regresji przyrządu z M #2844 (`8b3072928`) oraz krok
+CI z `344f62310`. Kolejna pełna normalna bramka jest nadal wymagana.
+
+Celowany test dokumentacji po pierwszym podziale: 12 PASS / 1 FAIL,
+108 asercji. Pierwszy dokument, indeks, wszystkie tabele/kolumny i linki
+przeszły; za duży był także ugotowalem-komentarze-zeszyty.md (46 850
+bajtów). Podział `c841a898f` zachowuje sekcje zeszytów w nowym pliku
+zeszyty-udostepnienia-i-odzyskiwanie.md. Kontrola rozmiarów wszystkich
+plików na dysku przechodzi bez zmiany limitów. Testy wykonawcze nowego
+złożenia i pełna normalna bramka pozostają do wykonania.
