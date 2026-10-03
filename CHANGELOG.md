@@ -6,6 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2815): wczytywanie własnej paczki ponownie sprawdza stan konta przed każdą pozycją. Zawieszenie w trakcie żądania zatrzymuje kolejne zapisy bez śladu importu; wcześniejsze poprawnie zapisane pozycje zostają.
 - Poprawione (#2708): instrukcja odtwarzania kopii wymaga ponownego zabezpieczenia decyzji CSAM i publicznych wariantów zdjęć przed wymazaniem kont oraz wznowieniem usług. Gdy nie da się potwierdzić spraw i ich zabezpieczenia, procedura zatrzymuje się zamiast uruchamiać ruch lub nocne retencje.
 - Poprawione (#2808): gdy autor ukryje starszą wersję przepisu po otwarciu formularza „Gotuj z tej wersji”, zapis nowego wykonania sprawdza jej aktualną widoczność i odmawia bez zdjęcia ani powiadomienia. Autor i moderator nadal mogą użyć dostępnej dla nich wersji, a zwykłe „Ugotowałem” zachowuje dotychczasowe przypinanie.
 - Poprawione (CodeQL, wydanie L): w kolejce gotowania aktywny przepis wybrany w formularzu trafia do adresu kolejki tylko wtedy, gdy ma postać adresu przepisu (małe litery, cyfry, myślnik), i jest kodowany. Inny tekst z pola formularza jest pomijany, więc nie może zmienić adresu przejścia. Test regresyjny w `kolejka-gotowania.test.mjs`.
