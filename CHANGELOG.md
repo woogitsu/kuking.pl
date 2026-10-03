@@ -29,6 +29,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 - Poprawione (#2849): nocne sprzątanie nie usuwa kopii tekstu szkicu, która została właśnie odnowiona przy przywróceniu. Poprzedni tekst nadal można przywrócić ponownie.
 - Jawny wybór liczby sztuk przepisu i powrót do ilości autora nie przywracają po cichu zapamiętanych porcji; wydruk zachowuje wybraną podstawę (#2848).
 
+- Poprawione (#2871): test instalatora hooków odcina zmienne Git przekazane przez `pre-push`, dzięki czemu tymczasowe repozytorium nie zmienia konfiguracji drzewa, z którego uruchomiono kontrolę.
+
 - Poprawione (#2820): po wygaśnięciu prośby o wskazówkę można ponownie poprawić własną uwagę przy wykonaniu. Przyjęta wskazówka i otwarte zgłoszenie nadal chronią tekst.
 
 - Poprawione (#2828): przy gotowaniu kilku potraw zdjęcie bieżącego kroku widać obok instrukcji. Zmiana kroku lub potrawy pokazuje właściwe zdjęcie; powiększenie nie zatrzymuje minutników.

@@ -129,6 +129,10 @@ wspólnego `.git/hooks` ani obcego hooka. Repozytorium musi mieć włączone
 `extensions.worktreeConfig`; bez tego instalator odmawia i nie zmienia
 konfiguracji. Regresja na tymczasowym repozytorium:
 `bash tests/skrypty/install-hooks-worktree.sh` (#2632).
+Test odcina odziedziczone przez `pre-push` lokalne zmienne Git według
+`git rev-parse --local-env-vars` przed utworzeniem fixture. Osobny przebieg
+z `GIT_DIR` i `GIT_CONFIG_PARAMETERS` sprawdza, że konfiguracja, hook i stan
+drzewa wywołującego pozostają bez zmian (#2871).
 
 Rollback **tylko w tym linked worktree**: sprawdź, że `.git` jest plikiem,
 `core.hooksPath` wskazuje podkatalog `hooks` katalogu zwróconego przez
