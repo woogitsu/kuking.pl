@@ -76,6 +76,47 @@ final class SpoznioneWlaczenieIWylaczenie2faTest extends TestDwochPolaczen
             ->where('action', $droga === 'wlacz' ? 'account.two_factor_enabled' : 'account.two_factor_disabled')->count());
     }
 
+    public function test_jawne_wylaczenie_niepotwierdzonej_2fa_odwoluje_inne_sesje_ale_zle_haslo_nic_nie_zapisuje(): void
+    {
+        $konto = $this->konto();
+        $poczatkowa = $konto->fresh();
+        $this->assertInstanceOf(User::class, $poczatkowa);
+
+        $zle = $this->wTle('spoznione-2fa', [
+            'konto' => (string) $konto->getKey(), 'droga' => 'wylacz',
+            'obecne' => 'niepoprawne-haslo', 'kod' => '',
+        ], ['SESSION_DRIVER' => 'database'])->wynik();
+        $this->assertTrue($zle['ok'], $zle['komunikat']);
+        $this->assertSame(302, $zle['wartosc']['status'] ?? null);
+        $poZlym = $konto->fresh();
+        $this->assertInstanceOf(User::class, $poZlym);
+        $this->assertSame($poczatkowa->session_generation, $poZlym->session_generation);
+        $this->assertSame($poczatkowa->remember_token, $poZlym->remember_token);
+        $this->assertNull($poZlym->two_factor_confirmed_at);
+        $this->assertSame(0, AuditLogEntry::query()->where('subject_id', $konto->getKey())->where('action', 'account.two_factor_disabled')->count());
+
+        $obcaSesja = Str::random(40);
+        DB::table('sessions')->insert([
+            'id' => $obcaSesja, 'user_id' => $konto->getKey(), 'ip_address' => '127.0.0.1',
+            'user_agent' => 'inna-sesja-2862', 'payload' => '', 'last_activity' => time(),
+        ]);
+        $poprawne = $this->wTle('spoznione-2fa', [
+            'konto' => (string) $konto->getKey(), 'droga' => 'wylacz',
+            'obecne' => 'haslo-testowe-123', 'kod' => '',
+        ], ['SESSION_DRIVER' => 'database'])->wynik();
+        $this->assertTrue($poprawne['ok'], $poprawne['komunikat']);
+        $this->assertSame(302, $poprawne['wartosc']['status'] ?? null);
+        $this->assertSame(200, $poprawne['wartosc']['stare_cookie_status'] ?? null, 'BIEZACA_SESJA_2862_BEZ_2FA_ZOSTAJE');
+        $this->assertSame(200, $poprawne['wartosc']['kolejne_status'] ?? null);
+        $poPoprawnym = $konto->fresh();
+        $this->assertInstanceOf(User::class, $poPoprawnym);
+        $this->assertNull($poPoprawnym->two_factor_confirmed_at);
+        $this->assertSame((int) $poZlym->session_generation + 1, (int) $poPoprawnym->session_generation);
+        $this->assertNotSame($poZlym->remember_token, $poPoprawnym->remember_token);
+        $this->assertSame(0, DB::table('sessions')->where('id', $obcaSesja)->count());
+        $this->assertSame(0, AuditLogEntry::query()->where('subject_id', $konto->getKey())->where('action', 'account.two_factor_disabled')->count());
+    }
+
     #[DataProvider('drogi')]
     public function test_stare_zadanie_nie_zmienia_2fa_ani_nie_odnawia_sesji(string $drogaA, string $drogaB): void
     {
