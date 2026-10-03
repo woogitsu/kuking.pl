@@ -119,6 +119,39 @@ class Werdykt(unittest.TestCase):
         self.assertEqual(n.ZLA_PRZYCZYNA, self.ocen(n.WynikTestu(0, "", junit(testow=0))))
 
 
+class WzorzecKursoraWyszukiwania(unittest.TestCase):
+    """#2856: rozszerzona klasa musi mieć wzorzec każdej własnej porażki."""
+
+    NAZWA = "Dalsze okno wyszukiwania bez kursora rankingu"
+    KLASA = r"Tests\Feature\StabilneOknaWyszukiwaniaTest"
+    METODA = "test_miary_kursora_odrzucone_przez_postgresql_real_wracaja_do_wlasciwego_okna_obu_list"
+
+    def ocen(self, message, kind="failure", output="FAILED"):
+        from kontrole_oczekiwana_przyczyna import OCZEKUJ
+        report = junit((self.METODA, kind, "ExpectationFailedException", message)).replace(KLASA, self.KLASA)
+        return n.werdykt("StabilneOknaWyszukiwaniaTest", OCZEKUJ[self.NAZWA], n.WynikTestu(1, output, report)).werdykt
+
+    def test_wzorzec_obejmuje_nowe_i_stare_wlasne_porazki(self):
+        for message in (
+            "KURSOR_REAL_2856_PRAWIDLOWA_MIARA_PRZEPISU",
+            "KURSOR_REAL_2856_PRAWIDLOWA_MIARA_OSOBY",
+            "Dalsze okno powtórzyło już pokazany przepis.",
+            "Dalsze okno pominęło przepis, który nie był jeszcze pokazany.",
+            "Dalsze okno powtórzyło osobę.",
+        ):
+            with self.subTest(message=message):
+                self.assertEqual(n.POTWIERDZONA, self.ocen(message), "PRZYRZAD_2856_WZORZEC_KAZDEJ_PORAZKI")
+
+    def test_obca_asercja_wyjatek_i_marker_tylko_w_logu_odmawiaja(self):
+        for message, kind, output in (
+            ("Awaria innego warunku", "failure", "FAILED"),
+            ("KURSOR_REAL_2856_PRAWIDLOWA_MIARA_PRZEPISU", "error", "FAILED"),
+            ("Awaria innego warunku", "failure", "KURSOR_REAL_2856_PRAWIDLOWA_MIARA_OSOBY"),
+        ):
+            with self.subTest(message=message, kind=kind):
+                self.assertEqual(n.ZLA_PRZYCZYNA, self.ocen(message, kind, output))
+
+
 class Przebieg(unittest.TestCase):
     """Cały przebieg na pliku w katalogu tymczasowym, z atrapą zamiast `php artisan test`."""
 

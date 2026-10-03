@@ -371,7 +371,7 @@ OCZEKUJ = {
     'Eksport gubi wybór widoczności wartości odżywczych': r"an array has the key 'pokazuj_wartosci_odzywcze'",
     'Rodzaj po „jesteś” na ekranie Google': r'Tekst przypisuje czytelnikowi płeć',
     'Entrypoint bez klucza preview': r'Entrypoint nie woła kuking_klucz_preview\.',
-    'Dalsze okno wyszukiwania bez kursora rankingu': r'Dalsze okno powtórzyło już pokazany przepis\.|Dalsze okno pominęło przepis, który nie był jeszcze pokazany\.|Dalsze okno powtórzyło osobę\.',
+    'Dalsze okno wyszukiwania bez kursora rankingu': r'Dalsze okno powtórzyło już pokazany przepis\.|Dalsze okno pominęło przepis, który nie był jeszcze pokazany\.|Dalsze okno powtórzyło osobę\.|KURSOR_REAL_2856_PRAWIDLOWA_MIARA_PRZEPISU|KURSOR_REAL_2856_PRAWIDLOWA_MIARA_OSOBY',
     'Kursor z miarą nieczytelną dla PostgreSQL real (#2856)': r'KURSOR_REAL_2856_OKNO_PRZEPISOW|KURSOR_REAL_2856_OKNO_OSOB',
     'Nieudany dzwonek kupuje ciszę epizodu': r'Failed asserting that false is true\.|Failed asserting that \d+ is identical to 0\.|Zamknięty epizod nie daje ciszy nawrotowi\.|Nieudana próba WYCISZYŁA czujkę|Analog dla kolejki ma tę samą usterkę|actual size 1 matches expected size 2|Odwołanie przepadło razem z pamięcią alarmu',
     'Podzbiór fontu bez „ą"': r'Poza podzbiorem Inter: ą \(U\+|unicode-range w fonts\.css różni się od kontraktu dla inter-',
