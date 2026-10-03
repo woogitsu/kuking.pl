@@ -30,7 +30,7 @@
         (nowa wersja po obecnej najnowszej). Wersja {{ $wersja->version_number }} i wszystkie inne zostają bez zmian, a wykonania innych osób nadal wskazują swoje wersje.
     </p>
 
-    <x-error-summary :field-ids="['sekcje' => 'f-sekcja-dane', 'sekcje.*' => 'f-sekcja-dane', 'rewizja' => 'f-sekcja-dane']" />
+    <x-error-summary :field-ids="['sekcje' => 'f-sekcje', 'sekcje.*' => 'f-sekcje', 'rewizja' => 'f-sekcje']" />
 
     <section class="sekcja-strony" aria-labelledby="pp-nie">
         <h2 id="pp-nie">Czego nie przywracamy</h2>
@@ -45,7 +45,7 @@
         @csrf
         <input type="hidden" name="rewizja" value="{{ $rewizja }}">
 
-        <fieldset class="field @error('sekcje') has-error @enderror">
+        <fieldset id="f-sekcje" tabindex="-1" class="field @error('sekcje') has-error @enderror" @error('sekcje') aria-invalid="true" aria-describedby="f-sekcje-blad" @enderror>
             <legend class="field-label">Co zastosować?</legend>
 
             <section class="sekcja-strony" aria-labelledby="pp-dane">
@@ -113,7 +113,7 @@
                 @endif
             </section>
 
-            @error('sekcje')<p class="field-error">{{ $message }}</p>@enderror
+            @error('sekcje')<p id="f-sekcje-blad" class="field-error">{{ $message }}</p>@enderror
         </fieldset>
 
         @if($nic)
