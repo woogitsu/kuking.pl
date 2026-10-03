@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Historia przepisu: błąd wyboru prowadzi do nieistniejącej sekcji (#2875)': r'KOTWICA_2875_ZYWA',
     'Planer pomija błąd frazy w podsumowaniu (#2846)': r'PLANER_2846_BLAD_W_PODSUMOWANIU',
     'Odebranie współtworzenia obiecuje brak widoku zeszytu (#2822)': r'ZESZYT_2822_KONIEC_WSPOLTWORZENIA',
     'Potwierdzenie odejścia obiecuje brak widoku zeszytu (#2822)': r'ZESZYT_2822_POTWIERDZENIE_BEZ_OBIETNICY',

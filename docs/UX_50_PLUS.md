@@ -151,6 +151,13 @@ Do tego dwie rzeczy wokół samego zdania:
    na sztywno zamiast `old()` cicho zmieniało widoczność zakładanego zeszytu
    z „Wszyscy" na „Tylko ja" po każdej nieudanej walidacji.
 
+W podglądzie „Zastosuj jako nową poprawkę” z historii przepisu (#2875) cel
+podsumowania błędu wyboru to stała, widoczna grupa `#f-sekcje`. Nie wskazujemy
+checkboxa „Dane przepisu”, bo może go nie być, gdy różnią się tylko składniki
+lub kroki. Grupa otrzymuje opis błędu i stan `aria-invalid`; po odmowie
+zachowuje zaznaczenia. Wycofanie tej poprawki przywraca martwy odnośnik
+w podglądzie bez różnicy danych.
+
 Wszystkich pięciu punktów pilnuje `tests/Feature/BledyMowiaCoZrobicTest.php`
 — i pilnuje ich na komunikatach WYZWOLONYCH prawdziwym żądaniem, nie na treści
 plików w `lang/`. Komunikat, który leży w pliku językowym, ale nigdy nie wypada

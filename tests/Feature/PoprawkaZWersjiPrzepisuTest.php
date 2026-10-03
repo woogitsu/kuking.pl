@@ -109,6 +109,10 @@ final class PoprawkaZWersjiPrzepisuTest extends TestCase
         $this->assertStringContainsString('zdjęć: głównego, przy krokach i skanu kartki', $html);
         $this->assertStringContainsString('name="rewizja" value="'.$this->przepis->fresh()->content_revision.'"', $html);
         $this->assertStringContainsString('Zastosuj zaznaczone jako nową poprawkę', $html);
+        $this->assertStringContainsString('id="f-sekcje"', $html);
+        $this->assertStringContainsString('id="f-sekcja-dane"', $html, 'Dostępny wybór danych nadal jest widoczny.');
+        $this->assertStringContainsString('value="skladniki"', $html);
+        $this->assertStringContainsString('value="kroki"', $html);
     }
 
     public function test_zastosowanie_tworzy_nowa_wersje_i_zostawia_dawne_nietkniete(): void
@@ -290,6 +294,67 @@ final class PoprawkaZWersjiPrzepisuTest extends TestCase
 
         $this->assertNotSame($przed, $this->stan());
         $this->assertSame(3, $this->stan()['wersje'], 'Drugie zastosowanie nie mnoży wersji.');
+    }
+
+    public function test_blad_pustego_wyboru_prowadzi_do_widocznej_grupy_gdy_dane_sa_bez_zmian(): void
+    {
+        $przepis = Recipe::factory()->create([
+            'author_id' => $this->autor->getKey(), 'title' => 'Zupa bez zmiany danych',
+            'summary' => 'Opis bez zmiany', 'servings' => 4,
+        ]);
+        $skladnik = RecipeIngredient::create([
+            'recipe_id' => $przepis->getKey(), 'ingredient_text' => 'marchewka', 'position' => 0,
+        ]);
+        RecipeStep::create([
+            'recipe_id' => $przepis->getKey(), 'position' => 0, 'instruction' => 'Ugotuj zupę.',
+        ]);
+        app(SnapshotRecipeVersion::class)->handle($przepis->fresh(), $this->autor, 'start');
+        $skladnik->update(['ingredient_text' => 'seler']);
+        app(SnapshotRecipeVersion::class)->handle($przepis->fresh(), $this->autor, 'poprawka');
+
+        $adres = route('recipes.history.apply', [$przepis->slug, 1]);
+        $przed = $przepis->fresh()->content_revision;
+        $this->actingAs($this->autor)->get($adres)->assertOk()
+            ->assertDontSee('id="f-sekcja-dane"', false)
+            ->assertSee('value="skladniki"', false);
+
+        $odpowiedz = $this->from($adres)->followingRedirects()->post(route('recipes.history.apply.store', [$przepis->slug, 1]), [
+            'rewizja' => $przed,
+        ])->assertOk();
+        $html = (string) $odpowiedz->getContent();
+
+        $dom = new \DOMDocument;
+        @$dom->loadHTML($html);
+        $xpath = new \DOMXPath($dom);
+        $linki = $xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]//a[contains(text(), "Zaznacz, co z tej wersji")]');
+        $this->assertCount(1, $linki, 'KOTWICA_2875_ZYWA: błąd musi wystąpić w podsumowaniu.');
+        $link = $linki->item(0);
+        $this->assertInstanceOf(\DOMElement::class, $link);
+        $cel = ltrim($link->getAttribute('href'), '#');
+        $this->assertSame('f-sekcje', $cel, 'KOTWICA_2875_ZYWA: podsumowanie prowadzi do grupy wyboru.');
+        $grupy = $xpath->query('//*[@id="'.$cel.'"]');
+        $this->assertCount(1, $grupy, 'KOTWICA_2875_ZYWA: cel błędu musi istnieć dokładnie raz.');
+        $grupa = $grupy->item(0);
+        $this->assertInstanceOf(\DOMElement::class, $grupa);
+        $this->assertSame('fieldset', $grupa->nodeName, 'KOTWICA_2875_ZYWA: cel to widoczna grupa, a nie ukryte pole.');
+        $this->assertSame('true', $grupa->getAttribute('aria-invalid'));
+        $this->assertSame('f-sekcje-blad', $grupa->getAttribute('aria-describedby'));
+        $this->assertCount(1, $xpath->query('//*[@id="f-sekcje-blad" and contains(text(), "Zaznacz, co z tej wersji")]'));
+        $this->assertCount(0, $xpath->query('//input[@id="f-sekcja-dane"]'));
+        $this->assertCount(1, $xpath->query('//input[@value="skladniki"]'));
+        $this->assertSame($przed, $przepis->fresh()->content_revision, 'Pusty wybór nie zapisuje nowej wersji.');
+        $this->assertSame('seler', $przepis->ingredients()->sole()->ingredient_text);
+
+        // Inny błąd walidacji nie może odznaczyć poprawnie wybranych składników.
+        $poBledzieRewizji = $this->from($adres)->followingRedirects()->post(route('recipes.history.apply.store', [$przepis->slug, 1]), [
+            'sekcje' => ['skladniki'], 'rewizja' => 'niepoprawna',
+        ])->assertOk();
+        $drugiDom = new \DOMDocument;
+        @$drugiDom->loadHTML((string) $poBledzieRewizji->getContent());
+        $drugiXpath = new \DOMXPath($drugiDom);
+        $this->assertCount(1, $drugiXpath->query('//input[@value="skladniki" and @checked]'));
+        $this->assertCount(1, $drugiXpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]//a[@href="#f-sekcje"]'));
+        $this->assertSame($przed, $przepis->fresh()->content_revision);
     }
 
     public function test_historia_wersji_ma_przycisk_tylko_dla_autora_i_nie_przy_najnowszej(): void

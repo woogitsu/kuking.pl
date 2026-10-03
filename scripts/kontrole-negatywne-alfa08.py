@@ -1356,6 +1356,10 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Historia przepisu: błąd wyboru prowadzi do nieistniejącej sekcji (#2875)",
+     "resources/views/pages/recipes/historia-poprawka.blade.php",
+     "test_blad_pustego_wyboru_prowadzi_do_widocznej_grupy_gdy_dane_sa_bez_zmian",
+     lambda s: replace_once(s, "'sekcje' => 'f-sekcje'", "'sekcje' => 'f-sekcja-dane'")),
     ("Planer pomija błąd frazy w podsumowaniu (#2846)", "resources/views/pages/planer/show.blade.php",
      "test_blad_frazy_jest_przy_polu_i_w_podsumowaniu_z_zywym_odnosnikiem",
      lambda s: replace_once(s,
