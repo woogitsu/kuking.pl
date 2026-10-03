@@ -130,6 +130,14 @@ else
     zle "Kontrola #2815 myli wynik wyścigu — uruchom: python3 tests/skrypty/kontrola-negatywna-2815-wynik.py"
 fi
 
+# #2880: pominięty albo obcy test nie jest zielonym przebiegiem kontroli.
+krok "Werdykt przypomnienia o urodzinach (#2880)"
+if python3 tests/skrypty/kontrola-negatywna-2880-wynik.py >/dev/null 2>&1; then
+    ok "Kontrola #2880 wymaga wykonanego przypadku i właściwej przyczyny"
+else
+    zle "Kontrola #2880 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-2880-wynik.py"
+fi
+
 # --- 3b''. Dziennik decyzji: pliki w docs/decyzje/ zgodne z indeksem -------
 # Jedna decyzja = jeden plik; docs/DECISIONS.md jest indeksem generowanym
 # z plików. To samo pilnuje DziennikDecyzjiZgodnyZIndeksemTest.
