@@ -518,10 +518,57 @@ class DwaOpakowaniaProduktuTest extends TestCase
             ->assertSee('Tak, usuń tylko to opakowanie')
             ->assertSee('Usuń cały produkt (oba opakowania)');
 
-        $this->actingAs($ja)->delete(route('pantry.destroy', $mleko))->assertRedirect(route('pantry.index'));
+        $drugie = (string) DB::table('pantry_second_packages')->where('pantry_item_id', $mleko->getKey())->value('id');
+        $this->actingAs($ja)->get(route('pantry.index'))->assertOk()
+            ->assertSee('name="widziane_drugie" value="'.$drugie.'"', false);
+        $this->actingAs($ja)->delete(route('pantry.destroy', $mleko), ['widziane_drugie' => $drugie])
+            ->assertRedirect(route('pantry.index'));
 
         $this->assertSame(0, $ja->pantryItems()->count());
         $this->assertSame(0, DB::table('pantry_second_packages')->count());
+    }
+
+    public function test_stare_potwierdzenie_jednego_opakowania_nie_usuwa_dodanego_pozniej_drugiego(): void
+    {
+        $ja = $this->user();
+        $mleko = $this->produkt($ja, 'mleko', ['2026-10-14', 'best_before'], iloscPierwsze: '1 litr');
+        $this->actingAs($ja)->get(route('pantry.index'))->assertOk()
+            ->assertSee('Usunąć ten produkt z listy?')
+            ->assertSee('name="widziane_drugie" value="brak"', false);
+
+        $this->actingAs($ja)->put(route('pantry.update', $mleko), [
+            '_formularz' => 'termin', 'opakowanie' => 'drugie',
+            'rodzaj' => 'use_by', 'termin_dzien' => '20', 'termin_miesiac' => '10', 'termin_rok' => '2026',
+            'ilosc' => '2 litry', 'mrozone' => '1',
+        ])->assertRedirect(route('pantry.index'));
+        $drugie = DB::table('pantry_second_packages')->where('pantry_item_id', $mleko->getKey())->first();
+        $this->assertNotNull($drugie);
+
+        $odpowiedz = $this->actingAs($ja)->delete(route('pantry.destroy', $mleko), ['widziane_drugie' => 'brak']);
+        $this->assertSame(1, DB::table('pantry_items')->where('id', $mleko->getKey())->count(), 'SPIZARNIA_2826_STARE_POTWIERDZENIE_NIE_KASUJE');
+        $odpowiedz->assertRedirect(route('pantry.index'));
+        $odpowiedz->assertSessionHas('status_rodzaj', 'blad');
+        $odpowiedz->assertSessionHas('status', 'Liczba opakowań tego produktu zmieniła się od otwarcia pytania. Niczego nie usunęliśmy. Otwórz aktualne pytanie „Usuń” i wybierz ponownie, co usunąć.');
+        $zachowane = DB::table('pantry_second_packages')->where('pantry_item_id', $mleko->getKey())->first();
+        $this->assertNotNull($zachowane, 'SPIZARNIA_2826_DRUGIE_ZOSTAJE');
+        $this->assertSame($drugie->id, $zachowane->id);
+        $this->assertSame('2 litry', $zachowane->quantity_note);
+        $this->assertSame('2026-10-20', (string) $zachowane->expires_on);
+        $this->assertTrue((bool) $zachowane->frozen);
+        $this->assertSame('1 litr', $mleko->fresh()?->quantity_note);
+    }
+
+    public function test_brak_lub_podmieniony_zakres_potwierdzenia_nie_kasuje_produktu(): void
+    {
+        $ja = $this->user();
+        $mleko = $this->produkt($ja, 'mleko', ['2026-10-14', 'best_before']);
+
+        foreach ([[], ['widziane_drugie' => 'nieznane-opakowanie']] as $formularz) {
+            $this->actingAs($ja)->delete(route('pantry.destroy', $mleko), $formularz)
+                ->assertRedirect(route('pantry.index'))
+                ->assertSessionHas('status_rodzaj', 'blad');
+            $this->assertDatabaseHas('pantry_items', ['id' => $mleko->getKey()]);
+        }
     }
 
     public function test_limit_150_produktow_liczy_produkty_a_nie_opakowania(): void

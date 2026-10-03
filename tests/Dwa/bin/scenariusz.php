@@ -54,6 +54,7 @@ use App\Domain\Moderation\Actions\ZdejmijZUrzedu;
 use App\Domain\Moderation\NowaDecyzja;
 use App\Domain\Pantry\CoMamWDomu;
 use App\Domain\Pantry\DrugieOpakowanieProduktu;
+use App\Domain\Pantry\UsunProduktPoPotwierdzeniu;
 use App\Domain\Pantry\ZmienTerminProduktu;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
@@ -979,6 +980,12 @@ try {
             $produkt = PantryItem::query()->findOrFail($argumenty['produkt']);
 
             return app(DrugieOpakowanieProduktu::class)->usun($produkt, $argumenty['cel'], $argumenty['odcisk'] ?? null);
+        })(),
+
+        'usun-produkt-po-potwierdzeniu-pantry' => (function () use ($argumenty): string {
+            $produkt = PantryItem::query()->findOrFail($argumenty['produkt']);
+
+            return app(UsunProduktPoPotwierdzeniu::class)->handle($produkt, $argumenty['widziane_drugie']);
         })(),
 
         // Zastąpienie wyboru redakcyjnego (#1027): prawdziwe akcje domenowe,

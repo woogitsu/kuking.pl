@@ -79,6 +79,7 @@
                         <form method="POST" action="{{ route('pantry.destroy', $produkt) }}" data-usun-caly-produkt>
                             @csrf
                             @method('DELETE')
+                            <input type="hidden" name="widziane_drugie" value="{{ $produkt->secondPackage?->getKey() }}">
                             <button class="btn btn-danger" type="submit"
                                     aria-label="Usuń cały produkt, oba opakowania: {{ $produkt->name }}">Usuń cały produkt (oba opakowania)</button>
                         </form>
@@ -88,6 +89,7 @@
                         <form method="POST" action="{{ route('pantry.destroy', $produkt) }}">
                             @csrf
                             @method('DELETE')
+                            <input type="hidden" name="widziane_drugie" value="brak">
                             <button class="btn btn-danger" type="submit"
                                     aria-label="Tak, usuń z listy: {{ $produkt->name }}">Tak, usuń z listy</button>
                         </form>
