@@ -88,3 +88,20 @@ bajtów). Podział `c841a898f` zachowuje sekcje zeszytów w nowym pliku
 zeszyty-udostepnienia-i-odzyskiwanie.md. Kontrola rozmiarów wszystkich
 plików na dysku przechodzi bez zmiany limitów. Testy wykonawcze nowego
 złożenia i pełna normalna bramka pozostają do wykonania.
+
+## Końcowa kotwica po pełnej odmowie 8b100
+
+Normalna seryjna bramka heada `8b100493a7098cf85cd61aac1b27cf0296a2d012`
+odmówiła pusha po 13 954 PASS / 1 FAIL, 171 086 asercjach. Jedyny błąd
+to przeniesiony lokalny fragment w dokumencie zeszytów, wykryty wcześniej
+niezależnym przeglądem i następnie przez pełny DokumentyMdNieMajaMartwychOdnosnikowTest.
+N przyjmuje `3caab9c67`: link do rzeczywistego pliku i nagłówka, mały
+helper indeksu z fixture dodatnią/ujemną i fizyczną kontrolą starej kotwicy.
+Agent: 5 / 65 PASS, mutant właściwie FAIL, bytes/mtime restore i znów PASS.
+O po tej samej korekcie: Linux 18 / 1745 PASS. N wymaga własnej końcowej
+kontroli i następnego normalnego pusha; wcześniejszej odmowy nie pominięto.
+
+Następna pełna lokalna bramka użyje udokumentowanej opcji czterech procesów
+i odtwarzanych osobnych baz workerów tej paczki. To świadomy wybór
+stanowiska (12 rdzeni i wolne zasoby), nie zmiana haka ani usunięcie testów.
+Terminalne pełne CI dokładnego heada nadal jest wymagane.

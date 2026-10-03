@@ -1,79 +1,63 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
-## Aktualny odbiór Codex — 3.10.2026, 03:43 UTC
+## Aktualny odbiór Codex — 3.10.2026, 04:29 UTC
 
 Ten blok zastępuje stan operacyjny historycznego handoveru poniżej.
 Obowiązują aktualne AGENTS.md, decyzje D-333 i nowsze polecenia właściciela.
-Zespół: koordynator i trzy dodatkowe agenty. Poprawki istniejących issues,
-push z normalnymi hakami, pełne CI i merge dokładnego heada są zlecone;
-nowe funkcje i koszt zachowują osobne decyzje.
+Zespół: koordynator i trzy dodatkowe agenty; własne rozłączne worktree,
+dokładny lock, PostgreSQL 18+, bez pushy na gałęzie Claude.
 
-- **L odebrane na produkcji:** main
-  `b913e3b234a1e1725b2dd3dbbe675ccfac41b641`, terminalne CI push
-  `37074499270` SUCCESS, SUCCESS web/workera/harmonogramu tego SHA,
-  zgodne `/wydanie` i `/health` 200. Dowód:
-  [komentarz #2777](https://github.com/woogitsu/kuking.pl/pull/2777#issuecomment-5963031581).
-- **M przekazana i scalona do C przez #2793**, exact-head merge.
-  C `2e55128e96c1802fb454a8905cef8799cacb3f71`, pełne CI push
-  `37082918564` SUCCESS. M nie jest jeszcze wydana na produkcję.
-- **Korekta M w #2844 do C:** kolejność odtworzenia CSAM, ścisła wersja
-  #2808, kopia importowanego szkicu #2800 i świeże konto przed importem
-  #2815. Normalny push heada `3195e275325ee13f71b7577425204403dd2920a8`
-  przeszedł całą domyślną bramkę. CI `37091961698` terminalnie czerwone:
-  23 zadania SUCCESS, jedno FAIL w odczycie wyniku mutacji #2815.
-  Mutant rzeczywiście oblał dwa właściwe warianty, ale przyrząd żądał
-  JSON w zwykłym tekście reportera. Poprawka `8b3072928` odczytuje
-  dokładny JUnit i ma siedem testów mechanizmu; fizyczny mutant oblał,
-  po przywróceniu trzy warianty PASS. Krok mechanizmu dodany także
-  do istniejącego joba lint CI. Nowy M
-  `344f6231074129d0955d193cd62a11670a6af06b` jest zamrożony podczas
-  kolejnego normalnego pusha; nie uznawać go jeszcze za pełną zieleń.
-- **N — następny normalny push po konkretnej odmowie.** Poprzedni head
-  `c088b2208f629776dff203a05174151ade394a01` miał 13 954 testy PASS i
-  jeden FAIL: opis `docs/baza/przepisy.md` przekroczył próg 45 KiB.
-  Dalsza celowana kontrola wykryła także za długi opis zeszytów.
-  Treść przeniesiona po nagłówkach tabel do
-  `przepisy-wersje-i-udostepnienia.md` i
-  `zeszyty-udostepnienia-i-odzyskiwanie.md`, indeks zaktualizowany; progu
-  nie zmieniono. N zawiera też naprawę przyrządu z M. Nowa bramka,
-  zdalny head i pełne CI nadal wymagają odbioru. Szczegóły:
-  [ODBIOR-N-CODEX-20261003.md](ODBIOR-N-CODEX-20261003.md).
-- **O — osiem lokalnie odebranych poprawek:** #2829 powrót notatki,
-  #2821 nazwa listy po limicie, #2818 właściwa lista po odmowie,
-  #2814 powrót po alarmie, #2837 sprzeciw wobec anonimowych liczników,
-  #2838 brak zakleszczenia odpowiedzi, #2820 wygasła wskazówka,
-  #2828 zdjęcie aktywnego kroku. Własna `codex/paczka-o-20261003`,
-  złożenie `19890f6b882298cb343037a61c300e6a5c6c0a83` zawiera nowy
-  przyrząd M; podział dokumentacji N trzeba dołączyć przed bramką.
-  Pomiary wcześniejszych złożeń: 43 / 1952 i 73 / 2122 PASS,
-  pełny PHPStan 0. Poszczególne poprawki mają fizyczne kontrole ujemne;
-  zdjęcie obejrzane w rzeczywistym Chrome 320 px / tekst 200%.
-  To nie dowód pełnej bramki końcowego O, CI ani produkcji.
-- **Praca agentów do P:** #2806 powrót listy i pól po błędzie spiżarni,
-  #2842 podsumowanie filtra „Bez składnika”, #2846 podsumowanie
-  wyszukiwania w Planerze. Zakresy rozłączne, własne worktree/PG18;
-  sesja robocza nie tworzy PR i nie pushuje na gałęzie koordynatora.
-- **#2784 kontrola ujemna wykonana za zgodą właściciela:** mutant
-  właściwie FAIL, bytes/mtime restore, 17 / 91 PASS. Dowód:
-  [komentarz #2784](https://github.com/woogitsu/kuking.pl/pull/2784#issuecomment-5963122000).
-  Nie pytać ponownie. #2424–#2426 zamknięte po odbiorze wydania V.
+- **L odebrane na produkcji:** main `b913e3b234a1e1725b2dd3dbbe675ccfac41b641`,
+  terminalne CI push `37074499270` SUCCESS, SUCCESS web/workera/harmonogramu
+  tego SHA, zgodne `/wydanie` i `/health` 200. Dowód: [#2777](https://github.com/woogitsu/kuking.pl/pull/2777#issuecomment-5963031581).
+- **M w C przez #2793:** C `2e55128e96c1802fb454a8905cef8799cacb3f71`,
+  CI push `37082918564` SUCCESS. Korekta #2844 head
+  `344f6231074129d0955d193cd62a11670a6af06b` przeszła pełny normalny
+  pre-push i jest zdalnie. CI `37095569541` trwa; wyścigi po korekcie
+  przyrządu JUnit przeszły, nie scalać przed pełną terminalną zielenią.
+  Stary `37091961698` miał 23 SUCCESS / 1 FAIL przyrządu; mutant faktycznie
+  oblał wpis i zeszyt. Poprawka ma siedem testów mechanizmu i lint CI.
+- **N po konkretnej odmowie:** najpierw opis przekroczył 45 KiB, potem
+  stara kotwica po przeniesieniu nagłówka. Oba opisy podzielone bez zmiany
+  limitów, treść zachowana. Pełny 8b100: 13 954 PASS / 1 FAIL, 171 086
+  asercji, odmowa pusha. Przyjęto `3caab9c67` z poprawną kotwicą i testem
+  rzeczywistych fragmentów, fizyczny mutant i restore. Następna normalna
+  bramka użyje czterech workerów i własnych odtwarzanych baz; szczegóły
+  w [ODBIOR-N-CODEX-20261003.md](ODBIOR-N-CODEX-20261003.md).
+- **O zamrożone podczas normalnego pusha:** `1cb5e45a69b202637b949fd75adfc24eae0a0d8d`,
+  osiem poprawionych issues #2829, #2821, #2818, #2814, #2837, #2838,
+  #2820, #2828; nowy przyrząd M i oba podziały N z kotwicą. Root Linux:
+  43 / 1952, 73 / 2122, 58 / 2000 oraz kotwice 18 / 1745 PASS;
+  PHPStan 0 i rzeczywisty Chrome 320 px / 200% przy zdjęciu.
+  [ODBIOR-O-CODEX-20261003.md](ODBIOR-O-CODEX-20261003.md) jest na gałęzi O.
+  To nie dowód pełnego CI ani odbioru produkcji.
+- **P lokalnie złożone:** #2806 (wraz z usunięciem listy po odczycie),
+  #2842, #2846, #2822, #2850 i #2839. Root wykonuje własny Linux odbiór.
+  P225: 191 PASS / 1 FAIL (3277 asercji): libxml normalizował CRLF do LF
+  w DOM eksportu HTML. Naprawa testu `ed953a2f5` normalizuje wyłącznie
+  końce wierszy w DOM, zachowuje wymagane puste linie i dokładny JSON.
+  #2839 wizualnie PASS: wygenerowany HTML, 320 px, tekst 200%, print media.
+- **Nowe P1 #2851 i #2854:** osobna gałąź od wdrożonego main. Jeden agent
+  naprawia spóźnioną zmianę hasła i wylogowanie innych urządzeń po resecie;
+  drugi niezależnie weryfikuje kontrakt i prawdziwe następne HTTP ze starym
+  cookie. Trzeci wdraża istniejące #2843 zachowania wyboru importu partiami.
+- **#2784:** ujemna kontrola wykonana za zgodą właściciela, właściwy FAIL,
+  bytes/mtime restore, 17 / 91 PASS. [Dowód](https://github.com/woogitsu/kuking.pl/pull/2784#issuecomment-5963122000); nie pytać ponownie.
 
-### Następne kroki
+### Następne kroki i granice
 
-1. Odebrać normalny push i pełne terminalne CI dokładnego M #2844.
-   Dopiero zielony niedraftowy PR scalać do C z `expectedHeadSha`.
-2. Wydać M jednym końcowym PR do main, pełne CI wraz z CodeQL;
-   po merge terminalne CI push, SUCCESS trzech usług dla dokładnego
-   SHA, `/wydanie` i `/health`. Dopiero wtedy zamknięcia z dowodem.
-3. Następnie N i O; przy zmianie bazy wymagać świeżego końcowego
-   heada i pełnej bramki. Nie przesuwać heada w trakcie kontroli,
-   nie anulować ani nie ponawiać masowo CI. Nowe poprawki do P.
-4. Używać dokładnego locka i osobnych baz PostgreSQL 18+, z jawnym
-   hostem/portem/właścicielem. Bez współdzielonego vendor i PG16.
-   [WSPOLNE-issue.md](WSPOLNE-issue.md) zawiera instrukcję pracy.
-5. Zachować otwarte #2025 (panel Railway), #2708 (prawo, zewnętrzny
-   dziennik, rzeczywiste R2/CDN i kopia), #2713 (czynności właściciela)
-   oraz pilot 50+. Zatwierdzenie partii nie oznacza ich odbioru.
+1. Zielony terminalnie niedraftowy #2844 dokładnego heada scalać do C
+   z expectedHeadSha. M wydać końcowym PR do main z pełnym CI i CodeQL.
+2. Po merge: terminalne CI push main, SUCCESS wszystkich trzech usług
+   dokładnego SHA, zgodny produkcyjny /wydanie i /health. Dopiero wtedy
+   zamknięcia zastąpionych PR i issues po sprawdzeniu unikalnych kryteriów.
+3. Dalej N, O i P. Nie przesuwać zamrożonego heada w trakcie kontroli,
+   nie anulować/ponawiać masowo CI, nie traktować skippów jako dowodu.
+4. P1 naprawy od main mają priorytet; zielona analiza kodu nie zastępuje
+   przeplotu PG18 i sprawdzenia cookie po odwołaniu sesji.
+5. #2025 (panel Railway), #2708 (prawo, dziennik, R2/CDN i kopia),
+   #2713 (właściciel) i pilot 50+ pozostają otwarte. Nowe funkcje/koszt
+   wymagają decyzji, zatwierdzona poprawka nie oznacza odbioru tych czynności.
 
 ## Historyczny handover Claude — migawka 2–3.10.2026
 
