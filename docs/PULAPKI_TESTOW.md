@@ -284,7 +284,7 @@ asercji z własnym markerem po mutacji oraz trzech przejść po przywróceniu
 źródła. Sam niezerowy kod procesu lub marker znaleziony gdzieś w logu nie
 jest dowodem poprawnej przyczyny. Sam odczyt raportu ma siedem testów bez bazy
 i PHP w `tests/skrypty/kontrola-negatywna-2815-wynik.py`, uruchamianych przez
-`scripts/check.sh`: poprawny JUnit przy tekstowym wyjściu, brak raportu,
+`scripts/check.sh` i krok w istniejącym jobie `lint` CI: poprawny JUnit przy tekstowym wyjściu, brak raportu,
 zielony mutant, obca przyczyna, pominięcie, błąd wykonania, brak wariantu
 oraz czerwony przebieg po przywróceniu źródła.
 Podstawienie starej funkcji bez JUnit do tego testu fizycznie oblewa próbę
