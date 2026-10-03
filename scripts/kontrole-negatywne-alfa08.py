@@ -1355,6 +1355,11 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Wygasła prośba nadal blokuje poprawę uwagi (#2820)", "app/Domain/Recipes/Gotowanie/PolaKorekty.php",
+     "test_prosba_blokuje_przed_terminem_a_w_chwili_wygasniecia_odblokowuje_formularz_i_zapis",
+     lambda s: replace_once(s,
+         "->where(static function (Builder $query): void {\n                $query->where('status', RecipeHint::STATUS_ACCEPTED)\n                    ->orWhere(static function (Builder $proposed): void {\n                        $proposed->where('status', RecipeHint::STATUS_PROPOSED)\n                            ->where('created_at', '>', RecipeHint::granicaWygasniecia());\n                    });\n            })",
+         "->whereIn('status', [RecipeHint::STATUS_PROPOSED, RecipeHint::STATUS_ACCEPTED])")),
     ("Limit przepisu gubi wybraną listę zakupów (#2818)", "app/Http/Controllers/ListaZakupowController.php",
      "test_odmowa_limitu_przepisu_wraca_na_wybrana_liste_z_droga_wyczyszczenia",
      lambda s: replace_once(s,
