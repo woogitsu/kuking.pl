@@ -89,6 +89,15 @@ Prywatność: lista jest w paczce danych (sekcja `co_mam_w_domu`, bez kolumn
 generowanych) i znika w `EraseAccountData` (jawnie — konta się anonimizuje,
 nie kasuje, więc kaskada klucza obcego tam nie działa).
 
+**Dodanie odhaczonych zakupów (#2806).** Formularz przenosi wybraną własną
+listę przez GET, POST i powrót po błędzie. Zaznaczenia i poprawione nazwy
+pozostają przy pozycjach tej samej listy, a błąd nazwy widać przy polu oraz
+w podsumowaniu. Po sprawdzeniu własności listy akcja pod istniejącą blokadą
+konta potwierdza, że wszystkie zaznaczone pozycje nadal do niej należą;
+nie dodaje części zestawu ani nie przełącza się na domyślną listę. Usunięta
+lista daje jawną odmowę. Cofnięcie samej poprawki nie zmienia danych ani
+schematu, ale przywróciłoby utratę kontekstu formularza.
+
 **Rollback.** `down()` usuwa tabelę i obie funkcje. Nie dotyka przepisów,
 składników ani wyszukiwarki. Przy niepustej tabeli **odmawia** (D-088) —
 listy to dane wpisane przez ludzi; wymuszenie po zrobieniu kopii:

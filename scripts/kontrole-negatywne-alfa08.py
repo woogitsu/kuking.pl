@@ -1355,6 +1355,11 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Błąd spiżarni gubi nazwaną listę zakupów (#2806)", "app/Http/Controllers/ZakupyDoSpizarniController.php",
+     "test_blad_w_nazwanej_liscie_odtwarza_wlasciwe_pola_wybor_i_odnosniki",
+     lambda s: replace_once(s,
+         "return redirect()->route('shopping.pantry.form', $wybrana !== null ? ['lista' => $wybrana->getKey()] : [])",
+         "return redirect()->route('shopping.pantry.form')")),
     ("Limit przepisu gubi wybraną listę zakupów (#2818)", "app/Http/Controllers/ListaZakupowController.php",
      "test_odmowa_limitu_przepisu_wraca_na_wybrana_liste_z_droga_wyczyszczenia",
      lambda s: replace_once(s,
