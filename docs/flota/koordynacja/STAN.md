@@ -1,5 +1,30 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
+## Aktualny odbiór Codex — 3.10.2026, 07:35 UTC
+
+- M wydana: main `6c3d2a936ee10c672b542e0814bacc41586399e7`, pełne CI push
+  SUCCESS, trzy Railway SUCCESS tego SHA, /wydanie zgodne i /health 200.
+  [Dowód](https://github.com/woogitsu/kuking.pl/pull/2866#issuecomment-5966380433).
+  14 issues nadal mają brakujące kryteria pilota/UX/paneli; nie zamknięto ich.
+- Małe P1 #2851/#2854/#2861/#2862 wydajemy pierwsze. Włączono wdrożone M
+  zwykłym merge do źródła, bez zmiany jego drzewa kodu.
+- Pozostałe N–U zbiera jeden istniejący PR #2865; oddzielne lokalne gałęzie
+  zachowują historię. Nie tworzyć duplikatów P/Q/R/T/U ani źródłowego N.
+  [Odbiór i pozostałe bramki](ODBIOR-N-U-CODEX-20261003.md).
+- Pełne normalne pushe odmówiły przez dwa rzeczywiste błędy przyrządów:
+  fixture Git zmienia core.bare wywołującego registry, filtr CI nie obejmuje
+  czytanego pliku celu #2783. Zatrzymano tylko własne lokalne przebiegi,
+  configi zachowane i naprawione. Agent naprawia oba błędy; nie omijać haka.
+- U wspólnie: 132/2538 PASS, trzy właściwe mutanty/restore, build i full
+  PHPStan PASS. Rzeczywisty PDF #2876 i formularz Chromium #2857 odebrane
+  technicznie, z ograniczeniami opisanymi w dokumencie. Brak pełnego wydania.
+- Następna paczka: #2847 i #2872 gotowe lokalnie, root w review;
+  #2873 i #2875 u agentów. Root i trzej subagenci, bez zmian gałęzi Claude.
+
+Nie uznawać skróconego draft CI, skippów lub anulowania za pełny dowód.
+Zamknięcie issue wymaga całych jego kryteriów i końcowego odbioru wydania.
+Poniższe bloki pozostają historycznymi migawkami.
+
 ## Aktualny odbiór Codex — 3.10.2026, 06:45 UTC
 
 - **M wydana:** main `6c3d2a936ee10c672b542e0814bacc41586399e7`, CI push
