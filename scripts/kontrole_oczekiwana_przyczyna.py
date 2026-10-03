@@ -39,6 +39,8 @@ OCZEKUJ = {
     'Kolejka gubi zdjęcie bieżącego kroku (#2828)': r'ZDJECIE_2828_BIEZACY_KROK',
     'Usunięta lista zakupów prowadzi do nieistniejącego formularza (#2806)': r'ZAKUPY_2806_BEZ_DRUGIEGO_PRZEKIEROWANIA',
     'Błąd spiżarni gubi nazwaną listę zakupów (#2806)': r'ZAKUPY_2806_NAZWANA_LISTA_ZOSTAJE',
+    'Błąd Bez składnika znika z podsumowania (#2842)': r'BEZ_SKLADNIKA_2842_PODSUMOWANIE',
+    'Podsumowanie Bez składnika prowadzi do nieistniejącego pola (#2842)': r'BEZ_SKLADNIKA_2842_CEL',
     'Limit przepisu gubi wybraną listę zakupów (#2818)': r'LISTY_2818_WRACA_NA_WYBRANA',
     'Anonimowy licznik omija sprzeciw wobec statystyk (#2837)': r'SPRZECIW_2837_ANI_ANONIMOWO',
     'Kopia odzyskania gubi ręczną kolejność (#2816)': r'ODZYSKANIE_2816_RECZNA_KOLEJNOSC',

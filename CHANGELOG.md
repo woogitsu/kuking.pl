@@ -12,6 +12,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 - Poprawione (#2806): po błędzie dodawania zakupów do spiżarni wracasz do wybranej nazwanej listy z zachowanymi nazwami i zaznaczeniami. Formularz nie przełącza się na listę domyślną. Jeśli lista została w międzyczasie usunięta, wracasz bezpośrednio do list zakupów z wyjaśnieniem; produkty nie są dopisywane.
 
+- Poprawione (#2842): błąd filtra „Pomiń przepisy ze składnikiem” w wyszukiwarce pojawia się przy polu i w podsumowaniu z odnośnikiem do pola. Wpisana nazwa zostaje, a wyniki nadal pokazują się bez błędnego filtra.
+
 - Poprawione (#2829): gdy notatka przy zapisie z dalszej porcji zeszytu ma błąd albo została zmieniona w innej karcie, formularz wraca przy właściwym przepisie lub wpisie z zachowanym tekstem. Pozostałe notatki nie przejmują tego tekstu.
 
 - Poprawione (#2818): gdy dodanie składników przepisu przekroczy limit zakupów, odmowa wraca na nadal dostępną wybraną listę. Można tam zobaczyć odhaczone pozycje i skorzystać z „Wyczyść odhaczone”; nic nie jest usuwane automatycznie.
