@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2861, #2862): spóźnione potwierdzenie albo wyłączenie weryfikacji dwuetapowej po zmianie hasła w drugiej sesji nie odnowi odwołanej sesji ani nie zmieni ochrony konta. Serwis prosi o ponowne logowanie; aktualna sesja nadal może wykonać obie czynności.
+
 - Poprawione (#2851, #2854): spóźniona zmiana hasła i „Wyloguj inne urządzenia” po resecie albo zmianie w drugiej sesji nie mogą użyć starego hasła do nadpisania nowego ani przywrócić odwołanej sesji. Serwis prosi wtedy o ponowne logowanie; aktualna sesja nadal może wykonać obie akcje.
 
 - Poprawione (CodeQL, wydanie L): w kolejce gotowania aktywny przepis wybrany w formularzu trafia do adresu kolejki tylko wtedy, gdy ma postać adresu przepisu (małe litery, cyfry, myślnik), i jest kodowany. Inny tekst z pola formularza jest pomijany, więc nie może zmienić adresu przejścia. Test regresyjny w `kolejka-gotowania.test.mjs`.

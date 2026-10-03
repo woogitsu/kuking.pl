@@ -6,21 +6,26 @@ namespace App\Http\Controllers\Settings;
 
 use App\Domain\Security\Actions\WlaczDwuetapowa;
 use App\Domain\Security\Actions\WygenerujNoweKodyZapasowe;
+use App\Domain\Security\Actions\WylaczDwuetapowa;
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Security\WynikNowychKodowZapasowych;
 use App\Domain\Security\WynikWlaczeniaDwuetapowej;
+use App\Domain\Users\Actions\ZmianaHaslaWymagaPonownegoLogowania;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\NoweKodyZapasoweRequest;
 use App\Http\Requests\Settings\WlaczenieDwuetapowejRequest;
 use App\Http\Requests\Settings\WylaczenieDwuetapowejRequest;
-use App\Models\AuditLogEntry;
 use App\Support\Komunikat;
+use App\Support\Sesja\GeneracjaSesji;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use LogicException;
 
 /**
  * Włączanie i wyłączanie weryfikacji dwuetapowej na koncie (issue #12).
@@ -145,7 +150,15 @@ class TwoFactorSettingsController extends Controller
 
         $data = $request->validated();
 
-        $wynik = $wlacz->handle($user, $data['password'], $data['code'], $request->ip());
+        try {
+            $wynik = $wlacz->handle(
+                $user, $data['password'], $data['code'], $request->ip(),
+                (int) $request->session()->get(GeneracjaSesji::KLUCZ, 0),
+                $request->session()->getId(),
+            );
+        } catch (ZmianaHaslaWymagaPonownegoLogowania $e) {
+            return $this->odmowStarejSesji($request, $e);
+        }
 
         switch ($wynik->status) {
             case WynikWlaczeniaDwuetapowej::BRAK_SEKRETU:
@@ -172,8 +185,6 @@ class TwoFactorSettingsController extends Controller
         // Bieżąca sesja zostaje: to w niej właściciel właśnie podał hasło
         // i kod. Zły kod albo złe hasło kończą się wyjątkiem wyżej, więc
         // niczego nie odwołują.
-        $user->invalidateSessions($request->session()->getId());
-
         // Kod padł właśnie w tej sesji, więc moderator wchodzi do panelu bez
         // ponownego logowania (`moderator.2fa`, #930).
         $request->session()->put(TwoFactorAuthenticator::dowodSesji($user->refresh()));
@@ -252,7 +263,7 @@ class TwoFactorSettingsController extends Controller
      * może być jednym kliknięciem kogoś, kto akurat siedzi przy otwartej
      * sesji w przeglądarce.
      */
-    public function disable(WylaczenieDwuetapowejRequest $request): RedirectResponse
+    public function disable(WylaczenieDwuetapowejRequest $request, WylaczDwuetapowa $wylacz): RedirectResponse
     {
         $data = $request->validated();
 
@@ -262,11 +273,14 @@ class TwoFactorSettingsController extends Controller
             ])->errorBag('disable');
         }
 
-        $user = $request->user();
-        $byloWlaczone = $user->hasTwoFactorConfirmed();
-        $user->disableTwoFactor();
-        if ($byloWlaczone) {
-            AuditLogEntry::recordBezWywracania('account.two_factor_disabled', $user, $user, ip: $request->ip());
+        try {
+            $wylacz->handle(
+                $request->user(), $data['password'],
+                (int) $request->session()->get(GeneracjaSesji::KLUCZ, 0),
+                $request->session()->getId(), $request->ip(),
+            );
+        } catch (ZmianaHaslaWymagaPonownegoLogowania $e) {
+            return $this->odmowStarejSesji($request, $e);
         }
 
         // WYŁĄCZENIE ZAMYKA INNE URZĄDZENIA JAK WŁĄCZENIE (#930).
@@ -276,10 +290,23 @@ class TwoFactorSettingsController extends Controller
         // mnie" muszą zalogować się od nowa, na nowych zasadach. Bieżąca sesja
         // zostaje — to w niej właściciel właśnie podał hasło. Jej dowód 2FA
         // traci sens, bo 2FA już nie ma.
-        $request->user()->invalidateSessions($request->session()->getId());
         $request->session()->forget(TwoFactorAuthenticator::KLUCZ_DOWODU_SESJI);
 
         return redirect()->route('settings.two_factor.edit')
             ->with(Komunikat::sukces('Weryfikacja dwuetapowa jest wyłączona.'));
+    }
+
+    private function odmowStarejSesji(Request $request, ZmianaHaslaWymagaPonownegoLogowania $e): RedirectResponse
+    {
+        $guard = Auth::guard('web');
+        if (! $guard instanceof SessionGuard) {
+            throw new LogicException('Web guard musi obsługiwać wylogowanie bieżącego urządzenia.');
+        }
+
+        $guard->logoutCurrentDevice();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login')->withErrors(['login' => $e->getMessage()]);
     }
 }
