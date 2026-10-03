@@ -130,6 +130,15 @@ else
     zle "Kontrola #2815 myli wynik wyścigu — uruchom: python3 tests/skrypty/kontrola-negatywna-2815-wynik.py"
 fi
 
+# #2865: kontrola #2811 wymaga właściwego JUnit, a nie JSON reportera.
+# Testuje odczyt i werdykt przyrządu bez bazy i PHP.
+krok "Werdykt ponowienia zdjęcia (#2811)"
+if python3 tests/skrypty/kontrola-negatywna-2811-wynik.py >/dev/null 2>&1; then
+    ok "Kontrola #2811 rozpoznaje właściwy test i przyczynę z JUnit"
+else
+    zle "Kontrola #2811 myli wynik wyścigu — uruchom: python3 tests/skrypty/kontrola-negatywna-2811-wynik.py"
+fi
+
 # --- 3b''. Dziennik decyzji: pliki w docs/decyzje/ zgodne z indeksem -------
 # Jedna decyzja = jeden plik; docs/DECISIONS.md jest indeksem generowanym
 # z plików. To samo pilnuje DziennikDecyzjiZgodnyZIndeksemTest.

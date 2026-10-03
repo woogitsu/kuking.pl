@@ -290,6 +290,17 @@ oraz czerwony przebieg po przywróceniu źródła.
 Podstawienie starej funkcji bez JUnit do tego testu fizycznie oblewa próbę
 poprawnego raportu przy tekstowym wyjściu — to kontrola samego przyrządu.
 
+**Ponowienie zdjęcia #2811 (3.10.2026, #2865).** Ta sama pomyłka zatrzymała
+job `Wyścigi`: mutant oblał na `DOLACZENIE_2811_RYWAL_CZEKA_PRZED_MEDIA`,
+ale przyrząd szukał `"tests":1` w zwykłym tekstowym podsumowaniu PHPUnita.
+Kontrola żąda teraz JUnit dla jednej wskazanej klasy i metody, odrzuca
+pominięcia, błędy wykonania i obce przypadki. Przed mutacją i po odtworzeniu
+wymaga przejścia, a po mutacji — porażki asercji z własnym markerem w raporcie.
+`tests/skrypty/kontrola-negatywna-2811-wynik.py` mierzy ten werdykt bez bazy
+i PHP; chodzi przez `scripts/check.sh` i istniejący krok joba `lint`.
+Fizyczne cofnięcie bramki do JSON oblewa próbę poprawnego JUnit przy tekstowym
+wyjściu na `PRZYRZAD_2811_TEKST_NIE_ODRZUCA_JUNIT`.
+
 **Dlaczego łańcuch, a nie wyrażenie regularne.** Łańcuch albo jest w pliku,
 albo go nie ma. Wyrażenie regularne ma trzecią możliwość — „pasuje do czegoś
 innego, niż myślałeś" — i to ona dała połowę no-opów z 19 września.
