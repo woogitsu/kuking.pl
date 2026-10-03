@@ -21,7 +21,7 @@ To dowody lokalne dla wskazanego złożenia. Nie zastępują pełnej bramki koń
 
 ## Otwarte czynności
 
-- dodać i odebrać ostrzeżenia parsera importu (#2546, #2548) oraz sprostowanie rejestru czynności (#2708);
+- ostrzeżenia parsera (#2546, #2548) dodane z commita `6b7a81f7d`: 56 testów / 345 asercji oraz dwa rzeczywiste mutanty u agenta; sprostowanie rejestru (#2708) dodane z `7d3cea3bc`: 9 testów / 53 asercje i rzeczywisty mutant granicy. Polityka i archiwum bez zmian. Po złożeniu wykonywana jest wspólna kontrola końcowego heada;
 - wykonać zwykły push z niezmienionym hakiem w przygotowanym środowisku Linux;
 - po przekazaniu M i jej wydaniu złożyć świeżą bazę, sprawdzić konflikty i wymagane CI N;
 - zachować osobno otwarte kryteria pilota 50+, przeglądu prawnego i kroków panelowych;
