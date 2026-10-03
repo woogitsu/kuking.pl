@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2828): przy gotowaniu kilku potraw zdjęcie bieżącego kroku widać obok instrukcji. Zmiana kroku lub potrawy pokazuje właściwe zdjęcie; powiększenie nie zatrzymuje minutników.
+
 - Poprawione (#2829): gdy notatka przy zapisie z dalszej porcji zeszytu ma błąd albo została zmieniona w innej karcie, formularz wraca przy właściwym przepisie lub wpisie z zachowanym tekstem. Pozostałe notatki nie przejmują tego tekstu.
 
 - Poprawione (#2818): gdy dodanie składników przepisu przekroczy limit zakupów, odmowa wraca na nadal dostępną wybraną listę. Można tam zobaczyć odhaczone pozycje i skorzystać z „Wyczyść odhaczone”; nic nie jest usuwane automatycznie.

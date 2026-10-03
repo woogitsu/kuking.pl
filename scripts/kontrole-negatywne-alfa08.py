@@ -1355,6 +1355,9 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Kolejka gubi zdjęcie bieżącego kroku (#2828)", "resources/views/pages/recipes/kolejka-gotowania.blade.php",
+     "test_http_w_kolejce_pokazuje_tylko_zdjecie_biezacego_kroku_aktywnej_potrawy",
+     lambda s: replace_once(s, "@if($krokModel->media)", "@if(false)")),
     ("Limit przepisu gubi wybraną listę zakupów (#2818)", "app/Http/Controllers/ListaZakupowController.php",
      "test_odmowa_limitu_przepisu_wraca_na_wybrana_liste_z_droga_wyczyszczenia",
      lambda s: replace_once(s,
