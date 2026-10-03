@@ -11,6 +11,7 @@ use App\Support\Komunikat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * „Dodaj notatkę dla siebie" przy pozycji własnego zeszytu (issue #978).
@@ -25,15 +26,23 @@ class CollectionItemNoteController extends Controller
         // o niepoprawnym UUID.
         abort_unless(Str::isUuid($pozycja), 404);
 
-        $request->validateWithBag(UpdateCollectionItemNote::WOREK_BLEDOW, [
-            'note' => ['nullable', 'string'],
-            // Odcisk notatki widzianej w formularzu (#2400). Brak lub tablica
-            // to nie błąd walidacji, tylko brak dowodu świeżości — akcja
-            // potraktuje to jak konflikt.
-            UpdateCollectionItemNote::POLE_ODCISKU => ['nullable', 'string', 'max:128'],
-        ], [
-            'note.string' => 'Wpisz notatkę zwykłym tekstem i zapisz jeszcze raz.',
-        ]);
+        try {
+            $request->validateWithBag(UpdateCollectionItemNote::WOREK_BLEDOW, [
+                'note' => ['nullable', 'string'],
+                // Odcisk notatki widzianej w formularzu (#2400). Brak lub tablica
+                // to nie błąd walidacji, tylko brak dowodu świeżości — akcja
+                // potraktuje to jak konflikt.
+                UpdateCollectionItemNote::POLE_ODCISKU => ['nullable', 'string', 'max:128'],
+            ], [
+                'note.string' => 'Wpisz notatkę zwykłym tekstem i zapisz jeszcze raz.',
+            ]);
+        } catch (ValidationException $blad) {
+            if ($adres = $this->adresPorcjiPoBledzie($request, $collection, $typ)) {
+                $blad->redirectTo($adres);
+            }
+
+            throw $blad;
+        }
 
         try {
             $note = $action->handle(
@@ -44,6 +53,12 @@ class CollectionItemNoteController extends Controller
                 $request->input('note'),
                 $request->input(UpdateCollectionItemNote::POLE_ODCISKU),
             );
+        } catch (ValidationException $blad) {
+            if ($adres = $this->adresPorcjiPoBledzie($request, $collection, $typ)) {
+                $blad->redirectTo($adres);
+            }
+
+            throw $blad;
         } catch (KonfliktNotatki $konflikt) {
             // Nic nie zapisano. Wpisany tekst wraca do pola (`old()`), ale bez
             // starego odcisku — formularz policzy nowy z aktualnej notatki,
@@ -52,7 +67,9 @@ class CollectionItemNoteController extends Controller
                 ? 'Aktualnie notatka jest pusta (ktoś ją usunął).'
                 : 'Aktualna notatka brzmi: „'.$konflikt->aktualna.'”.';
 
-            return redirect()->back(fallback: route('collections.show', $collection))
+            $powrot = $this->adresPorcjiPoBledzie($request, $collection, $typ);
+
+            return ($powrot !== null ? redirect()->to($powrot) : redirect()->back(fallback: route('collections.show', $collection)))
                 ->withInput($request->except(UpdateCollectionItemNote::POLE_ODCISKU))
                 ->withErrors([
                     'note' => 'Ta notatka została zmieniona przed Twoim zapisem — przez inną osobę albo przez Ciebie w innej karcie. '
@@ -67,5 +84,17 @@ class CollectionItemNoteController extends Controller
             : ($collection->members()->exists()
                 ? 'Notatka zapisana. Widzą ją osoby, które mają dostęp do tego zeszytu.'
                 : 'Notatka zapisana. Widzisz ją tylko Ty.')));
+    }
+
+    private function adresPorcjiPoBledzie(Request $request, Collection $collection, string $typ): ?string
+    {
+        // Doładowana porcja nie zmienia adresu dokumentu. Powrót na jego
+        // pierwszą stronę zużyłby flash z old()/błędem przed renderem pola.
+        $strona = filter_var($request->input('strona_notatki'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 2]]);
+        if ($strona === false || ! in_array($typ, [UpdateCollectionItemNote::PRZEPIS, UpdateCollectionItemNote::WPIS], true)) {
+            return null;
+        }
+
+        return route('collections.show', ['collection' => $collection, $typ === UpdateCollectionItemNote::WPIS ? 'wpisy' : 'page' => $strona]);
     }
 }

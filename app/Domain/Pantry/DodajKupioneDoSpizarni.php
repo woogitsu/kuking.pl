@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Pantry;
 
+use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +38,7 @@ final class DodajKupioneDoSpizarni
      *
      * @throws ValidationException
      */
-    public function handle(User $user, array $nazwyPoId): array
+    public function handle(User $user, array $nazwyPoId, ?ShoppingList $lista = null): array
     {
         if ($nazwyPoId === []) {
             throw ValidationException::withMessages([
@@ -61,12 +62,23 @@ final class DodajKupioneDoSpizarni
             throw ValidationException::withMessages($bledy);
         }
 
-        return DB::transaction(function () use ($user, $sprawdzone): array {
+        return DB::transaction(function () use ($user, $sprawdzone, $lista): array {
             // Ta sama blokada konta co w `CoMamWDomu` (reentrantna w transakcji).
             User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
 
+            if ($lista !== null && ! ShoppingList::query()
+                ->whereKey($lista->getKey())->where('user_id', $user->getKey())->exists()) {
+                throw ValidationException::withMessages([
+                    'lista' => 'Tej listy zakupów już nie ma. Wybierz listę jeszcze raz.',
+                ]);
+            }
+
             $aktualne = ShoppingListItem::query()
                 ->where('user_id', $user->getKey())
+                ->when($lista === null,
+                    fn ($q) => $q->whereNull('list_id'),
+                    fn ($q) => $q->where('list_id', $lista?->getKey()),
+                )
                 ->whereIn('id', array_keys($sprawdzone))
                 ->whereNotNull('checked_at')
                 ->count();

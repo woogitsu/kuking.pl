@@ -119,7 +119,7 @@ final class CoUgotuje
      *     do_zuzycia: array<string, list<array{nazwa: string, termin: string}>>
      * }
      */
-    public function dla(User $widz, int $offset = 0, int $limit = self::NA_STRONE, bool $najpierwTermin = false): array
+    public function dla(User $widz, int $offset = 0, int $limit = self::NA_STRONE, bool $najpierwTermin = false, bool $zZeszytow = false): array
     {
         $uid = (string) $widz->getKey();
         $offset = max(0, $offset);
@@ -176,6 +176,18 @@ final class CoUgotuje
                 .($najpierwTermin ? self::PILNY_SQL : self::MAM_SQL).')',
                 $najpierwTermin ? [$wzorzec, $uid, $granica, $dzis] : [$wzorzec, $uid, $dzis],
             )
+            // Zakres „Z moich zeszytów” (#2591): przepis musi stać w zeszycie,
+            // którego WŁAŚCICIELEM jest ta osoba (własny zeszyt współdzielony
+            // też się liczy; samo członkostwo w cudzym — nie). EXISTS, nie JOIN:
+            // przepis zapisany w kilku zeszytach to nadal jeden wynik, a warunek
+            // działa PRZED sortowaniem, offsetem i limitem. Zapis nie nadaje
+            // prawa do przepisu — `published()` i `widoczneDla()` powyżej
+            // obowiązują nadal.
+            ->when($zZeszytow, fn ($q) => $q->whereRaw(
+                'EXISTS (SELECT 1 FROM collection_items zi JOIN collections zc ON zc.id = zi.collection_id '
+                .'WHERE zi.recipe_id = recipes.id AND zc.owner_id = ?)',
+                [$uid],
+            ))
             ->select('recipes.*')
             ->selectRaw('(SELECT count(*) FROM recipe_ingredients ri WHERE ri.recipe_id = recipes.id) AS skladnikow_razem')
             ->selectRaw(

@@ -20,6 +20,7 @@ co mam” (`App\Domain\Pantry\CoUgotuje`). Migracja
 | `expiry_kind` | `varchar(12) NULL` | rodzaj terminu: `use_by` („Należy zużyć do”) albo `best_before` („Najlepiej spożyć przed”). `NULL` dokładnie wtedy, gdy `expires_on IS NULL`. Priorytet liczy się jednakowo, różnica jest na opakowaniu i ma zostać widoczna |
 | `quantity_note` | `varchar(40) NULL` | ilość jako WOLNY TEKST własnymi słowami („pół kostki”, „1 litr”); bez liczb i jednostek (D-333: tak jak `ingredient_text`). `NULL` = nie podano. Jedyna nowa kolumna w `$fillable` |
 | `frozen` | `boolean NOT NULL DEFAULT false` | produkt w zamrażarce wypada z sekcji „Zużyj w pierwszej kolejności”; wpisany termin zostaje. Poza `$fillable` |
+| `first_package_id` | `uuid NULL` | tożsamość pierwszego opakowania po awansie drugiego (#2783). `NULL` oznacza pierwotne opakowanie o tożsamości `pantry_items.id`; po awansie kolumna zachowuje UUID usuniętego wiersza `pantry_second_packages`. Nie pochodzi z formularza ani z `$fillable` |
 
 Ograniczenia:
 - `pantry_items_name_check`: `char_length(btrim(name)) BETWEEN 2 AND 120
@@ -88,6 +89,19 @@ Prywatność: lista jest w paczce danych (sekcja `co_mam_w_domu`, bez kolumn
 generowanych) i znika w `EraseAccountData` (jawnie — konta się anonimizuje,
 nie kasuje, więc kaskada klucza obcego tam nie działa).
 
+**Dodanie odhaczonych zakupów (#2806).** Formularz przenosi wybraną własną
+listę przez GET, POST i powrót po błędzie. Zaznaczenia i poprawione nazwy
+pozostają przy pozycjach tej samej listy, a błąd nazwy widać przy polu oraz
+w podsumowaniu. Po sprawdzeniu własności listy akcja pod istniejącą blokadą
+konta potwierdza, że wszystkie zaznaczone pozycje nadal do niej należą;
+nie dodaje części zestawu ani nie przełącza się na domyślną listę. Usunięta
+lista daje jawną odmowę. Cofnięcie samej poprawki nie zmienia danych ani
+schematu, ale przywróciłoby utratę kontekstu formularza.
+Jeśli lista zniknie dopiero między wstępnym odczytem a zapisem pod blokadą,
+odmowa prowadzi bezpośrednio do istniejącego ekranu list zakupów. Nie kieruje
+do formularza usuniętej listy ani nie obiecuje przywrócenia jej pozycji;
+żaden produkt nie trafia wtedy do spiżarni.
+
 **Rollback.** `down()` usuwa tabelę i obie funkcje. Nie dotyka przepisów,
 składników ani wyszukiwarki. Przy niepustej tabeli **odmawia** (D-088) —
 listy to dane wpisane przez ludzi; wymuszenie po zrobieniu kopii:
@@ -153,9 +167,29 @@ Reguły, które na tym stoją:
 - **Usunięcie jednego opakowania nie rusza drugiego.** Usunięcie drugiego kasuje
   jego wiersz. Usunięcie pierwszego przenosi treść drugiego na miejsce pierwszego
   (kolumny `pantry_items`) i kasuje wiersz drugiego w jednej transakcji pod
-  blokadą wiersza produktu; formularz niesie odcisk treści z chwili otwarcia, więc
-  stary formularz nie zadziała na opakowaniu, którego człowiek nie widział.
-  Usunięcie całego produktu (`pantry.destroy`) kasuje oba kaskadą.
+  blokadą wiersza produktu; formularz pierwszego opakowania zawsze niesie odcisk
+  treści **i trwałej tożsamości** z chwili otwarcia, także gdy opakowanie było
+  wtedy jedyne. Po awansie drugiego jego UUID przechodzi do
+  `pantry_items.first_package_id`, więc nawet identyczna treść nie pozwala
+  staremu formularzowi nadpisać innego opakowania. Formularz sprzed tej ochrony,
+  bez odcisku, jest odrzucany po awansie. Po błędzie formularz zachowuje dawny
+  odcisk i wpisane pola; trzeba świadomie otworzyć aktualne opakowanie z listy.
+  Kolumnę dodaje `2026_10_03_210000_track_first_pantry_package_identity`.
+  Rollback odmawia, gdy choć jeden produkt ma `first_package_id`: bez tej
+  kolumny kolejny `up()` nie odtworzy tożsamości awansowanego opakowania.
+  Gdy żadne opakowanie nie awansowało, `down()` i ponowny `up()` są bezpieczne.
+  Usunięcie całego produktu (`pantry.destroy`) kasuje oba kaskadą, ale dopiero
+  po potwierdzeniu aktualnego zakresu (#2826). Formularz niesie trwałą
+  tożsamość pierwszego opakowania (`first_package_id` albo identyfikator
+  produktu przed awansem) oraz `brak` albo UUID widzianego drugiego. Akcja
+  domenowa pod tą samą blokadą produktu co dodawanie B porównuje obie
+  tożsamości ze świeżym stanem i w tej samej transakcji usuwa produkt.
+  Formularz sprzed dodania B lub sprzed awansu B, bez znaczników albo z
+  podmienionymi znacznikami odmawia — także gdy oba opakowania mają identyczne
+  dane. Komunikat kieruje do aktualnego pytania. Świadome potwierdzenie obu
+  nadal usuwa cały produkt. Nie zmienia się schemat ani polityka dostępu. Cofnięcie
+  tej poprawki przywróciłoby możliwość skasowania B starym potwierdzeniem,
+  dlatego rollback kodu wymaga najpierw świadomej oceny tego ryzyka.
 - **Limit 150** dotyczy produktów (`CoMamWDomu::MAKS_PRODUKTOW`), nie opakowań;
   opakowań jest więc najwyżej 300.
 - **Eksport i wymazanie.** Paczka danych (`co_mam_w_domu[].drugie_opakowanie`,

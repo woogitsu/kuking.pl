@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property string|null $expiry_kind
  * @property string|null $quantity_note
  * @property bool $frozen
+ * @property string|null $first_package_id
  */
 class PantryItem extends Model
 {

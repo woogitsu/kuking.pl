@@ -256,7 +256,7 @@
                      byłoby dwoma miejscami do poprawienia. --}}
                 <div class="akcje-komentarza">
                     @if($canComment)
-                    <details @if(\App\Support\WierszFormularza::jestAktywny('odpowiedz-'.$comment->id) && $errors->any()) open @endif>
+                    <details data-dyktowanie-zamkniecie @if(\App\Support\WierszFormularza::jestAktywny('odpowiedz-'.$comment->id) && $errors->any()) open @endif>
                         <summary class="btn btn-quiet inline-flex">Odpowiedz</summary>
                         <form class="mt-3" method="POST" action="{{ $action }}" novalidate>
                             @csrf

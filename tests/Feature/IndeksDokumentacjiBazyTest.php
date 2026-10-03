@@ -74,29 +74,38 @@ final class IndeksDokumentacjiBazyTest extends TestCase
     #[Test]
     public function wzgledne_linki_w_plikach_obszarow_trafiaja_w_istniejacy_cel(): void
     {
-        $zepsute = [];
+        $this->assertSame([], DokumentacjaBazy::zepsuteLinki(), 'BAZA_KOTWICA_20261003: linki w docs/baza/ muszą wskazywać istniejący plik i nagłówek.');
+    }
 
-        foreach (DokumentacjaBazy::pliki() as $plik) {
-            $tresc = (string) file_get_contents(base_path($plik));
-            // Bez bloków kodu: tam `](...)` bywa fragmentem składni, nie linkiem.
-            $tresc = (string) preg_replace('/```.*?```/su', '', $tresc);
+    #[Test]
+    public function pomocnik_rozpoznaje_istniejace_i_nieistniejace_kotwice_wzgledne(): void
+    {
+        $korzen = sys_get_temp_dir().'/kuking-kotwice-'.bin2hex(random_bytes(8));
+        mkdir($korzen.'/docs/baza', 0700, true);
+        $zrodlo = $korzen.'/docs/baza/zrodlo.md';
+        $cel = $korzen.'/docs/baza/cel.md';
 
-            preg_match_all('~\]\(([^)\s]+)\)~', $tresc, $m);
+        try {
+            file_put_contents($cel, "### collection_items — przepisy ORAZ wpisy\n");
+            file_put_contents($zrodlo, "# Wstęp\n[opis](cel.md#collection_items--przepisy-oraz-wpisy)\n[spis](#wstęp)\n");
+            $this->assertSame([], DokumentacjaBazy::zepsuteLinki($korzen));
 
-            foreach ($m[1] as $cel) {
-                if (preg_match('~^(https?:|mailto:|#)~', $cel) === 1) {
-                    continue;
-                }
-
-                $sciezka = explode('#', $cel)[0];
-
-                if ($sciezka !== '' && ! file_exists(dirname(base_path($plik)).'/'.$sciezka)) {
-                    $zepsute[] = $plik.' -> '.$cel;
-                }
+            file_put_contents($zrodlo, "# Wstęp\n[opis](cel.md#nieistniejacy-naglowek)\n[spis](#brak)\n");
+            $this->assertSame([
+                'docs/baza/zrodlo.md -> cel.md#nieistniejacy-naglowek',
+                'docs/baza/zrodlo.md -> #brak',
+            ], DokumentacjaBazy::zepsuteLinki($korzen), 'BAZA_KOTWICA_20261003_POMOCNIK_NIE_MOZE_BYC_PUSTY');
+        } finally {
+            if (is_file($zrodlo)) {
+                unlink($zrodlo);
             }
+            if (is_file($cel)) {
+                unlink($cel);
+            }
+            rmdir($korzen.'/docs/baza');
+            rmdir($korzen.'/docs');
+            rmdir($korzen);
         }
-
-        $this->assertSame([], $zepsute, 'Linki względne w docs/baza/ liczą się od tego katalogu (../ dla docs/ i korzenia).');
     }
 
     #[Test]

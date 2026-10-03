@@ -168,6 +168,7 @@ App:
 - `/przepisy/{recipe}/gotuj`
 - `/zeszyt`
 - `/zeszyt/moje-wpisy` — „Moje wpisy” (D-328): wszystkie własne wpisy, od najnowszego, z widocznością (publiczny, dla obserwujących, tylko dla mnie) i stanem (opublikowany, szkic, ukryty przez moderację). Tylko właściciel — adres bez identyfikatora; wejście z „Moje”
+- `/zeszyt/moje-rozmowy` — „Moje rozmowy” (#2432): prywatna lista wątków, w których piszę; każdy raz, według mojej ostatniej widocznej wypowiedzi, od najnowszej, z krótkim kontekstem treści i odnośnikiem „Wróć do rozmowy” (właściwa strona komentarzy, porcja odpowiedzi i kotwica). Treści niedostępne dziś dla osoby znikają bez śladu. Tylko właściciel — adres bez identyfikatora; wejście z „Moje”. Kursor z niemożliwą datą lub godziną otwiera pierwszą porcję zamiast wysyłać błędną datę do bazy (#2803).
 - `/moj-stol` — „Mój stół”: dobrowolna półka przepisów, domyślnie wyłączona (#1749, D-304)
 - `/planer` — planer tygodnia (#27, D-310): dzień + przepis albo własny wpis, „Skopiuj poprzedni tydzień”. Prywatny; wejście z „Moje”, dodawanie przepisu z jego strony. Usunięcie pozycji (#2468) najpierw rozwija pytanie z nazwą i dniem; dopiero osobny przycisk wysyła DELETE. Zamknięcie pytania zostawia plan bez zmian. Niedostępny przepis ma w pytaniu tylko neutralną nazwę.
 - `/powiadomienia`

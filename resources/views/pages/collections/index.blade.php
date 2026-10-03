@@ -23,6 +23,7 @@
          ta sama półka „moje” — zwykły odnośnik, działa bez JavaScriptu. --}}
     <p class="mb-5 flex flex-wrap gap-3">
         <a class="btn btn-secondary" href="{{ route('collections.own-posts') }}">Moje wpisy</a>
+        <a class="btn btn-secondary" href="{{ route('collections.own-conversations') }}" data-link-moje-rozmowy>Moje rozmowy</a>
         <a class="btn btn-secondary" href="{{ route('collections.deleted-recipes') }}">Usunięte przepisy</a>
         <a class="btn btn-secondary" href="{{ route('planer.show') }}">Planer tygodnia</a>
         <a class="btn btn-secondary" href="{{ route('shopping.index') }}">Lista zakupów</a>
@@ -35,6 +36,8 @@
         {{-- Opcjonalna, prywatna lista do powrotu (#2553): domyślnie wyłączona,
              więc ten odnośnik prowadzi na ekran, który to wyjaśnia, a nie na pustą listę. --}}
         <a class="btn btn-secondary" href="{{ route('settings.ogladane') }}">Ostatnio oglądane</a>
+        {{-- Własne stany trybu gotowania zapamiętane na koncie (#2439). --}}
+        <a class="btn btn-secondary" href="{{ route('collections.cooking-progress') }}" data-link-gotowanie-zapamietane>Gotowanie zapamiętane na koncie</a>
         @if($maUdostepnionePrzepisy ?? false)
             <a class="btn btn-secondary" href="{{ route('recipes.shared.index') }}">Przepisy udostępnione mi</a>
         @endif
@@ -79,6 +82,12 @@
             `$errors`, bo ten otwierałby niżej formularz „Załóż nowy zeszyt”.
         --}}
         <form class="panel-formularza mb-6" method="GET" action="{{ route('collections.index') }}" role="search" aria-label="Szukaj w moich zeszytach">
+            @if($bladSzukania)
+                @include('components.error-summary', [
+                    'errors' => new \Illuminate\Support\MessageBag(['szukaj' => $bladSzukania]),
+                    'fieldIds' => ['szukaj' => 'f-szukaj'],
+                ])
+            @endif
             <div class="field @if($bladSzukania) has-error @endif">
                 <label for="f-szukaj">Szukaj w moich zeszytach</label>
                 <span class="field-help" id="f-szukaj-help">Wpisz kawałek tytułu, składnik albo to, od kogo masz przepis, np. „cukinia” albo „ciocia Zosia”. Polskie znaki nie mają znaczenia — „zurek” znajdzie „Żurek”.</span>

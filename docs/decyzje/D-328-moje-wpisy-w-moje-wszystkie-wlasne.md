@@ -36,6 +36,12 @@ szkic i wpis ukryty wpuszcza autora.
 moderację, `removed`) — wiązanie trasy wpisu ich nie znajduje, więc karta
 prowadziłaby do 404; tę samą granicę ma profil. Pytań przy wyłączonym dziale
 pytań (`enabledKinds()`) — ta sama flaga odmawia wejścia na stronę pytania.
+Od #2870 nie ma też opublikowanej zapowiedzi przepisu bez własnego tekstu
+i zdjęcia, gdy przepis usunięto lub autor wpisu nie może go odczytać. Ten sam
+warunek działa przed szukaniem, liczeniem i paginacją. Wpis z własną treścią
+(także zdjęciem jeszcze w obróbce) oraz własny szkic lub wpis ukryty zostają
+na liście. Po odzyskaniu przepisu jako prywatnego szkicu jego zapowiedź
+wraca wyłącznie autorowi, zgodnie z `PostPolicy::view()`.
 
 **Wydajność.** Relacje karty (`media`, `recipe:id,title,slug,visibility`)
 ładowane z góry; `MojeWpisyTest::test_liczba_zapytan_nie_rosnie_z_liczba_wpisow`
@@ -54,3 +60,6 @@ tagu, D-307) trzeba wtedy przepiąć z powrotem na profil.
 📄 `routes/web.php`, `app/Http/Controllers/MojeWpisyController.php`,
 `app/Domain/Posts/MojeWpisy.php`, `resources/views/pages/collections/moje-wpisy.blade.php`,
 `docs/FLOWS_AND_SCREENS.md`, `tests/Feature/MojeWpisyTest.php`
+
+Wycofanie samej poprawki #2870 nie zmienia danych: przywraca wcześniejsze
+zapytanie `MojeWpisy`, ale może znów pokazać martwe karty zapowiedzi.

@@ -1,4 +1,4 @@
-@props(['recipe'])
+@props(['recipe', 'oryginal' => null, 'oryginalUstalony' => false])
 {{--
     PODPIS „MOJEJ WERSJI" — NA PODSTAWIE CZYJEGO PRZEPISU (issue #23, D-301).
 
@@ -17,7 +17,7 @@
     nie udaje wtedy przepisu własnego.
 --}}
 @php
-    $oryginal = \App\Domain\Recipes\MojaWersja::oryginalDlaWidza($recipe, auth()->user());
+    $oryginal = $oryginalUstalony ? $oryginal : \App\Domain\Recipes\MojaWersja::oryginalDlaWidza($recipe, auth()->user());
 @endphp
 @if($recipe->jestWersja())
     <p class="meta na-podstawie-przepisu" data-test="na-podstawie">

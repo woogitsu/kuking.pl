@@ -712,6 +712,12 @@ polityce („do usunięcia treści przez Ciebie”) i art. 17 RODO.
   moderacyjnej (ta sama definicja co wyjątek moderacyjny wyżej) przepis nie
   wraca. Sprzątanie czyta kandydata jeszcze raz pod blokadą wiersza, więc
   przepis, który właśnie wrócił, nie znika tej samej nocy.
+  Lista dla autora (#2868) skanuje kandydatów po `deleted_at, id` w porcjach
+  po 50 i dopiero po odrzuceniu spraw moderacyjnych zbiera do 50 widocznych
+  przepisów na stronę. „Pokaż więcej” prowadzi do starszych bez ujawniania
+  chronionych pozycji; POST nadal ponownie sprawdza prawo pod blokadą.
+  Nie zmienia to terminu retencji ani zasad sprzątania. Bez zmiany schematu;
+  cofnięcie kodu przywraca brak drogi do starszej strony.
 
 ### 5.8 Wersje przepisu (`recipe_versions`) — dopisane 29.09.2026 (#2024, D-333)
 

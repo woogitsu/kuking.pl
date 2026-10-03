@@ -634,6 +634,12 @@ const EKRANY = [
   // odwołanie linku, pomocnicy) i ekran linku dla osoby spoza sesji.
   { nazwa: 'wspólne gotowanie — ekran sesji', znajdz: 's:wspolneGotowanie', zalogowany: true, wymaga: 'button:has-text("Utwórz nowy link")' },
   { nazwa: 'wspólne gotowanie — link zaproszenia', znajdz: 's:wspolneGotowanieLink', zalogowany: true, wymaga: 'button:has-text("Dołączam")' },
+  // Paczka N: prywatne listy muszą zawierać własną treść z fixture. Samo 200
+  // albo nagłówek przepuściłyby pusty stan oraz przekierowanie do logowania.
+  { nazwa: 'moje rozmowy', adres: '/zeszyt/moje-rozmowy', zalogowany: true,
+    wymaga: 'article[data-moja-rozmowa]:has-text("Pomiar N: pytanie o rosół w moich rozmowach")' },
+  { nazwa: 'gotowanie zapamiętane na koncie', adres: '/zeszyt/gotowanie-zapamietane', zalogowany: true,
+    wymaga: '[data-rola="gotowanie-zapamietane"] li:has-text("Rosół")' },
 ];
 
 /*

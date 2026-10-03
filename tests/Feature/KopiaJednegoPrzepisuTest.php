@@ -162,6 +162,54 @@ class KopiaJednegoPrzepisuTest extends TestCase
         $this->assertStringContainsString('To jest kopia jednego Twojego przepisu', $html);
     }
 
+    public function test_kopia_html_zachowuje_wiersze_krokow_i_historii_bez_surowego_html(): void
+    {
+        $basia = $this->user('basia_wiersze');
+        $przepis = $this->przepis($basia);
+        $instrukcja = "Pierwszy wiersz.\n\nDrugi wiersz <script>alert(1)</script>.\n".str_repeat('a', 120);
+        $historia = "Z zeszytu babci.\r\n\r\nDopisane później <b>bez HTML</b>.";
+        $przepis->steps()->where('position', 0)->update(['instruction' => $instrukcja]);
+        $przepis->forceFill(['source_note' => $historia])->save();
+
+        $zawartosc = $this->rozpakuj($this->actingAs($basia)->post(route('recipes.copy.download', $przepis->slug)));
+        $html = $zawartosc['przepis.html'];
+        $dom = new DOMDocument;
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="utf-8" ?>'.$html);
+        libxml_clear_errors();
+        $xpath = new DOMXPath($dom);
+        $krok = $xpath->query('//ol[@class="kroki"]/li[1]/span[@class="tekst-z-wierszami"]')->item(0);
+        $zrodlo = $xpath->query('//div[@class="karta"]/p[@class="tekst-z-wierszami"]')->item(0);
+
+        $this->assertNotNull($krok, 'KOPIA_2839_WIERSZE: pierwszy krok ma osobny tekst.');
+        $this->assertNotNull($zrodlo, 'KOPIA_2839_WIERSZE: historia ma osobny tekst.');
+        $this->assertSame($instrukcja, $krok->textContent, 'KOPIA_2839_WIERSZE: LF i pusty wiersz kroku przetrwały eksport.');
+        // Wersje libxml różnie zachowują CRLF w DOM; liczba i pozycja wierszy
+        // muszą pozostać takie same. JSON niżej zachowuje oryginalne bajty.
+        $wiersze = static fn (string $tekst): string => str_replace(["\r\n", "\r"], "\n", $tekst);
+        $this->assertSame($wiersze($historia), $wiersze($zrodlo->textContent), 'KOPIA_2839_WIERSZE: CRLF i pusty wiersz historii przetrwały eksport.');
+        $this->assertSame(0, $xpath->query('//script')->length, 'KOPIA_2839_WIERSZE: treść autora nie może stać się znacznikiem.');
+        $this->assertStringContainsString('&lt;script&gt;', $html);
+        $this->assertStringContainsString('&lt;b&gt;bez HTML&lt;/b&gt;', $html);
+
+        // Ten sam osadzony arkusz działa po otwarciu pliku offline i w druku.
+        $style = (string) $xpath->query('//style')->item(0)?->textContent;
+        $this->assertSame(
+            1,
+            preg_match('/\.tekst-z-wierszami\s*\{[^}]*white-space:\s*pre-line;[^}]*overflow-wrap:\s*anywhere;/s', $style),
+            'KOPIA_2839_WIERSZE: plik HTML musi faktycznie wyświetlać podziały i łamać długie słowa.',
+        );
+        $pozycjaReguly = strpos($style, '.tekst-z-wierszami');
+        $pozycjaDruku = strpos($style, '@media print');
+        $this->assertNotFalse($pozycjaReguly);
+        $this->assertNotFalse($pozycjaDruku);
+        $this->assertLessThan($pozycjaDruku, $pozycjaReguly, 'KOPIA_2839_WIERSZE: reguła ma działać również po wydrukowaniu.');
+
+        $dane = json_decode($zawartosc['dane.json'], true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame($instrukcja, $dane['przepisy'][0]['kroki'][0]['opis']);
+        $this->assertSame($historia, $dane['przepisy'][0]['notatka_o_zrodle']);
+    }
+
     public function test_cudze_konto_moderator_i_gosc_nie_pobiora_kopii_cudzego_przepisu(): void
     {
         $basia = $this->user('basia_obca');

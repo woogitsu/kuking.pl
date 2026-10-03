@@ -616,7 +616,7 @@ class RecipeController extends Controller
             // porcji (#2602): liczy się jedna podstawa, współczynniki nigdy się
             // nie mnożą. Bez sztuk działa zapamiętane ustawienie — tylko gdy adres
             // nie mówi o porcjach nic.
-            'wyborPorcji' => $wyborSztuk->przeliczone() ? WyborPorcji::dla($model, null) : $wyborZapamietanych->wybor,
+            'wyborPorcji' => $wyborSztuk->wskazane() ? WyborPorcji::dla($model, null) : $wyborZapamietanych->wybor,
             'zapamietanePorcje' => $wyborZapamietanych,
             'wyborSztuk' => $wyborSztuk,
             // Orientacyjny koszt z cen GUS — tylko gdy autor nie podał

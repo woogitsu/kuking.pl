@@ -131,7 +131,9 @@ class CoMamWDomuTest extends TestCase
         $this->actingAs($moderator)->delete(route('pantry.destroy', $produkt))->assertForbidden();
         $this->assertModelExists($produkt);
 
-        $this->actingAs($wlasciciel)->delete(route('pantry.destroy', $produkt))
+        $this->actingAs($wlasciciel)->delete(route('pantry.destroy', $produkt), [
+            'widziane_pierwsze' => (string) $produkt->getKey(), 'widziane_drugie' => 'brak',
+        ])
             ->assertRedirect(route('pantry.index'))
             ->assertSessionHas('status', 'Usunięto „mleko” z listy.');
         $this->assertModelMissing($produkt);

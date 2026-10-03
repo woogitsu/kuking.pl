@@ -68,6 +68,8 @@ class Wezel {
 
     addEventListener(typ, f) { (this.listeners[typ] ||= []).push(f); }
 
+    removeEventListener(typ, f) { this.listeners[typ] = (this.listeners[typ] || []).filter((w) => w !== f); }
+
     dispatchEvent(zd) { this.zdarzenia.push(zd.type); (this.listeners[zd.type] || []).forEach((f) => f(zd)); return true; }
 
     click() { if (!this.hidden) this.dispatchEvent({ type: 'click' }); }
@@ -82,6 +84,12 @@ class Wezel {
     }
 
     closest(selektor) {
+        if (selektor === 'details[data-dyktowanie-zamkniecie]') {
+            for (let w = this; w; w = w.parent) {
+                if (w.tag === 'details' && w.attrs['data-dyktowanie-zamkniecie'] !== undefined) return w;
+            }
+            return null;
+        }
         const klasa = selektor.replace('.', '');
         for (let w = this; w; w = w.parent) {
             if (w.className.split(/\s+/).includes(klasa)) return w;
@@ -292,6 +300,44 @@ test('posprzataj() kończy sesję hosta, którego już nie ma, i usuwa go z reje
     assert.ok(silnik.wolane.includes('abort'));
     assert.equal(rejestr.hosty.size, 0);
     assert.equal(rejestr.aktywna, null);
+});
+
+test('Zamknięcie odpowiedzi kończy nasłuch, nie gubi tekstu i pozwala zacząć ponownie', () => {
+    const { dok, okno, przycisk, rejestr, Silnik, timery, pole } = swiat();
+    const details = new Wezel(dok, 'details');
+    details.setAttribute('data-dyktowanie-zamkniecie', '');
+    details.open = true;
+    const h = new Wezel(dok, 'div');
+    h.dataset.cel = pole.id;
+    pole.value = 'Tekst wpisany ręcznie';
+    pole.remove();
+    details.append(pole, h);
+    dok.body.append(details);
+    podlacz(h, okno, dok, rejestr);
+
+    przycisk(h, 'Dyktuj').click();
+    const pierwszy = Silnik.wszystkie.at(-1);
+    pierwszy.wynik('podyktowany fragment', false);
+    assert.ok(timery.some((t) => t.zywy));
+
+    details.open = false;
+    details.dispatchEvent({ type: 'toggle' });
+    assert.ok(pierwszy.wolane.includes('abort'), 'DYKTOWANIE_2827_ZAMKNIECIE: silnik musi dostać abort.');
+    assert.ok(timery.every((t) => !t.zywy), 'DYKTOWANIE_2827_ZAMKNIECIE: licznik ciszy musi zniknąć.');
+    assert.equal(przycisk(h, 'Zakończ dyktowanie').hidden, true, 'DYKTOWANIE_2827_ZAMKNIECIE: sterowanie nasłuchem musi się schować.');
+    assert.equal(pole.value, 'Tekst wpisany ręcznie');
+    assert.equal(h.wszystkie((w) => w.className === 'dyktowanie-podglad')[0].textContent, 'podyktowany fragment');
+    pierwszy.wynik('spóźnione', true);
+    assert.equal(h.wszystkie((w) => w.className === 'dyktowanie-podglad')[0].textContent, 'podyktowany fragment');
+
+    details.open = true;
+    details.dispatchEvent({ type: 'toggle' });
+    assert.equal(Silnik.wszystkie.length, 1, 'Otwarcie nie uruchamia mikrofonu samo.');
+    przycisk(h, 'Dyktuj dalej').click();
+    assert.equal(Silnik.wszystkie.length, 2);
+    h.remove();
+    posprzataj(rejestr);
+    assert.equal((details.listeners.toggle || []).length, 0, 'Listener znika wraz z hostem.');
 });
 
 test('Jedna aktywna sesja: start drugiej kończy pierwszą neutralnie, bez „Nic nie usłyszeliśmy”', () => {

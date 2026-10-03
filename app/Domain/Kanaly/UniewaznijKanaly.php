@@ -6,7 +6,6 @@ namespace App\Domain\Kanaly;
 
 use App\Models\Post;
 use App\Models\Recipe;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -28,8 +27,9 @@ use Illuminate\Support\Facades\DB;
  *
  * TAK JAK `UniewaznijCacheTagow`: zbiór kluczy liczymy dwa razy (w chwili
  * zdarzenia — przed kaskadą przy trwałym usunięciu i przed zmianą tagów —
- * oraz po commicie) i czyścimy sumę; `Cache::forget` po commicie, żeby
- * równoległe żądanie nie zapisało starego stanu po czyszczeniu.
+ * oraz po commicie) i czyścimy sumę. Samo `Cache::forget` po commicie
+ * nie zatrzymuje spóźnionego budowniczego; `CacheKanalu` bierze z nim
+ * wspólną blokadę dla każdego klucza (#2863).
  *
  * CZEGO NIE POKRYWA (zostaje TTL do 5 minut): masowe `UPDATE` z pominięciem
  * modeli (np. zmiana statusu konta autora), zmiana zdjęcia wpisu/przepisu
@@ -64,7 +64,7 @@ final class UniewaznijKanaly
 
         DB::afterCommit(static function () use ($postIds, $przepisIds, $kontoIds, $przed): void {
             foreach (array_unique([...$przed, ...self::klucze($postIds, $przepisIds, $kontoIds)]) as $klucz) {
-                Cache::forget($klucz);
+                CacheKanalu::zapomnij($klucz);
             }
         });
     }

@@ -1070,6 +1070,11 @@ new class extends Component
         }
 
         foreach ($this->ingredients as $index => $row) {
+            if (str_contains((string) ($row['group_name'] ?? ''), BramkaPublikacjiOdczytu::ZNACZNIK)) {
+                $this->addError('ingredients.'.$index.'.group_name', 'Sprawdź słowo oznaczone [?] w nazwie grupy przy '.($index + 1).'. składniku i usuń znaczniki [? ?].');
+                $ok = false;
+            }
+
             if (str_contains((string) ($row['text'] ?? ''), BramkaPublikacjiOdczytu::ZNACZNIK)) {
                 $this->addError('ingredients.'.$index.'.text', 'Sprawdź słowo oznaczone [?] w '.($index + 1).'. składniku i usuń znaczniki [? ?].');
                 $ok = false;
@@ -1104,6 +1109,7 @@ new class extends Component
             $this->form->title,
             $this->form->summary,
             ...array_map(fn (array $r): string => (string) ($r['text'] ?? ''), $this->ingredients),
+            ...array_map(fn (array $r): string => (string) ($r['group_name'] ?? ''), $this->ingredients),
             ...array_map(fn (array $r): string => (string) ($r['instruction'] ?? ''), $this->steps),
         );
     }
@@ -1703,7 +1709,7 @@ new class extends Component
                         <input type="checkbox" wire:model="sprawdzilemOdczyt" id="f-sprawdzilem">
                         <span class="choice-label">Sprawdziłem odczytany tekst</span>
                     </label>
-                    <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem.@if($pominiete !== null) Wiem, że ten import jest niepełny — brakujące pozycje są dopisane albo świadomie ich nie dodaję.@endif</span>
+                    <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem.@if(\App\Domain\Import\PominieteWImporcie::zTablicy($pominiete)?->niepelny()) Wiem, że ten import jest niepełny — brakujące pozycje są dopisane albo świadomie ich nie dodaję.@elseif(\App\Domain\Import\PominieteWImporcie::zTablicy($pominiete)?->maOstrzezeniaParsera()) Wiem, że pola wskazane w ostrzeżeniu są sprawdzone i uzupełnione.@endif</span>
                 </div>
             @endif
 

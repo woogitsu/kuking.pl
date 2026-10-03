@@ -11,6 +11,7 @@ use App\Domain\Pantry\DrugieOpakowanieProduktu;
 use App\Domain\Pantry\Opakowanie;
 use App\Domain\Pantry\PodpowiedziSkladnikow;
 use App\Domain\Pantry\PriorytetZuzycia;
+use App\Domain\Pantry\UsunProduktPoPotwierdzeniu;
 use App\Domain\Pantry\ZmienNazweProduktu;
 use App\Domain\Pantry\ZmienTerminProduktu;
 use App\Domain\Zgody\PrzestawZgodeNaPrzypomnienieSpizarni;
@@ -56,7 +57,7 @@ class PantryController extends Controller
             // Bez konta, bez nazw produktów i dat. RAZ NA SESJĘ: odświeżenie
             // strony nie nabija licznika (mierzymy osoby, nie wejścia).
             $request->session()->put(self::SESJA_PRIORYTET_WIDZIANY, true);
-            $sygnaly->handle(null, ZapiszSygnal::PANTRY_PRIORITY_VIEWED);
+            $sygnaly->handleAnonimowo($user, ZapiszSygnal::PANTRY_PRIORITY_VIEWED);
         }
 
         return view('pages.pantry.index', [
@@ -174,7 +175,9 @@ class PantryController extends Controller
         // samej ilości czy „mrożone” z tym samym terminem niczego nie mierzy.
         if ($po?->expires_on !== null
             && [$po->expires_on->toDateString(), $po->expiry_kind] !== $terminPrzed) {
-            $sygnaly->handle(null, ZapiszSygnal::PANTRY_EXPIRY_SET);
+            /** @var User $user */
+            $user = $request->user();
+            $sygnaly->handleAnonimowo($user, ZapiszSygnal::PANTRY_EXPIRY_SET);
         }
 
         $komunikat = $po?->expires_on !== null
@@ -273,12 +276,25 @@ class PantryController extends Controller
             : 'Wyłączono sobotnie przypomnienie.'));
     }
 
-    public function destroy(Request $request, PantryItem $pantryItem): RedirectResponse
+    public function destroy(Request $request, PantryItem $pantryItem, UsunProduktPoPotwierdzeniu $usun): RedirectResponse
     {
         $this->authorize('delete', $pantryItem);
 
         $nazwa = $pantryItem->name;
-        $pantryItem->delete();
+        $wynik = $usun->handle(
+            $pantryItem,
+            $this->tekst($request, 'widziane_pierwsze'),
+            $this->tekst($request, 'widziane_drugie'),
+        );
+
+        if ($wynik === UsunProduktPoPotwierdzeniu::ZMIENILO_SIE) {
+            return redirect()->route('pantry.index')->with(Komunikat::blad(
+                'Opakowania tego produktu zmieniły się od otwarcia pytania. Niczego nie usunęliśmy. Otwórz aktualne pytanie „Usuń” i wybierz ponownie, co usunąć.',
+            ));
+        }
+        if ($wynik === UsunProduktPoPotwierdzeniu::BRAK) {
+            return redirect()->route('pantry.index')->with(Komunikat::informacja('Tego produktu nie ma już na liście. Niczego nie usunęliśmy.'));
+        }
 
         return redirect()->route('pantry.index')->with(Komunikat::sukces("Usunięto „{$nazwa}” z listy."));
     }
@@ -328,14 +344,15 @@ class PantryController extends Controller
         $maksOd = 10_000;
         $od = max(0, min($maksOd, (int) $request->query('od', '0')));
         $najpierwTermin = $request->query('najpierw') === 'termin';
-        $wynik = $dobor->dla($user, $od, CoUgotuje::NA_STRONE, $najpierwTermin);
+        $zZeszytow = $request->query('zakres') === 'zeszyty';
+        $wynik = $dobor->dla($user, $od, CoUgotuje::NA_STRONE, $najpierwTermin, $zZeszytow);
 
         if ($najpierwTermin && $od === 0 && ! $request->session()->has(self::SESJA_DOBOR_PRIORYTET_WIDZIANY)) {
             // Pomiar (#1903): ktoś otworzył przepisy w trybie „najpierw to, co się psuje”.
             // RAZ NA SESJĘ, jak `pantry_priority_viewed`: odświeżenie strony
             // nie nabija licznika (mierzymy osoby, nie wejścia).
             $request->session()->put(self::SESJA_DOBOR_PRIORYTET_WIDZIANY, true);
-            $sygnaly->handle(null, ZapiszSygnal::PANTRY_COOK_PRIORITY_VIEWED);
+            $sygnaly->handleAnonimowo($user, ZapiszSygnal::PANTRY_COOK_PRIORITY_VIEWED);
         }
 
         return view('pages.pantry.co-ugotuje', [
@@ -344,6 +361,7 @@ class PantryController extends Controller
             'nastepne' => $od + CoUgotuje::NA_STRONE,
             'granicaPrzegladania' => $od >= $maksOd,
             'najpierwTermin' => $najpierwTermin,
+            'zZeszytow' => $zZeszytow,
             'regula' => $najpierwTermin ? CoUgotuje::REGULA_NAJPIERW_TERMIN : CoUgotuje::REGULA,
         ]);
     }

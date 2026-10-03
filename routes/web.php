@@ -48,6 +48,7 @@ use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\DopisekGotowaniaController;
 use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
+use App\Http\Controllers\GotowanieZapamietaneController;
 use App\Http\Controllers\GotowanieZWersjiController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HistoriaPrzepisuController;
@@ -60,6 +61,7 @@ use App\Http\Controllers\KopiaSzkicuController;
 use App\Http\Controllers\ListaZakupowController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MojeProbyPrzepisuController;
+use App\Http\Controllers\MojeRozmowyController;
 use App\Http\Controllers\MojeWpisyController;
 use App\Http\Controllers\MojRokController;
 use App\Http\Controllers\MojStolController;
@@ -1510,6 +1512,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // „moje-wpisy” trafiłoby do wiązania zeszytu po UUID. Nazwa pod
     // `collections.*`, żeby pozycja „Moje” w nawigacji była bieżąca.
     Route::get('/zeszyt/moje-wpisy', MojeWpisyController::class)->name('collections.own-posts');
+    // „Moje rozmowy” (#2432): wątki, w których osoba pisze; prywatne, bez
+    // identyfikatora w adresie. Też PRZED `/zeszyt/{collection}`.
+    Route::get('/zeszyt/moje-rozmowy', MojeRozmowyController::class)->name('collections.own-conversations');
+    // „Gotowanie zapamiętane na koncie” (#2439): prywatna lista własnych,
+    // niewygasłych postępów gotowania. Tylko odczyt, bez identyfikatora.
+    Route::get('/zeszyt/gotowanie-zapamietane', GotowanieZapamietaneController::class)->name('collections.cooking-progress');
     // „Usunięte przepisy” (#2620, D-333): własny, omyłkowo usunięty przepis
     // wraca jako prywatny szkic do końca retencji. Też PRZED
     // `/zeszyt/{collection}`. POST bierze UUID przepisu, ale to nie jest

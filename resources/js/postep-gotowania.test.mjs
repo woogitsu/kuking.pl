@@ -10,6 +10,11 @@ test('komunikatOZmianie: inna rewizja mówi o zmianie na innym urządzeniu', () 
     assert.match(komunikatOZmianie({aktywna: true, rewizja: 4}, 3), /innym urządzeniu/);
 });
 
+test('komunikatOZmianie: nowy wiersz z tą samą rewizją odkrywa zmianę #2860', () => {
+    assert.match(komunikatOZmianie({aktywna: true, rewizja: 1, id_postepu: 'nowy'}, 1, {}, 'stary'), /innym urządzeniu/, 'POSTEP_2860_POLL_TOZSAMOSC');
+    assert.equal(komunikatOZmianie({aktywna: true, rewizja: 1, id_postepu: 'ten-sam'}, 1, {}, 'ten-sam'), null);
+});
+
 test('komunikatOZmianie: wygaśnięcie albo wyłączenie jest zgłaszane', () => {
     assert.match(komunikatOZmianie({aktywna: false, rewizja: null}, 3), /wygasło albo zostało wyłączone/);
 });
@@ -22,13 +27,14 @@ test('komunikatOZmianie: nieczytelna odpowiedź nie straszy', () => {
 });
 
 /** Minimalny pas i środowisko bez prawdziwej przeglądarki. */
-function zbuduj({odpowiedz, widocznosc = 'visible', rewizja = '3'}) {
+function zbuduj({odpowiedz, widocznosc = 'visible', rewizja = '3', idPostepu = null}) {
     const tekst = {textContent: ''};
     const pas = {
         hidden: true,
         dataset: {postepRewizja: rewizja, postepAdres: '/przepisy/x/gotuj/postep'},
         querySelector: () => tekst,
     };
+    if (idPostepu !== null) pas.dataset.postepId = idPostepu;
     const wywolania = [];
     const nasluch = {};
     let zegar = null;
@@ -69,6 +75,14 @@ test('podlaczSprawdzanie: bez zmiany pas zostaje ukryty', async () => {
     await t.zegar().fn();
 
     assert.equal(t.pas.hidden, true);
+});
+
+test('podlaczSprawdzanie: OFF i ON z rewizją 1 odkrywa pas bez samoczynnego przeładowania #2860', async () => {
+    const t = zbuduj({odpowiedz: ok({aktywna: true, rewizja: 1, id_postepu: 'nowy'}), rewizja: '1', idPostepu: 'stary'});
+    podlaczSprawdzanie(t.pas, t.srodowisko);
+    await t.zegar().fn();
+    assert.equal(t.pas.hidden, false, 'POSTEP_2860_POLL_PAS');
+    assert.match(t.tekst.textContent, /innym urządzeniu/);
 });
 
 test('podlaczSprawdzanie: ukryta karta nie pyta serwera', async () => {

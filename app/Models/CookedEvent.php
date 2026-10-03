@@ -38,6 +38,7 @@ use Illuminate\Support\Carbon;
  * @property float|null $faktyczne_porcje
  * @property Carbon|null $poprawiono_at
  * @property Carbon|null $photos_added_at
+ * @property list<string> $photo_submission_keys
  */
 class CookedEvent extends Model
 {
@@ -79,6 +80,8 @@ class CookedEvent extends Model
             // Chwila dołączenia zdjęcia do zapisanego wykonania (#2500). Poza
             // `$fillable`; ustawia ją wyłącznie `DolaczZdjeciaDoWykonania`.
             'photos_added_at' => 'datetime',
+            // Ślad udanych wysłań zdjęć (#2811). Poza $fillable: zapis pod blokadą wykonania.
+            'photo_submission_keys' => 'array',
             'would_make_again' => 'boolean',
             'actual_minutes' => 'integer',
             // Wspomnienia z własnych wykonań (F6). Poza `$fillable`: zapisuje

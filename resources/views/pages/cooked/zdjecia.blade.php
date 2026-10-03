@@ -21,7 +21,7 @@
     </p>
     <p class="meta">Zdjęcie można dołożyć przez {{ $dni }} dni od zapisania wykonania. Dotychczasowych zdjęć ta strona nie zmienia ani nie usuwa.</p>
 
-    <x-error-summary :field-ids="['photos' => 'f-photos', 'photos.*' => 'f-photos', 'media_ids' => 'f-photos', 'media_ids.*' => 'f-photos']" />
+    <x-error-summary :field-ids="['photos' => 'f-photos', 'photos.*' => 'f-photos', 'media_ids' => 'f-photos', 'media_ids.*' => 'f-photos', 'klucz_wyslania' => 'f-photos']" />
 
     @if($event->media->isNotEmpty())
         <section class="sekcja-strony" aria-labelledby="dotychczasowe-zdjecia">
@@ -36,8 +36,9 @@
 
     <form class="panel-formularza" method="POST" action="{{ route('cooked.photos.store', $event) }}" enctype="multipart/form-data" novalidate>
         @csrf
+        <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslaniaZdjec }}">
 
-        <div class="field @error('photos') has-error @enderror @error('photos.*') has-error @enderror">
+        <div class="field @error('photos') has-error @enderror @error('photos.*') has-error @enderror @error('klucz_wyslania') has-error @enderror">
             <span class="pole-zdjecia-nazwa" id="f-photos-etykieta">Zdjęcie do dołączenia</span>
 
             @if(($zachowane ?? collect())->isNotEmpty())
@@ -62,8 +63,9 @@
                     'f-photos-error' => $errors->has('photos'),
                     'f-photos-plik-error' => $errors->has('photos.*'),
                     'f-media-ids-error' => $errors->has('media_ids.*'),
+                    'f-klucz-error' => $errors->has('klucz_wyslania'),
                 ])));
-                $bladZdjec = $errors->has('photos') || $errors->has('photos.*') || $errors->has('media_ids.*');
+                $bladZdjec = $errors->has('photos') || $errors->has('photos.*') || $errors->has('media_ids.*') || $errors->has('klucz_wyslania');
             @endphp
             <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
@@ -82,6 +84,7 @@
             @error('photos')<span class="field-error" id="f-photos-error">{{ $message }}</span>@enderror
             @error('photos.*')<span class="field-error" id="f-photos-plik-error">{{ $message }}</span>@enderror
             @error('media_ids.*')<span class="field-error" id="f-media-ids-error">{{ $message }}</span>@enderror
+            @error('klucz_wyslania')<span class="field-error" id="f-klucz-error">{{ $message }}</span>@enderror
         </div>
 
         <div class="form-actions">

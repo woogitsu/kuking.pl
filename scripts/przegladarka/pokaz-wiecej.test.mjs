@@ -291,6 +291,36 @@ test('błąd pobrania zostawia listę, mówi co zrobić i pozwala ponowić', asy
     });
 });
 
+test('pusta dalsza porcja powiadomień kończy listę bez fałszywego błędu (#2807)', async () => {
+    await zPrzegladarka(async (context) => {
+        const zrodlo = await readFile(MODUL, 'utf8');
+        const zadania = [];
+        await context.route('http://kuking.test/**', async (route) => {
+            const url = new URL(route.request().url());
+            if (url.pathname === '/pokaz-wiecej.js') {
+                return route.fulfill({contentType: 'text/javascript', body: zrodlo});
+            }
+            zadania.push(url.pathname + url.search);
+            const druga = url.searchParams.get('page') === '2';
+            return route.fulfill({contentType: 'text/html', body: strona(druga
+                ? '<p>Ta strona jest już pusta</p><ul id="lista-powiadomien" hidden></ul>'
+                : `<ul id="lista-powiadomien"><li data-klucz="powiadomienie-1"><a href="/powiadomienie/1">Pierwsze</a></li></ul>
+                    ${blokWiecej({klucz: 'page', czego: 'powiadomień', lista: 'lista-powiadomien', nastepny: '/powiadomienia?page=2'})}`)});
+        });
+        const page = await context.newPage();
+        await page.goto('http://kuking.test/powiadomienia');
+        await page.getByRole('button', {name: 'Pokaż więcej powiadomień'}).click();
+        await page.waitForFunction(() => document.querySelector('[data-pokaz-wiecej-ogloszenie]')?.textContent
+            || ! document.querySelector('[data-pokaz-wiecej-blad]')?.hidden);
+        assert.deepEqual(await klucze(page, 'lista-powiadomien'), ['powiadomienie-1'], 'POWIADOMIENIA_2807_PUSTA_PORCJA: wcześniejsza karta zostaje raz.');
+        assert.equal(await page.getByRole('button', {name: 'Pokaż więcej powiadomień'}).count(), 0, 'POWIADOMIENIA_2807_PUSTA_PORCJA: koniec paginacji usuwa przycisk.');
+        assert.equal(await page.getByRole('alert').isHidden(), true, 'POWIADOMIENIA_2807_PUSTA_PORCJA: poprawne HTTP 200 nie jest awarią.');
+        assert.equal(await page.locator('[data-pokaz-wiecej-ogloszenie]').textContent(), 'Nie ma nowych powiadomień do pokazania. To już koniec listy.');
+        assert.equal(await page.evaluate(() => document.activeElement?.dataset.klucz), 'powiadomienie-1', 'Fokus wraca do zachowanej karty.');
+        assert.deepEqual(zadania, ['/powiadomienia', '/powiadomienia?page=2']);
+    });
+});
+
 for (const pusta of [false, true]) {
     test(`stara strona po przekierowaniu ${pusta ? 'do pustej' : 'do znanej'} listy nie kasuje ani nie dubluje kart (#2473)`, async () => {
         await zPrzegladarka(async (context) => {

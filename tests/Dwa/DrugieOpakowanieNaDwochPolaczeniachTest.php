@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Dwa;
 
+use App\Domain\Pantry\UsunProduktPoPotwierdzeniu;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\Group;
@@ -26,6 +27,63 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('dwa-polaczenia')]
 final class DrugieOpakowanieNaDwochPolaczeniachTest extends TestDwochPolaczen
 {
+    public function test_dodanie_drugiego_przed_starym_usunieciem_chroni_oba_opakowania(): void
+    {
+        $user = $this->konto();
+        $id = (string) $user->pantryItems()->create(['name' => 'mleko', 'quantity_note' => 'A'])->getKey();
+        $bariera = $this->bariera('SELECT 1 FROM pantry_items WHERE id = ? FOR UPDATE', [$id]);
+        $dodanie = $this->wTle('zapisz-drugie-opakowanie-pantry', [
+            'produkt' => $id,
+            'dane' => json_encode(['ilosc' => 'B']),
+        ]);
+        $this->czekajNaZablokowane(1);
+        $usuniecie = $this->wTle('usun-produkt-po-potwierdzeniu-pantry', [
+            'produkt' => $id,
+            'widziane_pierwsze' => $id,
+            'widziane_drugie' => 'brak',
+        ]);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        $wynikDodania = $dodanie->wynik();
+        $wynikUsuniecia = $usuniecie->wynik();
+        $this->assertBezZakleszczenia($wynikDodania, 'dodanie B');
+        $this->assertBezZakleszczenia($wynikUsuniecia, 'stary DELETE');
+        $this->assertTrue($wynikDodania['ok'], $wynikDodania['komunikat']);
+        $this->assertSame('zapisano', $wynikDodania['wartosc']);
+        $this->assertSame(UsunProduktPoPotwierdzeniu::ZMIENILO_SIE, $wynikUsuniecia['wartosc'], 'SPIZARNIA_2826_DWA_DODANIE_PIERWSZE');
+        $this->assertSame('A', DB::table('pantry_items')->where('id', $id)->value('quantity_note'));
+        $this->assertSame('B', DB::table('pantry_second_packages')->where('pantry_item_id', $id)->value('quantity_note'));
+    }
+
+    public function test_usuniecie_przed_dodaniem_odmawia_zapisu_b_do_usunietego_produktu(): void
+    {
+        $user = $this->konto();
+        $id = (string) $user->pantryItems()->create(['name' => 'mleko', 'quantity_note' => 'A'])->getKey();
+        $bariera = $this->bariera('SELECT 1 FROM pantry_items WHERE id = ? FOR UPDATE', [$id]);
+        $usuniecie = $this->wTle('usun-produkt-po-potwierdzeniu-pantry', [
+            'produkt' => $id,
+            'widziane_pierwsze' => $id,
+            'widziane_drugie' => 'brak',
+        ]);
+        $this->czekajNaZablokowane(1);
+        $dodanie = $this->wTle('zapisz-drugie-opakowanie-pantry', [
+            'produkt' => $id,
+            'dane' => json_encode(['ilosc' => 'B']),
+        ]);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        $wynikUsuniecia = $usuniecie->wynik();
+        $wynikDodania = $dodanie->wynik();
+        $this->assertBezZakleszczenia($wynikUsuniecia, 'DELETE');
+        $this->assertBezZakleszczenia($wynikDodania, 'spóźnione dodanie B');
+        $this->assertSame(UsunProduktPoPotwierdzeniu::USUNIETO, $wynikUsuniecia['wartosc']);
+        $this->assertSame('brak', $wynikDodania['wartosc'], 'SPIZARNIA_2826_DWA_USUNIECIE_PIERWSZE');
+        $this->assertSame(0, DB::table('pantry_items')->where('id', $id)->count());
+        $this->assertSame(0, DB::table('pantry_second_packages')->where('pantry_item_id', $id)->count());
+    }
+
     public function test_dwa_rownolegle_dodania_drugiego_opakowania_zostawiaja_jeden_wiersz_i_jedna_odmowe(): void
     {
         $user = $this->konto();

@@ -34,18 +34,19 @@ class SharedRecipeController extends Controller
     {
         $user = $request->user();
 
-        // Lista przepuszcza każdy wiersz przez TĘ SAMĄ Policy co strona
-        // czytania: przepis ukryty przez moderację, autor zawieszony albo
-        // blokada — znika z listy, zamiast prowadzić w odmowę. Lista jest
-        // krótka z definicji (udostępnienia dostaje się od bliskich).
+        // Prawo do czytania nie warunkuje prawa do usunięcia WŁASNEGO grantu.
+        // Niedostępny przepis pozostaje anonimową pozycją z samą rezygnacją.
         $udostepnienia = RecipeShare::query()
             ->where('recipient_id', $user->getKey())
-            ->with(['recipe.author.profile', 'recipe.heroMedia'])
+            ->with(['recipe.author.profile'])
             ->orderByDesc('created_at')
             ->orderBy('id')
             ->get()
-            ->filter(fn (RecipeShare $u): bool => $u->recipe !== null
-                && Gate::forUser($user)->allows('readShared', $u->recipe))
+            ->map(fn (RecipeShare $u): array => [
+                'grant' => $u,
+                'czytelny' => $u->recipe !== null
+                    && Gate::forUser($user)->allows('readShared', $u->recipe),
+            ])
             ->values();
 
         return view('pages.recipes.udostepnione-mi', [

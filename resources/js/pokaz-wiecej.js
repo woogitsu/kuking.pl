@@ -172,7 +172,9 @@ function ulepsz(blok) {
                 przycisk.remove();
             }
 
-            const cel = doklejone[0];
+            // Przy pustej końcowej porcji przycisk znika, więc zostaw fokus na
+            // ostatniej zachowanej karcie, zamiast przenosić go do body.
+            const cel = doklejone[0] ?? (! nastepny ? lista.lastElementChild : null);
 
             if (cel && fokus) {
                 if (! cel.hasAttribute('tabindex')) cel.setAttribute('tabindex', '-1');

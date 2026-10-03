@@ -38,6 +38,7 @@ final class OdczytanyPrzepis
     /**
      * @param  list<string>  $skladniki
      * @param  list<string>  $kroki
+     * @param  array{skladniki?: int, przygotowanie?: bool, gotowanie?: bool}  $ostrzezeniaParsera
      */
     public function __construct(
         string $tytul,
@@ -49,6 +50,7 @@ final class OdczytanyPrzepis
         array $kroki = [],
         /** `totalTime` ze źródła — zachowany osobno, nigdy dzielony na prep/cook (#2572). */
         public readonly ?int $lacznieMinut = null,
+        public readonly array $ostrzezeniaParsera = [],
     ) {
         $obciete = [];
 
@@ -87,6 +89,7 @@ final class OdczytanyPrzepis
             max(0, count($czysteSkladniki) - Recipe::MAX_INGREDIENTS),
             max(0, count($czysteKroki) - Recipe::MAX_STEPS),
             $obciete,
+            $ostrzezeniaParsera,
         );
     }
 

@@ -57,7 +57,7 @@ class KolejkaGotowaniaController extends Controller
         $zadane = array_slice($zadane, 0, self::LIMIT, true);
 
         $osoba = $request->user();
-        $przepisy = Recipe::query()->whereIn('slug', array_keys($zadane))->with(['steps', 'author', 'ingredients'])->get()->keyBy('slug');
+        $przepisy = Recipe::query()->whereIn('slug', array_keys($zadane))->with(['steps.media', 'author', 'ingredients'])->get()->keyBy('slug');
 
         // Przepis, który zmienił adres, zostaje w kolejce pod nowym slugiem
         // (z tym samym krokiem). Stary slug rozwiązujemy dopiero po `view`:
@@ -142,7 +142,7 @@ class KolejkaGotowaniaController extends Controller
         }
 
         $przekierowania = DB::table('recipe_slug_redirects')->whereIn('slug', $nieznane)->pluck('recipe_id', 'slug');
-        $cele = Recipe::query()->whereIn('id', $przekierowania->unique()->all())->with(['steps', 'author', 'ingredients'])->get()->keyBy('id');
+        $cele = Recipe::query()->whereIn('id', $przekierowania->unique()->all())->with(['steps.media', 'author', 'ingredients'])->get()->keyBy('id');
 
         $wynik = [];
         $zmienione = [];

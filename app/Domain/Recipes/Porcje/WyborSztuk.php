@@ -32,6 +32,8 @@ final readonly class WyborSztuk
         public ?string $co,
         /** Adres miał `?sztuki=`, ale z wartością, której nie da się użyć. */
         public bool $odrzucone,
+        /** Adres jawnie wskazał sztuki; mnożnik 1 też jest wyborem. */
+        private bool $wskazane,
         /** Co odesłać do pola: tylko coś, co wygląda jak liczba, nigdy surowy adres. */
         private string $wartoscPola,
     ) {}
@@ -41,13 +43,13 @@ final readonly class WyborSztuk
         $zPrzepisu = $recipe->yield_count === null ? null : (int) $recipe->yield_count;
 
         if ($zPrzepisu === null || $zPrzepisu < GotoweSztuki::NAJMNIEJ) {
-            return new self(null, null, null, false, '');
+            return new self(null, null, null, false, false, '');
         }
 
         $co = $recipe->yield_unit === null ? null : (trim((string) $recipe->yield_unit) ?: null);
 
         if ($zAdresu === null || $zAdresu === '') {
-            return new self($zPrzepisu, $zPrzepisu, $co, false, (string) $zPrzepisu);
+            return new self($zPrzepisu, $zPrzepisu, $co, false, false, (string) $zPrzepisu);
         }
 
         $tekst = is_int($zAdresu) || is_string($zAdresu) ? trim((string) $zAdresu) : null;
@@ -58,22 +60,34 @@ final readonly class WyborSztuk
             // nie wraca na stronę, a poprawny zapis człowieka nie znika.
             $bezpieczne = $tekst !== null && preg_match('/^[0-9 ,.\-]{1,10}$/', $tekst) === 1 ? $tekst : '';
 
-            return new self($zPrzepisu, $zPrzepisu, $co, true, $bezpieczne);
+            return new self($zPrzepisu, $zPrzepisu, $co, true, true, $bezpieczne);
         }
 
         $wybrane = (int) $tekst;
 
         if ($wybrane < GotoweSztuki::NAJMNIEJ || $wybrane > GotoweSztuki::NAJWIECEJ) {
-            return new self($zPrzepisu, $zPrzepisu, $co, true, (string) $wybrane);
+            return new self($zPrzepisu, $zPrzepisu, $co, true, true, (string) $wybrane);
         }
 
-        return new self($zPrzepisu, $wybrane, $co, false, (string) $wybrane);
+        return new self($zPrzepisu, $wybrane, $co, false, true, (string) $wybrane);
     }
 
     /** Autor podał sztuki, więc jest od czego liczyć. */
     public function dostepny(): bool
     {
         return $this->zPrzepisu !== null;
+    }
+
+    /** Adres prosił o sztuki — także o liczbę autora lub o błędną wartość. */
+    public function wskazane(): bool
+    {
+        return $this->wskazane;
+    }
+
+    /** Poprawny, jawny wybór sztuk jest podstawą także przy mnożniku 1. */
+    public function podstawa(): bool
+    {
+        return $this->wskazane && ! $this->odrzucone;
     }
 
     /** Wybrano inną liczbę sztuk niż w przepisie autora. */
@@ -91,10 +105,10 @@ final readonly class WyborSztuk
         return (float) $this->wybrane / (float) $this->zPrzepisu;
     }
 
-    /** Wartość do adresu — `null` dla liczby autora (powrót = adres bez parametru). */
+    /** Adres druku zachowuje jawny wybór, także liczbę autora. */
     public function doAdresu(): ?string
     {
-        return $this->przeliczone() ? (string) $this->wybrane : null;
+        return $this->podstawa() ? (string) $this->wybrane : null;
     }
 
     /** Wartość pola „Na ile sztuk?” — zawsze bezpieczna do wypisania. */

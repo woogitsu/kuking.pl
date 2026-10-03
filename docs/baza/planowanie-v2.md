@@ -24,6 +24,12 @@ zakupów tu nie ma i nie było w tej zmianie.
 innym: każda trasa (`/planer`) chodzi po pozycjach zalogowanego, a usunięcie
 przechodzi przez `MealPlanEntryPolicy`.
 
+Formularz GET „Szukaj w moich planach” (#2581) zachowuje wpisaną frazę po
+odmowie walidacji. Błąd ma własne podsumowanie z linkiem do widocznego pola
+`#szukaj-w-planach` oraz komunikat przy tym polu (#2846); nie zasłania błędów
+innych formularzy Planera zapisanych w sesji. Pusta i poprawna fraza nie
+tworzą podsumowania. Ta poprawka nie zmienia zapytań ani schematu bazy.
+
 Ograniczenia:
 
 - `meal_plan_entries_jedno_z_dwoch_check` — `recipe_id IS NULL OR label IS NULL`,
@@ -242,6 +248,18 @@ odmowę, listy usuniętej w innej karcie — komunikat po polsku. „Cofnij usun
 (`shopping_list_undos.items[].list_id`) przywraca pozycję na jej listę, a gdy tej
 listy już nie ma — na listę domyślną.
 
+Jeśli druga karta zajmie ostatnie miejsce na nową listę, odmowa założenia
+listy zachowuje wpisaną nazwę, widoczne pole i błąd przy nim. Link w
+podsumowaniu prowadzi do tego pola; przy pełnym limicie przycisk założenia
+jest nieaktywny, a tekst mówi, że trzeba usunąć niepotrzebną listę.
+Normalny ekran pełnego konta nadal pokazuje sam komunikat o limicie.
+
+Po odmowie dodania składników przepisu przez globalny limit 300 pozycji ekran
+wraca na nadal istniejącą i własną listę, którą osoba wybrała. Widać tam
+odhaczone pozycje i „Wyczyść odhaczone”. Gdy lista zniknęła w innej karcie,
+powrót prowadzi bezpiecznie na listę domyślną z komunikatem. Żadna pozycja
+nie jest usuwana automatycznie; limit i wybór listy nie zmieniają się (#2818).
+
 **Paczka RODO:** sekcja `listy_zakupow` (nazwa, data założenia — także puste listy)
 oraz pole `lista` przy każdej pozycji w `lista_zakupow`. **Wymazanie konta**
 kasuje listy bezwarunkowo (`EraseAccountData`). Polityka prywatności: wiersz „Lista
@@ -319,10 +337,23 @@ Ograniczenia i indeksy:
 - `cooking_progress_servings_revision_check`: `servings_revision >= 1`;
 - indeks po `expires_at` — nocne sprzątanie.
 
+Lista „Gotowanie zapamiętane na koncie” (#2439) czyta tylko niewygasłe wiersze
+własnej osoby, w kolejności `updated_at DESC, id DESC`. Odczyt odbywa się
+porcjami po 100 wierszy; po każdej porcji obowiązuje aktualna widoczność
+przepisu i `RecipePolicy::view`. Dopiero dostępne wiersze liczą się do offsetu
+i przycisku „Pokaż więcej”. Nie ma limitu pierwszych 500 surowych wierszy,
+który mógłby ukryć dostępny przepis za usuniętymi lub prywatnymi.
+
 Konflikt dwóch urządzeń: zapis to idempotentne USTAWIENIE jednego kroku pod
 blokadą wiersza (`SELECT … FOR UPDATE`), więc różne kroki nie gubią się
-nawzajem, a na ten sam wygrywa ostatni zapis; formularz niesie rewizję, którą
-widział, i przy rozbieżności osoba dostaje komunikat.
+nawzajem, a na ten sam wygrywa ostatni zapis. Formularz niesie rewizję i UUID
+wiersza, które widziała karta. Rozbieżna rewizja tego samego wiersza daje
+komunikat, ale zapis kroku może się odbyć. Po wyłączeniu i ponownym włączeniu
+powstaje nowy UUID z rewizją 1: żądanie starej karty albo bez UUID odmawia pod
+blokadą, nie przenosi dawnego kroku ani porcji na nowy postęp (#2860).
+Prywatny odczyt dla pasa zmiany zwraca oba znaczniki bez listy kroków;
+przeglądarka nie przeładowuje strony samoczynnie. Bez zapamiętywania formularz
+kroku dalej zapisuje odhaczenie tylko w sesji. Schemat i rollback bez zmian.
 
 Składniki potwierdza się dla widocznej liczby porcji (#2502). Formularz
 przesyła porcje pokazane na ekranie, wartość zapisaną wtedy na koncie oraz
@@ -449,8 +480,12 @@ wyłączoną funkcją nie robią nic, a pozostali odkładają zapis przez `defer
 czas PO odpowiedzi, bez żadnego zapytania w ścieżce żądania (stan zgody jest w
 zalogowanym modelu). Odroczony zapis ponownie pyta Policy `view` jak o konto
 BEZ roli obsługi — wgląd moderacyjny nie jest wizytą — i robi `INSERT … ON
-CONFLICT DO UPDATE` z warunkiem zgody oraz `FOR SHARE` na wierszu konta, więc
-wyłączenie funkcji w trakcie żądania nie odtworzy historii. Strona przepisu
+CONFLICT DO UPDATE` z warunkiem zgody oraz `FOR SHARE` na wierszu konta. Żądanie
+zapamiętuje chwilę aktualnego włączenia z już wczytanego konta; pod blokadą
+zapis przechodzi tylko wtedy, gdy w bazie nadal jest **ten sam okres zgody**
+(pełna precyzja `timestamptz`, także mikrosekundy). Wyłączenie i ponowne
+włączenie nie wpuszcza więc starego odroczonego zapisu do nowej historii.
+Strona przepisu
 gościa nie zmienia się ani o bajt (cache publiczny bez zmian); zalogowany ma
 `private, no-store`, a lista nie trafia do localStorage ani do cache
 service workera (`public/sw.js` nie trzyma stron).

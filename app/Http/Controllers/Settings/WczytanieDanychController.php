@@ -95,6 +95,20 @@ class WczytanieDanychController extends Controller
 
         $limit = max(1, (int) config('kuking.import_paczki.max_naraz'));
         $nowe = array_values(array_filter($wynik->wszystkie(), static fn (PozycjaPodgladu $p): bool => $p->mozeBycUtworzona()));
+        $odciskiNowych = array_map(static fn (PozycjaPodgladu $p): string => $p->odcisk, $nowe);
+        $zapisanyWybor = $request->session()->get($this->kluczWyboru($request, $paczka));
+        $wybrane = is_array($zapisanyWybor)
+            ? array_fill_keys(array_filter($zapisanyWybor, 'is_string'), true)
+            : null;
+        $domyslne = $wybrane === null
+            ? array_slice($odciskiNowych, 0, $limit)
+            : array_values(array_filter($odciskiNowych, static fn (string $odcisk): bool => isset($wybrane[$odcisk])));
+
+        // `old()` jest wspólne dla sesji: błąd innej paczki nie może zmienić
+        // zaznaczeń tej. Znacznik formularza odróżnia również pusty wybór.
+        $zaznaczone = $request->old('paczka_wyboru') === $paczka
+            ? array_values(array_filter((array) $request->old('pozycje', []), 'is_string'))
+            : $domyslne;
 
         return view('pages.settings.wczytaj-podglad', [
             'podglad' => $wynik,
@@ -103,10 +117,7 @@ class WczytanieDanychController extends Controller
             'liczby' => $wynik->liczbyStanow(),
             'limit' => $limit,
             // Po błędzie zaznaczenie wraca takie, jakie człowiek zostawił.
-            'zaznaczone' => old('pozycje', array_map(
-                static fn (PozycjaPodgladu $p): string => $p->odcisk,
-                array_slice($nowe, 0, $limit),
-            )),
+            'zaznaczone' => $zaznaczone,
         ]);
     }
 
@@ -157,11 +168,16 @@ class WczytanieDanychController extends Controller
             // Plik zostaje: reszta zaznaczonych czeka na kolejne kliknięcie.
             $zdania[] = 'Wczytujemy po '.config('kuking.import_paczki.max_naraz').' pozycji naraz. Zostało jeszcze '.$efekt->zostalo.' — kliknij „Wczytaj zaznaczone” jeszcze raz.';
 
+            // Zachowujemy WYBÓR z tego żądania, nie wszystkie pozycje z paczki.
+            // GET ponownie czyta paczkę i odfiltruje już utworzone lub odrzucone.
+            $request->session()->put($this->kluczWyboru($request, $paczka), array_values(array_unique((array) $request->input('pozycje'))));
+
             return redirect()->route('settings.data.import.preview', ['paczka' => $paczka])
                 ->with(Komunikat::informacja(implode(' ', $zdania)));
         }
 
         $magazyn->zapomnij($request->user(), $paczka);
+        $request->session()->forget($this->kluczWyboru($request, $paczka));
 
         // Sukces tylko wtedy, gdy coś wczytano i nic nie odpadło; „nic nie wczytano" bez usterki to informacja,
         // a usterka przy zerze wczytanych — błąd (człowiek ma coś zrobić).
@@ -180,6 +196,8 @@ class WczytanieDanychController extends Controller
         $sciezka = $magazyn->sciezka($request->user(), $paczka);
 
         if ($sciezka === null) {
+            $request->session()->forget($this->kluczWyboru($request, $paczka));
+
             return redirect()->route('settings.data.import')
                 ->withErrors(['plik' => 'Ta paczka nie czeka już na wczytanie. Wybierz plik jeszcze raz.']);
         }
@@ -188,9 +206,15 @@ class WczytanieDanychController extends Controller
             return $czytnik->czytaj($request->user(), $sciezka);
         } catch (PaczkaOdrzucona $e) {
             $magazyn->zapomnij($request->user(), $paczka);
+            $request->session()->forget($this->kluczWyboru($request, $paczka));
 
             return redirect()->route('settings.data.import')->withErrors(['plik' => $e->getMessage()]);
         }
+    }
+
+    private function kluczWyboru(Request $request, string $paczka): string
+    {
+        return 'import_paczki.wybor.'.hash('sha256', $request->user()->getAuthIdentifier().'|'.$paczka);
     }
 
     /** Data z paczki po polsku i w polskiej strefie; brak albo nieczytelna — `null` (nie zgadujemy). */

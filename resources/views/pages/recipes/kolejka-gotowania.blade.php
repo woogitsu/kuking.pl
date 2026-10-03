@@ -117,6 +117,18 @@
                 @endif
                 <p class="cook-step-tekst">{{ $krokModel->instruction }}</p>
 
+                @if($krokModel->media)
+                    <div class="cook-step-zdjecie" data-kolejka-zdjecie-kroku>
+                        {{-- Ta sama bramka wariantu i uprawnień co w trybie pojedynczym;
+                             tylko zdjęcie bieżącego kroku aktywnej potrawy. --}}
+                        <x-photo :media="$krokModel->media" variant="feed" class="post-photo"
+                                 :leniwie="false"
+                                 :alt="$krokModel->media->alt_text ?: 'Zdjęcie do kroku '.$krokAktywny"
+                                 tresc="przepis"
+                                 :wymien-url="auth()->user()?->isActive() && auth()->user()->can('update', $aktywna['recipe']) ? route('recipes.edit', $slugAktywny).'#f-steps-'.($krokAktywny - 1).'-photo' : null" />
+                    </div>
+                @endif
+
                 @if($etykietaMinutnika)
                     <div class="cook-timer" data-kolejka-minutnik
                          data-slug="{{ $slugAktywny }}" data-krok="{{ $krokAktywny }}"
