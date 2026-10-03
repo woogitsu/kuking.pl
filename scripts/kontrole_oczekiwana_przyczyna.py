@@ -35,6 +35,7 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Moje rozmowy przepuszczają niemożliwą datę kursora (#2803)': r'ROZMOWY_2803_NIEMOZLIWY_CZAS',
     'Moje rozmowy pomijają Policy wpisu (#2432)': r'ROZMOWY_2432_POLICY_TRESCI',
     'Import odrzuca ułamek czasu bez ostrzeżenia (#2546)': r'IMPORT_2546_CZAS_WIDOCZNY',
     'Import nie zapisuje ostrzeżeń parsera przy szkicu (#2548)': r'IMPORT_2548_OSTRZEZENIE_TRWA',

@@ -10,6 +10,7 @@ use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
+use App\Support\KursorListy;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -55,7 +56,7 @@ final class MojeRozmowy
     public function __construct(private readonly CelPowiadomienia $cel) {}
 
     /**
-     * @param  string|null  $kursor  wartość parametru z adresu; zły kształt = pierwsza porcja
+     * @param  string|null  $kursor  wartość parametru z adresu; zły kształt lub data = pierwsza porcja
      */
     public function porcja(User $osoba, ?string $kursor = null): StronaRozmow
     {
@@ -128,7 +129,7 @@ final class MojeRozmowy
     }
 
     /**
-     * Kursor z adresu (`czas_id`) albo `null` przy złym kształcie — zły
+     * Kursor z adresu (`czas_id`) albo `null` przy złym kształcie lub dacie — zły
      * kursor to pierwsza porcja, nigdy błąd ani zapytanie z cudzą wartością.
      *
      * @return array{0: string, 1: string}|null
@@ -136,6 +137,12 @@ final class MojeRozmowy
     public static function odczytajKursor(?string $kursor): ?array
     {
         if ($kursor === null || preg_match(self::WZORZEC_KURSORA, $kursor, $m) !== 1) {
+            return null;
+        }
+
+        // Własny format `czas_id` zostaje; wspólna reguła kalendarza chroni
+        // PostgreSQL przed datą pasującą do wzorca, ale niemożliwą.
+        if (! KursorListy::czasPasuje($m[1])) {
             return null;
         }
 

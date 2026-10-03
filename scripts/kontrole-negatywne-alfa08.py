@@ -1355,6 +1355,9 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Moje rozmowy przepuszczają niemożliwą datę kursora (#2803)", "app/Domain/Comments/MojeRozmowy.php",
+     "MojeRozmowyTest::test_parser_odrzuca_semantycznie_nieprawidlowy_czas_kursora",
+     lambda s: replace_once(s, "if (! KursorListy::czasPasuje($m[1])) {", "if (false) {")),
     # Właściciel zatwierdził 3.10.2026 izolowaną kontrolę #2784.
     # Mechanizm zapisuje mutant tylko na czas testu i przywraca źródło.
     ("Moje rozmowy pomijają Policy wpisu (#2432)", "app/Domain/Comments/MojeRozmowy.php",
