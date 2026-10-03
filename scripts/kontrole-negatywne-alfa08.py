@@ -713,6 +713,7 @@ EKSPORT_RETHROW = EKSPORT_BEZ_RETHROW + "            throw $e;\n"
 # zobaczyć duplikat, test ukrycia — pominięcie.
 SZUKAJ_KONTROLER = "app/Http/Controllers/SearchController.php"
 STABILNE_OKNA_TEST = "StabilneOknaWyszukiwaniaTest"
+KURSOR_REAL = "app/Domain/Search/SearchQuery.php"
 
 
 def bez_kursora_wyszukiwania(source):
@@ -2217,6 +2218,8 @@ checks = [
      lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
     ("Dalsze okno wyszukiwania bez kursora rankingu", SZUKAJ_KONTROLER, STABILNE_OKNA_TEST,
      bez_kursora_wyszukiwania),
+    ("Kursor z miarą nieczytelną dla PostgreSQL real (#2856)", KURSOR_REAL, STABILNE_OKNA_TEST,
+     lambda s: replace_once(s, 'return (int) (DB::selectOne("SELECT CASE WHEN pg_input_is_valid(?, \'real\') THEN 1 ELSE 0 END AS poprawna", [$wartosc])->poprawna ?? 0) === 1;', 'return true;')),
     ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
      lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
     ("Podzbiór fontu bez „ą\"", FONTY_CSS, FONTY_TEST,
