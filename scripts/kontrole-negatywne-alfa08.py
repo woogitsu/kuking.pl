@@ -1740,6 +1740,8 @@ checks = [
      lambda s: replace_once(s, "$wiersz->getKey() !== $widzianyPostepId", "false")),
     ("Moje wpisy: stara strona udaje pusty dorobek (#2473)", "app/Http/Controllers/MojeWpisyController.php", "test_stara_druga_strona_po_usunieciu_wraca_do_istniejacych_wpisow",
      lambda s: replace_once(s, "if ($wpisy->currentPage() > $wpisy->lastPage())", "if (false)")),
+    ("Moje wpisy: usunięty przepis zostawia martwą zapowiedź (#2870)", "app/Domain/Posts/MojeWpisy.php", "MojeWpisyPoUsunieciuPrzepisuTest::test_prawdziwe_usuniecie_chowa_martwa_zapowiedz_z_listy_wyszukiwania_i_licznika_a_odzyskanie_oddaje_ja_autorowi",
+     lambda s: replace_once(s, "->orWhereNull('posts.recipe_id')", "->orWhereNotNull('posts.recipe_id')")),
     ("Moje wpisy: pusta porcja traci kontener (#2473)", "resources/views/pages/collections/moje-wpisy.blade.php", "test_pusta_lista_ma_prawdziwy_pusty_stan_i_kontener_bez_petli",
      lambda s: replace_once(s, 'id="lista-moich-wpisow"', '''id="{{ $wpisy->isEmpty() ? 'brak-listy' : 'lista-moich-wpisow' }}"''')),
     ("Zapamiętane gotowanie: 500 ukrytych wypiera dostępne (#2439)", "app/Domain/Recipes/Gotowanie/ZapamietaneGotowania.php",
