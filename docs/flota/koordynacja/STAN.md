@@ -19,7 +19,8 @@
   Zwykły merge świeżej C wykonany; nie duplikować P/Q/R/T/U.
 - V `762b0ad3555017c06243e08543ce2116f64a91a8` wypchnięta zwykłym pełnym
   hakiem (exit 0), zakres #2847/#2872/#2873/#2875. Przed pełnym PR włączyć
-  zwykłym merge naprawy N–U; [odbiór V](ODBIOR-V-CODEX-20261003.md).
+  zwykłym merge naprawy N–U. Odbiór V jest w osobnej gałęzi V: plik
+  `docs/flota/koordynacja/ODBIOR-V-CODEX-20261003.md`; nie jest częścią N–U.
 - W lokalna `acbb118178184c548e0b73813a433ee59b5a1a39`: #2881/#2880/#2787,
   root 136/7150 Feature, 17/209 dwa połączenia, sześć właściwych fizycznych
   kontroli, build i pełny PHPStan zero. Brak push/PR. Przegląd wykrył i
