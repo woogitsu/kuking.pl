@@ -24,6 +24,7 @@ import './panel-menu.js';
 import './tagi-w-opisie.js';
 import './licznik-znakow.js';
 import './niezapisane-zmiany.js';
+import './wstaw-dopisek-ugotowalem.js';
 import './pokaz-wiecej.js';
 import './kopia-sasiedniego-pola.js';
 import './pokaz-haslo.js';
@@ -33,7 +34,7 @@ import './drukuj-przepis.js';
 import './postep-importu.js';
 import './dyktowanie.js';
 import './powiadomienia-push-uzgodnij.js';
-import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika, sprawdzMinutyWlasne, etykietaMinut, sprawdzDodatkoweMinuty} from './minutnik-krok.js';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, kluczPoAlarmie, zapiszStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika, sprawdzMinutyWlasne, etykietaMinut, sprawdzDodatkoweMinuty, PRZETERMINOWANIE_NAJWYZEJ_MS} from './minutnik-krok.js';
 import {utworzOdliczanie} from './odliczanie-minutnika.js';
 import {podlaczKolejke} from './kolejka-gotowania.js';
 import {podlaczPrzelacznik, utworzKontrolerWakeLock, utworzPamiecWyboru} from './wake-lock-gotowania.js';
@@ -831,6 +832,18 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     const nazwa = blok.querySelector('.cook-timer-nazwa');
 
     const klucz = kluczStanu(recipeSlug, krok, stepId, fingerprint);
+    const kluczZakonczenia = kluczPoAlarmie(klucz);
+    const zapiszZakonczenie = () => sessionStorage.setItem(kluczZakonczenia, String(Date.now()));
+    const maSwiezeZakonczenie = () => {
+        const zapis = sessionStorage.getItem(kluczZakonczenia);
+        if (zapis === null) return false;
+        const wiek = Date.now() - Number(zapis);
+        if (zapis !== '' && Number.isFinite(wiek) && wiek >= 0 && wiek <= PRZETERMINOWANIE_NAJWYZEJ_MS) {
+            return true;
+        }
+        sessionStorage.removeItem(kluczZakonczenia);
+        return false;
+    };
 
     // Callback moze wrocic z opoznieniem po usnieciu karty. Liczymy czas do
     // terminu na zegarze monotonicznym, zamiast zakladac, ze kazde
@@ -905,6 +918,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         planista: {ustaw: (funkcja, ms) => window.setInterval(funkcja, ms), wyczysc: (id) => window.clearInterval(id)},
         pokaz,
         przyKoncu: () => {
+            zapiszZakonczenie();
             pokazKoniec();
             // Widoczny alarm z powtarzanym sygnalem, nie jedno "beep"
             // (przeglad #1301): "Czas minął!" jest tylko dla czytnika
@@ -934,6 +948,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         // Bez przenoszenia fokusu -- czlowiek wlasnie kliknal ten przycisk.
         wylaczAlarmKroku?.();
         wylaczAlarmKroku = null;
+        sessionStorage.removeItem(kluczZakonczenia);
 
         przycisk.hidden = true;
         anuluj.hidden = false;
@@ -1040,6 +1055,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
             wylaczAlarmKroku = null;
 
             const stan = zegarKroku.dodaj(wynik.sekundy);
+            sessionStorage.removeItem(kluczZakonczenia);
             const dodano = etykietaMinut(wynik.sekundy);
 
             przycisk.hidden = true;
@@ -1066,6 +1082,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         }
 
         zatrzymajOdliczanie();
+        sessionStorage.removeItem(kluczZakonczenia);
         pokazDodawanie(false);
         odliczanie.hidden = true;
         if (nazwa) nazwa.hidden = true;
@@ -1096,6 +1113,10 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         const zapis = sessionStorage.getItem(klucz);
 
         if (zapis === null) {
+            if (maSwiezeZakonczenie()) {
+                pokazKoniec();
+                return true;
+            }
             return false;
         }
 
@@ -1147,6 +1168,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         // sygnal bez gestu milczy. Dlatego widoczny alarm w pasie -- ten sam,
         // co dla innych krokow -- z powtarzanym sygnalem.
         pokaz(0);
+        zapiszZakonczenie();
         pokazKoniec();
         alarmKroku();
 
@@ -1263,6 +1285,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
             // nie anulowal ani nie uruchomil od nowa.
             if (sessionStorage.getItem(klucz) === zapis) {
                 sessionStorage.removeItem(klucz);
+                if (aktualny !== null) sessionStorage.setItem(kluczPoAlarmie(klucz), String(Date.now()));
                 wiersz?.remove();
                 pas.hidden = pas.childElementCount === 0;
                 pokazAlarm(krok, aktualny, bezTozsamosci);
@@ -1293,6 +1316,19 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
             }
         }
 
+        return klucze;
+    };
+
+    const kluczeZakonczeniaPrzepisu = () => {
+        const przedrostek = kluczStanu(recipeSlug, '');
+        const klucze = [];
+        for (let i = 0; i < sessionStorage.length; i += 1) {
+            const klucz = sessionStorage.key(i);
+            if (klucz?.startsWith(przedrostek) && klucz.endsWith('.po-alarmie')
+                && krokZKlucza(klucz.slice(0, -'.po-alarmie'.length), recipeSlug) !== null) {
+                klucze.push(klucz);
+            }
+        }
         return klucze;
     };
 
@@ -1349,6 +1385,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     document.querySelectorAll('[data-minutniki-koniec]').forEach((link) => {
         link.addEventListener('click', () => {
             kluczeTegoPrzepisu().forEach((klucz) => sessionStorage.removeItem(klucz));
+            kluczeZakonczeniaPrzepisu().forEach((klucz) => sessionStorage.removeItem(klucz));
         });
     });
 })();

@@ -95,7 +95,25 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             exit 1
         fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2815.py; then
-            printf "${CZERWONY}Kontrola ujemna świeżego stanu konta w imporcie #2815 nie przeszła.${RESET}\n" >&2
+            printf "${CZERWONY}Kontrola ujemna ?wie?ego stanu konta w imporcie #2815 nie przesz?a.${RESET}\n" >&2
+            exit 1
+        fi
+        # #2783: oba odczyty opakowań muszą czekać na blokadę produktu.
+        if ! python3 tests/skrypty/kontrola-negatywna-2783-cel.py; then
+            printf "${CZERWONY}Kontrola celu bazy dla #2783 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2783.py; then
+            printf "${CZERWONY}Kontrola ujemna przeplotów opakowań #2783 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        # #2855: wizyta sprzed wyłączenia nie może wejść do nowego okresu zgody.
+        if ! python3 tests/skrypty/kontrola-negatywna-2855-cel.py; then
+            printf "${CZERWONY}Kontrola celu bazy dla #2855 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2855.py; then
+            printf "${CZERWONY}Kontrola ujemna okresu zgody historii #2855 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2402.py; then
@@ -108,6 +126,26 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
         fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2598.py; then
             printf "${CZERWONY}Kontrola ujemna właściwej bariery zeszytu #2598 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2811.py; then
+            printf "${CZERWONY}Kontrola ujemna ponowionego zdjęcia #2811 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2835.py; then
+            printf "${CZERWONY}Kontrola ujemna zaproszenia po zawieszeniu #2835 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2838.py; then
+            printf "${CZERWONY}Kontrola ujemna kolejności odpowiedzi na link #2838 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2849.py; then
+            printf "${CZERWONY}Kontrola ujemna odnowionego punktu odzyskania #2849 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2863.py; then
+            printf "${CZERWONY}Kontrola ujemna spóźnionego kanału Atom #2863 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
         # #2403: usunięcie retry slugu musi ujawnić 23505/recipes_slug_unique.

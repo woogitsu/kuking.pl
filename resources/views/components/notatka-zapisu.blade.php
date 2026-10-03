@@ -17,7 +17,7 @@
     każdej pozycji; bez niego — dawna reguła „tylko właściciel". Obcy
     oglądający publiczny zeszyt dalej nie widzi niczego.
 --}}
-@props(['zeszyt', 'typ', 'pozycja', 'dostep' => null, 'wspolny' => false])
+@props(['zeszyt', 'typ', 'pozycja', 'dostep' => null, 'wspolny' => false, 'strona' => 1])
 @php
     $jestWlascicielem = auth()->id() !== null && ($dostep ?? auth()->id() === $zeszyt->owner_id);
     $notatka = $pozycja->pivot?->note;
@@ -51,6 +51,7 @@
                 @csrf
                 @method('PATCH')
                 <input type="hidden" name="_wiersz" value="{{ $wiersz }}">
+                <input type="hidden" name="strona_notatki" value="{{ $strona }}">
                 <input type="hidden" name="{{ \App\Domain\Collections\Actions\UpdateCollectionItemNote::POLE_ODCISKU }}" value="{{ $odcisk }}">
                 <x-field name="note" :wiersz="$wiersz" :error-bag="$worek" :label="$wspolny ? 'Notatka' : 'Notatka dla siebie'" type="textarea" :rows="3" dyktowanie
                          :value="$notatka" :licznik-znakow="\App\Domain\Collections\Actions\UpdateCollectionItemNote::LIMIT_ZNAKOW"

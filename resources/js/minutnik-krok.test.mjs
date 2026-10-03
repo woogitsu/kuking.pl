@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika, PRZETERMINOWANIE_NAJWYZEJ_MS, sprawdzMinutyWlasne, etykietaMinut, WLASNY_MINUTNIK_MAX_MINUT} from './minutnik-krok.js';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, kluczPoAlarmie, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika, PRZETERMINOWANIE_NAJWYZEJ_MS, sprawdzMinutyWlasne, etykietaMinut, WLASNY_MINUTNIK_MAX_MINUT} from './minutnik-krok.js';
 
 test('pozostaloSekund liczy z zegara monotonicznego, nie ze zegara sciennego (issue #751)', () => {
     // Start minutnika: 5 minut = 300 sekund, na dowolnym punkcie zegara
@@ -87,6 +87,14 @@ test('krokZKlucza odczytuje krok tylko z kluczy minutnika TEGO przepisu (issue #
     assert.equal(krokZKlucza('kuking.cos-innego', 'zupa'), null);
     assert.equal(krokZKlucza(kluczStanu('zupa', ''), 'zupa'), null);
     assert.equal(krokZKlucza(null, 'zupa'), null);
+});
+
+test('2814: zakończenie kroku nie staje się drugim minutnikiem ani alarmem', () => {
+    const id = '00000000-0000-4000-8000-000000000001';
+    const klucz = kluczStanu('zupa', 1, id, 'a'.repeat(64));
+    assert.equal(krokZKlucza(klucz, 'zupa'), `id_${id}_${'a'.repeat(64)}`);
+    assert.equal(krokZKlucza(kluczPoAlarmie(klucz), 'zupa'), null);
+    assert.notEqual(kluczPoAlarmie(klucz), kluczPoAlarmie(kluczStanu('zupa', 2, id, 'b'.repeat(64))));
 });
 
 test('2589: edycja i przeładowanie zachowują termin B, ale nie przypisują go nowemu krokowi 2', () => {

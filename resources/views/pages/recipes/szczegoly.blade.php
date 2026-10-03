@@ -159,6 +159,7 @@
         @include('pages.import.partials.baner', ['niepewnych' => \App\Domain\Import\BramkaPublikacjiOdczytu::ileNiepewnych(
             (string) $recipe->title, (string) $recipe->summary,
             ...$recipe->ingredients->pluck('ingredient_text')->map(fn ($t) => (string) $t)->all(),
+            ...$recipe->ingredients->pluck('group_name')->map(fn ($t) => (string) $t)->all(),
             ...$recipe->steps->pluck('instruction')->map(fn ($t) => (string) $t)->all(),
         )])
     @endif
@@ -661,7 +662,7 @@
                     <input type="checkbox" name="sprawdzilem_odczyt" value="1" id="f-sprawdzilem_odczyt" @checked(old('sprawdzilem_odczyt'))>
                     <span class="choice-label">Sprawdziłem odczytany tekst</span>
                 </label>
-                <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem. Bez tego przepis zapisze się tylko jako szkic.@if($niepelnyImport !== null) Wiem, że ten import jest niepełny — brakujące pozycje są dopisane albo świadomie ich nie dodaję.@endif</span>
+                <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem. Bez tego przepis zapisze się tylko jako szkic.@if($niepelnyImport?->niepelny()) Wiem, że ten import jest niepełny — brakujące pozycje są dopisane albo świadomie ich nie dodaję.@elseif($niepelnyImport?->maOstrzezeniaParsera()) Wiem, że pola wskazane w ostrzeżeniu są sprawdzone i uzupełnione.@endif</span>
             </div>
         @endif
 
@@ -673,7 +674,7 @@
                            @checked(old('odczyt_sprawdzony'))>
                     <span>
                         <span class="choice-label">Odczytany tekst jest sprawdzony ze zdjęciem</span>
-                        <span class="choice-help">Każda linijka zgadza się z kartką, a znaczniki [? ?] są usunięte.@if($niepelnyImport !== null) Wiem, że ten odczyt jest niepełny — brakujące pozycje są dopisane albo świadomie ich nie dodaję.@endif</span>
+                        <span class="choice-help">Każda linijka zgadza się z kartką, a znaczniki [? ?] są usunięte.@if($niepelnyImport?->niepelny()) Wiem, że ten odczyt jest niepełny — brakujące pozycje są dopisane albo świadomie ich nie dodaję.@endif</span>
                     </span>
                 </label>
                 @error('odczyt_sprawdzony')<span class="field-error" id="f-odczyt_sprawdzony-error">{{ $message }}</span>@enderror

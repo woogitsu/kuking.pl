@@ -34,6 +34,7 @@
                         <p class="m-0 mt-2" data-termin>Możesz go odzyskać do {{ \App\Support\Czas::data(\App\Domain\Collections\Odzyskiwanie\OdzyskajUsunietyZeszyt::termin($zeszyt), 'j F Y, H:i') }}.</p>
                         <form class="mt-3" method="POST" action="{{ route('collections.deleted.recover', $zeszyt->collection_id) }}" novalidate>
                             @csrf
+                            <input type="hidden" name="{{ \App\Domain\Collections\Odzyskiwanie\OdzyskajUsunietyZeszyt::POLE_KOPII }}" value="{{ $zeszyt->getKey() }}">
                             <button class="btn btn-primary" type="submit" aria-label="Odzyskaj zeszyt: {{ $zeszyt->name }}" aria-describedby="usuniety-zeszyt-{{ $zeszyt->collection_id }}">Odzyskaj zeszyt</button>
                         </form>
                     </li>

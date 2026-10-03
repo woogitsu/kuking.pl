@@ -6,10 +6,15 @@ namespace Tests\Feature;
 
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Collections\Wspoldzielenie\DostepDoZeszytu;
+use App\Domain\Collections\Wspoldzielenie\OdpowiedzNaZaproszenie;
+use App\Domain\Collections\Wspoldzielenie\ZaprosDoZeszytu;
+use App\Domain\Recipes\Udostepnienia\UdostepnijPrzepis;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Exceptions\DataExportStorageFailure;
 use App\Jobs\GenerateUserExport;
 use App\Mail\DataExportReady;
+use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\DataExport;
@@ -25,6 +30,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -59,6 +65,75 @@ class DataExportTest extends TestCase
     // -----------------------------------------------------------------
     // Budowanie paczki
     // -----------------------------------------------------------------
+
+    /** @return array<string, array{0: bool}> */
+    public static function zakonczenieWspoltworzenia(): array
+    {
+        return ['odebranie przez właściciela' => [false], 'dobrowolne odejście' => [true]];
+    }
+
+    #[DataProvider('zakonczenieWspoltworzenia')]
+    public function test_nowy_eksport_zachowuje_historie_zaproszenia_bez_nowej_nazwy_prywatnego_zeszytu(bool $odchodzi): void
+    {
+        $wlasciciel = $this->user('wlasciciel');
+        $byly = $this->user('byly');
+        $zeszyt = Collection::create([
+            'owner_id' => $wlasciciel->getKey(),
+            'name' => 'Dawna nazwa',
+            'visibility' => 'private',
+        ]);
+        $zaproszenie = app(ZaprosDoZeszytu::class)->poNazwie($wlasciciel, $zeszyt, 'byly');
+        app(OdpowiedzNaZaproszenie::class)->przyjmij($byly, $zaproszenie);
+
+        if ($odchodzi) {
+            app(DostepDoZeszytu::class)->odejdz($byly, $zeszyt);
+        } else {
+            app(DostepDoZeszytu::class)->odbierz($wlasciciel, $zeszyt, $byly);
+        }
+
+        $zeszyt->update(['name' => 'Nowa prywatna nazwa 2869']);
+        $eksport = $this->runExportFor($byly->fresh());
+        $dane = $this->jsonFromArchive($eksport);
+        $otrzymane = $dane['zaproszenia_do_zeszytow']['otrzymane'];
+
+        $this->assertCount(1, $otrzymane, 'EKSPORT_2869_HISTORIA_ZAPROSZENIA');
+        $this->assertSame('accepted', $otrzymane[0]['stan']);
+        $this->assertNull($otrzymane[0]['zeszyt'], 'EKSPORT_2869_BEZ_NOWEJ_NAZWY');
+        $this->assertSame([], $dane['zeszyty_udostepnione_mi']);
+        $this->assertStringNotContainsString('Nowa prywatna nazwa 2869', json_encode($dane, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        $this->assertArchiveDoesNotContain($eksport, 'Nowa prywatna nazwa 2869', 'EKSPORT_2869_BEZ_NOWEJ_NAZWY');
+    }
+
+    public function test_eksport_zaproszen_zachowuje_nazwe_przy_biezacym_dostepie_i_publicznym_zeszycie(): void
+    {
+        $wlasciciel = $this->user('wlasciciel');
+        $czlonek = $this->user('czlonek');
+        $zeszyt = Collection::create([
+            'owner_id' => $wlasciciel->getKey(),
+            'name' => 'Wspólny zeszyt 2869',
+            'visibility' => 'private',
+        ]);
+        $zaproszenie = app(ZaprosDoZeszytu::class)->poNazwie($wlasciciel, $zeszyt, 'czlonek');
+        app(OdpowiedzNaZaproszenie::class)->przyjmij($czlonek, $zaproszenie);
+
+        $wspolny = $this->jsonFromArchive($this->runExportFor($czlonek));
+        $this->assertSame('Wspólny zeszyt 2869', $wspolny['zaproszenia_do_zeszytow']['otrzymane'][0]['zeszyt']);
+        $this->assertCount(1, $wspolny['zeszyty_udostepnione_mi']);
+
+        app(DostepDoZeszytu::class)->odejdz($czlonek, $zeszyt);
+        $zeszyt->update(['visibility' => 'public', 'name' => 'Publiczny zeszyt 2869']);
+        $publiczny = $this->jsonFromArchive($this->runExportFor($czlonek));
+        $this->assertSame('Publiczny zeszyt 2869', $publiczny['zaproszenia_do_zeszytow']['otrzymane'][0]['zeszyt']);
+
+        [, $token] = app(ZaprosDoZeszytu::class)->linkiem($wlasciciel, $zeszyt);
+        $eksport = $this->runExportFor($wlasciciel);
+        $wlasny = $this->jsonFromArchive($eksport);
+        $this->assertSame('Publiczny zeszyt 2869', $wlasny['zaproszenia_do_zeszytow']['wyslane'][0]['zeszyt']);
+        $json = json_encode($wlasny, JSON_THROW_ON_ERROR);
+        $this->assertStringNotContainsString('token_hash', $json);
+        $this->assertStringNotContainsString($token, $json);
+        $this->assertArchiveDoesNotContain($eksport, $token, 'EKSPORT_2869_BEZ_TOKENU');
+    }
 
     public function test_paczka_zawiera_decyzje_o_instalacji_wlasnego_konta(): void
     {
@@ -105,6 +180,37 @@ class DataExportTest extends TestCase
 
         Storage::disk('local')->assertExists($export->object_key);
         $this->assertTrue($export->isDownloadable());
+    }
+
+    public function test_nowy_eksport_zawieszonego_odbiorcy_nie_zawiera_pozniej_zmienionego_tytulu(): void
+    {
+        $autor = $this->user('autor', ['display_name' => 'Autorka']);
+        $odbiorca = $this->user('odbiorca', ['display_name' => 'Odbiorca']);
+        $przepis = Recipe::factory()->for($autor, 'author')->create([
+            'visibility' => 'private',
+            'title' => 'Dawny tytuł',
+        ]);
+        app(UdostepnijPrzepis::class)->poNazwie($autor, $przepis, 'odbiorca');
+
+        $dostepny = $this->jsonFromArchive($this->runExportFor($odbiorca));
+        $this->assertSame('Dawny tytuł', $dostepny['udostepnione_przepisy']['udostepnione_mi'][0]['przepis']);
+        $this->assertSame('Autorka', $dostepny['udostepnione_przepisy']['udostepnione_mi'][0]['autor']);
+
+        $odbiorca->suspend(now()->addDays(3));
+        $przepis->forceFill(['title' => 'Nowy prywatny tytuł'])->save();
+
+        $eksport = $this->runExportFor($odbiorca->fresh());
+        $this->assertSame(DataExport::STATUS_READY, $eksport->status);
+        $dane = $this->jsonFromArchive($eksport);
+        $relacja = $dane['udostepnione_przepisy']['udostepnione_mi'][0];
+        $this->assertNull($relacja['przepis'], 'EKSPORT_2785_BIEZACY_TYTUL_BEZ_DOSTEPU');
+        $this->assertNull($relacja['autor']);
+        $this->assertNotNull($relacja['od'], 'Historyczna data własnej relacji musi zostać w paczce.');
+        $this->assertStringNotContainsString('Nowy prywatny tytuł', $this->readFromArchive($eksport, 'dane.json'));
+
+        $this->travel(4)->days();
+        $poKarze = $this->jsonFromArchive($this->runExportFor($odbiorca->fresh()));
+        $this->assertSame('Nowy prywatny tytuł', $poKarze['udostepnione_przepisy']['udostepnione_mi'][0]['przepis']);
     }
 
     public function test_paczka_zawiera_index_czytelny_html_zdjecia_i_dane_json(): void
@@ -964,6 +1070,25 @@ class DataExportTest extends TestCase
         $this->assertIsString($content, "W archiwum nie ma pliku {$file}.");
 
         return $content;
+    }
+
+    private function assertArchiveDoesNotContain(DataExport $export, string $text, string $message): void
+    {
+        $zip = $this->openArchive($export);
+
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $name = $zip->getNameIndex($index);
+
+            if (! is_string($name) || str_ends_with($name, '/')) {
+                continue;
+            }
+
+            $content = $zip->getFromIndex($index);
+            $this->assertIsString($content, "W paczce brakuje pliku {$name}.");
+            $this->assertStringNotContainsString($text, $content, "{$message}: {$name}");
+        }
+
+        $zip->close();
     }
 
     /** @return array<string, mixed> */

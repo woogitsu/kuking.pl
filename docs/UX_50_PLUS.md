@@ -15,6 +15,18 @@ Produkt nie jest oznaczany jako „dla seniorów”. Ma być po prostu łatwy.
 
 ## Kontrolki
 
+### Prywatny dopisek przy „Ugotowałem” (#2857)
+
+„Wstaw dopisek do pola poniżej” działa w bieżącym formularzu: nie otwiera nowej
+strony, więc wpisane uwagi, czas, wybory i wybrany plik pozostają na miejscu.
+Jeśli pole „Coś po swojemu?” ma już tekst, osoba świadomie wybiera zastąpienie
+albo pozostanie przy swoim tekście. Bez skryptu lub gdy skrypt nie dojdzie,
+przycisk nie jest pokazywany; widoczna instrukcja pozwala samodzielnie
+skopiować dopisek do pola. Samo
+wstawienie nie wysyła formularza ani nie usuwa prywatnego dopisku. Cofnięcie
+poprawki polega na przywróceniu widoku i modułu; nie ma zmiany danych ani
+migracji.
+
 Produktowa reguła:
 
 - ważne buttony min. 48 px wysokości;
@@ -107,6 +119,11 @@ Tak:
 > Nie udało się dodać zdjęcia, ponieważ plik ma ponad 15 MB. Wybierz mniejsze zdjęcie.
 
 Błąd przy polu + podsumowanie. Poprawne dane nie znikają.
+
+Na ekranie „Szukaj” błąd filtra „Pomiń przepisy ze składnikiem” także jest
+w podsumowaniu, z odnośnikiem do `#f-bez-skladnika`. Nie zatrzymuje to
+wyszukiwania poprawnej frazy: wyniki są pokazane bez błędnego filtra, a wpisana
+nazwa pozostaje w polu do poprawienia (#2842).
 
 ### Pięć kryteriów, które musi spełnić KAŻDY komunikat walidacji
 
@@ -213,6 +230,13 @@ migracji ani zmiany zapisanych pozycji. Powrót do usuwania jednym kliknięciem
 przywróciłby jednak ryzyko przypadkowej utraty wpisu.
 
 ## Accessibility
+
+Przy „Pokaż więcej” poprawna pusta dalsza odpowiedź kończy paginację bez
+komunikatu o awarii połączenia. Wcześniejsze karty zostają, region wyniku
+ogłasza koniec listy, a po usunięciu przycisku fokus pozostaje na ostatniej
+karcie. Brak rozpoznawalnej listy w odpowiedzi nadal jest błędem (np. ekran
+logowania), nie pustą porcją. Powiadomienia zachowują ten kontrakt również
+gdy ktoś przeczyta drugą stronę w innej karcie (#2807).
 
 Cel WCAG 2.2 AA.
 

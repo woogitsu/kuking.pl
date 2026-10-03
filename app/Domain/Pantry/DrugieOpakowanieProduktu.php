@@ -125,7 +125,7 @@ final class DrugieOpakowanieProduktu
                 ->where('id', $produkt->getKey())
                 ->where('user_id', $produkt->user_id)
                 ->lockForUpdate()
-                ->first(['id', 'expires_on', 'expiry_kind', 'quantity_note', 'frozen']);
+                ->first(['id', 'first_package_id', 'expires_on', 'expiry_kind', 'quantity_note', 'frozen']);
 
             if ($pierwsze === null) {
                 return self::JUZ_NIE_MA;
@@ -147,7 +147,8 @@ final class DrugieOpakowanieProduktu
                 return self::JEDYNE;
             }
 
-            if ($odcisk !== null && $odcisk !== '' && $odcisk !== $this->odcisk((array) $pierwsze)) {
+            if (($pierwsze->first_package_id !== null && ($odcisk === null || $odcisk === ''))
+                || ($odcisk !== null && $odcisk !== '' && $odcisk !== $this->odcisk((array) $pierwsze, (string) ($pierwsze->first_package_id ?? $pierwsze->id)))) {
                 return self::ZMIENILO_SIE;
             }
 
@@ -156,6 +157,7 @@ final class DrugieOpakowanieProduktu
                 'expiry_kind' => $drugie->expiry_kind,
                 'quantity_note' => $drugie->quantity_note,
                 'frozen' => $drugie->frozen,
+                'first_package_id' => $drugie->id,
             ]);
             DB::table('pantry_second_packages')->where('id', $drugie->id)->delete();
 
@@ -173,13 +175,14 @@ final class DrugieOpakowanieProduktu
     }
 
     /** @param  array<string, mixed>  $tresc */
-    private function odcisk(array $tresc): string
+    private function odcisk(array $tresc, ?string $tozsamosc = null): string
     {
         return Opakowanie::odciskTresci(
             isset($tresc['expires_on']) ? (string) $tresc['expires_on'] : null,
             isset($tresc['expiry_kind']) ? (string) $tresc['expiry_kind'] : null,
             isset($tresc['quantity_note']) ? (string) $tresc['quantity_note'] : null,
             (bool) ($tresc['frozen'] ?? false),
+            $tozsamosc,
         );
     }
 }

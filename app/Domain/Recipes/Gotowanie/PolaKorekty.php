@@ -7,6 +7,7 @@ namespace App\Domain\Recipes\Gotowanie;
 use App\Models\CookedEvent;
 use App\Models\RecipeHint;
 use App\Models\Report;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Które pola własnego wykonania wolno teraz poprawić (#2459).
@@ -19,10 +20,10 @@ use App\Models\Report;
  * DWIE BLOKADY, OBIE NA ŚWIEŻYM STANIE (wołający trzyma wiersz wykonania):
  *
  *  1. WSKAZÓWKA (#2352). Wskazówka od gotujących nie kopiuje tekstu — to
- *     `cooked_events.note` wyświetlany przy przepisie. Dopóki prośba czeka na
- *     odpowiedź albo kucharz się zgodził, poprawka UWAGI podmieniłaby po cichu
- *     tekst, na który wyrażono zgodę. Uwaga zostaje więc zablokowana do chwili,
- *     gdy kucharz odpowie „Nie”, wycofa zgodę albo autor wycofa prośbę.
+ *     `cooked_events.note` wyświetlany przy przepisie. Dopóki niewygasła
+ *     prośba czeka na odpowiedź albo kucharz się zgodził, poprawka UWAGI
+ *     podmieniłaby po cichu tekst, na który wyrażono zgodę. Prośba przestaje
+ *     blokować po wygaśnięciu; przyjęta wskazówka nadal blokuje do wycofania.
  *     Czas i opis zmian wskazówki nie dotyczą.
  *  2. OTWARTE ZGŁOSZENIE do moderacji tego wykonania. Moderator ocenia tekst,
  *     który widział; poprawka w trakcie sprawy nadpisałaby dowód. Tekstów
@@ -51,7 +52,13 @@ final class PolaKorekty
 
         $wskazowkaAktywna = RecipeHint::query()
             ->where('cooked_event_id', $wykonanie->getKey())
-            ->whereIn('status', [RecipeHint::STATUS_PROPOSED, RecipeHint::STATUS_ACCEPTED])
+            ->where(static function (Builder $query): void {
+                $query->where('status', RecipeHint::STATUS_ACCEPTED)
+                    ->orWhere(static function (Builder $proposed): void {
+                        $proposed->where('status', RecipeHint::STATUS_PROPOSED)
+                            ->where('created_at', '>', RecipeHint::granicaWygasniecia());
+                    });
+            })
             ->exists();
 
         if ($wskazowkaAktywna) {

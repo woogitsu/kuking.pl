@@ -259,6 +259,75 @@ final class NazwaneListyZakupowTest extends TestCase
         $this->assertSame(ListaZakupow::maksPozycji(), ShoppingListItem::query()->count());
     }
 
+    public function test_odmowa_limitu_przepisu_wraca_na_wybrana_liste_z_droga_wyczyszczenia(): void
+    {
+        $ja = $this->user('kupujaca');
+        $swieta = $this->lista($ja, 'Święta');
+        $przepis = $this->przepis($this->user('kucharka'));
+        $wiersze = [];
+        for ($i = 0; $i < ListaZakupow::maksPozycji(); $i++) {
+            $wiersze[] = [
+                'id' => (string) Str::uuid(), 'user_id' => $ja->getKey(), 'text' => 'kupione '.$i,
+                'source' => ShoppingListItem::SOURCE_MANUAL, 'position' => $i,
+                'list_id' => $swieta->getKey(), 'checked_at' => now(),
+                'created_at' => now(), 'updated_at' => now(),
+            ];
+        }
+        DB::table('shopping_list_items')->insert($wiersze);
+
+        $odmowa = $this->actingAs($ja)->post(route('shopping.recipe.store', $przepis->slug), ['lista' => $swieta->getKey()]);
+        $this->assertSame(
+            route('shopping.index', ['lista' => $swieta->getKey()]),
+            $odmowa->headers->get('Location'),
+            'LISTY_2818_WRACA_NA_WYBRANA: odmowa limitu zgubiła wybraną listę.',
+        );
+        $odmowa->assertSessionHas('status_rodzaj', Komunikat::BLAD);
+
+        $html = (string) $this->get(route('shopping.index', ['lista' => $swieta->getKey()]))->assertOk()->getContent();
+        $this->assertStringContainsString('Wybrana lista: Święta', $html, 'LISTY_2818_WRACA_NA_WYBRANA: odmowa limitu zgubiła wybraną listę.');
+        $this->assertStringContainsString('Lista zakupów mieści najwyżej 300 pozycji', $html);
+        $this->assertStringContainsString('Wyczyść odhaczone', $html);
+        $this->assertSame(0, ShoppingListItem::query()->whereNull('list_id')->count());
+        $this->assertSame(ListaZakupow::maksPozycji(), ShoppingListItem::query()->where('list_id', $swieta->getKey())->count());
+    }
+
+    public function test_odmowa_limitu_na_domyslnej_liscie_wraca_na_domyslna(): void
+    {
+        $ja = $this->user('kupujaca');
+        $przepis = $this->przepis($this->user('kucharka'));
+        $wiersze = [];
+        for ($i = 0; $i < ListaZakupow::maksPozycji(); $i++) {
+            $wiersze[] = [
+                'id' => (string) Str::uuid(), 'user_id' => $ja->getKey(), 'text' => 'kupione '.$i,
+                'source' => ShoppingListItem::SOURCE_MANUAL, 'position' => $i,
+                'list_id' => null, 'checked_at' => now(),
+                'created_at' => now(), 'updated_at' => now(),
+            ];
+        }
+        DB::table('shopping_list_items')->insert($wiersze);
+
+        $this->actingAs($ja)->post(route('shopping.recipe.store', $przepis->slug))
+            ->assertRedirect(route('shopping.index'));
+        $this->assertSame(ListaZakupow::maksPozycji(), ShoppingListItem::query()->count());
+    }
+
+    public function test_usunieta_lista_przy_dodawaniu_przepisu_nie_staje_sie_celem_odmowy(): void
+    {
+        $ja = $this->user('kupujaca');
+        $swieta = $this->lista($ja, 'Święta');
+        $id = $swieta->getKey();
+        $przepis = $this->przepis($this->user('kucharka'));
+        $swieta->delete();
+
+        $this->actingAs($ja)->post(route('shopping.recipe.store', $przepis->slug), ['lista' => $id])
+            ->assertRedirect(route('shopping.index'))
+            ->assertSessionHas('status_rodzaj', Komunikat::BLAD);
+        $this->actingAs($ja)->post(route('shopping.recipe.store', $przepis->slug), ['lista' => 'niepoprawny-identyfikator'])
+            ->assertRedirect(route('shopping.index'))
+            ->assertSessionHas('status_rodzaj', Komunikat::BLAD);
+        $this->assertSame(0, ShoppingListItem::query()->count());
+    }
+
     public function test_cudza_lista_nie_otwiera_sie_i_nie_przyjmuje_zapisow(): void
     {
         $ja = $this->user('kupujaca');
@@ -345,6 +414,39 @@ final class NazwaneListyZakupowTest extends TestCase
 
         $this->assertStringContainsString('Przyjęcie u Kasi', $html);
         $this->assertStringContainsString('Nazwa nowej listy', $html);
+    }
+
+    public function test_limit_z_drugiej_karty_zostawia_nazwe_pole_i_zywy_odnosnik_bledu(): void
+    {
+        $ja = $this->user('kupujaca');
+        foreach (['Święta', 'Urodziny', 'Wakacje'] as $nazwa) {
+            $this->lista($ja, $nazwa);
+        }
+        // Karta A otwiera formularz, kiedy razem z „Na co dzień” są 4 listy.
+        $this->actingAs($ja)->get(route('shopping.index'))->assertOk()->assertSee('Nowa lista');
+        // Karta B zajmuje ostatnie miejsce zwykłym formularzem.
+        $this->actingAs($ja)->post(route('shopping.lists.store'), ['nazwa' => 'Remont'])
+            ->assertRedirect()->assertSessionHas('status');
+        $przed = ShoppingList::query()->where('user_id', $ja->getKey())->orderBy('name')->pluck('name')->all();
+
+        $html = (string) $this->actingAs($ja)->from(route('shopping.index'))->followingRedirects()
+            ->post(route('shopping.lists.store'), ['nazwa' => 'Przyjęcie u Kasi'])
+            ->assertOk()->getContent();
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="utf-8"?>'.$html);
+        $xpath = new \DOMXPath($dom);
+        $liczba = static function (string $zapytanie) use ($xpath): int {
+            $wynik = $xpath->query($zapytanie);
+
+            return $wynik === false ? 0 : $wynik->length;
+        };
+        $this->assertSame(1, $liczba('//section[@id="nowa-lista"]//form//input[@id="f-nazwa" and @name="nazwa" and @value="Przyjęcie u Kasi" and @aria-invalid="true"]'), 'LISTY_2821_ZYWE_POLE: wpisana nazwa albo pole zniknęły po limicie.');
+        $this->assertSame(1, $liczba('//div[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]//a[@href="#f-nazwa"]'), 'LISTY_2821_ZYWE_POLE: podsumowanie prowadzi do nieistniejącego pola.');
+        $this->assertSame(1, $liczba('//section[@id="nowa-lista"]//label[@for="f-nazwa"]'), 'LISTY_2821_ZYWE_POLE: pole utraciło widoczną etykietę.');
+        $this->assertSame(1, $liczba('//section[@id="nowa-lista"]//*[@id="f-nazwa-error"]'), 'LISTY_2821_ZYWE_POLE: brakuje błędu przy polu.');
+        $this->assertSame(1, $liczba('//section[@id="nowa-lista"]//form//button[@type="submit" and @disabled]'), 'LISTY_2821_ZYWE_POLE: przy pełnym limicie przycisk nie może obiecywać zapisu.');
+        $this->assertStringContainsString('Usuń listę, której już nie potrzebujesz', $html);
+        $this->assertSame($przed, ShoppingList::query()->where('user_id', $ja->getKey())->orderBy('name')->pluck('name')->all());
     }
 
     public function test_zmiana_nazwy_nie_rusza_pozycji(): void

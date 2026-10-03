@@ -91,6 +91,8 @@ pull_request|scripts/przegladarka/kolaz-lcp.test.mjs|ttfffft
 pull_request|scripts/generator-obciazenia-605.mjs|tffftft
 pull_request|scripts/fixtures/obciazenie605/dane.json|ttfftft
 pull_request|scripts/testy-dwa-polaczenia.sh|tfffftt
+pull_request|scripts/kontrola_przyczyny.py|tfffftt
+pull_request|scripts/zawezenie_testow.py|tfffftt
 pull_request|scripts/kontrola-negatywna-2402.py|tfffftt
 pull_request|scripts/kontrola-negatywna-2403.py|tfffftt
 pull_request|scripts/kontrola-negatywna-2404.py|tfffftt
@@ -228,6 +230,8 @@ mutuj wyscigi 'tests/(Dwa/|Support/|' 'tests/(Support/|' || exit 1
 mutuj wyscigi '240[234]' '9999' || exit 1
 mutuj wyscigi '|2427' '' || exit 1
 mutuj wyscigi '|2437' '' || exit 1
+mutuj wyscigi 'kontrola_przyczyny\.py|' '' || exit 1
+mutuj wyscigi 'zawezenie_testow\.py|' '' || exit 1
 
 # `pelny` (2.10.2026): odwrócony warunek, zgubione sprawdzenie zdarzenia
 # (push z DRAFT=true musiałby dać pełny) i zgubione sprawdzenie draftu.

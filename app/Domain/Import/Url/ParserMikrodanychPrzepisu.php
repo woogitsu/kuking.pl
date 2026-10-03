@@ -147,16 +147,28 @@ final class ParserMikrodanychPrzepisu
         }
 
         $tytul = $this->pierwszy($wlasciwosci, 'name') ?? $this->pierwszy($wlasciwosci, 'headline') ?? '';
+        $czasPrzygotowania = $this->pierwszy($wlasciwosci, 'preptime');
+        $czasGotowania = $this->pierwszy($wlasciwosci, 'cooktime');
+        $przygotowanieMinut = ParserJsonLdPrzepisu::minuty($czasPrzygotowania);
+        $gotowanieMinut = ParserJsonLdPrzepisu::minuty($czasGotowania);
+        $ostrzezenia = [];
+        if (ParserJsonLdPrzepisu::odrzuconyCzas($czasPrzygotowania, $przygotowanieMinut)) {
+            $ostrzezenia['przygotowanie'] = true;
+        }
+        if (ParserJsonLdPrzepisu::odrzuconyCzas($czasGotowania, $gotowanieMinut)) {
+            $ostrzezenia['gotowanie'] = true;
+        }
 
         return new OdczytanyPrzepis(
             tytul: $tytul !== '' ? $tytul : 'Przepis ze strony',
             opis: $this->pierwszy($wlasciwosci, 'description'),
             porcje: ParserJsonLdPrzepisu::porcje($this->pierwszy($wlasciwosci, 'recipeyield')),
-            przygotowanieMinut: ParserJsonLdPrzepisu::minuty($this->pierwszy($wlasciwosci, 'preptime')),
-            gotowanieMinut: ParserJsonLdPrzepisu::minuty($this->pierwszy($wlasciwosci, 'cooktime')),
+            przygotowanieMinut: $przygotowanieMinut,
+            gotowanieMinut: $gotowanieMinut,
             lacznieMinut: ParserJsonLdPrzepisu::minuty($this->pierwszy($wlasciwosci, 'totaltime')),
             skladniki: $skladniki,
             kroki: $kroki,
+            ostrzezeniaParsera: $ostrzezenia,
         );
     }
 

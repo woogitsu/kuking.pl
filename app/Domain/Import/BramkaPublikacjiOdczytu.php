@@ -67,12 +67,12 @@ final class BramkaPublikacjiOdczytu implements BramkaPublikacjiSzkicu
 
     public static function komunikatSprawdzenia(Recipe $przepis): string
     {
-        return self::pominiete($przepis) === null ? self::KOMUNIKAT_SPRAWDZENIE : self::KOMUNIKAT_SPRAWDZENIE_NIEPELNY;
+        return self::pominiete($przepis)?->niepelny() ? self::KOMUNIKAT_SPRAWDZENIE_NIEPELNY : self::KOMUNIKAT_SPRAWDZENIE;
     }
 
     /**
      * @param  array<string, mixed>  $atrybuty
-     * @param  list<array{ingredient_text: string}>  $skladniki  wiersze po `PublishRecipe::cleanIngredients()` (bez pustych)
+     * @param  list<array{ingredient_text: string, group_name: ?string, input_index?: int}>  $skladniki  wiersze po `PublishRecipe::cleanIngredients()` (bez pustych)
      * @param  list<array{instruction: string}>  $kroki  wiersze już oczyszczone (bez pustych)
      *
      * @throws ValidationException
@@ -83,7 +83,14 @@ final class BramkaPublikacjiOdczytu implements BramkaPublikacjiSzkicu
             return;
         }
 
-        $bledy = self::znaczniki($tytul, (string) ($atrybuty['summary'] ?? ''), array_column($skladniki, 'ingredient_text'), array_column($kroki, 'instruction'));
+        $bledy = self::znaczniki(
+            $tytul,
+            (string) ($atrybuty['summary'] ?? ''),
+            array_column($skladniki, 'ingredient_text'),
+            array_column($kroki, 'instruction'),
+            array_map(static fn (array $wiersz): string => (string) ($wiersz['group_name'] ?? ''), $skladniki),
+            array_map(static fn (array $wiersz, int $i): int => $wiersz['input_index'] ?? $i, $skladniki, array_keys($skladniki)),
+        );
 
         if (! filter_var($atrybuty['odczyt_sprawdzony'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
             $bledy['odczyt_sprawdzony'] = self::komunikatSprawdzenia($przepis);
@@ -101,9 +108,11 @@ final class BramkaPublikacjiOdczytu implements BramkaPublikacjiSzkicu
      *
      * @param  list<string>  $skladniki
      * @param  list<string>  $kroki
+     * @param  list<string>  $grupy
+     * @param  list<int>  $indeksyGrup  numery oryginalnych pól przed pominięciem pustych wierszy
      * @return array<string, string>
      */
-    public static function znaczniki(string $tytul, string $opis, array $skladniki, array $kroki): array
+    public static function znaczniki(string $tytul, string $opis, array $skladniki, array $kroki, array $grupy = [], array $indeksyGrup = []): array
     {
         $bledy = [];
 
@@ -119,6 +128,13 @@ final class BramkaPublikacjiOdczytu implements BramkaPublikacjiSzkicu
             if (str_contains($tekst, self::ZNACZNIK)) {
                 $bledy['ingredients'] = 'Sprawdź słowo oznaczone [?] w '.($i + 1).'. składniku i usuń znaczniki [? ?].';
                 break;
+            }
+        }
+
+        foreach ($grupy as $i => $grupa) {
+            if (str_contains($grupa, self::ZNACZNIK)) {
+                $indeksPola = $indeksyGrup[$i] ?? $i;
+                $bledy['ingredients.'.$indeksPola.'.group_name'] = 'Sprawdź słowo oznaczone [?] w nazwie grupy przy '.($indeksPola + 1).'. składniku i usuń znaczniki [? ?].';
             }
         }
 

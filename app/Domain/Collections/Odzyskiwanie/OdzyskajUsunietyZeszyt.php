@@ -61,6 +61,11 @@ use Illuminate\Support\Facades\DB;
  */
 final class OdzyskajUsunietyZeszyt
 {
+    public const POLE_KOPII = 'kopia_usuniecia';
+
+    private const STARA_KOPIA = 'Ten przycisk dotyczy wcześniejszego usunięcia zeszytu. '
+        .'Otwórz ponownie „Usunięte zeszyty” i wybierz kopię, którą chcesz odzyskać.';
+
     private const NIE_DA_SIE = 'Tego zeszytu nie da się już odzyskać tym przyciskiem. '
         .'Mógł minąć termin albo zeszyt wymaga rozpatrzenia przez nas. '
         .'Jeśli chcesz o niego zapytać, napisz do nas przez „Napisz do nas”.';
@@ -116,13 +121,14 @@ final class OdzyskajUsunietyZeszyt
     }
 
     /**
-     * @param  string  $zeszytId  dawny identyfikator zeszytu (klucz kopii)
+     * @param  string  $zeszytId  dawny identyfikator zeszytu
+     * @param  string  $kopiaId  identyfikator kopii pokazanej na ekranie
      *
      * @throws BladDlaCzlowieka gdy zeszytu nie wolno albo nie da się odzyskać
      */
-    public function handle(User $wlasciciel, string $zeszytId): WynikOdzyskaniaZeszytu
+    public function handle(User $wlasciciel, string $zeszytId, string $kopiaId): WynikOdzyskaniaZeszytu
     {
-        return DB::transaction(function () use ($wlasciciel, $zeszytId): WynikOdzyskaniaZeszytu {
+        return DB::transaction(function () use ($wlasciciel, $zeszytId, $kopiaId): WynikOdzyskaniaZeszytu {
             // Konto pod blokadą: wymazanie albo ban zatwierdzone w międzyczasie
             // jest widoczne (ta sama kolejność co zapis do zeszytu).
             $konto = User::query()->whereKey($wlasciciel->getKey())->lock('FOR NO KEY UPDATE')->first();
@@ -139,6 +145,13 @@ final class OdzyskajUsunietyZeszyt
                 ->where('owner_id', $konto->getKey())
                 ->lockForUpdate()
                 ->first();
+
+            // Zeszyt mógł zostać odzyskany, zmieniony i ponownie usunięty
+            // między pokazaniem formularza a kliknięciem. UUID kopii, a nie
+            // sam dawny UUID zeszytu, wskazuje konkretną decyzję człowieka.
+            if ($kopiaId === '' || ($kopia !== null && $kopia->getKey() !== $kopiaId)) {
+                throw new BladDlaCzlowieka(self::STARA_KOPIA);
+            }
 
             if ($kopia === null) {
                 // Drugie wysłanie tego samego formularza: pierwsze już odzyskało.
@@ -200,7 +213,7 @@ final class OdzyskajUsunietyZeszyt
             'updated_at' => now()->format('Y-m-d H:i:s.uP'),
         ]);
 
-        /** @var list<array{recipe_id: string|null, post_id: string|null, note: string|null, created_at: string}> $pozycje */
+        /** @var list<array{recipe_id: string|null, post_id: string|null, note: string|null, created_at: string, position?: int|null}> $pozycje */
         $pozycje = $kopia->items;
 
         // Cel nadal istnieje i nie jest usunięty. `FOR KEY SHARE` w stałej
@@ -222,6 +235,8 @@ final class OdzyskajUsunietyZeszyt
                         'recipe_id' => $kolumna === 'recipe_id' ? $cel : null,
                         'post_id' => $kolumna === 'post_id' ? $cel : null,
                         'note' => $pozycja['note'],
+                        // Stare kopie nie mają tego klucza; nie zgadujemy układu.
+                        'position' => $kolumna === 'recipe_id' ? ($pozycja['position'] ?? null) : null,
                         'created_at' => $pozycja['created_at'],
                         // Zeszyt jest prywatny i niewspółdzielony: dodał go właściciel.
                         'added_by_id' => $konto->getKey(),

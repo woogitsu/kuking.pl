@@ -194,15 +194,18 @@
 
     <section class="card mt-6" id="nowa-lista" aria-labelledby="nowa-lista-naglowek">
         <h2 class="mt-0" id="nowa-lista-naglowek">Osobna lista na okazję</h2>
-        @if($mozeDodacListe)
+        @if($mozeDodacListe || $blad_nazwy)
             <details @if($blad_nazwy) open @endif>
                 <summary class="btn btn-secondary">Nowa lista</summary>
+                @unless($mozeDodacListe)
+                    <p>Masz już {{ $maksList }} list zakupów. Żeby założyć nową, usuń listę, której już nie potrzebujesz. Wpisaną nazwę możesz skopiować z pola poniżej.</p>
+                @endunless
                 <p class="mt-3">Na przykład „Święta” albo „Przyjęcie u Kasi”, żeby nie mieszać ich z zakupami na dziś. „Na co dzień” zostaje jak jest. Możesz mieć najwyżej {{ $maksList }} list razem z „Na co dzień”.</p>
                 <form class="planer-dopisz" method="POST" action="{{ route('shopping.lists.store') }}" novalidate>
                     @csrf
                     <x-field name="nazwa" label="Nazwa nowej listy" :bez-oznaczenia="true" autocomplete="off"
                              help="Najwyżej {{ $maksZnakowNazwy }} znaków." />
-                    <button class="btn btn-primary" type="submit">Załóż listę</button>
+                    <button class="btn btn-primary" type="submit" @disabled(! $mozeDodacListe)>Załóż listę</button>
                 </form>
             </details>
         @else

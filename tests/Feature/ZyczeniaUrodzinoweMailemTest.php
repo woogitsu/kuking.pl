@@ -141,6 +141,7 @@ class ZyczeniaUrodzinoweMailemTest extends TestCase
         $this->actingAs($basia)->put(route('settings.birthday.preferences'), [
             '_formularz' => 'wybory',
             'original_birthday_email' => '0',
+            'original_birthday_visible_to_followers' => '0',
             'birthday_wishes_enabled' => '1',
             'wants_birthday_email' => '1',
         ])->assertSessionHasNoErrors();
@@ -167,6 +168,7 @@ class ZyczeniaUrodzinoweMailemTest extends TestCase
         $this->actingAs($basia)->put(route('settings.birthday.preferences'), [
             '_formularz' => 'wybory',
             'original_birthday_email' => '1',
+            'original_birthday_visible_to_followers' => '0',
             'birthday_wishes_enabled' => '1',
             'wants_birthday_email' => '1',
         ])->assertSessionHasErrors('wants_birthday_email');

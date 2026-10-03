@@ -60,6 +60,62 @@ final class DokumentacjaBazy
         return implode("\n\n", $czesci);
     }
 
+    /**
+     * Zwykłe względne linki i kotwice nagłówków w plikach `docs/baza/`.
+     * To wąski sprawdzian dokumentacji, nie parser całego Markdown.
+     *
+     * @return list<string>
+     */
+    public static function zepsuteLinki(?string $korzen = null): array
+    {
+        $korzen ??= self::korzen();
+        $zepsute = [];
+
+        foreach (self::pliki($korzen) as $plik) {
+            $tresc = self::bezBlokowKodu(self::czytaj($korzen.'/'.$plik));
+            preg_match_all('~\]\(([^)\s]+)\)~', $tresc, $linki);
+
+            foreach ($linki[1] as $cel) {
+                if (preg_match('~^(https?:|mailto:)~', $cel) === 1) {
+                    continue;
+                }
+
+                [$sciezka, $fragment] = array_pad(explode('#', $cel, 2), 2, '');
+                $docelowy = $sciezka === '' ? $korzen.'/'.$plik : dirname($korzen.'/'.$plik).'/'.$sciezka;
+
+                if (! is_file($docelowy)) {
+                    $zepsute[] = $plik.' -> '.$cel;
+
+                    continue;
+                }
+
+                if ($fragment !== '' && str_ends_with($docelowy, '.md') && ! in_array(rawurldecode($fragment), self::kotwiceNaglowkow(self::bezBlokowKodu(self::czytaj($docelowy))), true)) {
+                    $zepsute[] = $plik.' -> '.$cel;
+                }
+            }
+        }
+
+        return $zepsute;
+    }
+
+    private static function bezBlokowKodu(string $tresc): string
+    {
+        return (string) preg_replace('/```.*?```/su', '', $tresc);
+    }
+
+    /** @return list<string> */
+    private static function kotwiceNaglowkow(string $tresc): array
+    {
+        preg_match_all('/^#{1,6}\s+(.+?)\s*#*\s*$/mu', $tresc, $naglowki);
+
+        return array_map(static function (string $naglowek): string {
+            $tekst = mb_strtolower(trim($naglowek));
+            $tekst = (string) preg_replace('/[^\p{L}\p{N}_ -]/u', '', $tekst);
+
+            return str_replace(' ', '-', $tekst);
+        }, $naglowki[1]);
+    }
+
     private static function czytaj(string $sciezka): string
     {
         $tresc = is_file($sciezka) ? file_get_contents($sciezka) : false;

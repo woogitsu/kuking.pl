@@ -128,7 +128,7 @@ class CollectionSharingController extends Controller
         }
 
         return redirect()->route('collections.sharing', $collection)
-            ->with(Komunikat::sukces("Dostęp odebrany. {$czlonek->displayName()} nie widzi już tego zeszytu. To, co dodała ta osoba, zostaje w zeszycie."));
+            ->with(Komunikat::sukces("Współtworzenie zakończone. {$czlonek->displayName()} nie może już zapisywać w tym zeszycie. Jeśli zeszyt jest publiczny i nadal dostępny, może go czytać. To, co dodała ta osoba, zostaje w zeszycie."));
     }
 
     public function leave(Request $request, Collection $collection, DostepDoZeszytu $akcja): RedirectResponse
@@ -138,7 +138,7 @@ class CollectionSharingController extends Controller
         $akcja->odejdz($request->user(), $collection);
 
         return redirect()->route('collections.index')
-            ->with(Komunikat::sukces("Nie masz już dostępu do zeszytu „{$collection->name}”. Wszystko, co w nim zapisano, zostaje u właściciela."));
+            ->with(Komunikat::sukces("Nie współtworzysz już zeszytu „{$collection->name}”. Nie możesz już w nim zapisywać. Jeśli zeszyt jest publiczny i nadal dostępny, możesz go czytać. Wszystko, co w nim zapisano, zostaje u właściciela."));
     }
 
     /** Zaproszenie po nazwie konta — widzi je tylko adresat. */

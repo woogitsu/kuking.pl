@@ -53,6 +53,12 @@ class SpizarniaPotwierdzenieUsunieciaTest extends TestCase
         $this->assertNotFalse($tokens);
         $this->assertSame(1, $methods->length);
         $this->assertSame(1, $tokens->length);
+        $zakres = $xpath->query('./input[@name="widziane_drugie" and @value="brak"]', $form);
+        $this->assertNotFalse($zakres);
+        $this->assertSame(1, $zakres->length);
+        $tozsamosc = $xpath->query('./input[@name="widziane_pierwsze" and @value="'.$produkt->getKey().'"]', $form);
+        $this->assertNotFalse($tozsamosc);
+        $this->assertSame(1, $tozsamosc->length);
         $this->assertSame($przed, $this->attributesFromDatabase($produkt));
     }
 
@@ -84,7 +90,10 @@ class SpizarniaPotwierdzenieUsunieciaTest extends TestCase
         $user = $this->user();
         $produkt = $user->pantryItems()->create(['name' => 'Mąka']);
         $pozostaje = $user->pantryItems()->create(['name' => 'Jajka']);
-        $this->actingAs($user)->delete(route('pantry.destroy', $produkt))->assertRedirect(route('pantry.index'));
+        $this->actingAs($user)->delete(route('pantry.destroy', $produkt), [
+            'widziane_pierwsze' => (string) $produkt->getKey(), 'widziane_drugie' => 'brak',
+        ])
+            ->assertRedirect(route('pantry.index'));
         $this->assertDatabaseMissing('pantry_items', ['id' => $produkt->getKey()]);
         $this->assertDatabaseHas('pantry_items', ['id' => $pozostaje->getKey(), 'name' => 'Jajka']);
     }

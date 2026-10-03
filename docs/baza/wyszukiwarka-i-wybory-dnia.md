@@ -1,5 +1,17 @@
 # Wyszukiwarka i wybory redakcyjne
 
+## Miary kursora dalszych wyników (#2856)
+
+Kursor przepisów zawiera dwie miary podobieństwa, a kursor osób jedną. W SQL
+każda jest rzutowana na PostgreSQL `real`. Samo sprawdzenie przez PHP `float`
+nie wystarcza: `1e-99` mieści się w PHP `double`, ale PostgreSQL 18 odrzuca
+rzutowanie do `real` jako underflow. Przed zapytaniem o wyniki sprawdzamy
+oryginalny tekst miary funkcją PostgreSQL `pg_input_is_valid(?, 'real')`.
+Niezaakceptowany kursor wraca do istniejącego liczbowego okna `offset`;
+prawidłowe zero i podnormalne wartości `real` zachowują kolejność kursorową.
+Test HTTP sprawdza konkretne identyfikatory w dalszym oknie obu list, a
+kontrola ujemna wyłącza strażnika bez zmiany samego zapytania.
+
 > Część modelu danych Kuking. Spis plików i tabel: [`docs/DATABASE.md`](../DATABASE.md).
 
 ## Wyszukiwarka: funkcja `kuking_normalize()`

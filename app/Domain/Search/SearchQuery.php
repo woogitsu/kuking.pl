@@ -320,10 +320,18 @@ final class SearchQuery
         return ['wartosc' => $nazwa, 'blad' => null];
     }
 
-    /** Podobieństwo trigramowe jest zawsze w [0, 1]; wszystko inne to nie nasz kursor. */
+    /**
+     * Kursor trafia później do `?::real`. PHP rzutuje np. 1e-99 na dodatni
+     * double, choć PostgreSQL 18 odmawia takiej wartości dla `real`.
+     * Sprawdzamy dokładnie tekst przesyłany do SQL, nie jego zaokrąglenie.
+     */
     private static function miara(string $wartosc): bool
     {
-        return is_numeric($wartosc) && (float) $wartosc >= 0.0 && (float) $wartosc <= 1.0;
+        if (! is_numeric($wartosc) || (float) $wartosc < 0.0 || (float) $wartosc > 1.0) {
+            return false;
+        }
+
+        return (int) (DB::selectOne("SELECT CASE WHEN pg_input_is_valid(?, 'real') THEN 1 ELSE 0 END AS poprawna", [$wartosc])->poprawna ?? 0) === 1;
     }
 
     /**

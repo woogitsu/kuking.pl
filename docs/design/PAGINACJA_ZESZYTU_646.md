@@ -5,6 +5,20 @@ z 18 września 2026 — pakiet #646 (PR #651) nie zostawił własnego raportu
 w repozytorium, a `docs/design/PAGINACJA_PRZEPISU_652.md` opisuje wyłącznie
 ekran przepisu. Nie jest to nowa implementacja ani ponowna naprawa.
 
+## Dopisek #2829: powrót po błędzie notatki z doładowanej porcji
+
+Doładowana porcja nie zmienia adresu otwartej strony; zapis notatki z niej
+wysyła własny numer strony listy (`page` dla przepisu, `wpisy` dla wpisu).
+Przy błędzie walidacji lub konflikcie odcisku odpowiedź kieruje od razu na tę
+stronę, aby `old()` i komunikat nie wygasły na pierwszym GET bez formularza
+tej pozycji. Numer jest dodatnią liczbą całkowitą i służy wyłącznie do
+nawigacji; dostęp do zeszytu i zapis nadal sprawdzają dotychczasowe Policy.
+Formularz z pierwszej strony i udany zapis zachowują dotychczasową drogę
+powrotu. Regresję HTTP oraz oba rodzaje treści mierzy
+`tests/Feature/NotatkaZDalszejPorcjiZeszytuTest.php`; fizyczna kontrola
+ujemna przywraca powrót na pierwszą stronę. Ten dopisek dotyczy nowej
+poprawki w przygotowaniu; status wdrożenia powyżej opisuje historyczne #646.
+
 ## Co jest w kodzie
 
 Ekran zeszytu ma dwa paginatory na jednym adresie: przepisy pod `page`

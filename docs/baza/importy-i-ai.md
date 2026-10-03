@@ -232,8 +232,20 @@ wołana przez `PublishRecipe` przez kontrakt `StrazPochodzeniaPrzepisu`).
 | `source_url` | text NULL, CHECK: przy `zrodlo = url` niepusty i `^https?://`, ≤ 2000 znaków | adres po przekierowaniach, bez parametrów śledzących; ten sam trafia do `recipes.source_url` i jest tam zablokowany |
 | `tekst_zrodla` | text NULL | kroki w brzmieniu ze strony — do ostrzeżenia „opis prawie taki sam jak na stronie" (`similarity()` z `pg_trgm`, próg `kuking.import.podobienstwo_ostrzezenie`); **czyszczony przy publikacji** |
 | `sprawdzone_at` | timestamptz NULL | człowiek zaznaczył „Sprawdziłem odczytany tekst"; bez tego szkic się nie opublikuje |
-| `pominiete` | jsonb NULL, bez CHECK — kształt pilnuje `PominieteWImporcie::zTablicy()` (migracja `2026_10_05_300000_add_pominiete_to_przepisy_z_importu`, **#2521**) | co import pominął albo uciął przez granice formularza (120 składników, 60 kroków, długości pól): `{"skladniki": 3, "kroki": 0, "obciete": ["krok:2", "tytul"]}`. **Tylko liczby i nazwy pól, bez treści** (polityka prywatności bez zmian). `NULL` = import kompletny. Czytane przy każdym otwarciu szkicu (baner „Ten import jest niepełny”, ekran postępu), a publikacja wymaga świadomego potwierdzenia. Szkic ze zdjęcia dostaje wiersz (`zrodlo = 'zdjecie'`, `droga = 'ocr'`) **tylko gdy coś pominięto** — taki wiersz nie wprowadza bramki „Sprawdziłem odczytany tekst” (zdjęcie ma własną: `BramkaPublikacjiOdczytu`). **Rollback odmawia** (D-088), gdy istnieje szkic z `pominiete` i bez `sprawdzone_at`. |
+| `pominiete` | jsonb NULL, bez CHECK — kształt pilnuje `PominieteWImporcie::zTablicy()` (migracja `2026_10_05_300000_add_pominiete_to_przepisy_z_importu`, **#2521**) | Limity formularza: `{"skladniki":3,"kroki":0,"obciete":["krok:2","tytul"]}`; osobno ostrzeżenia parsera #2546/#2548 opisane niżej. **Tylko liczby i zamknięte nazwy pól, bez treści** (polityka prywatności bez zmian). `NULL` = brak obu rodzajów ostrzeżeń. Czytane przy każdym otwarciu szkicu i na ekranie postępu; publikacja wymaga świadomego potwierdzenia. Szkic ze zdjęcia dostaje wiersz (`zrodlo = 'zdjecie'`, `droga = 'ocr'`) **tylko gdy coś pominięto** — taki wiersz nie wprowadza bramki „Sprawdziłem odczytany tekst” (zdjęcie ma własną: `BramkaPublikacjiOdczytu`). **Rollback odmawia** (D-088), gdy istnieje szkic z `pominiete` i bez `sprawdzone_at`. |
 | `created_at`, `updated_at` | timestamptz | |
+
+**Uzupełnienie kontraktu `pominiete` (#2546/#2548).** Oprócz trzech kluczy
+limitów opisanych w tabeli JSONB może zawierać osobny, zamknięty klucz
+`ostrzezenia_parsera`, np. `{"skladniki":2,"przygotowanie":true}`. Liczba
+`skladniki` oznacza nierozpoznane pozycje źródła, a nie przekroczenie limitu
+120 składników. Dwa pola czasu oznaczają podaną w źródle wartość, której nie
+można wiernie wpisać w pełnych minutach. W szczególności `PT90S` pozostaje
+pustym polem, bez zaokrąglenia. Do kolumny trafiają wyłącznie te trzy
+zamknięte nazwy i liczba; bez oryginalnych składników, czasu ani kodu jednostki.
+`NULL` znaczy brak obcięć **i** ostrzeżeń parsera. Ostrzeżenie pojawia się na
+ekranie postępu oraz przy każdym otwarciu prywatnego szkicu. Stary kształt
+JSONB pozostaje ważny; schemat i reguła odmowy rollbacku nie zmieniają się.
 
 Model `App\Models\PrzepisZImportu` ma pusty `$fillable` — wiersz zapisuje
 tylko `ZapiszSzkicZImportu` (`forceFill`), znacznik sprawdzenia —

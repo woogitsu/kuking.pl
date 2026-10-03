@@ -11,6 +11,7 @@ use App\Models\Collection;
 use App\Models\CollectionInvitation;
 use App\Models\Notification;
 use App\Models\User;
+use App\Policies\CollectionPolicy;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -29,7 +30,9 @@ use Illuminate\Support\Facades\DB;
  * Nigdy nie zostaje członkostwo obok blokady.
  *
  * Drugie przyjęcie tego samego zaproszenia przez tę samą osobę to sukces bez
- * skutku. Link przyjęty przez kogoś innego — odmowa (link jest jednorazowy).
+ * skutku wyłącznie przy nadal ważnym członkostwie. Po odebraniu dostępu nie
+ * wolno zwracać świeżej nazwy prywatnego zeszytu. Link przyjęty przez kogoś
+ * innego — odmowa (link jest jednorazowy).
  */
 final class OdpowiedzNaZaproszenie
 {
@@ -54,11 +57,20 @@ final class OdpowiedzNaZaproszenie
             $swieze = CollectionInvitation::query()->whereKey($zaproszenie->getKey())->lockForUpdate()->first()
                 ?? throw new BladDlaCzlowieka(self::NIEAKTUALNE);
 
-            // Już przyjęte przez TĘ osobę — drugie kliknięcie, nic nie robimy.
+            // Już przyjęte przez TĘ osobę: ponowienie jest sukcesem tylko wtedy,
+            // gdy członkostwo i prawo odczytu nadal istnieją. Zamek zeszytu
+            // szereguje ten odczyt z odebraniem dostępu i zmianą nazwy.
             if ($swieze->status === CollectionInvitation::STATUS_ACCEPTED
                 && $swieze->invitee_id === $swiezaOsoba->getKey()) {
-                $zeszyt = Collection::query()->whereKey($swieze->collection_id)->first()
+                $zeszyt = Collection::query()->whereKey($swieze->collection_id)->lock('FOR NO KEY UPDATE')->first()
                     ?? throw new BladDlaCzlowieka(self::NIEAKTUALNE);
+                $zeszyt->setRelation('owner', $swiezyWlasciciel);
+
+                if ($zeszyt->owner_id !== $swiezyWlasciciel->getKey()
+                    || ! $zeszyt->maCzlonka($swiezaOsoba)
+                    || ! (new CollectionPolicy)->view($swiezaOsoba, $zeszyt)) {
+                    throw new BladDlaCzlowieka(self::NIEAKTUALNE);
+                }
 
                 return [$zeszyt, false];
             }
@@ -118,7 +130,16 @@ final class OdpowiedzNaZaproszenie
 
     public function odrzuc(User $osoba, CollectionInvitation $zaproszenie): void
     {
-        DB::transaction(function () use ($osoba, $zaproszenie): void {
+        $wlasciciel = $zaproszenie->collection->owner
+            ?? throw new BladDlaCzlowieka(self::NIEAKTUALNE);
+
+        // Ta sama kolejność co przy przyjęciu: konta, zaproszenie. Przy linku
+        // invitee_id jest NULL, a jego ustawienie sprawdza FK do users.
+        ZamekPary::zablokuj($osoba, $wlasciciel, function (?User $swiezaOsoba, ?User $swiezyWlasciciel) use ($zaproszenie): void {
+            if ($swiezaOsoba === null || $swiezyWlasciciel === null) {
+                throw new BladDlaCzlowieka(self::NIEAKTUALNE);
+            }
+
             $swieze = CollectionInvitation::query()->whereKey($zaproszenie->getKey())->lockForUpdate()->first();
 
             // Już odrzucone przez tę osobę albo nie ma czego odrzucać — cisza.
@@ -126,7 +147,11 @@ final class OdpowiedzNaZaproszenie
                 return;
             }
 
-            $this->sprawdzAdresata($swieze, $osoba);
+            $this->sprawdzAdresata($swieze, $swiezaOsoba);
+
+            if ($swieze->collection->owner_id !== $swiezyWlasciciel->getKey()) {
+                throw new BladDlaCzlowieka(self::NIEAKTUALNE);
+            }
 
             if ($swieze->status !== CollectionInvitation::STATUS_PENDING) {
                 throw new BladDlaCzlowieka(self::NIEAKTUALNE);
@@ -137,7 +162,7 @@ final class OdpowiedzNaZaproszenie
             // utworzyć nowy.
             $swieze->forceFill([
                 'status' => CollectionInvitation::STATUS_DECLINED,
-                'invitee_id' => $swieze->invitee_id ?? $osoba->getKey(),
+                'invitee_id' => $swieze->invitee_id ?? $swiezaOsoba->getKey(),
                 'token_hash' => null,
                 'responded_at' => now(),
             ])->save();

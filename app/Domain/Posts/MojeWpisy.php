@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Domain\Posts;
 
 use App\Models\Post;
+use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * „Moje wpisy” w „Moje” — lista WŁASNYCH wpisów autora (D-328).
@@ -54,8 +56,7 @@ final class MojeWpisy
     /** @return LengthAwarePaginator<int, Post> */
     public function strona(User $autor, ?FrazaWMoichWpisach $fraza = null): LengthAwarePaginator
     {
-        return $autor->posts()
-            ->enabledKinds()
+        return $this->kwalifikowane($autor)
             // Fraza (#2465) tylko ZAWĘŻA tę samą listę; porządek i paginacja bez zmian.
             ->tap(fn ($query) => $fraza?->zawez($query))
             ->with(self::RELACJE)
@@ -68,7 +69,42 @@ final class MojeWpisy
     /** Czy autor ma w ogóle jakikolwiek wpis na tej liście (bez frazy) — od tego zależy pole szukania. */
     public function maWpisy(User $autor): bool
     {
-        return $autor->posts()->enabledKinds()->exists();
+        return $this->kwalifikowane($autor)->exists();
+    }
+
+    /**
+     * Ten sam zbiór dla listy, licznika, wyszukiwania i paginacji. Opublikowana
+     * zapowiedź bez własnej treści nie prowadzi do wpisu, gdy przepis zniknął
+     * lub nie przechodzi bramki odczytu autora. Szkic/ukryty wpis autora
+     * pozostaje dostępny przez PostPolicy nawet bez żywego przepisu.
+     *
+     * @return Builder<Post>
+     */
+    private function kwalifikowane(User $autor): Builder
+    {
+        $autorId = $autor->getKey();
+
+        return Post::query()
+            ->where('posts.author_id', $autorId)
+            ->enabledKinds()
+            ->where(function (Builder $w) use ($autor, $autorId): void {
+                $w->where('posts.status', '!=', Post::STATUS_PUBLISHED)
+                    ->orWhereNull('posts.published_at')
+                    ->orWhereNull('posts.recipe_id')
+                    ->orWhereRaw("posts.body ~ '\\S'")
+                    ->orWhereExists(function ($sub): void {
+                        $sub->selectRaw('1')
+                            ->from('post_media')
+                            ->whereColumn('post_media.post_id', 'posts.id');
+                    })
+                    ->orWhereIn('posts.recipe_id', Recipe::query()
+                        ->select('recipes.id')
+                        ->widoczneDla($autor)
+                        ->where(function (Builder $przepis) use ($autorId): void {
+                            $przepis->where('recipes.author_id', $autorId)
+                                ->orWhereHas('author', fn (Builder $konto) => $konto->dostepnyJakoAutor());
+                        }));
+            });
     }
 
     /**

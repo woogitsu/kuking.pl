@@ -21,6 +21,14 @@ Ekrany odzyskiwania po 419/429 i pola tylko do odczytu nie dostają hosta.
 
 ## Mikrofon i prywatność
 
+Zamknięcie rozwijanej odpowiedzi pod komentarzem natychmiast przerywa
+rozpoznawanie mowy, choć pole pozostaje w DOM. Zachowuje wpisany tekst i
+podgląd niewstawionej jeszcze wypowiedzi; ponowne otwarcie nie uruchamia
+mikrofonu samo. Po usunięciu odpowiedzi z DOM odpinany jest też nasłuch
+zamknięcia. Regresja #2827 sprawdza natywne zamknięcie klawiaturą w Chromium
+na syntetycznym silniku mowy oraz kontrolę ujemną usunięcia obsługi `toggle`.
+Nie zmienia to listy tras, polityki mikrofonu ani wysyłania danych.
+
 `ApplySecurityHeaders::TRASY_DYKTOWANIA` zawiera jawną listę nazw tras,
 bez `admin.*` i innych wildcardów. Mikrofon dla własnej domeny jest
 odblokowany tylko po zalogowaniu, na udanym HTML z GET. Gość, JSON,

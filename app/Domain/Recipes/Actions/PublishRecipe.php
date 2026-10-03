@@ -857,7 +857,7 @@ final class PublishRecipe
     {
         $clean = [];
 
-        foreach ($ingredients as $row) {
+        foreach ($ingredients as $inputIndex => $row) {
             $text = trim((string) ($row['text'] ?? ''));
 
             if ($text === '') {
@@ -874,6 +874,10 @@ final class PublishRecipe
             $bezIlosci = (bool) ($row['no_amount'] ?? false);
 
             $clean[] = [
+                // Wyłącznie dla błędów bramki OCR: pusty wcześniejszy wiersz
+                // nie może przesunąć odnośnika od nazwy grupy w formularzu.
+                // syncIngredients zapisuje jawnie tylko kolumny z listy niżej.
+                'input_index' => $inputIndex,
                 // Nazwa grupy („Ciasto", „Farsz") przycięta do 120 znaków
                 // kolumny — tak samo jak tekst składnika do 240. Bez tego
                 // dłuższa wartość podana z konsoli, z fabryki albo

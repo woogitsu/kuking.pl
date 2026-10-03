@@ -169,8 +169,25 @@ final class ZapiszSygnal
      */
     public function handle(?User $user, string $signalName, array $properties = []): void
     {
+        $this->zapisz($user, $signalName, $properties, true);
+    }
+
+    /**
+     * Licznik bez powiązania z kontem. Znana osoba służy wyłącznie do
+     * sprawdzenia świeżego sprzeciwu pod tą samą blokadą co zwykły sygnał.
+     *
+     * @param  array<string, mixed>  $properties
+     */
+    public function handleAnonimowo(User $user, string $signalName, array $properties = []): void
+    {
+        $this->zapisz($user, $signalName, $properties, false);
+    }
+
+    /** @param array<string, mixed> $properties */
+    private function zapisz(?User $user, string $signalName, array $properties, bool $powiazZKontem): void
+    {
         try {
-            DB::transaction(function () use ($user, $signalName, $properties): void {
+            DB::transaction(function () use ($user, $signalName, $properties, $powiazZKontem): void {
                 $konto = $this->kontoDoPowiazania($user);
 
                 // SPRZECIW WOBEC STATYSTYK (RODO art. 21, #2277): zdarzenia
@@ -182,7 +199,7 @@ final class ZapiszSygnal
                 }
 
                 ProductSignal::create([
-                    'user_id' => $konto,
+                    'user_id' => $powiazZKontem ? $konto : null,
                     'signal_name' => $signalName,
                     'properties' => $properties,
                 ]);

@@ -587,6 +587,11 @@ moderację i usunięcie przez autora **od razu** wyrzucają kopie z cache
 usunięciu i przywróceniu — jedno miejsce, bez wywołań w kontrolerach):
 kanał profilu autora, kanały tagów wpisu, kanały zeszytów z tą pozycją,
 a przy zmianie przepisu także profile i tagi wpisów, które go pokazują.
+Zimne zbudowanie kanału i modelowe wyczyszczenie tego samego klucza są
+serializowane wspólną blokadą PostgreSQL (`CacheKanalu`, #2863). Budowniczy,
+który zaczął przed ukryciem, może zwrócić dawną odpowiedź, lecz po
+zakończeniu ukrycia nie odtworzy jej dla następnych żądań. Trafienie w cache
+nie buduje XML ponownie; `kanal_cache_sekund=0` pozostaje bez cache.
 **Reszta zostaje na TTL (do 5 minut):** masowe `UPDATE` z pominięciem modeli
 (np. zmiana statusu konta autora), zmiana zdjęcia (`Media`), ukrycie lub
 scalenie tagu i zmiana nazwy zeszytu. Poza tym nie ma unieważniania przy

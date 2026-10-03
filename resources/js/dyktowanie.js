@@ -547,7 +547,20 @@ export function podlacz(host, okno, dokument, rejestr = rejestrStrony) {
         maszyna.start();
     }
 
-    rejestr.hosty.add({ host, maszyna });
+    // Natywne <details> chowa odpowiedź bez odłączania hosta. `toggle` jest
+    // wywoływane także przy obsłudze klawiaturą; nie nasłuchujemy kliknięcia.
+    const formularzOdpowiedzi = host.closest?.('details[data-dyktowanie-zamkniecie]');
+    const poZamknieciu = () => {
+        if (formularzOdpowiedzi.open) return;
+        maszyna.przerwij(); // abort, zatrzymanie timera i zachowanie podglądu
+        if (rejestr.aktywna === maszyna) rejestr.aktywna = null;
+    };
+    formularzOdpowiedzi?.addEventListener('toggle', poZamknieciu);
+
+    rejestr.hosty.add({
+        host, maszyna,
+        odczep: () => formularzOdpowiedzi?.removeEventListener('toggle', poZamknieciu),
+    });
     pokaz(maszyna.stan());
     return true;
 }
@@ -557,6 +570,7 @@ export function posprzataj(rejestr = rejestrStrony) {
     for (const wpis of [...rejestr.hosty]) {
         if (wpis.host.isConnected === false) {
             wpis.maszyna.anuluj();
+            wpis.odczep?.();
             rejestr.hosty.delete(wpis);
             if (rejestr.aktywna === wpis.maszyna) rejestr.aktywna = null;
         }

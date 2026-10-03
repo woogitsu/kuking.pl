@@ -87,13 +87,21 @@ class UdostepnieniePrzepisuTest extends TestCase
         return route('recipes.shared.show', $przepis ?? $this->przepis);
     }
 
+    private function potwierdzenie(string $nazwa, ?Recipe $przepis = null): string
+    {
+        $przepis ??= $this->przepis;
+        $this->actingAs($this->halina)->post(route('recipes.shares.store', $przepis), ['nazwa' => $nazwa])->assertRedirect();
+        $token = session('udostepnij_potwierdzenie');
+        self::assertIsString($token);
+
+        return $token;
+    }
+
     // ── Droga przez formularz: dwa kroki, odbiorca i zakres przed zapisem ──
 
     public function test_autorka_widzi_odbiorce_przed_potwierdzeniem_i_dopiero_drugi_krok_zapisuje(): void
     {
-        $this->actingAs($this->halina)
-            ->post(route('recipes.shares.store', $this->przepis), ['nazwa' => '@jurek'])
-            ->assertRedirect(route('recipes.shares.index', $this->przepis));
+        $token = $this->potwierdzenie('@jurek');
 
         $this->assertSame(0, RecipeShare::query()->count(), 'Pierwszy krok nie może niczego zapisać.');
 
@@ -109,7 +117,7 @@ class UdostepnieniePrzepisuTest extends TestCase
             ->assertSee('Kto widzi ten przepis w serwisie: Tylko Ty.');
 
         $this->actingAs($this->halina)
-            ->post(route('recipes.shares.store', $this->przepis), ['nazwa' => '@jurek', 'potwierdzam' => '1'])
+            ->post(route('recipes.shares.store', $this->przepis), ['potwierdzenie' => $token, 'potwierdzam' => '1'])
             ->assertRedirect(route('recipes.shares.index', $this->przepis))
             ->assertSessionHas('status');
 
@@ -181,8 +189,9 @@ class UdostepnieniePrzepisuTest extends TestCase
         }
 
         // Kontrola dodatnia: ten sam formularz na przepisie „Tylko ja" przechodzi.
+        $token = $this->potwierdzenie('jurek');
         $this->actingAs($this->halina)
-            ->post(route('recipes.shares.store', $this->przepis), ['nazwa' => 'jurek', 'potwierdzam' => '1'])
+            ->post(route('recipes.shares.store', $this->przepis), ['potwierdzenie' => $token, 'potwierdzam' => '1'])
             ->assertRedirect();
         $this->assertSame(1, RecipeShare::query()->count());
         $this->actingAs($this->halina)->get(route('recipes.shares.index', $publiczny))
@@ -194,8 +203,9 @@ class UdostepnieniePrzepisuTest extends TestCase
         config(['kuking.udostepnienia.max_osob' => 1]);
         $this->udostepnij();
 
+        $token = $this->potwierdzenie('basia');
         $this->actingAs($this->halina)
-            ->post(route('recipes.shares.store', $this->przepis), ['nazwa' => 'basia', 'potwierdzam' => '1'])
+            ->post(route('recipes.shares.store', $this->przepis), ['potwierdzenie' => $token, 'potwierdzam' => '1'])
             ->assertSessionHasErrors(['nazwa' => UdostepnijPrzepis::PELNY]);
         $this->assertSame(1, RecipeShare::query()->count());
     }
@@ -330,8 +340,9 @@ class UdostepnieniePrzepisuTest extends TestCase
         Queue::fake();
         Http::fake();
 
+        $token = $this->potwierdzenie('jurek');
         $this->actingAs($this->halina)
-            ->post(route('recipes.shares.store', $this->przepis), ['nazwa' => 'jurek', 'potwierdzam' => '1'])
+            ->post(route('recipes.shares.store', $this->przepis), ['potwierdzenie' => $token, 'potwierdzam' => '1'])
             ->assertRedirect();
         $this->actingAs($this->jurek)->get($this->strona())->assertOk();
 
@@ -370,6 +381,7 @@ class UdostepnieniePrzepisuTest extends TestCase
         $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
         $this->actingAs($this->jurek)->get(route('recipes.show', $this->przepis))->assertForbidden();
         $this->actingAs($this->jurek)->get(route('recipes.shared.index'))->assertOk()->assertDontSee('Sernik babci Wandy');
+        $this->assertSame([], $this->paczka($this->jurek->fresh())['udostepnione_przepisy']['udostepnione_mi']);
     }
 
     public function test_odbiorca_moze_sam_zrezygnowac_a_obcy_nie_moze_za_niego(): void
@@ -383,6 +395,63 @@ class UdostepnieniePrzepisuTest extends TestCase
             ->assertRedirect(route('recipes.shared.index'));
         $this->assertSame(0, RecipeShare::query()->count());
         $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
+    }
+
+    /** @return array<string, array{string}> */
+    public static function niedostepnePrzepisy(): array
+    {
+        return [
+            'ukryty przepis' => ['ukryty'],
+            'zawieszona autorka' => ['zawieszona'],
+        ];
+    }
+
+    #[DataProvider('niedostepnePrzepisy')]
+    public function test_odbiorca_rezygnuje_z_niedostepnego_przepisu_z_listy_bez_odczytu_tresci(string $stan): void
+    {
+        $ukryte = $this->udostepnij();
+        $dostepnyPrzepis = Recipe::factory()->create([
+            'author_id' => $this->basia->getKey(),
+            'visibility' => 'private',
+            'title' => 'Dostępny przepis Basi',
+        ]);
+        [$drugie] = app(UdostepnijPrzepis::class)->poNazwie($this->basia, $dostepnyPrzepis, 'jurek');
+
+        if ($stan === 'ukryty') {
+            $this->przepis->forceFill(['status' => Recipe::STATUS_HIDDEN])->save();
+        } else {
+            $this->halina->suspend(now()->addDays(3));
+        }
+
+        $adresListy = route('recipes.shared.index');
+        $adresRezygnacji = route('recipes.shared.leave', $ukryte);
+        $lista = $this->actingAs($this->jurek)->get($adresListy)->assertOk();
+        $this->assertStringContainsString('Udostępniony przepis jest teraz niedostępny', $lista->getContent(), 'UDOSTEPNIENIE_2859_ANONIMOWA_REZYGNACJA');
+        $lista->assertSee('Udostępniony przepis jest teraz niedostępny')
+            ->assertSee('Dostępny przepis Basi')
+            ->assertDontSee('Sernik babci Wandy')
+            ->assertDontSee('Halina')
+            ->assertDontSee($this->strona(), false)
+            ->assertSee('action="'.$adresRezygnacji.'"', false)
+            ->assertSee('name="_method" value="DELETE"', false)
+            ->assertSee('Zrezygnować z dostępu do tej pozycji?');
+        $this->assertDatabaseHas('recipe_shares', ['id' => $ukryte->getKey()]); // Zamknięcie <details> niczego nie usuwa.
+        $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
+        $this->actingAs($this->basia)->delete($adresRezygnacji)->assertForbidden();
+        $this->assertDatabaseHas('recipe_shares', ['id' => $ukryte->getKey()]);
+
+        // Między pokazaniem potwierdzenia a DELETE prawo czytania może wrócić.
+        if ($stan === 'ukryty') {
+            $this->przepis->forceFill(['status' => Recipe::STATUS_PUBLISHED])->save();
+        } else {
+            $this->travel(4)->days();
+        }
+
+        $this->actingAs($this->jurek)->delete($adresRezygnacji)->assertRedirect($adresListy);
+        $this->assertFalse(RecipeShare::query()->whereKey($ukryte->getKey())->exists(), 'UDOSTEPNIENIE_2859_REZYGNACJA_Z_NIEDOSTEPNEGO');
+        $this->assertDatabaseHas('recipe_shares', ['id' => $drugie->getKey()]);
+        $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
+        $this->actingAs($this->jurek)->get(route('recipes.shared.show', $dostepnyPrzepis))->assertOk();
     }
 
     public function test_udostepnienie_innego_przepisu_pod_adresem_tego_to_404(): void
@@ -416,6 +485,7 @@ class UdostepnieniePrzepisuTest extends TestCase
 
         $this->assertSame(0, RecipeShare::query()->count(), 'Blokada ma skasować udostępnienie, nie tylko je zasłonić.');
         $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
+        $this->assertSame([], $this->paczka($this->jurek->fresh())['udostepnione_przepisy']['udostepnione_mi']);
 
         app(UnblockUser::class)->handle($kto, $kogo);
         $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
@@ -439,10 +509,15 @@ class UdostepnieniePrzepisuTest extends TestCase
         $konto->suspend(now()->addDays(3));
         $this->assertFalse($this->jurek->fresh()->can('readShared', $this->przepis->fresh()));
         $this->actingAs($this->jurek->fresh())->get($this->strona())->assertForbidden();
+        $wKarze = $this->paczka($this->jurek->fresh())['udostepnione_przepisy']['udostepnione_mi'];
+        $this->assertCount(1, $wKarze);
+        $this->assertNull($wKarze[0]['przepis']);
+        $this->assertNull($wKarze[0]['autor']);
 
         // Kara minęła — wiersz został, dostęp wraca (bez czekania na `reinstate()`).
         $this->travel(4)->days();
         $this->assertTrue($this->jurek->fresh()->can('readShared', $this->przepis->fresh()));
+        $this->assertSame('Sernik babci Wandy', $this->paczka($this->jurek->fresh())['udostepnione_przepisy']['udostepnione_mi'][0]['przepis']);
     }
 
     public function test_zawieszona_autorka_odbiera_dostep_ale_nie_udostepnia_nowym(): void
@@ -456,6 +531,61 @@ class UdostepnieniePrzepisuTest extends TestCase
         $this->assertTrue(app(OdbierzDostepDoPrzepisu::class)->odbierz($halina, $udostepnienie));
     }
 
+    /** @return array<string, array{0: bool}> */
+    public static function okresyZawieszeniaAutorki(): array
+    {
+        return [
+            'zawieszenie czasowe' => [true],
+            'zawieszenie bezterminowe' => [false],
+        ];
+    }
+
+    #[DataProvider('okresyZawieszeniaAutorki')]
+    public function test_zawieszona_autorka_przez_formularz_cofa_tylko_wlasne_udostepnienie(bool $czasowo): void
+    {
+        $dlaJurka = $this->udostepnij();
+        $dlaBasi = $this->udostepnij($this->przepis, 'basia');
+        $this->actingAs($this->jurek)->get($this->strona())->assertOk();
+        $this->actingAs($this->basia)->get($this->strona())->assertOk();
+
+        $this->halina->suspend($czasowo ? now()->addDays(3) : null);
+        $adres = route('recipes.shares.index', $this->przepis);
+        $this->actingAs($this->halina->fresh())->get($adres)
+            ->assertOk()->assertSee('Odbierz dostęp')->assertSee('Odebrać dostęp możesz zawsze')
+            ->assertSee('action="'.route('recipes.shares.destroy', ['recipe' => $this->przepis, 'share' => $dlaJurka]).'"', false)
+            ->assertSee('name="_method" value="DELETE"', false);
+
+        // Jedynie odbieranie jest wyjątkiem; nowego odbiorcy nie dopisujemy.
+        $this->actingAs($this->halina->fresh())->from($adres)
+            ->post(route('recipes.shares.store', $this->przepis), ['nazwa' => 'nowa-osoba'])
+            ->assertSessionHasErrors('konto');
+        $this->assertSame(2, RecipeShare::query()->count(), 'UDOSTEPNIENIE_2791_BEZ_NOWEGO_GRANTU');
+
+        $this->actingAs($this->halina->fresh())->delete(route('recipes.shares.destroy', [
+            'recipe' => $this->przepis, 'share' => $dlaJurka,
+        ]))->assertRedirect($adres);
+        $this->assertFalse(RecipeShare::query()->whereKey($dlaJurka->getKey())->exists(), 'UDOSTEPNIENIE_2791_COFNIECIE_MIMO_KARY');
+        $this->assertDatabaseHas('recipe_shares', ['id' => $dlaBasi->getKey()]);
+
+        if ($czasowo) {
+            $this->travel(4)->days();
+            $this->actingAs($this->jurek->fresh())->get($this->strona())->assertForbidden();
+            $this->actingAs($this->basia->fresh())->get($this->strona())->assertOk();
+        }
+    }
+
+    public function test_zawieszona_autorka_nie_odbiera_cudzego_udostepnienia(): void
+    {
+        $inny = Recipe::factory()->create(['author_id' => $this->basia->getKey(), 'visibility' => 'private']);
+        [$cudze] = app(UdostepnijPrzepis::class)->poNazwie($this->basia, $inny, 'jurek');
+        $this->halina->suspend();
+
+        $this->actingAs($this->halina->fresh())
+            ->delete(route('recipes.shares.destroy', ['recipe' => $inny, 'share' => $cudze]))
+            ->assertForbidden();
+        $this->assertDatabaseHas('recipe_shares', ['id' => $cudze->getKey()]);
+    }
+
     public function test_przepis_ukryty_przez_moderacje_nie_otwiera_sie_przez_udostepnienie(): void
     {
         $this->udostepnij();
@@ -463,6 +593,9 @@ class UdostepnieniePrzepisuTest extends TestCase
 
         $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
         $this->actingAs($this->jurek)->get(route('recipes.shared.index'))->assertOk()->assertDontSee('Sernik babci Wandy');
+        $ukryty = $this->paczka($this->jurek->fresh())['udostepnione_przepisy']['udostepnione_mi'][0];
+        $this->assertNull($ukryty['przepis']);
+        $this->assertNull($ukryty['autor']);
 
         // Przywrócenie przez moderację — autorka nie odebrała dostępu, więc wraca.
         $this->przepis->forceFill(['status' => Recipe::STATUS_PUBLISHED])->save();
@@ -548,6 +681,15 @@ class UdostepnieniePrzepisuTest extends TestCase
         app(EraseAccountData::class)->handle($konto->fresh());
 
         $this->assertSame(0, RecipeShare::query()->where('recipe_id', $this->przepis->getKey())->count());
+        $pozostale = $kto === 'odbiorca' ? $this->halina->fresh() : $this->jurek->fresh();
+        $sekcja = $kto === 'odbiorca' ? 'udostepniam' : 'udostepnione_mi';
+        $poWymazaniu = $this->paczka($pozostale)['udostepnione_przepisy'][$sekcja];
+        if ($kto === 'odbiorca') {
+            $this->assertSame([], $poWymazaniu);
+        } else {
+            $this->assertCount(1, $poWymazaniu, 'Zostać ma tylko inne udostępnienie od Basi.');
+            $this->assertSame('Basia', $poWymazaniu[0]['autor']);
+        }
         // Kontrola dodatnia: udostępnienie bez udziału wymazanej osoby zostaje
         // (przy wymazaniu odbiorcy znika i to — był jego odbiorcą).
         $this->assertSame($kto === 'odbiorca' ? 0 : 1, RecipeShare::query()->where('recipe_id', $inny->getKey())->count());

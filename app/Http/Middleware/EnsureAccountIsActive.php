@@ -95,6 +95,9 @@ class EnsureAccountIsActive
         // tylko odbiera nacisk z kucharza (prośba znika z jego odpowiedzi);
         // zawieszenie odcina od pisania, a nie od wycofania własnej prośby.
         'hints.cancel',
+        // #2791: cofnięcie własnego udostępnienia tylko ODBIERA dostęp do
+        // jednego przepisu. Zawieszenie nadal blokuje nowe udostępnienie.
+        'recipes.shares.destroy',
         // #926: prywatny zeszyt i postęp gotowania zostają dostępne.
         // Widoczności zeszytu i treści nadal pilnują ich polityki.
         'collections.store',

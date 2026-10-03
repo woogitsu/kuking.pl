@@ -162,6 +162,26 @@ class DopisekZGotowaniaTest extends TestCase
         $this->assertSame(0, CookedEvent::query()->count());
     }
 
+    public function test_przycisk_wstawia_w_biezacym_formularzu_bez_porzucajacego_linku(): void
+    {
+        $osoba = $this->user();
+        $recipe = $this->przepis();
+        $this->zapisz($osoba, $recipe);
+
+        $html = (string) $this->actingAs($osoba)->get(route('cooked.create', $recipe->slug))->assertOk()->getContent();
+        $this->assertStringContainsString('data-wstaw-dopisek', $html, 'DOPISEK_2857_BEZ_PORZUCAJACEGO_LINKU: przycisk w bieżącym formularzu jest wymagany.');
+        $this->assertStringNotContainsString('dopisek=wstaw', $html, 'DOPISEK_2857_BEZ_PORZUCAJACEGO_LINKU: link GET porzuca niewysłane pola i zdjęcie.');
+        $this->assertSame('', $this->poleZmian($html));
+        $this->assertSame(0, CookedEvent::query()->count());
+        $this->assertSame(0, Notification::query()->count());
+        $this->assertNotNull($this->dopisek($osoba, $recipe));
+
+        $katalog = getenv('DOPISEK_2857_HTML_KATALOG');
+        if (is_string($katalog) && $katalog !== '') {
+            file_put_contents($katalog.DIRECTORY_SEPARATOR.'formularz.html', $html);
+        }
+    }
+
     public function test_na_prosbe_osoby_dopisek_trafia_do_pola_ale_nic_sie_nie_wysyla(): void
     {
         $osoba = $this->user();

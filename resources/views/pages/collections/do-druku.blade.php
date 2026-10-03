@@ -141,19 +141,23 @@
                 $notatka = $zNotatkami ? $przepis->pivot?->note : null;
                 $czasMinut = $przepis->totalMinutes();
                 $porcje = $przepis->servingsLabel();
+                $sztuki = $przepis->yieldLabel();
                 $wykonania = (int) $przepis->widoczne_wykonania_count;
             @endphp
             <article class="zeszyt-przepis" id="przepis-{{ $loop->iteration }}" aria-labelledby="przepis-{{ $loop->iteration }}-tytul">
                 <p class="meta zeszyt-numer">Przepis {{ $loop->iteration }} z {{ $liczbaPrzepisow }}</p>
+                <x-na-podstawie-przepisu :recipe="$przepis" :oryginal="$oryginalyDlaPodpisu->get($przepis->forked_from_id)" :oryginal-ustalony="true" />
                 <h2 id="przepis-{{ $loop->iteration }}-tytul">{{ $przepis->title }}</h2>
                 <p class="meta m-0">{{ $przepis->attributionLine() }}</p>
                 @if($przepis->family_since_year)
                     <p class="meta m-0">W rodzinie od {{ $przepis->family_since_year }}</p>
                 @endif
-                @if($porcje || $czasMinut)
+                @if($porcje || $sztuki || $czasMinut)
                     <p class="meta m-0">
                         @if($porcje){{ $porcje }}@endif
-                        @if($porcje && $czasMinut) · @endif
+                        @if($porcje && $sztuki) · @endif
+                        @if($sztuki){{ $sztuki }}@endif
+                        @if(($porcje || $sztuki) && $czasMinut) · @endif
                         @if($czasMinut)Czas: {{ \App\Support\Czas::czasPrzepisu($czasMinut) }} @endif
                     </p>
                 @endif

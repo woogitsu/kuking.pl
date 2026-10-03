@@ -29,8 +29,11 @@ class UsunietePrzepisyController extends Controller
     {
         $this->authorize('odzyskajListe', Recipe::class);
 
+        $od = $request->query('od');
+        $strona = $odzyskaj->dlaEkranu($request->user(), is_string($od) ? $od : null);
+
         return view('pages.collections.usuniete-przepisy', [
-            'przepisy' => $odzyskaj->dlaEkranu($request->user()),
+            ...$strona,
             'dni' => OdzyskajUsunietyPrzepis::dniOkna(),
         ]);
     }

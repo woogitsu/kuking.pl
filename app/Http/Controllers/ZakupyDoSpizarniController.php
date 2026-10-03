@@ -61,18 +61,20 @@ class ZakupyDoSpizarniController extends Controller
 
         return view('pages.zakupy.do-spizarni', [
             'pozycje' => $odhaczone,
+            'wybranaLista' => $wybrana,
             'wSpizarni' => $user->pantryItems()->count(),
             'maksProduktow' => CoMamWDomu::MAKS_PRODUKTOW,
             'maksZnakow' => CoMamWDomu::MAKS_ZNAKOW,
         ]);
     }
 
-    public function store(Request $request, DodajKupioneDoSpizarni $dodaj): RedirectResponse
+    public function store(Request $request, DodajKupioneDoSpizarni $dodaj, ListaZakupow $listaZakupow): RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
 
         $dane = $request->validate([
+            'lista' => ['nullable', 'uuid'],
             'pozycje' => ['required', 'array', 'min:1', 'max:'.ListaZakupow::maksPozycji()],
             'pozycje.*' => ['uuid'],
             'nazwy' => ['nullable', 'array'],
@@ -85,15 +87,31 @@ class ZakupyDoSpizarniController extends Controller
             'nazwy.*.max' => 'Skróć nazwę produktu do '.CoMamWDomu::MAKS_ZNAKOW.' znaków. Wystarczy samo „mąka” albo „ser żółty”.',
         ]);
 
+        try {
+            $wybrana = $listaZakupow->znajdzListe($user, $dane['lista'] ?? null);
+        } catch (ValidationException $e) {
+            return redirect()->route('shopping.index')->with(Komunikat::blad(
+                (string) collect($e->errors())->flatten()->first(),
+            ))->withInput($request->only('pozycje', 'nazwy'));
+        }
+
         $nazwy = [];
         foreach (array_values(array_unique($dane['pozycje'])) as $id) {
             $nazwy[(string) $id] = (string) ($dane['nazwy'][$id] ?? '');
         }
 
         try {
-            $wynik = $dodaj->handle($user, $nazwy);
+            $wynik = $dodaj->handle($user, $nazwy, $wybrana);
         } catch (ValidationException $e) {
-            return redirect()->route('shopping.pantry.form')
+            if (isset($e->errors()['lista'])) {
+                // Po odczycie formularza lista mogła zniknąć. Nie kieruj na
+                // nieistniejący ekran ani nie obiecuj odtworzenia jej pozycji.
+                return redirect()->route('shopping.index')->with(Komunikat::blad(
+                    (string) $e->errors()['lista'][0],
+                ));
+            }
+
+            return redirect()->route('shopping.pantry.form', $wybrana !== null ? ['lista' => $wybrana->getKey()] : [])
                 ->withErrors($e->errors())
                 ->withInput($request->only('pozycje', 'nazwy'));
         }

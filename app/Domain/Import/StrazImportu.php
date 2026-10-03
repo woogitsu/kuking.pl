@@ -51,7 +51,7 @@ final class StrazImportu implements StrazPochodzeniaPrzepisu
             && $existing->status === Recipe::STATUS_DRAFT
             && $pochodzenie->wymagaPotwierdzeniaOdczytu()
             && ($attributes['sprawdzilem_odczyt'] ?? false) !== true) {
-            throw new BladDlaCzlowieka($pochodzenie->pominieteWImporcie() === null ? self::KOMUNIKAT_SPRAWDZ : self::KOMUNIKAT_SPRAWDZ_NIEPELNY);
+            throw new BladDlaCzlowieka($pochodzenie->pominieteWImporcie()?->niepelny() ? self::KOMUNIKAT_SPRAWDZ_NIEPELNY : self::KOMUNIKAT_SPRAWDZ);
         }
 
         return $attributes;

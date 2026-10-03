@@ -67,6 +67,7 @@ class CofniecieKrokuWartosciaZeroTest extends TestCase
             'krok' => 1,
             'krok_id' => $krok->getKey(),
             'zrobiono' => $zrobiono,
+            'id_postepu' => CookingProgress::query()->where('user_id', $osoba->getKey())->where('recipe_id', $recipe->getKey())->value('id'),
         ]);
     }
 

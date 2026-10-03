@@ -503,8 +503,10 @@ jobs:
       - name: Kontrole ujemne budżetu pominiętych testów
         run: python3 -m unittest discover -s scripts -p test_sprawdz_pominiete_testy.py -v
 
-      - name: Test werdyktu kontroli wyścigu importu (#2815)
-        run: python3 tests/skrypty/kontrola-negatywna-2815-wynik.py
+      - name: Testy werdyktu kontroli wyścigów (#2811, #2815)
+        run: |
+          python3 tests/skrypty/kontrola-negatywna-2811-wynik.py
+          python3 tests/skrypty/kontrola-negatywna-2815-wynik.py
 
       # Bramka audytu zależności (#2215) decyduje o czerwieni joba `audit`;
       # jej własne kontrole muszą biec, zanim zaczniemy jej ufać.
@@ -1294,6 +1296,12 @@ jobs:
       - name: Regresja „Pokaż więcej” (DOM w Chromium)
         run: node --test scripts/przegladarka/pokaz-wiecej.test.mjs
 
+      - name: Zamknięcie odpowiedzi kończy dyktowanie (DOM w Chromium, #2827)
+        run: node --test scripts/przegladarka/dyktowanie-odpowiedz.test.mjs
+
+      - name: Kontrola ujemna zamknięcia dyktowania (#2827)
+        run: python3 scripts/kontrola-negatywna-2827.py
+
       # Checklista składników w trybie „Gotuję” (#2069): niezależne wiersze,
       # stan po zmianie kroku i w drugiej karcie, reset niezależny od kroków,
       # klawiatura, 320 px i cele dotyku, widok bez JS. Też potrzebuje Chromium.
@@ -1991,6 +1999,17 @@ jobs:
           APP_BASE_PATH="$PWD" php artisan migrate --force --no-interaction
           node scripts/minutnik-edycja-http-2589.mjs
 
+      - name: Minutnik — powrót z alarmu wcześniejszego kroku (#2814)
+        if: matrix.czesc == 2
+        env:
+          DB_DATABASE: kuking_minutnik_2814
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$DB_PASSWORD"
+          createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -O "$DB_USERNAME" "$DB_DATABASE"
+          APP_BASE_PATH="$PWD" php artisan migrate --force --no-interaction
+          node scripts/minutnik-kontrola-ujemna-2814.mjs
+
       - name: Zrzuty portu marki
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -2214,6 +2233,30 @@ jobs:
           createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -O "$DB_USERNAME" "$DB_DATABASE"
           php artisan migrate --force --no-interaction
           node scripts/potwierdzenia-usuwania-browser.mjs
+
+      # #2807: PHP renderuje obie odpowiedzi na osobnej PG18, Chromium klika
+      # prawdziwy moduł nad tymi bajtami. Mutacja Blade musi oblać test DOM.
+      - name: Pusta dalsza strona powiadomień (Laravel i Chromium)
+        env:
+          DB_DATABASE: kuking_test_2807_browser
+          DB_URL: ""
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$DB_PASSWORD"
+          createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -O "$DB_USERNAME" "$DB_DATABASE"
+          node --test scripts/przegladarka/powiadomienia-2807-laravel.test.mjs
+
+      # #2857: Laravel renderuje formularz, a Chromium zachowuje FileList i
+      # wysyła plik w multipart po świadomym wstawieniu dopisku.
+      - name: Dopisek w Ugotowałem zachowuje formularz i plik
+        env:
+          DB_DATABASE: kuking_test_2857_browser
+          DB_URL: ""
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$DB_PASSWORD"
+          createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -O "$DB_USERNAME" "$DB_DATABASE"
+          node --test scripts/przegladarka/dopisek-2857-laravel.test.mjs
 
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową

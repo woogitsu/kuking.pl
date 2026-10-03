@@ -166,6 +166,9 @@ z 29 września 2026) — wolno budować:
   odnośnika do innej czynności. Starszy zapis bez tożsamości także nie jest
   przypisywany do obecnego kroku; nadal odlicza i alarmuje. `localStorage`
   kolejki oraz adres zachowują wyłącznie slug i numer kroku zgodnie z D-333.
+  Bieżący krok aktywnej potrawy pokazuje też swoje zdjęcie (#2828) przez ten
+  sam komponent i reguły dostępu co tryb pojedynczy; zdjęcia pozostałych
+  kroków i potraw nie trafiają do danych kolejki w przeglądarce.
 
 **Dopisane do planu i zbudowane** (D-333, wiersz „#2227”, decyzja właściciela
 z 30 września 2026):

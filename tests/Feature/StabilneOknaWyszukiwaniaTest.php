@@ -161,6 +161,56 @@ class StabilneOknaWyszukiwaniaTest extends TestCase
         }
     }
 
+    public function test_miary_kursora_odrzucone_przez_postgresql_real_wracaja_do_wlasciwego_okna_obu_list(): void
+    {
+        $author = $this->user('autor_kursora_real');
+        $this->przepisy($author, 201);
+        for ($i = 0; $i < 201; $i++) {
+            $this->user('osoba_kursora_real_'.$i, ['display_name' => 'Rozmaryna z ogrodu '.$i]);
+        }
+
+        $recipeUrl = ['q' => 'Kalarepa', 'sekcja' => 'przepisy', 'ile' => 200, 'od_przepisu' => 200];
+        $peopleUrl = ['q' => 'Rozmaryna', 'sekcja' => 'ludzie', 'ile' => 200, 'od_osoby' => 200];
+        $recipeExpected = $this->get(route('search', $recipeUrl))->assertOk()->viewData('recipes')->modelKeys();
+        $peopleExpected = $this->get(route('search', $peopleUrl))->assertOk()->viewData('people')->modelKeys();
+        $this->assertCount(1, $recipeExpected);
+        $this->assertCount(1, $peopleExpected);
+
+        foreach (['1e-99', '1e-999', '7e-46'] as $tooSmall) {
+            foreach ([$tooSmall.'_0', '0_'.$tooSmall] as $metrics) {
+                $response = $this->get(route('search', $recipeUrl + [
+                    'po_przepisie' => $metrics.'_0_'.$recipeExpected[0],
+                ]));
+                $this->assertSame(200, $response->getStatusCode(), 'KURSOR_REAL_2856_OKNO_PRZEPISOW');
+                $result = $response->viewData('recipes')->modelKeys();
+                $this->assertSame($recipeExpected, $result, 'KURSOR_REAL_2856_OKNO_PRZEPISOW');
+            }
+
+            $response = $this->get(route('search', $peopleUrl + [
+                'po_osobie' => $tooSmall.'_'.$peopleExpected[0],
+            ]));
+            $this->assertSame(200, $response->getStatusCode(), 'KURSOR_REAL_2856_OKNO_OSOB');
+            $result = $response->viewData('people')->modelKeys();
+            $this->assertSame($peopleExpected, $result, 'KURSOR_REAL_2856_OKNO_OSOB');
+        }
+
+        // Prawidłowe dla PostgreSQL 18 wartości `real`, w tym zero i dolna
+        // reprezentowalna podnormalna, nadal są kursorem (a nie `offset`).
+        foreach (['0', '1e-45', '1.4e-45', '1.17549435e-38'] as $valid) {
+            foreach ([$valid.'_0', '0_'.$valid] as $metrics) {
+                $result = $this->get(route('search', $recipeUrl + [
+                    'po_przepisie' => $metrics.'_0_'.$recipeExpected[0],
+                ]))->assertOk()->viewData('recipes')->modelKeys();
+                $this->assertSame([], $result, 'KURSOR_REAL_2856_PRAWIDLOWA_MIARA_PRZEPISU');
+            }
+
+            $result = $this->get(route('search', $peopleUrl + [
+                'po_osobie' => $valid.'_'.$peopleExpected[0],
+            ]))->assertOk()->viewData('people')->modelKeys();
+            $this->assertSame([], $result, 'KURSOR_REAL_2856_PRAWIDLOWA_MIARA_OSOBY');
+        }
+    }
+
     public function test_kursor_za_koncem_wynikow_zostawia_droge_powrotu(): void
     {
         $author = $this->user('autor_konca_kursora');

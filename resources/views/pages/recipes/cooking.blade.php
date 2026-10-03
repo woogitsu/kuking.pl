@@ -61,7 +61,7 @@
         --}}
         @if($synchronizacja['wlaczona'])
             <div class="cook-sync-zmiana stack" role="status" hidden
-                 data-postep-synchronizacja data-postep-rewizja="{{ $synchronizacja['rewizja'] }}"
+                 data-postep-synchronizacja data-postep-rewizja="{{ $synchronizacja['rewizja'] }}" data-postep-id="{{ $synchronizacja['id_postepu'] }}"
                  data-postep-adres="{{ route('cooking.sync.postep', $recipe->slug) }}">
                 <p class="m-0" data-postep-tekst>Postęp tego przepisu zmienił się na innym urządzeniu.</p>
                 <a class="btn btn-secondary" href="{{ $adresGotowania($krok) }}">Pokaż aktualny postęp</a>
@@ -357,6 +357,7 @@
                 {{-- Tożsamość kroku, nie sam numer (issue #756): po zmianie kolejności przez autora numer wskazywałby inną czynność. --}}
                 <input type="hidden" name="krok_id" value="{{ $aktualnyKrok->getKey() }}">
                 @if($synchronizacja['rewizja'] !== null)<input type="hidden" name="rewizja" value="{{ $synchronizacja['rewizja'] }}">@endif
+                @if($synchronizacja['id_postepu'] !== null)<input type="hidden" name="id_postepu" value="{{ $synchronizacja['id_postepu'] }}">@endif
                 <input type="hidden" name="zrobiono" value="{{ $krokZrobiony ? '0' : '1' }}">
                 <button type="submit" class="btn {{ $krokZrobiony ? 'btn-secondary' : 'btn-primary' }} btn-cook">
                     @if($krokZrobiony)
@@ -465,6 +466,7 @@
                             @csrf
                             @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
                             <input type="hidden" name="krok" value="{{ $krok }}">
+                            @if($podgladZeSpisu)<input type="hidden" name="spis" value="1">@endif
                             <input type="hidden" name="rewizja" value="{{ $dopisek['rewizja'] }}">
                             <x-field name="dopisek" label="Co zmienione przy garnku?" type="textarea" :rows="3" :value="$dopisek['tresc']" :required="true" bezOznaczenia
                                      help="Na przykład: mniej soli, krótszy czas. Najwyżej {{ $dopisek['maks'] }} znaków." />
@@ -475,6 +477,7 @@
                                 @csrf
                                 @if($parametrPorcji !== null)<input type="hidden" name="porcje" value="{{ $parametrPorcji }}">@endif
                                 <input type="hidden" name="krok" value="{{ $krok }}">
+                                @if($podgladZeSpisu)<input type="hidden" name="spis" value="1">@endif
                                 <button type="submit" class="btn btn-secondary">Usuń dopisek</button>
                             </form>
                         @endif
