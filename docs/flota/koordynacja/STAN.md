@@ -1,6 +1,37 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
-## Aktualny odbiór koordynatora Codex — 3.10.2026, 14:05 UTC
+## Aktualny odbiór koordynatora Codex — 3.10.2026, 14:35 UTC
+
+- Wydanie O #2890 na starym 30be ma terminalne CI 24/24 SUCCESS,
+  lecz zagregowany CodeQL FAILURE z dwoma alertami high. Po zakończeniu
+  obu bramek włączono niezależnie odebrany parser DOM 91e58bd07b,
+  bez zmian aplikacji ani zależności. Kontrola fizyczna: 3 PASS →
+  2 właściwe FAIL i formularz PASS → 3 PASS, bez ERROR/SKIP, exact restore.
+  Zwykły pełny push nowego heada trwa: sesja 20575,
+  transfer/push-release-o.exit/log. Świeże pełne CI oraz zielony
+  zagregowany CodeQL nowego heada są nadal wymagane przed merge.
+- C e625 pozostaje czerwone. Minimalna higiena fixture a7ffbdd2c4
+  zachowuje wszystkie 52 asercje, SQL i limit 15 s; nie zawiera
+  błędnego założenia COUNT = reltuples. Własny timeout nie został
+  odtworzony i jego przyczyna pozostaje nieudowodniona. Root połączył
+  tę poprawkę z odebranym parserem: codex/ci-naprawa-c-20261003,
+  head c0c78f013b75e0cae75c471b1a9d61a48ee9baeb. Zwykły pełny push
+  trwa w sesji 53198, transfer/push-ci-c-repair.exit/log, osobna baza
+  kuking_test_ci_c_repair_20261003 na PG18.6:55488. #2892 opisuje
+  błąd i kryteria. PR dopiero po prawidłowym pełnym push; W czeka
+  na terminalnie zieloną C po tej naprawie.
+- Oba nowe skrypty używają oficjalnego KUKING_TESTY_ROWNOLEGLE=4
+  bez późniejszego unset. Faktyczne uruchomienie czterech procesów
+  i terminalny wynik sprawdzać w logu; sam eksport nie jest dowodem.
+  Nie zmieniać tych headów ani ponawiać push bez kontroli procesu/exit.
+- Y8f02481a ma wspólny odbiór root: 58/2032 Dwa, 83/2396 Feature,
+  właściwe kontrole fizyczne, dokładne przywrócenie i pozostałe narzędzia
+  PASS; canonical Y-root-8f.exit=0. Receipt i bieżący STAN są lokalnie
+  zapisane. Y nie ma jeszcze pełnego push ani PR; oczekuje zależności
+  W/X w odebranej C. Trzej subagenci szukają rozłącznie następnych
+  zatwierdzonych, niezajętych usterek, bez dublowania paczek W–Y.
+
+## Historia odbioru koordynatora Codex — 3.10.2026, 14:05 UTC
 
 - N–U #2865 są w C30be; źródło i push C30 miały pełne 24/24 SUCCESS.
   Zwykły pełny push wydania O zakończył się 0. Niedraftowy PR #2890 jest
