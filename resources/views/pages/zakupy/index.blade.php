@@ -26,12 +26,13 @@
     $idWybranej = $wybrana?->getKey();
     $blad_nazwy = $errors->has('nazwa');
     $blad_nowej_nazwy = $errors->has('nowa_nazwa');
+    $blad_potwierdzenia = $errors->has('potwierdzam');
 @endphp
 <x-layout title="Lista zakupów" :noindex="true">
     <h1>Lista zakupów</h1>
     <p class="mb-5">Tę listę widzisz tylko Ty. Składniki z przepisu dopisujesz przyciskiem „Dodaj składniki” na stronie przepisu albo w planerze — trafiają tu dokładnie tak, jak je napisał autor, bez sumowania.</p>
 
-    <x-error-summary />
+    <x-error-summary :field-ids="['potwierdzam' => 'f-potwierdzam']" />
 
     @if($wieleList)
         <nav class="mb-5" aria-labelledby="listy-naglowek">
@@ -172,9 +173,12 @@
                 </form>
             </details>
 
-            <details class="confirm">
-                <summary class="btn btn-secondary confirm-summary">Usuń tę listę<span class="visually-hidden">: {{ $wybrana->name }}</span></summary>
+            <details class="confirm" @if($blad_potwierdzenia) open @endif>
+                <summary class="btn btn-secondary confirm-summary" id="f-potwierdzam" @if($blad_potwierdzenia) aria-describedby="blad-potwierdzam" @endif>Usuń tę listę<span class="visually-hidden">: {{ $wybrana->name }}</span></summary>
                 <div class="confirm-body">
+                    @if($blad_potwierdzenia)
+                        <p class="field-error" id="blad-potwierdzam">{{ $errors->first('potwierdzam') }}</p>
+                    @endif
                     <p class="confirm-question">Usunąć listę „{{ $wybrana->name }}”?</p>
                     @if($ile > 0)
                         <p>Razem z listą zniknie {{ $ile }} {{ \App\Support\Odmiana::rzeczownik($ile, 'pozycja', 'pozycje', 'pozycji') }} (także odhaczone). Tego nie da się cofnąć. Inne listy zostaną bez zmian.</p>
