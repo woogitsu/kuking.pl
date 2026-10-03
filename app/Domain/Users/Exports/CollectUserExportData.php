@@ -38,6 +38,7 @@ use App\Models\ShoppingListItem;
 use App\Models\User;
 use App\Policies\CollectionPolicy;
 use App\Policies\RecipePolicy;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -98,6 +99,18 @@ final class CollectUserExportData
         $this->plikiWlasnychPrzepisow = [];
 
         $user->loadMissing('profile.avatar');
+
+        // Nazwy list i ich pozycje muszą pochodzić z jednej chwili. Zwykłe
+        // przemianowanie, dodawanie i usuwanie biorą tę samą blokadę konta.
+        // Trzymamy ją tylko na dwa odczyty, nigdy podczas budowania ZIP-a.
+        [$pozycjeZakupow, $listyZakupow] = DB::transaction(function () use ($user): array {
+            User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+
+            return [
+                $user->shoppingListItems()->with('list:id,name')->orderBy('position')->orderBy('id')->get(),
+                $user->shoppingLists()->orderBy('created_at')->orderBy('id')->get(),
+            ];
+        });
 
         return [
             'o_tym_pliku' => [
@@ -263,9 +276,9 @@ final class CollectUserExportData
             // Planer tygodnia (#27, D-310).
             'planer' => $this->mealPlan($user),
             // Lista zakupów (#27, etap 2, D-333).
-            'lista_zakupow' => $this->shoppingList($user),
+            'lista_zakupow' => $this->shoppingList($user, $pozycjeZakupow),
             // Nazwane listy zakupów (#2528) — nazwa to wolny tekst osoby.
-            'listy_zakupow' => $this->shoppingLists($user),
+            'listy_zakupow' => $this->shoppingLists($listyZakupow),
             'importy_przepisow' => $this->recipeImportOrigins($user),
             'odczyty_przepisow' => $this->recipeImports($user),
             'proby_importu' => $this->recipeImportAttempts($user),
@@ -1200,15 +1213,15 @@ final class CollectUserExportData
      * albo usuniętej. Sama linia składnika jest tekstem osoby (skopiowanym,
      * gdy przepis był dla niej widoczny) i zostaje.
      *
+     * @param  EloquentCollection<int, ShoppingListItem>  $pozycje
      * @return list<array<string, mixed>>
      */
-    private function shoppingList(User $user): array
+    private function shoppingList(User $user, EloquentCollection $pozycje): array
     {
         // Zapytanie wprost, a nie przez `App\Domain\Zakupy\ListaZakupow`:
         // moduł Zakupy zależy od Recipes, a Recipes (pośrednio) od Users,
         // więc import stąd zamykałby cykl modułów (GrafModulowDomenyBezCykliTest).
         // Reguła widoczności jest ta sama — `PlanerTygodnia::widocznePrzepisy()`.
-        $pozycje = $user->shoppingListItems()->with('list:id,name')->orderBy('position')->orderBy('id')->get();
         $idPrzepisow = $pozycje->pluck('recipe_id')->filter()->unique()->values();
         $widoczne = $idPrzepisow->isEmpty()
             ? collect()
@@ -1238,15 +1251,15 @@ final class CollectUserExportData
      * listy (pozycje stoją w `lista_zakupow` z polem `lista`). Lista domyślna
      * („Na co dzień”) nie ma wiersza w bazie, więc tu jej nie ma.
      *
+     * @param  EloquentCollection<int, ShoppingList>  $listy
      * @return list<array<string, mixed>>
      */
-    private function shoppingLists(User $user): array
+    private function shoppingLists(EloquentCollection $listy): array
     {
-        return $user->shoppingLists()->orderBy('created_at')->orderBy('id')->get()
-            ->map(fn (ShoppingList $lista): array => [
-                'nazwa' => $lista->name,
-                'zalozona' => $this->date($lista->created_at),
-            ])->values()->all();
+        return $listy->map(fn (ShoppingList $lista): array => [
+            'nazwa' => $lista->name,
+            'zalozona' => $this->date($lista->created_at),
+        ])->values()->all();
     }
 
     /**
