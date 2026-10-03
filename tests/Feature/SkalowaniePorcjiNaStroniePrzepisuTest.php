@@ -36,7 +36,7 @@ final class SkalowaniePorcjiNaStroniePrzepisuTest extends TestCase
     public function test_niewspierany_ulamek_zostaje_w_calosci_na_stronie_i_w_gotowaniu(): void
     {
         foreach (['⁄', '∕'] as $ukosnik) {
-            foreach (['1{u}2 kg mąki', 'mąka: 1{u}2 kg', 'mąka – 1{u}2 kg', 'mąka 1{u}2 kg'] as $wzorzec) {
+            foreach (['1{u}2 kg mąki', 'mąka: 1{u}2 kg', 'mąka – 1{u}2 kg', 'mąka 1{u}2 kg', '¹{u}2 kg mąki', '1{u}₂ kg mąki', '¹{u}₂ kg mąki'] as $wzorzec) {
                 $tekst = str_replace('{u}', $ukosnik, $wzorzec);
                 $przepis = $this->przepis(4);
                 $skladnik = $przepis->ingredients()->orderBy('position')->firstOrFail();

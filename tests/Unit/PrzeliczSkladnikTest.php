@@ -32,6 +32,36 @@ use PHPUnit\Framework\TestCase;
 final class PrzeliczSkladnikTest extends TestCase
 {
     /** @return array<string, array{string, float}> */
+    public static function ulamkiZLiczbamiUnicode(): array
+    {
+        $przypadki = [];
+        foreach (['⁄', '∕'] as $ukosnik) {
+            foreach (['¹{u}2', '1{u}₂', '¹{u}₂', '₁{u}²', 'Ⅰ{u}2', '1{u}Ⅱ'] as $ulamek) {
+                foreach ([$ulamek.' kg mąki', 'mąka: '.$ulamek.' kg'] as $wzorzec) {
+                    $tekst = str_replace('{u}', $ukosnik, $wzorzec);
+                    foreach ([0.5, 2.0] as $mnoznik) {
+                        $przypadki[$tekst.' × '.$mnoznik] = [$tekst, $mnoznik];
+                    }
+                }
+            }
+        }
+
+        return $przypadki;
+    }
+
+    #[DataProvider('ulamkiZLiczbamiUnicode')]
+    public function test_ulamek_z_liczba_unicode_odmawia_calego_zapisu(string $tekst, float $mnoznik): void
+    {
+        $wynik = PrzeliczSkladnik::przelicz($tekst, false, $mnoznik);
+
+        $this->assertTrue($wynik->nieprzeliczony, 'ULAMEK_2882_UNICODE_ODMOWA');
+        $this->assertSame($tekst, $wynik->tekst(), 'ULAMEK_2882_UNICODE_CALY_ZAPIS');
+        $this->assertFalse($wynik->zmieniony);
+        $this->assertSame(PrzeliczonySkladnik::UWAGA_ULAMKA, $wynik->uwagaNieprzeliczenia);
+        $this->assertNull(PrzeliczSkladnik::odczytaj($tekst), 'ULAMEK_2882_UNICODE_ODCZYT');
+    }
+
+    /** @return array<string, array{string, float}> */
     public static function niewspieraneUlamki(): array
     {
         $przypadki = [];

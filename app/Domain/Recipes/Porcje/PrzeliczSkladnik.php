@@ -175,7 +175,9 @@ final class PrzeliczSkladnik
 
     private static function nieobslugiwanyUlamek(string $tekst): bool
     {
-        return preg_match('/\d\s*[⁄∕]\s*\d/u', $tekst) === 1;
+        // Unicode ma także liczby w indeksie górnym/dolnym i liczby rzymskie.
+        // Rozpoznajemy je wyłącznie do odmowy, nie do przeliczania (#2882).
+        return preg_match('/\p{N}\s*[⁄∕]\s*\p{N}/u', $tekst) === 1;
     }
 
     /**

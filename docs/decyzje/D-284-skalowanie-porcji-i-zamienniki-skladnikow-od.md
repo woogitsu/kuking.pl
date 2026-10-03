@@ -41,6 +41,11 @@ do składnika (placeholder kreatora wprost podpowiadał „albo masło roślinne
    odmówionej pozycji. ASCII `1/2`, liczby mieszane i gotowy znak `½`
    zachowują dotychczasowe działanie; tekst autora w bazie się nie zmienia.
 
+   Odmowa obejmuje liczby Unicode po obu stronach kreski, także indeksy
+   górne i dolne (`¹⁄2`, `1∕₂`, `¹⁄₂`) oraz liczby rzymskie. Kategoria
+   `\p{N}` służy wyłącznie wykryciu zapisu wymagającego odmowy; nie rozszerza
+   zbioru ilości, które parser potrafi przeliczyć.
+
    **Doprecyzowanie #2629.** Procent tłuszczu przy produkcie („30 %”,
    „30 proc.”, „30 procent”) opisuje produkt, więc nie jest ilością do
    pomnożenia. Szukamy dalej w tym samym wierszu: przy „30 % śmietanki —
