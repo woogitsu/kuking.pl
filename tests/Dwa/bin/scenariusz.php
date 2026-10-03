@@ -1385,6 +1385,12 @@ try {
                 ->first(fn ($item): bool => $item->getName() === config('session.cookie'));
             Auth::forgetGuards();
             app('session')->forgetDrivers();
+            $stareCookie = Request::create(route('settings.security'), 'GET', [], [
+                (string) config('session.cookie') => $dodatnieCookie?->getValue() ?? '',
+            ]);
+            $staraOdpowiedz = app(HttpKernel::class)->handle($stareCookie);
+            Auth::forgetGuards();
+            app('session')->forgetDrivers();
             $kolejne = Request::create(route('settings.security'), 'GET', [], [
                 (string) config('session.cookie') => $cookieA?->getValue() ?? '',
             ]);
@@ -1398,9 +1404,46 @@ try {
                 'status' => $odpowiedz->getStatusCode(),
                 'redirect' => $odpowiedz->headers->get('Location'),
                 'old' => $stareDane,
+                'stare_cookie_status' => $staraOdpowiedz->getStatusCode(),
+                'stare_cookie_dokad' => $staraOdpowiedz->headers->get('Location'),
                 'kolejne_status' => $kolejnaOdpowiedz->getStatusCode(),
                 'kolejne_dokad' => $kolejnaOdpowiedz->headers->get('Location'),
                 'listy' => count(Notification::sentNotifications()),
+            ];
+        })(),
+
+        // Każdy etap ma własny proces, tak jak rzeczywiste żądanie WWW.
+        // Login/wyzwanie przekazują tylko cookie; odczyt nie loguje ponownie.
+        'sesja-b-2fa' => (function () use ($argumenty): array {
+            app()->instance(Vite::class, new class extends Vite
+            {
+                public function __invoke($entrypoints, $buildDirectory = null): HtmlString
+                {
+                    return new HtmlString('');
+                }
+            });
+            if ($argumenty['etap'] === 'login') {
+                $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+                $request = Request::create(route('login'), 'POST', [
+                    'login' => $konto->email, 'password' => $argumenty['haslo'],
+                ]);
+            } elseif ($argumenty['etap'] === 'kod') {
+                $request = Request::create(route('login.two_factor.store'), 'POST', [
+                    'code' => $argumenty['kod'],
+                ], [(string) config('session.cookie') => $argumenty['cookie']]);
+            } else {
+                $request = Request::create(route('settings.security'), 'GET', [], [
+                    (string) config('session.cookie') => $argumenty['cookie'],
+                ]);
+            }
+            $odpowiedz = app(HttpKernel::class)->handle($request);
+            $cookie = collect($odpowiedz->headers->getCookies())
+                ->first(fn ($item): bool => $item->getName() === config('session.cookie'));
+
+            return [
+                'status' => $odpowiedz->getStatusCode(),
+                'dokad' => $odpowiedz->headers->get('Location'),
+                'cookie' => $cookie?->getValue(),
             ];
         })(),
 

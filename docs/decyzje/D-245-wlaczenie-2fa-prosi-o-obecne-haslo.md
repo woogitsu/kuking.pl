@@ -67,6 +67,11 @@ mutacje obu akcji fizycznie cofają sprawdzenie i muszą oblać. Rollback tej
 poprawki przywróciłby okno, w którym stare żądanie może zmienić 2FA, więc
 do czasu ponownego wdrożenia trzeba wstrzymać oba formularze zmian 2FA.
 
+Jawna komenda wyłączenia z poprawnym hasłem zachowuje wcześniejsze znaczenie
+także wtedy, gdy 2FA nie była jeszcze potwierdzona: nie zapisuje fikcyjnego
+audytu „wyłączono 2FA”, ale odwołuje inne sesje i poświadczenia. Bieżąca sesja
+pozostaje ważna. Złe hasło oraz spóźniona generacja nie wykonują tej rotacji.
+
 📄 `app/Http/Controllers/Settings/TwoFactorSettingsController.php`,
 `routes/web.php`, `resources/views/pages/settings/two_factor/enable.blade.php`,
 `resources/views/pages/settings/two_factor/_password-help.blade.php`,
