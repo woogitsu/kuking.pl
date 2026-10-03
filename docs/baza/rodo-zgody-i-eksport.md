@@ -345,6 +345,15 @@ dodatnia na pustym dzienniku, zgoda wypowiedziana wprost, wąskość skutków).
 Paczka ZIP z danymi jednego użytkownika (RODO art. 15 i 20), budowana w tle
 przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exports_table`).
 
+**Otrzymane zaproszenia do zeszytu (#2869).** Nowa paczka zachowuje datę i stan
+własnego zaproszenia, ale bierze bieżącą nazwę cudzego zeszytu tylko wtedy,
+gdy `CollectionPolicy::view()` nadal pozwala go czytać. Po odebraniu dostępu
+do prywatnego zeszytu albo odejściu pole `zeszyt` jest `null`; nie odtwarzamy
+ani nie zgadujemy dawnej nazwy. Publiczny, nadal dostępny zeszyt i własne
+zeszyty zachowują nazwę. Token linku i jego skrót nie trafiają do ZIP-u.
+Nie ma zmiany schematu; rollback kodu przywraca ujawnianie późniejszej nazwy
+byłemu członkowi, więc wymaga ponownego wdrożenia poprawki.
+
 | Kolumna | Uwagi |
 |---|---|
 | `user_id` | Właściciel paczki. `cascadeOnDelete` — po usunięciu konta paczka i jej wpis nie mają już czego dotyczyć. |

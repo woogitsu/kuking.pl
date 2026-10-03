@@ -36,6 +36,7 @@ use App\Models\RecipeVersion;
 use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use App\Models\User;
+use App\Policies\CollectionPolicy;
 use App\Policies\RecipePolicy;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -885,13 +886,15 @@ final class CollectUserExportData
                 'odpowiedz' => $this->date($z->responded_at),
             ])->all();
 
+        $policy = app(CollectionPolicy::class);
         $otrzymane = CollectionInvitation::query()
             ->where('invitee_id', $user->getKey())
-            ->with(['collection', 'inviter.profile'])
+            ->with(['collection.owner', 'inviter.profile'])
             ->orderBy('created_at')
             ->get()
             ->map(fn (CollectionInvitation $z): array => [
-                'zeszyt' => $z->collection?->name,
+                'zeszyt' => $z->collection !== null && $policy->view($user, $z->collection)
+                    ? $z->collection->name : null,
                 'od' => $z->inviter?->displayName(),
                 'sposob' => $z->jestLinkiem() ? 'link' : 'po nazwie konta',
                 'stan' => $z->status,

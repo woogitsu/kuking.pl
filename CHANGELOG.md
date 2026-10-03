@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2869): nowa paczka danych zachowuje historię otrzymanego zaproszenia, lecz nie pokazuje późniejszej nazwy cudzego prywatnego zeszytu po odebraniu dostępu lub odejściu.
+
 - Poprawione (#2863): ukryty lub usunięty wpis nie wróci do kanału Atom, gdy wcześniejsze pobranie kończy budowanie kopii po jej wyczyszczeniu.
 
 - Poprawione (#2859): gdy udostępniony przepis jest chwilowo niedostępny, jego odbiorca może zrezygnować z dostępu z listy „Przepisy udostępnione mi”. Lista nie zdradza treści ani powodu niedostępności; rezygnacja wymaga potwierdzenia.
