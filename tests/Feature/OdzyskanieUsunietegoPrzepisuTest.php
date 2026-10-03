@@ -148,6 +148,76 @@ class OdzyskanieUsunietegoPrzepisuTest extends TestCase
         );
     }
 
+    public function test_piecdziesiat_chronionych_nowszych_nie_zaslania_starszego_czystego_przepisu(): void
+    {
+        $autor = $this->user();
+        $moderator = $this->user();
+        $czysty = $this->usunietyPrzepis($autor, 1, ['title' => 'Czysty starszy przepis 2868']);
+        $chronione = Recipe::factory()->count(50)->create([
+            'author_id' => $autor->getKey(),
+            'title' => 'Chroniony przepis 2868',
+            'status' => Recipe::STATUS_PUBLISHED,
+        ]);
+        DB::table('recipes')->whereIn('id', $chronione->modelKeys())->update(['deleted_at' => now()->subHour()]);
+        DB::table('moderation_actions')->insert($chronione->map(fn (Recipe $przepis): array => [
+            'id' => (string) Str::uuid(),
+            'moderator_id' => $moderator->getKey(),
+            'target_type' => 'recipe',
+            'target_id' => $przepis->getKey(),
+            'action' => 'remove',
+            'reason_code' => 'spam',
+            'created_at' => now(),
+        ])->all());
+
+        $odpowiedz = $this->actingAs($autor)->get(route('collections.deleted-recipes'))->assertOk();
+        $html = $odpowiedz->getContent();
+        $this->assertStringContainsString('Czysty starszy przepis 2868', $html, 'ODZYSKANIE_2868_STARSZY_CZYSTY');
+        $this->assertStringNotContainsString('Chroniony przepis 2868', $html);
+        $this->assertStringNotContainsString('Nie masz teraz usuniętych przepisów', $html);
+        $this->assertSame(1, substr_count($html, 'data-usuniety-przepis='));
+
+        $this->odzyskaj($autor, $chronione->first())->assertSessionHas('status', fn (string $t): bool => str_contains($t, 'nie da się już odzyskać'));
+        $this->assertSoftDeleted($chronione->first());
+        $this->odzyskaj($autor, $czysty)->assertRedirect(route('recipes.create', ['szkic' => $czysty->getKey()]));
+    }
+
+    public function test_piecdziesiat_jeden_czystych_z_remisem_czasu_ma_druga_strone(): void
+    {
+        $autor = $this->user();
+        $przepisy = Recipe::factory()->count(51)->create([
+            'author_id' => $autor->getKey(),
+            'status' => Recipe::STATUS_DRAFT,
+        ]);
+        DB::table('recipes')->whereIn('id', $przepisy->modelKeys())->update(['deleted_at' => now()->subHour()]);
+        $identyfikatory = $przepisy->modelKeys();
+        rsort($identyfikatory, SORT_STRING);
+        $najstarszy = $identyfikatory[50];
+
+        $pierwsza = $this->actingAs($autor)->get(route('collections.deleted-recipes'))->assertOk();
+        $this->assertSame(50, substr_count($pierwsza->getContent(), 'data-usuniety-przepis='));
+        $this->assertStringNotContainsString('data-usuniety-przepis="'.$najstarszy.'"', $pierwsza->getContent());
+        $adres = $this->adresDalszejStrony($pierwsza);
+        $druga = $this->actingAs($autor)->get($adres)->assertOk();
+
+        $this->assertSame(1, substr_count($druga->getContent(), 'data-usuniety-przepis='), 'ODZYSKANIE_2868_DRUGA_STRONA');
+        $this->assertStringContainsString('data-usuniety-przepis="'.$najstarszy.'"', $druga->getContent());
+        $this->assertStringNotContainsString('Pokaż więcej', $druga->getContent());
+        $druga->assertSee('Wróć do najnowszych');
+    }
+
+    private function adresDalszejStrony(TestResponse $odpowiedz): string
+    {
+        $dom = new \DOMDocument;
+        @$dom->loadHTML($odpowiedz->getContent());
+        $linki = (new \DOMXPath($dom))->query('//a[normalize-space(.)="Pokaż więcej"]');
+        $this->assertNotFalse($linki);
+        $this->assertCount(1, $linki);
+        $link = $linki->item(0);
+        $this->assertInstanceOf(\DOMElement::class, $link);
+
+        return $link->getAttribute('href');
+    }
+
     public function test_po_terminie_przepis_nie_wraca(): void
     {
         $autor = $this->user();
