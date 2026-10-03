@@ -95,7 +95,12 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             exit 1
         fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2815.py; then
-            printf "${CZERWONY}Kontrola ujemna świeżego stanu konta w imporcie #2815 nie przeszła.${RESET}\n" >&2
+            printf "${CZERWONY}Kontrola ujemna ?wie?ego stanu konta w imporcie #2815 nie przesz?a.${RESET}\n" >&2
+            exit 1
+        fi
+        # #2783: oba odczyty opakowa? musz? czeka? na blokad? produktu.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2783.py; then
+            printf "${CZERWONY}Kontrola ujemna przeplot?w opakowa? #2783 nie przesz?a.${RESET}\n" >&2
             exit 1
         fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2402.py; then
