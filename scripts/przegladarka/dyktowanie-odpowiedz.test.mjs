@@ -36,7 +36,7 @@ test('zamknięcie odpowiedzi zatrzymuje mikrofon bez utraty tekstu', async () =>
             if (new URL(route.request().url()).pathname === '/dyktowanie.js') {
                 return route.fulfill({ contentType: 'text/javascript', body: zrodlo });
             }
-            return route.fulfill({ contentType: 'text/html', body: `<!doctype html><html lang="pl"><body>
+            return route.fulfill({ contentType: 'text/html; charset=utf-8', body: `<!doctype html><html lang="pl"><body>
                 <details data-dyktowanie-zamkniecie><summary>Odpowiedz</summary>
                     <label for="odpowiedz">Odpowiedź</label><textarea id="odpowiedz">Własne słowa</textarea>
                     <div data-dyktowanie data-cel="odpowiedz" data-wstaw-napis="Wstaw do pola"></div>
