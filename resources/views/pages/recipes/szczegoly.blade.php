@@ -159,6 +159,7 @@
         @include('pages.import.partials.baner', ['niepewnych' => \App\Domain\Import\BramkaPublikacjiOdczytu::ileNiepewnych(
             (string) $recipe->title, (string) $recipe->summary,
             ...$recipe->ingredients->pluck('ingredient_text')->map(fn ($t) => (string) $t)->all(),
+            ...$recipe->ingredients->pluck('group_name')->map(fn ($t) => (string) $t)->all(),
             ...$recipe->steps->pluck('instruction')->map(fn ($t) => (string) $t)->all(),
         )])
     @endif

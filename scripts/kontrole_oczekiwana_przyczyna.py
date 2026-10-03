@@ -421,6 +421,7 @@ OCZEKUJ = {
     'Odczyt: rozliczenie bez strażnika stanu': r'Drugie rozliczenie tej samej próby musi być niczym\.',
     'Odczyt: zadanie za commitem zlecenia': r'Zlecenie `oczekuje` zostało zatwierdzone bez zadania w kolejce — nikt',
     'Odczyt: ponowienie woła model mimo zapisanej odpowiedzi': r'Failed asserting that actual size 2 matches expected size 1\.',
+    'OCR przepuszcza niepewną nazwę grupy (#2853)': r'OCR_2853_GRUPA_NIEPEWNA_PUBLIKACJA',
     # #2213: stary bezwarunkowy zapis `w_toku` na domkniętym zleceniu łamie
     # CHECK kodu błędu — objawem mutacji jest ten wyjątek, nie asercja.
     'Odczyt: bezwarunkowy zapis w_toku wskrzesza zlecenie': Wyjatek(r'QueryException.*importy_przepisow_kod_przy_bledzie_check'),

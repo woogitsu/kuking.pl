@@ -2447,6 +2447,11 @@ checks = [
      lambda s: replace_once(s, "OdczytajPrzepis::dispatch((string) $zlecenie->getKey());", "OdczytajPrzepis::dispatch((string) $zlecenie->getKey())->afterCommit();")),
     ("Odczyt: ponowienie woła model mimo zapisanej odpowiedzi", "app/Jobs/OdczytajPrzepis.php", "MaszynaStanowOdczytuTest::test_1980_ponowienie",
      lambda s: replace_once(s, "        if (is_array($zlecenie->odpowiedz_modelu)) {", "        if (false && is_array($zlecenie->odpowiedz_modelu)) {")),
+    ("OCR przepuszcza niepewną nazwę grupy (#2853)", "app/Domain/Import/BramkaPublikacjiOdczytu.php",
+     "test_niepewna_grupa_z_odczytu_blokuje_bezposrednia_publikacje_az_do_poprawy",
+     lambda s: replace_once(s,
+         "            array_map(static fn (array $wiersz): string => (string) ($wiersz['group_name'] ?? ''), $skladniki),",
+         "            [],")),
     # #2213: job nie wskrzesza zlecenia domkniętego przez odzyskiwanie.
     ("Odczyt: bezwarunkowy zapis w_toku wskrzesza zlecenie", "app/Jobs/OdczytajPrzepis.php", "MaszynaStanowOdczytuTest::test_2213",
      lambda s: replace_once(s, "        if (! $this->rozpocznij($zlecenie)) {\n            return;\n        }\n",

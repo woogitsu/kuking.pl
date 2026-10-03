@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2853): niepewna nazwa grupy składników odczytana ze zdjęcia kartki wstrzymuje pierwszą publikację przepisu. Błąd wskazuje pole grupy, a oba ekrany liczą taki fragment w przypomnieniu o sprawdzeniu tekstu.
+
 - Poprawione (#2820): po wygaśnięciu prośby o wskazówkę można ponownie poprawić własną uwagę przy wykonaniu. Przyjęta wskazówka i otwarte zgłoszenie nadal chronią tekst.
 
 - Poprawione (#2828): przy gotowaniu kilku potraw zdjęcie bieżącego kroku widać obok instrukcji. Zmiana kroku lub potrawy pokazuje właściwe zdjęcie; powiększenie nie zatrzymuje minutników.
