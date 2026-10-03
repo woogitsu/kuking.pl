@@ -80,3 +80,11 @@ recipe_shares i draft_restore_points do osobnego dokumentu i dopisuje
 indeks. Nie podwyższa progu ani nie omija testu. Następnie do N przyjęto
 odczyt JUnit i siedem regresji przyrządu z M #2844 (`8b3072928`) oraz krok
 CI z `344f62310`. Kolejna pełna normalna bramka jest nadal wymagana.
+
+Celowany test dokumentacji po pierwszym podziale: 12 PASS / 1 FAIL,
+108 asercji. Pierwszy dokument, indeks, wszystkie tabele/kolumny i linki
+przeszły; za duży był także ugotowalem-komentarze-zeszyty.md (46 850
+bajtów). Podział `c841a898f` zachowuje sekcje zeszytów w nowym pliku
+zeszyty-udostepnienia-i-odzyskiwanie.md. Kontrola rozmiarów wszystkich
+plików na dysku przechodzi bez zmiany limitów. Testy wykonawcze nowego
+złożenia i pełna normalna bramka pozostają do wykonania.

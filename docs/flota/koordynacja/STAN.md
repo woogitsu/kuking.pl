@@ -31,8 +31,10 @@ nowe funkcje i koszt zachowują osobne decyzje.
 - **N — następny normalny push po konkretnej odmowie.** Poprzedni head
   `c088b2208f629776dff203a05174151ade394a01` miał 13 954 testy PASS i
   jeden FAIL: opis `docs/baza/przepisy.md` przekroczył próg 45 KiB.
-  Treść przeniesiona po nagłówku tabeli do
-  `przepisy-wersje-i-udostepnienia.md`, indeks zaktualizowany; progu
+  Dalsza celowana kontrola wykryła także za długi opis zeszytów.
+  Treść przeniesiona po nagłówkach tabel do
+  `przepisy-wersje-i-udostepnienia.md` i
+  `zeszyty-udostepnienia-i-odzyskiwanie.md`, indeks zaktualizowany; progu
   nie zmieniono. N zawiera też naprawę przyrządu z M. Nowa bramka,
   zdalny head i pełne CI nadal wymagają odbioru. Szczegóły:
   [ODBIOR-N-CODEX-20261003.md](ODBIOR-N-CODEX-20261003.md).
