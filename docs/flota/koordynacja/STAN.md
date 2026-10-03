@@ -1,5 +1,70 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
+## Aktualny odbiór Codex — 3.10.2026, 02:10 UTC
+
+Ten blok zastępuje stan operacyjny historycznego handoveru poniżej.
+AGENTS.md, aktualne decyzje D-333 i nowsze polecenia właściciela pozostają
+wiążące. Właściciel zlecił autonomiczne poprawki, PR-y i scalanie; obecna
+sesja ma trzy dodatkowe agenty i koordynatora. Nie tworzymy nowych funkcji
+bez wymaganej decyzji o ich partii ani nie zmieniamy kosztu bez zgody.
+
+- **Wydanie L odebrane.** Main i produkcja:
+  `b913e3b234a1e1725b2dd3dbbe675ccfac41b641`. CI push main
+  `37074499270` zakończone SUCCESS; web, worker i scheduler zakończone
+  SUCCESS dla tego samego SHA, `/wydanie` zgodne, `/health` 200. Dowód:
+  [komentarz #2777](https://github.com/woogitsu/kuking.pl/pull/2777#issuecomment-5963031581).
+- **M przekazana i scalona do C**, przez #2793 z kontrolą dokładnego heada.
+  C: `2e55128e96c1802fb454a8905cef8799cacb3f71`; pełne CI push
+  `37082918564` zakończone SUCCESS. M nie jest jeszcze wydana na produkcję.
+- **Przed wydaniem M:** własna korekta
+  `codex/m-odtwarzanie-csam-20261003`, head
+  `836918af6237123e3beb86498f804543544b8f99`. Zawiera kolejność odtworzenia
+  CSAM przed obiema operacjami ponownego wymazania, poprawiony test tej
+  instrukcji, widoczność ścisłego zapisu wersji (#2808), blokadę kopiowania
+  importowanego szkicu (#2800) i świeżą ocenę uprawnień importu (#2815).
+  Normalny pre-push na izolowanym Linux/PG18 trwa; nie ma jeszcze PR-a ani
+  dowodu pełnej zieleni. Nie zmieniać zamrożonej gałęzi podczas bramki.
+- **N przygotowana lokalnie**, własna `codex/paczka-n-20261003`. Zawiera
+  źródłowe drafty N oraz poprawki prywatności, kursora, importu i retencji.
+  Połączony zestaw na złożeniu `330849933`: 179 testów / 1273 asercje PASS,
+  pełny PHPStan bez błędów. Późniejsze zmiany dokumentu nie są dowodem
+  normalnego pusha ani pełnego CI. Szczegółowe dowody i otwarte kryteria:
+  [ODBIOR-N-CODEX-20261003.md](ODBIOR-N-CODEX-20261003.md).
+- **Kontrola ujemna #2784 ukończona za zgodą właściciela.** Fizyczna mutacja
+  w izolowanej kopii oblała właściwym markerem; dokładne przywrócenie i
+  cała klasa 17 testów / 91 asercji PASS. Dowód:
+  [komentarz #2784](https://github.com/woogitsu/kuking.pl/pull/2784#issuecomment-5963122000).
+  Nie pytać o tę zgodę ponownie. #2424–#2426 zamknięte jako zastąpione
+  dopiero po sprawdzeniu odebranego wydania V.
+- **Trzy rozłączne zakresy:** #2783 tożsamość opakowania i dowód dwóch
+  połączeń, #2811 ponowienie zdjęć (odbiór wykrył wadliwy limit sześciu
+  historycznych kluczy — do poprawy przed PR-em), #2807 pusta dalsza strona
+  powiadomień (przegląd zaakceptowany). Po #2811 agent wraca do #2825,
+  ujawnienia nazwy prywatnego zeszytu po odebraniu członkostwa.
+- **Otwarte bramki:** #2025 panel Railway; #2708 prawnik, zewnętrzny
+  dziennik, rzeczywisty odbiór R2/CDN i odtworzenia kopii; #2713 kroki
+  właściciela. Zatwierdzenie partii nie zamyka testów z ludźmi 50+.
+
+### Następne kroki
+
+1. Odebrać normalny push korekty M, otworzyć niedraftowy PR do C i sprawdzić
+   pełne terminalne CI dokładnego heada. Scalić z `expectedHeadSha`.
+2. Wydanie M z nowego C do main: pełne CI i CodeQL, scalenie, następnie
+   terminalne CI push main i SUCCESS wszystkich trzech usług dla dokładnego
+   SHA, `/wydanie` oraz `/health`. Dopiero wtedy konkretne zamknięcia z dowodem.
+3. Odebrać N i kolejne poprawki. Nie mieszać trwających bramek ze zmianą
+   ich heada; nie ponawiać ani anulować CI masowo.
+4. Pracować na własnych zależnościach z locka i izolowanym PostgreSQL 18+,
+   z jawnym hostem/portem/nazwą/właścicielem. Stary PG16 i współdzielony
+   vendor/baza z handoveru nie są właściwą bramką. Aktualna instrukcja:
+   [WSPOLNE-issue.md](WSPOLNE-issue.md). Sesja robocza nie otwiera PR-ów.
+
+## Historyczny handover Claude — migawka 2–3.10.2026
+
+Poniższe informacje zachowano jako historię i źródło ustaleń; dawne numery,
+SHA, opis ograniczeń chmury i przydziały nie zastępują aktualnego bloku
+odbioru ani bieżącego odczytu repozytorium/usług.
+
 **Aktualizacja: 2.10.2026, ok. 22:40 UTC (handover do nowej sesji głównej).**
 Plik prowadzi sesja koordynatora. Nowa sesja zaczyna od tego pliku, potem
 czyta AGENTS.md. Stan GitHuba (PR-y, CI, deploy) sprawdzaj zawsze na żywo:
