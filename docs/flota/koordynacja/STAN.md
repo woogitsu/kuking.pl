@@ -1,3 +1,70 @@
+# Stan koordynacji — aktualizacja 3.10.2026, 18:39 UTC
+
+## Aktualny odbiór i kolejność
+
+- O #2890 odebrane na main i produkcji `5ae32b5785a642f8dd643de7606b0ecbe5a2040b`:
+  pełne PR CI, zagregowany CodeQL, terminalne main CI 24/24, trzy Railway SUCCESS,
+  `/wydanie` dokładnego SHA i `/health` 200/ok. Zamknięto 43 issues z własnymi
+  dowodami: 39 z pierwotnej mapy oraz #2821, #2822, #2839 i #2814 po odbiorach
+  rzeczywistej przeglądarki/PDF. Root ponownie potwierdził CLOSED/completed
+  wszystkich 43 oraz zachowanie ich treści. Dawne liczby 39 poniżej to historia.
+- C `0dade39187d8143cb557cd1a968161584360667b` ma terminalne pełne push CI
+  37137412709: 24/24 SUCCESS. Nie wymaga ponawiania. Fresh fetch o 18:38
+  potwierdził main 5ae i C 0dade; przed scalaniem odczytać je ponownie.
+- Jedna wspólna W/X/Y nadal korzysta z #2891. Remote PR pozostał na W622,
+  którego dawna zieleń nie zatwierdza całej paczki. Zwykły pełny seryjny hook
+  W6b zakończył się EXIT 1: 14235 PASS, 8 FAIL, 174995 asercji. Canonical
+  `transfer/push-wxy.sh/log/exit` oraz pełny surowy log pozostają zachowane.
+  Nie było publikacji nowego heada. Wszystkie osiem porażek dotyczyło
+  `Ingredient::sole()` w `PelnaNazwaSkladnikaTest`, nie `Recipe::sole()`.
+- Potwierdzona przyczyna: rzeczywiście zatwierdzane transakcje fixture #2810
+  pozostawiały pięć składników przed następną klasą. Poprawka
+  `dcafcc8aab474c71e21487dbeda1e1fe98e26a72` odebrana przez root i peer,
+  normalnie scalona do W. Cleanup usuwa tylko nowe nieużywane ID swojej
+  fixture; zachowuje zastany słownik i istniejące referencje. Para 24/267 PASS,
+  oryginalne 8/114 bez zmian, trzy właściwe ASSERTFAIL bez ERROR/SKIP oraz
+  dokładne odtworzenie bajtów/mtime. Root i peer sprawdzili 164 surowe pliki.
+  Stare 15 przypadków #2810 i rejestry 580/580 pozostają bez zmian.
+- Po tym checkpointcie root uruchamia nowy zwykły pełny seryjny hook W
+  w `repo-w`, baza `kuking_test_w20261003`, PG 18.6 / 127.0.0.1:55488,
+  owner `kuking_pg18_owner`. Nowy canonical: `transfer/push-wxy-fixture.sh/log/exit`.
+  Przed ponowieniem odczytaj ten exit/log i właściwy proces. Nie zmieniaj heada
+  podczas bramki. Pełna kontrola podzbioru nie zastępuje pełnego hooka.
+- Po poprawnym pełnym pushu: zaktualizować istniejący #2891 do W/X/Y,
+  nowe pełne niedraftowe CI exact head/base, review, merge-tree i expectedHeadSha;
+  następnie terminalnie zielony push C. Jedno końcowe wydanie do main dodatkowo
+  wymaga zagregowanego CodeQL, pełnego main CI i odbioru produkcji trzech usług.
+  Dopiero wtedy kwalifikujące issues W/X/Y i cztery issues kont.
+
+## Dalsze rozłączne poprawki i otwarte kryteria
+
+- Następna Z, lokalnie `ca6335617c394c695f51f579333219d30c131a04`, zawiera odebrane
+  #2796 (trzy nazwane DELETE), #2893 (izolowane fixture Env) oraz #2895
+  (uczciwy komunikat przywróconego minutnika). Merge bez konfliktu kodu,
+  CHANGELOG sumą obu stron. Root i peer odebrali #2895: rzeczywisty HTTP/alarm,
+  poprawna kontrola fizyczna, exact restore; nie zmieniono zegara ani deadline.
+  Z czeka na faktyczną W/X/Y i świeżą bazę; jeszcze bez pełnego pusha/PR/wdrożenia.
+- #2878 zarezerwowane przez root, agent pracuje na własnej kopii i izolowanej
+  bazie. Rzeczywisty Laravel potwierdził, że „masła za 5 zł” dawało wymyśloną
+  ilość i koszt. Wąska poprawka odrzuca liczbę z jednoznaczną walutą,
+  zachowując gramy i prawidłowe ilości. Odbiór końcowy/peer/push nadal wymagane;
+  nie rozszerzać tego na OCR, ceny ani nowe koszty.
+- Pomiar CI za dobę 2.10 16:16–3.10 16:16 UTC zakończony i niezależnie
+  sprawdzony: 256 przebiegów, średnio 7,94 wykonywanego zadania, p90 23,
+  maksymalnie 58. To nakładanie wykonań w określonym zbiorze, nie CPU,
+  kolejka, rachunek ani dowód przyczynowego efektu #2734. Pełna metoda
+  i ograniczenia: https://github.com/woogitsu/kuking.pl/issues/2713#issuecomment-5971888665.
+  Nie zmieniono runnerów, kosztów ani sekretów.
+- Otwarte pozostają rzeczywiste kryteria pilota 50+, telefonów, prawa,
+  CSAM/R2/CDN, kopii i paneli. #598 nadal wymaga gęstego pomiaru wdrożenia,
+  #601 statusów wariantów i zasobów. #2810/#2849 oraz konta
+  #2851/#2854/#2861/#2862 czekają na W/X/Y w produkcji. Nie zamykać ich
+  na podstawie samego podzbioru testów lub starej zieleni.
+
+---
+
+## Zachowany checkpoint historyczny
+
 # Stan koordynacji — 3.10.2026, 17:10 UTC
 
 ## Odebrane wydanie O i naprawiona integracja
