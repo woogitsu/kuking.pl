@@ -24,13 +24,29 @@ use Illuminate\View\View;
  */
 class ZakupyDoSpizarniController extends Controller
 {
-    public function form(Request $request): View|RedirectResponse
+    public function form(Request $request, ListaZakupow $listaZakupow): View|RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
 
+        // Nazwane listy (#2528): ekran pokazuje odhaczone z listy otwartej na
+        // ekranie (`?lista=`); bez parametru — z listy domyślnej.
+        $idListy = $request->query('lista');
+        try {
+            $wybrana = $listaZakupow->znajdzListe($user, is_string($idListy) && $idListy !== '' ? $idListy : null);
+        } catch (ValidationException $e) {
+            return redirect()->route('shopping.index')->with(Komunikat::blad(
+                (string) collect($e->errors())->flatten()->first(),
+            ));
+        }
+
         $odhaczone = ShoppingListItem::query()
             ->where('user_id', $user->getKey())
+            ->when(
+                $wybrana === null,
+                fn ($q) => $q->whereNull('list_id'),
+                fn ($q) => $q->where('list_id', $wybrana?->getKey()),
+            )
             ->whereNotNull('checked_at')
             ->orderBy('position')
             ->orderBy('created_at')
@@ -38,7 +54,7 @@ class ZakupyDoSpizarniController extends Controller
             ->get(['id', 'text']);
 
         if ($odhaczone->isEmpty()) {
-            return redirect()->route('shopping.index')->with(Komunikat::informacja(
+            return redirect()->route('shopping.index', $wybrana !== null ? ['lista' => $wybrana->getKey()] : [])->with(Komunikat::informacja(
                 'Nie ma odhaczonych pozycji. Odhacz to, co kupiono, a potem dodaj wybrane do „Co mam w domu”.',
             ));
         }

@@ -27,7 +27,7 @@
     </p>
 
     @php
-        $celeBledow = ['skladniki' => 'f-skladniki', 'text' => 'f-skladniki', 'odcisk' => 'f-skladniki'];
+        $celeBledow = ['skladniki' => 'f-skladniki', 'text' => 'f-skladniki', 'odcisk' => 'f-skladniki', 'lista' => 'f-lista-zakupow-wybor'];
         $zaznaczone = array_map('strval', array_filter((array) old('skladniki', []), 'is_string'));
         $bladWyboru = $errors->first('skladniki') ?: $errors->first('text') ?: $errors->first('odcisk');
         $ostrzezenie = $wczesniej !== null;
@@ -38,7 +38,7 @@
         <section class="card mb-5" role="alert" aria-labelledby="juz-jest-naglowek">
             <h2 class="mt-0" id="juz-jest-naglowek">Składniki tego przepisu już są na liście</h2>
             <p>
-                Składniki przepisu „{{ $recipe->title }}” trafiły na Twoją listę zakupów już {{ \App\Support\Czas::data($wczesniej, 'j F') }}
+                Składniki przepisu „{{ $recipe->title }}” trafiły na Twoją listę zakupów{{ $maInneListy ? ' „'.$nazwaListy.'”' : '' }} już {{ \App\Support\Czas::data($wczesniej, 'j F') }}
                 (część mogła już zostać odhaczona albo usunięta). Jeśli dodasz zaznaczone jeszcze raz, każda z nich pojawi się drugi raz — łączenia ani sumowania nie robimy.
                 Nic nie zostało dodane. Sprawdź zaznaczenie poniżej i naciśnij „Dodaj wybrane jeszcze raz” albo wróć bez dodawania.
             </p>
@@ -57,6 +57,8 @@
             @endif
             @if($ostrzezenie)
                 <input type="hidden" name="potwierdzam" value="1">
+                {{-- Potwierdzenie dotyczy listy z ostrzeżenia (#2528); inna lista = nowe pytanie. --}}
+                <input type="hidden" name="potwierdzona_lista" value="{{ $docelowa?->getKey() }}">
             @endif
 
             <fieldset class="border-0 p-0" id="f-skladniki"
@@ -79,6 +81,8 @@
                     <span class="field-error" id="f-skladniki-error">{{ $bladWyboru }}</span>
                 @endif
             </fieldset>
+
+            <x-zakupy-wybor-listy wiersz="wybor" :wybrana="$wybranaLista" :blad="true" />
 
             <p class="meta">Na liście zakupów mieści się najwyżej {{ $maksPozycji }} pozycji. Zaznaczone składniki dopiszemy wszystkie albo żaden.</p>
 

@@ -70,6 +70,10 @@ Przepis jest na 4 porcje, a gotujecie dla 2 osób? Po wybraniu liczby porcji na 
 
 Wróciliście ze sklepu i odhaczyliście zakupy? Pod odhaczonymi pozycjami na liście zakupów jest przycisk „Dodaj kupione do »Co mam w domu«”. Zaznaczacie tylko to, co chcecie dopisać (papier do pieczenia raczej nie), poprawiacie nazwę produktu — na przykład z „2 szklanki mąki” na „mąka” — i potwierdzacie. Nie zgadujemy ilości ani terminów, produkty, które już macie, zostają bez zmian, a lista zakupów się nie zmienia. Samo odhaczenie niczego w spiżarni nie robi.
 
+### Kopia szkicu do drugiego wariantu
+
+Macie rodzinny przepis w szkicu i chcecie wypróbować drugi wariant, nie ruszając pierwowzoru? Na liście „Wszystkie szkice” przy szkicu jest przycisk „Zrób kopię”. Najpierw zobaczycie, co się skopiuje (składniki, kroki, minutniki, porcje, czasy), a czego nie (zdjęć), potem powstaje osobny, prywatny szkic, który od razu otwieramy w kreatorze. Pierwowzór zostaje taki, jaki był. Gdy zdecydujecie się opublikować kopię, musi się czymś różnić od pierwowzoru — składnikami, krokami, porcjami albo czasami.
+
 ### Zmiana nazwy produktu w „Co mam w domu”
 
 Wpisaliście „mleko”, a w lodówce jest „mleko kokosowe”? Albo w nazwie została
@@ -89,6 +93,46 @@ napisał je autor, bez sumowania. Dotychczasowy przycisk „Dodaj składniki do
 listy zakupów”, który dopisuje wszystkie, zostaje bez zmian. Jeśli te składniki
 już były na liście, zapytamy, czy dodać je jeszcze raz.
 
+### Plan z Planera w Waszym kalendarzu
+
+Chcecie widzieć zaplanowany obiad także w kalendarzu w telefonie? W Planerze jest przycisk „Plan do kalendarza (plik)”. Zaznaczacie pozycje z jednego tygodnia, widzicie dokładnie, jaka nazwa i jaka data trafią do pliku, i pobieracie go. Plik otwieracie w swoim kalendarzu jak zwykły załącznik. To jednorazowa kopia: bez godzin, składników i Waszych dopisków, bez żadnego stałego adresu czy synchronizacji. Pamiętajcie, że po zaimportowaniu kopia żyje już w Waszym kalendarzu (może być w jego chmurze) i nie zmieni się, gdy zmienicie plan w Kuking.
+
+### Zdjęcie dołączone do zapisanego „Ugotowałem”
+
+Zgłosiliście ugotowanie od razu, a zdjęcie macie dopiero po posiłku? Na stronie własnego wykonania jest teraz przycisk „Dołącz zdjęcie”. Dokładacie zdjęcie do tego samego wykonania — nie trzeba zgłaszać gotowania drugi raz, więc data, rozmowa pod wykonaniem i wersja przepisu zostają, a autor przepisu nie dostaje nowego powiadomienia. Przy wykonaniu pojawi się dopisek „Zdjęcie uzupełnione”, żeby było jasne, że zdjęcie dołożono później. Zdjęcie można dołączyć przez 7 dni od zapisania wykonania.
+
+### Gotuj z tej wersji
+
+Autor zmienił przepis, a Wy chcecie powtórzyć dokładnie to, co Wam wcześniej wyszło? Na ekranie „Wersja z tego gotowania” (przy własnym wykonaniu) jest przycisk „Gotuj z tej wersji”. Prowadzi krok po kroku, z minutnikami, ale według starszej wersji, którą wtedy mieliście przed oczami — a nie według dzisiejszego tekstu autora. Na górze zawsze widać, z której wersji i z jakiej daty gotujecie, a przycisk „Wróć do dzisiejszego przepisu” jest pod ręką. Na końcu zapiszecie nowe „Ugotowałem” ze wskazaną starszą wersją. Jeśli ta wersja nie jest już dostępna, powiemy o tym wprost, zamiast po cichu podmienić ją na dzisiejszą.
+
+### Poprawka własnego przepisu z dawnej wersji
+
+Zmieniliście kilka proporcji, a po kolejnym gotowaniu chcecie wrócić do poprzedniej receptury? W historii zmian własnego przepisu, przy starszej wersji, jest przycisk „Zastosuj jako nową poprawkę”. Najpierw widzicie podgląd: co wróci z tej wersji, co jest dziś i czego nie przywracamy (zdjęcia, pochodzenie przepisu, widoczność). Samo oglądanie niczego nie zmienia. Zaznaczacie, co zastosować — dane, składniki, kroki — i dopiero wtedy powstaje nowa wersja. To nie cofnięcie czasu: dawne wersje zostają, a przepis dostaje kolejną poprawkę.
+
+### Odzyskanie tekstu szkicu po pomyłce
+
+Przypadkiem zastąpiliście długi krok krótkim fragmentem i szkic zdążył się zapisać sam? Gdy otwieracie niedokończony przepis do pisania, zachowujemy jedną kopię jego tekstu sprzed pisania. Jeśli coś się zmieniło, w kreatorze pojawia się odnośnik „Zobacz wcześniejszy tekst”. Ekran pokazuje, czym różni się kopia od tego, co jest teraz, a dopiero przycisk „Przywróć tekst z kopii” coś zmienia. Nic się nie publikuje i nikt nie dostaje powiadomienia; zdjęć kopia nie dotyka, a tekst, który zostanie zastąpiony, zostaje jako kopia, więc można wrócić. Kopia jest tylko Wasza i znika po 14 dniach, po opublikowaniu albo usunięciu szkicu.
+
+### Spis kroków w trybie gotowania
+
+Gotujecie dłuższy przepis i chcecie wrócić do kroku 3, a jesteście w 12.? W trybie gotowania pod przyciskami „Następny krok” i „Poprzedni krok” jest teraz zwinięty „Spis kroków”: numer i początek instrukcji każdego kroku. Wybieracie pozycję i otwiera się ten sam ekran jednego kroku. Wybór niczego nie odhacza i nie zmienia porcji ani odhaczeń; minutniki działają jak dotąd. Ostatni krok otwarty ze spisu jest tylko podglądem, więc nie wywołuje pytania „Jak wyszło?”.
+
+### Powiadomienia: tylko nieprzeczytane
+
+Plakietka pokazuje, że czeka nieprzeczytane powiadomienie, ale po kilku nowszych, już przeczytanych, trudno je było znaleźć? Nad listą powiadomień są teraz dwa linki: „Wszystkie” i „Nieprzeczytane”. Drugi pokazuje tylko te, których jeszcze nie otworzyliście, w tej samej kolejności, a pierwszy wraca do całej historii. Samo wejście na listę, przełączenie i przejście na następną stronę niczego nie oznaczają jako przeczytane; „Oznacz wszystkie jako przeczytane” działa jak dotąd.
+
+### Kopia jednego przepisu do zachowania poza serwisem
+
+Chcecie zachować rodzinną recepturę u siebie, bez zamawiania paczki z całym kontem? Na stronie swojego przepisu jest przycisk „Pobierz kopię przepisu”. Najpierw zobaczycie, co będzie w pliku i czego w nim nie będzie (zdjęć i komentarzy innych osób nie ma), a po kliknięciu pobierzecie mały plik ZIP z przepisem do czytania bez internetu i do wydruku. Ten sam plik można później wczytać z powrotem w Ustawieniach, w „Wczytaj swoją paczkę” — przepis wróci jako prywatny szkic dopiero po Waszym potwierdzeniu.
+
+### Wybór stron z przepisem w pliku PDF
+
+Rodzinny PDF ma kilka stron, a przepis jest tylko na jednej z nich? Przy dodawaniu przepisu z pliku PDF jest teraz drugi przycisk: „Najpierw wybiorę strony z przepisem”. Zobaczycie miniatury i początek tekstu każdej strony, zaznaczycie te, na których jest przepis, i dopiero wtedy ruszy odczyt — tylko z zaznaczonych stron. Zgodę na ewentualne wysłanie skanu do odczytu zaznaczacie osobno, przy wyborze stron. Plik, który zostawicie bez decyzji, usuwamy po dwóch godzinach.
+
+### Dodatkowy czas przy minutniku w trybie gotowania
+
+Minutnik na 40 minut zadzwonił, a potrawa potrzebuje jeszcze 5? Wcześniej „Uruchom jeszcze raz” odliczało znowu całe 40. Teraz przy minutniku kroku jest przycisk „Ustaw dodatkowy czas”: wpisujecie, ile dodatkowych minut, i zatwierdzacie. Gdy minutnik jeszcze odlicza, czas zostaje dodany do tego, co zostało (2 minuty plus 5 to 7); gdy już zadzwonił, odliczanie nowych minut zaczyna się od kliknięcia. Zmiana dotyczy tylko tego jednego minutnika w tej przeglądarce — czas z przepisu i odhaczone kroki zostają bez zmian. Pełny restart nadal jest, z napisem, że odlicza cały czas z przepisu.
+
 ### Pokaż przepis jednej bliskiej osobie
 
 Rodzinny przepis, który ma zobaczyć tylko córka? Przy własnym przepisie
@@ -99,6 +143,14 @@ zalogowaniu, w „Moje” → „Przepisy udostępnione mi”. Nikt inny go nie
 zobaczy, a przepis nie pojawi się w wyszukiwarce. Dostęp odbieracie jednym
 przyciskiem — działa od razu. Ta osoba zobaczy w powiadomieniach w Kuking,
 że pokazujecie jej przepis — bez listu i bez powiadomienia na telefonie.
+
+### Osobne listy zakupów na okazje
+
+Szykujecie święta albo przyjęcie i chcecie dopisywać zakupy wcześniej, bez mieszania ich z listą na dzisiejszy obiad? W „Liście zakupów” jest teraz „Osobna lista na okazję”: zakładacie listę, np. „Święta”, i nadajecie jej nazwę. Lista „Na co dzień” zostaje taka, jak była, z wszystkimi dotychczasowymi pozycjami. Otwartą listę podpisujemy na górze, a przy „Dodaj składniki” na stronie przepisu i w planerze sami wybieracie, na którą listę dopisać — nic nie wybiera się za Was. Odhaczanie, usuwanie i „Wyczyść odhaczone” dotyczą tylko tej listy, na której jesteście. Listę można przemianować, a usunięcie listy z pozycjami wymaga potwierdzenia i mówi, ile pozycji zniknie. Nazwy list widzicie tylko Wy.
+
+### Szukanie zapisanych przepisów po tym, od kogo je macie
+
+Pamiętacie, że przepis jest „od cioci Zosi”, ale nie pamiętacie ani tytułu, ani zeszytu? „Szukaj w moich zeszytach” znajduje teraz zapisany przepis także po polu „Od kogo albo skąd masz ten przepis”. Wpiszcie kawałek, na przykład „zosia”, a zobaczycie przepis jeden raz, z listą zeszytów, w których leży, i dopiskiem, że pasuje przez to pole. Szukamy tylko wśród przepisów zapisanych w Waszych zeszytach i tylko tych, które możecie dziś otworzyć. Nic nie trzeba wypełniać na nowo, a wpisana fraza nigdzie się nie zapisuje.
 
 ### Odłóż szkic na później
 

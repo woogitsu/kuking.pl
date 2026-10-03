@@ -23,10 +23,19 @@ assert(begin >= 0 && end > begin, 'Nie znaleziono rzeczywistego bloku minutnika'
 // PRAWDZIWY moduł ES (`type="module"`), z prawdziwym `import` z realnie
 // serwowanego `minutnik-krok.js` — to samo, co robi przeglądarka na
 // produkcji, nie jego namiastka.
-const moduleFileName = 'minutnik-krok.js';
-const moduleSource = readFileSync(`resources/js/${moduleFileName}`, 'utf8');
-assert(moduleSource.includes('export function pozostaloSekund'),
+//
+// Od #2458 odliczanie ma osobnego właściciela w `odliczanie-minutnika.js`
+// (`utworzOdliczanie`), a blok woła też nowe funkcje z `minutnik-krok.js`
+// (`sprawdzDodatkoweMinuty`). Ręcznie przepisana lista importów rozjechała
+// się wtedy z app.js i KAŻDY scenariusz z minutnikiem padał na
+// ReferenceError, zanim strona powiedziała `minutnikGotowy`. Dlatego linie
+// importu bierzemy dosłownie z app.js, a serwer podaje każdy z tych modułów.
+const moduleFileNames = ['minutnik-krok.js', 'odliczanie-minutnika.js'];
+const moduleSources = new Map(moduleFileNames.map(plik => [plik, readFileSync(`resources/js/${plik}`, 'utf8')]));
+assert(moduleSources.get('minutnik-krok.js').includes('export function pozostaloSekund'),
   'Nie znaleziono prawdziwej arytmetyki minutnika w minutnik-krok.js');
+assert(moduleSources.get('odliczanie-minutnika.js').includes('export function utworzOdliczanie'),
+  'Nie znaleziono prawdziwego właściciela odliczania w odliczanie-minutnika.js');
 const blade = readFileSync('resources/views/pages/recipes/cooking.blade.php', 'utf8');
 const template = blade.match(/<div class="cook-timer"[\s\S]*?<\/div>/)?.[0];
 assert(template, 'Nie znaleziono rzeczywistego HTML minutnika');
@@ -41,7 +50,11 @@ const html = (seconds, krok = 1, fingerprint = odciskKroku(krok)) => template.re
 // Pas alarmów minutników z innych kroków (issue #1301) — też z realnego Blade.
 const alarmyTemplate = blade.match(/<div class="cook-alarmy[\s\S]*? hidden><\/div>/)?.[0];
 assert(alarmyTemplate, 'Nie znaleziono rzeczywistego pasa alarmów innych kroków');
-const importLine = `import { pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza, aktualnyKrokMinutnika, sprawdzMinutyWlasne, etykietaMinut } from './${moduleFileName}';\n`;
+const importLine = moduleFileNames.map(plik => {
+  const linia = source.match(new RegExp(`^import \\{[^}]*\\} from '\\./${plik.replace('.', '\\.')}';$`, 'm'))?.[0];
+  assert(linia, `Nie znaleziono w app.js importu z ./${plik}`);
+  return linia;
+}).join('\n') + '\n';
 // Jedna strona trybu gotowania = jeden krok: pas alarmów + (opcjonalnie)
 // minutnik tego kroku, jak w cooking.blade.php.
 const stepPage = (krok, seconds, identities = [1, 2, 3, 4], fingerprints = identities.map(odciskKroku)) => '<p class="cook-progress">Krok ' + krok + '</p>'
@@ -95,9 +108,10 @@ const injectTimerModule = async page => {
 //     z sześciu podtestów padłby identycznie, niezależnie od poprawki importu.
 let currentBody = '';
 const server = http.createServer((request, response) => {
-  if (request.url === `/${moduleFileName}`) {
+  const modul = moduleSources.get(request.url.slice(1));
+  if (modul !== undefined) {
     response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' });
-    response.end(moduleSource);
+    response.end(modul);
     return;
   }
   response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -406,7 +420,9 @@ try {
       assert.equal(komunikat, 'Czas minął!', 'Spóźniony minutnik widocznego kroku musi ogłosić koniec');
       assert.equal(await remaining(page), 0);
       assert(await page.evaluate(() => window.alarmBeeps) >= 1, 'Spóźniony minutnik musi zagrać sygnał');
-      assert.equal((await button(page).innerText()).trim(), 'Uruchom minutnik jeszcze raz');
+      // #2458 (decyzja właściciela z 2.10.2026): restart ma uczciwy napis
+      // z PEŁNYM czasem autora; etykieta pochodzi z `{{ $timerLabel }}`.
+      assert.equal((await button(page).innerText()).trim(), 'Uruchom od nowa na pełny czas (1200 sekund)');
       assert(await anulujButton(page).isHidden());
       assert.equal(await page.evaluate(key => sessionStorage.getItem(key), storageKey(3)), null,
         'Zapis znika po alarmie');
@@ -528,7 +544,7 @@ try {
     } finally { await page.close(); }
   });
   await check('restart_po_spoznionym_alarmie_wycisza_alarm_kroku', async () => {
-    // Przegląd #1301: „Uruchom minutnik jeszcze raz” po spóźnionym alarmie
+    // Przegląd #1301: restart („Uruchom od nowa na pełny czas”) po spóźnionym alarmie
     // nie może zostawić obok nowego odliczania piszczącego „skończył”.
     const page = await browser.newPage();
     try {

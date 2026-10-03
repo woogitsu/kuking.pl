@@ -33,7 +33,7 @@ Aktualny stan przepisu; wersje historyczne leżą w `recipe_versions`.
 - `tresc_zmieniona_at` (`timestamptz NULL`, bez DEFAULT) — kiedy ostatnio
   zmieniła się TREŚĆ przepisu; źródło `dateModified` w JSON-LD (#2014) —
   patrz niżej.
-- „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej;
+- „Moja wersja": `forked_from_id`, `forked_at` — patrz niżej; `kopia_z_id` — kopia własnego szkicu (#2507), patrz niżej;
 - `title_search`, `summary_search` — patrz „Kolumny `*_search`".
 - `pokazuj_wartosci_odzywcze boolean NOT NULL DEFAULT true` — patrz
   sekcja `skladniki_odzywcze` niżej (D-299).
@@ -230,6 +230,46 @@ między strażnik a DDL (#2059). Zależny indeks znika razem z kolumną w tej
 samej transakcji, bez osobnego `DROP INDEX CONCURRENTLY`. Testy:
 `tests/Feature/CofniecieMigracjiNieGubiPodpisuWersjiTest.php` i
 `tests/Dwa/RollbackWersjiTrzymaBlokadeTest.php`.
+
+**`kopia_z_id` — kopia własnego szkicu do drugiego wariantu** (#2507, decyzja
+właściciela z 2.10.2026, D-333 — paczka E, migracja `2026_10_07_130000_add_kopia_to_recipes`).
+
+```sql
+ALTER TABLE recipes ADD COLUMN kopia_z_id uuid NULL
+    REFERENCES recipes (id) ON DELETE SET NULL;           -- recipes_kopia_z_id_foreign
+ALTER TABLE recipes ADD CONSTRAINT recipes_kopia_spojna_check
+    CHECK (kopia_z_id IS NULL OR kopia_z_id <> id);
+CREATE INDEX recipes_kopia_z_idx ON recipes (kopia_z_id) WHERE kopia_z_id IS NOT NULL;
+```
+
+- Wskazuje, z KTÓREGO własnego szkicu powstała kopia (`ZrobKopieSzkicu`). Służy
+  jednej regule: kopia, w której nie zmieniono nic, z czego się gotuje
+  (składniki, kroki, porcje, czasy), nie zostaje opublikowana
+  (`MojaWersja::pilnujRoznicyKopii`, wołana w `PublishRecipe` obok
+  `pilnujRoznicy`); źródło usunięte miękko też jest punktem odniesienia.
+  `ON DELETE SET NULL`: twarde skasowanie źródła nie kasuje kopii.
+- Tożsamość wysłania formularza niesie ISTNIEJĄCY `klucz_wyslania` (unikalny w
+  parze z autorem, D-027): ponowienie zwraca tę samą kopię, nowy formularz
+  zakłada kolejny wariant. Poza `$fillable`; kolumnę ustawia wyłącznie akcja.
+- Kopia dziedziczy `forked_from_id`/`forked_at` źródła BEZ ZMIAN (podpis „Na
+  podstawie przepisu…” jest nieusuwalny, także gdy oryginał niedostępny).
+  Kopiowane: tytuł z dopiskiem, opis, porcje/sztuki, czasy, trudność, składniki
+  (grupy, uwagi, zamienniki, „bez ilości”, ilość i jednostka), kroki z
+  minutnikami i etapami, rodzinne pochodzenie. NIE kopiowane: zdjęcia (główne,
+  przy krokach, skan kartki), alergeny, koszt, wersje, wykonania, komentarze.
+- **Ograniczenie #2800:** szkic powiązany z `przepisy_z_importu` albo
+  `importy_przepisow` nie może dostać kopii. Te wiersze są przypięte do ID
+  szkicu i pilnują pochodzenia oraz sprawdzenia odczytu przed publikacją;
+  skopiowanie samej treści omijałoby tę bramkę. Akcja odmawia po sprawdzeniu
+  prawa na świeżym stanie źródła pod blokadą, a ekran nie pokazuje formularza.
+  Zwykłe szkice i własne adaptacje pozostają kopiowalne. Nie ma nowej kolumny
+  ani migracji. **Rollback kodu:** nie cofa danych, lecz ponownie otworzyłby
+  tę drogę; przed cofnięciem trzeba wyłączyć akcję kopiowania szkiców i
+  przywrócić strażnika w wersji naprawionej.
+- **Rollback (D-088):** `down()` odmawia, gdy istnieje choć jedna niepublikowana
+  kopia (`kopia_z_id IS NOT NULL AND published_at IS NULL`); opublikowane kopie i
+  świeża baza przechodzą bez pytania. Test:
+  `tests/Feature/KopiaWlasnegoSzkicuTest.php`.
 
 **`klucz_wyslania` — jedno wysłanie formularza to jeden przepis** (D-027,
 migracja `2026_09_12_600000_add_klucz_wyslania_to_recipes`).
@@ -673,3 +713,37 @@ potem `KUKING_ROLLBACK_KASUJE_UDOSTEPNIENIA_PRZEPISOW=1`). Na pustej tabeli
 (CI, `migrate:refresh`) przechodzi bez pytania. Pilnuje
 `tests/Feature/UdostepnieniePrzepisuSchematTest.php` (odmowa, wymuszenie,
 kontrola dodatnia).
+
+### draft_restore_points — kopia tekstu szkicu do odzyskania po pomyłce (issue #2512, D-333)
+
+Migracja `2026_10_07_212512_create_draft_restore_points_table`. JEDEN
+ograniczony punkt odzyskania na szkic: tekst sprzed sesji edycji, robiony
+przy otwarciu istniejącego szkicu w kreatorze (`PunktOdzyskaniaSzkicu::zachowajPrzedEdycja`),
+gdy szkic nie ma jeszcze ważnej kopii. To NIE jest wersja przepisu
+(`recipe_versions` bez zmian; autozapis nadal nie tworzy wersji). Ponowne
+otwarcie nie podmienia kopii; przywrócenie podmienia ją na tekst, który
+zastąpiono.
+
+| Kolumna | Typ | Znaczenie |
+|---|---|---|
+| `id` | `uuid` PK, `DEFAULT gen_random_uuid()` | |
+| `recipe_id` | `uuid NOT NULL UNIQUE` → `recipes` (`ON DELETE CASCADE`) | jeden punkt na szkic |
+| `user_id` | `uuid NOT NULL` → `users` (`ON DELETE CASCADE`) | autor szkicu; poza `$fillable` (model ma pusty `$fillable`) |
+| `snapshot` | `jsonb NOT NULL` | `CHECK jsonb_typeof(snapshot) = 'object'`; tekst: tytuł, opis, porcje, sztuki, czasy, trudność, pochodzenie, składniki (grupa, uwaga, zamiennik, „Bez ilości”), kroki (etap, minutnik, `media_id` tylko jako wskazanie); bez zdjęć, alergenów, kosztu, widoczności, rodzaju i adresu źródła |
+| `taken_at` | `timestamptz NOT NULL DEFAULT now()` | początek okna `kuking.przepisy.szkic_punkt_odzyskania_dni` (14) |
+
+Indeksy: `recipe_id` (UNIQUE), `taken_at` (nocne sprzątanie), `user_id`.
+
+Przywrócenie idzie przez `PublishRecipe` (zapis szkicu, `publish: false`), z
+kontrolą rewizji treści i znacznika kopii z podglądu. Odmawia, gdy musiałoby
+odpiąć obecne zdjęcie kroku. Sprzątanie: `PrzedawnionePunktyOdzyskaniaSzkicu`
+(wołane przez `kuking:sprzataj-usuniete-tresci`) kasuje punkty starsze niż okno
+oraz punkty szkiców opublikowanych/usuniętych miękko. Wymazanie konta kasuje
+punkty jawnie (`EraseAccountData`). Paczka danych: sekcja `kopie_tekstu_szkicow`;
+rejestr czynności: §3.32.
+
+Rollback (D-088): `down()` usuwa tabelę, ale ODMAWIA, gdy jest choć jeden punkt
+w oknie odzyskania. Na pustej tabeli, przy samych przedawnionych punktach i w CI
+przechodzi bez pytania. Wymuszenie po kopii tabeli:
+`KUKING_ROLLBACK_KASUJE_PUNKTY_ODZYSKANIA_SZKICU=1`. Testy:
+`tests/Feature/OdzyskanieTekstuSzkicuTest.php`.

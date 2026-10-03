@@ -1,6 +1,10 @@
 # Rejestr umów powierzenia (DPA) — lista do odhaczenia
 
 Stan: gałąź `robota/bramka-startowa`, od `main` = `534e0a51`, 20 września 2026.
+Przegląd roli dostawców wg analizy prawnej z 2.10.2026 (#2708, D-333): patrz
+[`../prawo/OPINIA_AI_2026-10-02.md`](../prawo/OPINIA_AI_2026-10-02.md) §5 oraz
+[`../prawo/ODPOWIEDZI_NA_OPINIE_2026-10-02.md`](../prawo/ODPOWIEDZI_NA_OPINIE_2026-10-02.md).
+Analiza jest dziełem AI, nie podpisaną opinią adwokata ani radcy prawnego.
 
 **Czym ten dokument jest.** Listą do odhaczenia. Po jednym wierszu na
 realnego odbiorcę danych, a w wierszu: **co dokładnie trzeba u tego dostawcy
@@ -17,9 +21,10 @@ ma.**
 **Dlaczego to w ogóle jest P0.** Polityka prywatności mówi dziś wprost:
 *„Umów powierzenia przetwarzania danych z tymi dostawcami jeszcze nie mamy
 podpisanych"* i obiecuje podpisanie ich **przed otwarciem rejestracji dla
-wszystkich**. Od dnia, w którym zarejestruje się pierwsza osoba spoza
-zamkniętej bety, to zdanie zaczyna być zobowiązaniem z terminem, a nie
-notatką. Zdania tego pilnuje
+wszystkich**. Analiza z 2.10.2026 (§5.4) koryguje ten termin: obowiązek
+dotyczy **obecnego przetwarzania**, także adresów znajomych w becie, danych
+administratorów i osób piszących przez formularz. Nie czekamy na „pierwszą
+osobę spoza bety” i taka reguła nie obowiązuje. Zdania tego pilnuje
 `DokumentyPrawneNieKlamiaTest::test_nie_twierdzimy_ze_mamy_umowy_powierzenia`
 — dopóki nie ma umów, dokument nie może twierdzić, że są.
 
@@ -35,18 +40,29 @@ dokładnie tyle wierszy, ile paneli trzeba odwiedzić.
 
 ## 1. Dwie różne rzeczy na jednej liście — przeczytaj, zanim zaczniesz
 
-**Siedem wierszy to podmioty przetwarzające.** Przetwarzają dane **na nasze
-polecenie**, więc art. 28 ust. 3 RODO wymaga umowy powierzenia i to my
-odpowiadamy za dobór takiego podmiotu.
+**Siedem wierszy to podmioty przetwarzające** (Railway, trzy wiersze
+Cloudflare o roli procesora, OpenAI, EmailLabs) albo, przy Turnstile, rola
+mieszana. Przetwarzają dane **na nasze polecenie**, więc art. 28 ust. 3 RODO
+wymaga umowy powierzenia i to my odpowiadamy za dobór takiego podmiotu.
 
-**Ósmy wiersz — Meta — to osobny administrator.** Meta przetwarza dane
-użytkownika Facebooka na własnych zasadach i własną odpowiedzialność;
-nie robi tego na nasze zlecenie. **Umowa powierzenia jest tu niewłaściwym
+**Dwa wiersze — Google (2.7) i Meta (2.8) — to odrębni administratorzy**
+(analiza z 2.10.2026, §5.1 i §5.2). Przy zwykłym logowaniu każdy z nich
+przetwarza dane użytkownika na własnych zasadach i własną odpowiedzialność,
+nie na nasze zlecenie. **Umowa powierzenia jest tu niewłaściwym
 instrumentem** — nie dlatego, że jej nie mamy, tylko dlatego, że nie ma
-czego powierzać. Podpisanie DPA z Meta nie zamknęłoby tego punktu; zamyka
-go poprawny **opis ról** w polityce prywatności i decyzja, czy ta droga
-logowania w ogóle zostaje (`DECYZJE_WLASCICIELA_R1_R6_DPA.md`, sekcja
-o umowach powierzenia, wariant B).
+czego powierzać. Google nie jest u nas „Google Cloud”: logowanie przez
+projekt w konsoli Google nie jest hostingiem w Google Cloud, więc **nie
+szukamy DPA Google Cloud**. Podpisanie DPA nie zamknęłoby tych punktów;
+zamyka je poprawny **opis ról** w polityce prywatności (z listą pól
+odbieranych, ignorowanych i zapisywanych) oraz decyzja, czy ta droga
+logowania zostaje (`DECYZJE_WLASCICIELA_R1_R6_DPA.md`, wariant B). Analiza
+zastrzega, że kwalifikacja zależy od faktycznego wariantu (SDK, piksele,
+analityka przed kliknięciem) i nie wyklucza z góry współadministrowania
+etapu osadzenia (TSUE C-40/17 Fashion ID).
+
+**Turnstile (2.3) ma rolę mieszaną** (§5.3 analizy): procesor dla usługi
+świadczonej nam oraz odrębny administrator dla własnego celu Cloudflare
+(ulepszanie wykrywania botów).
 
 Kolumna „rola" niżej mówi, z którym przypadkiem masz do czynienia.
 **To jest najważniejsza kolumna tej tabeli**, bo od niej zależy, czy w danym
@@ -118,7 +134,14 @@ panelu w ogóle szukasz umowy.
 
 ### 2.3 Cloudflare Turnstile — ochrona siedmiu formularzy
 
-- **Rola:** podmiot przetwarzający.
+- **Rola:** **mieszana.** Procesor w zakresie sygnałów przetwarzanych dla
+  nas (ochrona formularzy) oraz **odrębny administrator** w zakresie własnego
+  celu Cloudflare: ulepszanie technologii wykrywania botów (Turnstile
+  Privacy Addendum z 18.06.2025, analiza §5.3). DPA obejmuje wyłącznie
+  przetwarzanie na zlecenie; nie jest umową powierzenia dla operacji, w
+  których Cloudflare samodzielnie ustala cel. Informacja dla użytkownika ma
+  to odzwierciedlać, a niezbędność sygnałów dla bezpieczeństwa formularza
+  oraz wyjątek PKE ocenia administrator, nie dostawca.
 - **Co do niego trafia:** adres IP i techniczne cechy przeglądarki osoby
   wypełniającej formularz — także osoby **bez konta**, bo dwa z siedmiu
   formularzy są otwarte. Treść formularza i adres e-mail nie wychodzą.
@@ -132,7 +155,10 @@ panelu w ogóle szukasz umowy.
 
 ### 2.4 Cloudflare Web Analytics — statystyka odwiedzin
 
-- **Rola:** podmiot przetwarzający.
+- **Rola:** podmiot przetwarzający; analiza z 2.10.2026 (§5.1) każe ocenić
+  rolę według DPA i zakresu tej konkretnej usługi i nie zakładać, że wszystkie
+  metadane służą jednemu celowi. Właściciel zdecydował 2.10.2026, że Web
+  Analytics zostaje (D-333, ryzyko z PKE przyjęte).
 - **Co do niego trafia:** adres otwieranej strony i adres odnośnika (oba bez
   części po znaku zapytania), rodzaj przeglądarki, czasy wczytania; kraj
   dolicza Cloudflare z połączenia. Bez ciasteczek i bez zapisu na urządzeniu
@@ -144,7 +170,13 @@ panelu w ogóle szukasz umowy.
 
 ### 2.5 OpenAI — wstępna ocena treści
 
-- **Rola:** podmiot przetwarzający.
+- **Rola:** podmiot przetwarzający dla treści w zakresie objętym umową API;
+  własne dane konta biznesowego odrębnie (analiza §5.1).
+- **Strona umowy:** dla klientów z EOG publiczny dodatek DPA OpenAI (od
+  1.01.2026) przewiduje co do zasady **OpenAI Ireland Ltd**, a nie
+  „OpenAI, L.L.C.”. **Do potwierdzenia przez właściciela w panelu** (przyjęta
+  umowa, dane organizacji, region). Irlandzka strona umowy nie dowodzi, że
+  wszystkie operacje zostają w EOG.
 - **Co do niego trafia:** treść wpisu albo komentarza i pomniejszone,
   przekodowane zdjęcie (bez EXIF-u i GPS-u), bez danych wskazujących osobę
   (`app/Moderacja/KlientOpenAI.php`).
@@ -163,10 +195,18 @@ panelu w ogóle szukasz umowy.
   danych do trenowania modeli**. Domyślnie dane z API nie służą do trenowania,
   ale to jest ustawienie i deklaracja dostawcy, nie prawo natury —
   odnotuj, co tam faktycznie stoi.
-- **Co jeszcze potwierdzić:** datę sprawdzenia wpisu OpenAI, L.L.C. na liście
-  EU-US Data Privacy Framework oraz **deklarowany okres przechowywania**
-  treści przekazanych do API. Bez tej liczby
-  `REJESTR_CZYNNOSCI_PRZETWARZANIA.md` §3.7 nie ma terminu usunięcia.
+- **Co jeszcze potwierdzić:** datę sprawdzenia wpisu **właściwego podmiotu
+  kontraktowego** (nie z pamięci: ustalić, czy chodzi o OpenAI Ireland Ltd,
+  czy o OpenAI, L.L.C.) na liście EU-US Data Privacy Framework i które SCC
+  oraz moduł wiążą strony, a także **okres przechowywania dla rzeczywistego
+  endpointu `/v1/moderations`**. **Nie wpisujemy „30 dni”:** to ogólna
+  informacja właściwa innym konfiguracjom API. Dokumentacja OpenAI dla
+  `/v1/moderations` opisuje inne zasady, więc w rejestrze zapisujemy dopiero
+  to, co potwierdzone dla tego endpointu, modelu i trybu organizacji
+  (analiza §4, pyt. 9). Brak retencji w jednej kolumnie nie oznacza braku
+  danych rozliczeniowych ani bezpieczeństwa. Odpowiednie pole w
+  `REJESTR_CZYNNOSCI_PRZETWARZANIA.md` §3.7 zostaje puste do czasu
+  potwierdzenia.
 - **Wariant „nie robimy tego wcale" istnieje i ma cenę:** wyłączenie klucza
   zatrzymuje cały kanał bez zmiany kodu, ale odbiera wykrywanie nienawiści,
   przemocy i treści seksualnych — czyli tej klasy treści, dla której istnieje
@@ -177,39 +217,49 @@ panelu w ogóle szukasz umowy.
 ### 2.6 EmailLabs (Vercom S.A.) — poczta transakcyjna
 
 - **Rola:** podmiot przetwarzający.
-- **Co do niego trafia:** adres e-mail odbiorcy i treść listu; dodatkowo
-  dostawca **sam rejestruje otwarcia** — moment, adres IP i program pocztowy.
+- **Co do niego trafia:** adres e-mail odbiorcy i treść listu. Dostawca
+  rejestrował też otwarcia (moment, adres IP, program pocztowy); **od
+  2.10.2026 liczenie otwarć jest wyłączone, a historyczne dane o otwarciach
+  usunął EmailLabs** (potwierdzenie właściciela, D-333). Brakuje jeszcze
+  dowodu z dostarczonego MIME (P0-03).
 - **Czego szukać:** to jedyny dostawca **polski**, więc umowa powierzenia
   będzie polska i najpewniej trzeba o nią poprosić opiekuna konta albo
   znaleźć ją w regulaminie usługi — nie licz na przycisk w panelu.
-- **Co jeszcze zrobić w tym samym panelu — i to jest osobne zadanie:**
-  **wyłączyć liczenie otwarć listów.** Wyłącznika nie ma w kodzie i mieć
-  go tam nie można; polityka prywatności mówi dziś wprost, że dopóki tego
-  nie wyłączymy, obrazek jedzie w każdym liście. To jest wiersz P1 z listy
-  gotowości (#204, #713 A3), a nie kwestia umowy — ale wchodzi się po to
-  do tego samego panelu, więc szkoda dwóch wizyt.
+- **Liczenie otwarć listów (dawniej osobne zadanie P1, #204, #713 A3):
+  ZAMKNIĘTE 2.10.2026.** Open Tracking wyłączony przez właściciela, dane
+  historyczne usunięte przez EmailLabs (D-333). Historia wpisu zostaje.
 - **Co jeszcze odczytać:** jak długo EmailLabs trzyma logi wysyłek i otwarć.
 - **Data potwierdzenia:** ______________  **Kto:** ______________
 
-### 2.7 Google — logowanie kontem Google
+### 2.7 Google — logowanie kontem Google: ODRĘBNY ADMINISTRATOR, nie procesor
 
-- **Rola:** podmiot przetwarzający **w zakresie tej jednej operacji** —
-  potwierdzenia, że konto Google należy do osoby, która się loguje.
-- **Co do niego trafia:** potwierdzenie tożsamości, adres e-mail wraz
-  z informacją o jego potwierdzeniu, imię
-  (`app/Http/Controllers/Auth/GoogleLoginController.php`).
-- **Czego szukać:** w Google Cloud Console dla projektu OAuth — warunków
-  usługi wraz z **dodatkiem o przetwarzaniu danych** („Data Processing
-  Terms" / „Cloud Data Processing Addendum") oraz stanu **weryfikacji
-  aplikacji OAuth** i zakresu żądanych uprawnień. Zakres w kodzie jest
-  minimalny; sprawdź, czy w konsoli nie stoi szerszy.
-- **Co jeszcze potwierdzić:** datę sprawdzenia wpisu Google LLC na liście
-  EU-US Data Privacy Framework.
+- **Rola:** **odrębny administrator** dla własnych etapów i celów (potwierdzenie
+  tożsamości, bezpieczeństwo konta Google). SAMSUFI odrębnie odpowiada za użycie
+  otrzymanych danych do utworzenia lub połączenia konta Kuking (analiza §5.1,
+  §5.2). **To nie jest powierzenie i nie szukamy DPA Google Cloud:** logowanie
+  przez projekt OAuth w konsoli Google nie jest tożsame z hostingiem w Google
+  Cloud.
+- **Co do nas trafia** (`app/Http/Controllers/Auth/GoogleLoginController.php`):
+  potwierdzenie tożsamości, adres e-mail wraz z informacją o jego
+  potwierdzeniu, imię. Do uzupełnienia w polityce: lista pól **odbieranych,
+  ignorowanych i zapisywanych**. Nie wolno twierdzić, że profil „nie jest
+  przekazywany”, jeśli token zawiera np. adres zdjęcia, choć go nie
+  używamy.
+- **Czego szukać zamiast umowy:** w Google Cloud Console dla projektu OAuth —
+  stanu **weryfikacji aplikacji OAuth** i zakresu żądanych uprawnień. Zakres w
+  kodzie jest minimalny; sprawdź, czy w konsoli nie stoi szerszy. Sprawdź też
+  warunki dokładnie tego produktu logowania i rzeczywisty przepływ.
+- **Co jeszcze ocenić:** transfer do USA po stronie Google jest sprawą Google
+  jako administratora; nie opisujemy go jako naszego przekazania. Datę wpisu
+  Google LLC na liście EU-US Data Privacy Framework odnotuj informacyjnie.
+- **Granica:** nie udostępniamy Google prywatnych zeszytów, planera ani listy
+  zakupów; brak SDK, pikseli i analityki Google po stronie Kuking trzeba
+  potwierdzić (zdanie z analizy §5.2 wymaga tego sprawdzenia).
 - **Data potwierdzenia:** ______________  **Kto:** ______________
 
 ### 2.8 Meta — logowanie kontem Facebooka: TU UMOWA POWIERZENIA NIE JEST WŁAŚCIWYM INSTRUMENTEM
 
-- **Rola:** **osobny administrator.** Meta Platforms Ireland Limited
+- **Rola:** **odrębny administrator** (analiza §5.1, §5.2). Meta Platforms Ireland Limited
   przetwarza dane swojego użytkownika na własnych zasadach i własną
   odpowiedzialność, nie na nasze polecenie.
 - **Co to znaczy praktycznie:** **nie szukaj w panelu Meta umowy
@@ -220,9 +270,12 @@ panelu w ogóle szukasz umowy.
   prawny zależy od oceny, a nie od dokumentu w panelu.
 - **Co zamiast tego trzeba zrobić:**
   1. **Sprawdzić, czy polityka prywatności opisuje role poprawnie.** Dziś
-     opisuje: mówi wprost, że Meta jest osobnym administratorem i że my nie
-     przekazujemy tych danych poza EOG, bo kontrahentem jest spółka
-     irlandzka. Pilnuje tego `PolitykaPrywatnosciWymieniaKazdaUslugeTest`.
+     opisuje: mówi wprost, że Meta jest osobnym administratorem. Analiza
+     z 2.10.2026 (§5.2) każe **usunąć z polityki zdanie „nie przekazujemy poza
+     EOG, bo kontrahentem jest spółka irlandzka”**: tożsamość kontrahenta nie
+     rozstrzyga całego przepływu ani dostępu z innego państwa. Zmiana
+     tekstu publicznego jest poza zakresem tego dokumentu (osobne zadanie).
+     Pilnuje tego `PolitykaPrywatnosciWymieniaKazdaUslugeTest`.
   2. **W panelu aplikacji na developers.facebook.com** sprawdzić zakres
      żądanych uprawnień (w kodzie są dwa: podstawowe dane profilu i adres
      e-mail), stan weryfikacji aplikacji oraz działanie odwołania
@@ -255,8 +308,8 @@ panelu w ogóle szukasz umowy.
 
 - **Umów, które nie są powierzeniem** — hosting domeny, bank, księgowość.
   Z kodu ich nie widać i nie jest to przedmiotem tego dokumentu.
-- **Oceny, czy podpisana umowa spełnia art. 28 ust. 3 RODO.** Osiem
-  odhaczonych wierszy znaczy „osiem paneli sprawdzonych", a nie „zgodne
+- **Oceny, czy podpisana umowa spełnia art. 28 ust. 3 RODO.** Dziewięć
+  odhaczonych wierszy znaczy „dziewięć paneli sprawdzonych", a nie „zgodne
   z prawem".
 - **Podprocesorów naszych podprocesorów.** Widać ich wyłącznie w wykazach
   dostawców; przy Railway to jest punkt, od którego zależy, czy potrzebne

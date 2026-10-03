@@ -334,7 +334,9 @@ Produkcja działa dalej przez cały czas — nic dodatkowo nie tracisz, próbuj�
    > SELECT current_database(), inet_server_addr();
    > ```
 
-5. Wczytaj naprawę do produkcji **w transakcji, z podglądem przed commitem**:
+ 5. Zanim odtworzony wiersz stanie się widoczny, wstrzymaj ruch aplikacji
+    i nocne retencje. Wczytaj naprawę do produkcji **w transakcji, z podglądem
+    przed commitem**:
    ```bash
    psql "$DB_URL_PRODUKCJI" -v ON_ERROR_STOP=1 <<'SQL'
    BEGIN;
@@ -343,12 +345,15 @@ Produkcja działa dalej przez cały czas — nic dodatkowo nie tracisz, próbuj�
    -- COMMIT; -- odkomentuj dopiero po sprawdzeniu liczby wyżej
    SQL
    ```
-6. Usuń pomocniczy serwis `postgres-restored-<data>` — kosztuje, jeśli zostanie.
-7. Jeśli wczytana naprawa dotyka tabel `users`, `profiles`, `posts`,
-   `recipes` albo `comments` — wykonaj §3.1 („wymaż ponownie”) z `--od`
-   równym chwili, z której pochodzi naprawa, **od razu po `COMMIT`**: serwis
-   działa na tej bazie, więc każda minuta zwłoki to minuta, w której mogą być
-   widoczne konta wymazane po tej chwili.
+ 6. Jeśli wczytana naprawa dotyka tabel `users`, `profiles`, `posts`,
+   `recipes` albo `comments` — **przed** §3.1 ustal i odtwórz decyzje CSAM
+   według §3.2. Do zakończenia obu kroków trzymaj serwis i nocne retencje
+   wstrzymane; przy naprawie w żywej bazie odnotuj okres możliwej ekspozycji
+   jako incydent. Dopiero po weryfikacji decyzji CSAM wykonaj §3.1 z `--od`
+   równym chwili, z której pochodzi naprawa. Jeśli nie można bezpiecznie
+   odtworzyć decyzji, zatrzymaj procedurę i przekaż sprawę właścicielowi.
+ 7. Dopiero po tych kontrolach wznów ruch i nocne retencje. Usuń pomocniczy
+    serwis `postgres-restored-<data>` — kosztuje, jeśli zostanie.
 
 **RPO:** ~0 (PITR ma ziarnistość WAL, praktycznie do sekundy) — **o ile PITR
 jest włączony** (patrz pytanie 2 w §2.3). Jeśli nie, jedyna opcja to ostatni
@@ -374,6 +379,11 @@ Railway → postgres → Backups → Volume Backups → wybierz najnowszy → Re
 > obok nazwy projektu. Kliknięcie „Restore" na złym środowisku przywraca
 > STARE dane NAD nowszymi — to samo ryzyko, co scenariusz 3(a), tylko
 > na całej bazie naraz.
+
+Przed odtworzeniem w miejscu wstrzymaj **web, worker i scheduler**; po nim
+zastosuj §3.2, następnie §3.1 i zweryfikuj ich wynik. Scheduler nie może
+uruchomić nocnych retencji przed odtworzeniem decyzji CSAM. Jeśli nie umiesz
+odizolować tych trzech usług, przerwij procedurę i uzgodnij plan z właścicielem.
 
 **Projekt/serwis Railway sam został usunięty (najgorszy przypadek):**
 
@@ -402,11 +412,18 @@ pg_restore --dbname="$DB_URL_NOWEJ_BAZY" \
   --no-owner --exit-on-error \
   "ostatni-offsite-zrzut.dump"
 
-# 4. NAJPIERW rejestr usunięć, DOPIERO POTEM serwis (§3.1). Do tej chwili
-#    żaden serwis nie czyta nowej bazy, więc nikt nie zobaczy kont, które
-#    wymazaliśmy po dacie kopii. Komenda idzie z Twojego komputera przez
-#    `railway run` (daje dostęp do dysku dziennika wymazań), ale na NOWĄ bazę:
-#    `DB_URL` jest nadpisany w poleceniu.
+# 4. NAJPIERW odtwórz i zweryfikuj decyzje CSAM (§3.2) na NOWEJ bazie.
+#    Zbierz decyzje od chwili kopii do chwili przełączenia, także te podjęte
+#    podczas przygotowywania nowej bazy. Użyj wyłącznie odizolowanego dostępu
+#    administracyjnego do tej bazy: bez publicznego ruchu oraz osobnych usług
+#    worker i scheduler. Jeśli nie masz takiego dostępu albo pełnej listy decyzji,
+#    ZATRZYMAJ procedurę i przekaż sprawę właścicielowi. Nie wykonuj kroku 5.
+#    Przed krokiem 5 potwierdź także terminalne przeniesienie zabezpieczonych
+#    wariantów, wyczyszczenie cache i brak publicznego dostępu (§3.2 pkt 4).
+# 5. Dopiero po potwierdzeniu kroku 4 zastosuj rejestr usunięć (§3.1).
+#    Żaden publiczny serwis nie czyta jeszcze nowej bazy. Komenda idzie z
+#    Twojego komputera przez `railway run` (dostęp do dziennika wymazań),
+#    ale na NOWĄ bazę: `DB_URL` jest nadpisany w poleceniu.
 railway run --service kuking.pl --environment production \
   env DB_URL="$DB_URL_NOWEJ_BAZY" \
   php artisan kuking:wymaz-ponownie --od="<chwila kopii, np. 2026-10-05 02:17>" --na-sucho
@@ -416,17 +433,37 @@ railway run --service kuking.pl --environment production \
 #    Komenda ma zakończyć się kodem 0 i „Błędy: 0”. Przy błędzie powtórz ją;
 #    NIE podpinaj bazy do serwisu, dopóki nie przejdzie.
 
-# 5. Dopiero teraz podepnij nowy DB_URL do serwisu kuking.pl
-#    (dziś jeden serwis aplikacyjny w trybie `all` — nie ma osobnych
-#    web/worker/scheduler, patrz sprostowanie w §2.3 i D-038/D-043)
-railway variables --set "DB_URL=<nowy_DATABASE_URL>" --service kuking.pl --environment production
-
-# 6. Redeploy i weryfikacja
-curl -s https://kuking.pl/health   # oczekiwane: {"status":"ok"}
-
-# 7. Kontrolnie jeszcze raz (idempotentne; „Wymazano ponownie: 0” jest dobrym wynikiem)
+# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie. Ponownie ustal okno
+#    CSAM do tej chwili (§3.2), odtwórz i zweryfikuj nowe decyzje. Jeśli
+#    w trakcie przełączenia dojdzie pilna decyzja CSAM, przerwij przełączenie,
+#    zabezpiecz sprawę i ponów sprawdzenie okna przed otwarciem ruchu.
+#    Dopiero wtedy powtórz podgląd i wykonanie rejestru usunięć (§3.1) na
+#    NOWEJ bazie. Przy nierozstrzygniętej sprawie nie przechodź dalej.
 railway run --service kuking.pl --environment production \
+  env DB_URL="$DB_URL_NOWEJ_BAZY" \
+  php artisan kuking:wymaz-ponownie --od="<chwila kopii>" --na-sucho
+railway run --service kuking.pl --environment production \
+  env DB_URL="$DB_URL_NOWEJ_BAZY" \
   php artisan kuking:wymaz-ponownie --od="<chwila kopii>"
+#    Wymagane: kod 0, „Błędy: 0”. Do przełączenia nie wznawiaj żadnej z trzech
+#    usług: web, worker ani scheduler.
+# 7. Dopiero teraz podepnij nowy DB_URL do WSZYSTKICH trzech usług.
+#    Stan produkcji z 3.10.2026: kuking.pl (web), worker i scheduler. Każda
+#    musi wskazywać tę samą nową bazę. Najpierw sprawdź, czy DB_URL jest
+#    zmienną współdzieloną czy lokalną dla danej usługi; nie nadpisuj w ciemno
+#    innych zmiennych ani nie wznawiaj części usług przed pozostałymi.
+#    Poniższe polecenia uruchom WYŁĄCZNIE po wstrzymaniu wszystkich trzech
+#    usług; jeśli panel nie pozwala na bezpieczne wstrzymanie i weryfikację,
+#    przerwij procedurę i ustal plan z właścicielem.
+railway variables --set "DB_URL=<nowy_DATABASE_URL>" --service kuking.pl --environment production
+railway variables --set "DB_URL=<nowy_DATABASE_URL>" --service worker --environment production
+railway variables --set "DB_URL=<nowy_DATABASE_URL>" --service scheduler --environment production
+
+# 8. Dopiero po sprawdzeniu DB_URL na trzech usługach wznów web, worker
+#    i scheduler, potem zweryfikuj wdrożenie i zdrowie aplikacji. Scheduler
+#    uruchomi nocne retencje, więc wszystkie kontrole z kroków 4–6 muszą
+#    być zakończone przed jego uruchomieniem.
+curl -s https://kuking.pl/health   # oczekiwane: {"status":"ok"}
 ```
 
 Potem: odtwórz DNS/WAF/Cache Rules wg `DEPLOYMENT_RUNBOOK.md` KROK 10 (jeśli
@@ -530,14 +567,19 @@ paczki eksportu; utrata magazynu (nie jego chwilowa awaria) usuwa wpisy.
 Drugi, niezależny magazyn (wariant B z issue #2038) nie jest wdrożony.
 
 Krok, **zanim odtworzona baza przyjmie ruch** — kolejność jest wiążąca:
-najpierw rejestr usunięć, dopiero potem serwis (analiza prawna z 2.10.2026,
-pytanie 8). Przy odtworzeniu na NOWĄ bazę (3(b), projekt usunięty) komendę
+najpierw odtworzenie i sprawdzenie decyzji CSAM (§3.2), potem rejestr usunięć,
+dopiero potem serwis i nocne retencje (analiza prawna z 2.10.2026,
+pytanie 8). Przed **każdym** kolejnym `kuking:wymaz-ponownie` sprawdź nowe
+decyzje z okna kopia–przełączenie i powtórz brakujące. Przy odtworzeniu na
+NOWĄ bazę (3(b), projekt usunięty) komendę
 uruchamiasz przed podpięciem `DB_URL` do serwisu, z `DB_URL` nowej bazy w
 poleceniu. Przy odtworzeniu W MIEJSCU (Volume Backup „Restore”, import do żywej
-bazy z 3(a)) serwis czyta dane od razu, więc **zatrzymaj jego wdrożenie przed
-odtworzeniem**, a uruchom je po tej komendzie; jeśli nie dało się zatrzymać
-serwisu, uruchom komendę natychmiast i zapisz okno, w którym serwis mógł
-pokazywać wymazane konta, jako incydent do oceny przez właściciela:
+bazy z 3(a)) wszystkie trzy usługi mogą czytać lub zmieniać dane, więc
+**zatrzymaj web, worker i scheduler przed odtworzeniem**, a uruchom je dopiero
+po weryfikacji §3.2 i wykonaniu tej komendy. Jeśli nie dało się ich zatrzymać,
+przerwij procedurę i przekaż sprawę właścicielowi. Bez sprawdzenia decyzji CSAM
+nie wykonuj wymazania. Zapisz okno możliwej ekspozycji danych jako incydent
+do oceny przez właściciela:
 
 ```bash
 # podgląd — lista kont do ponownego wymazania, nic nie zmienia
@@ -560,6 +602,81 @@ php artisan kuking:wymaz-ponownie --od="<chwila, z której pochodzi kopia>"
   (odtworzenie wierszy sprzed wymazania → `kuking:wymaz-ponownie` → `erased`);
   okno awarii dziennika przed odtworzeniem:
   `tests/Feature/DziennikWymazanPrzezOdtworzenieTest.php`.
+
+### 3.2 Po KAŻDYM odtworzeniu: decyzje CSAM z okresu między kopią a awarią (issue #2708, pytanie 17)
+
+**Dotyczy tych samych przypadków co §3.1.** Akcja „CSAM — natychmiast ukryj
+i zabezpiecz” (`ZabezpieczDowodCsam`) zapisuje wszystko **w tej samej bazie**:
+miękkie usunięcie treści (`deleted_at`), `media.status = secured`, wiersze
+`zabezpieczenia_dowodow`, decyzję w `moderation_actions`, wpis `audit_log`
+i blokadę konta autora. Odtworzenie kopii sprzed decyzji przywraca stan sprzed
+decyzji: treść znów jest widoczna, zdjęcie ma status `ready`, rejestr
+zabezpieczeń go nie zna (więc kasują go nocne retencje i wymazanie konta),
+a autor jest odblokowany. **Nic w kodzie tego dziś nie odtwarza** — odwrotnie niż
+przy wymazaniach kont nie ma dziennika poza bazą (`DziennikWymazan` obejmuje
+wyłącznie konta). To jest znane, nierozwiązane ryzyko, nie założenie.
+
+**Przed pierwszym i każdym ponownym `kuking:wymaz-ponownie`, przed ruchem
+publicznym i przed nocnymi retencjami** (maintenance albo brak `DB_URL`
+w serwisie, aż punkty 1–4 są zrobione). Po ponownym sprawdzeniu okna
+kopia–przełączenie odtwórz także decyzje podjęte podczas przygotowań.
+Do powtórzenia akcji w panelu potrzebny jest odizolowany dostęp administracyjny
+do odtworzonej bazy, bez publicznego ruchu, workerów i retencji. Jeśli nie da
+się go zapewnić, zatrzymaj odtworzenie i przekaż sprawę właścicielowi:
+
+1. **Ustal okno**: od chwili kopii (`--od` z §3.1) do chwili awarii,
+   a przed przełączeniem ponownie rozszerz je do bieżącej chwili.
+2. **Zbierz decyzje CSAM z tego okna ze źródeł poza bazą** — w kolejności
+   wiarygodności:
+   - **notatki moderatora z zawiadomienia** (procedura każe zapisać numer sprawy,
+     czas, adresata — `docs/flota/CSAM_JEDNA_KARTKA.md` pkt 9): każde zawiadomienie
+     do Policji, prokuratury albo Dyżurnet.pl złożone w oknie to osobna decyzja,
+     którą trzeba powtórzyć;
+   - **alarm na Discordzie / kanał moderatorów**, jeśli moderator coś tam
+     napisał (kod **nie wysyła** alarmu o decyzji CSAM; kanał `blad_webhook`
+     dostaje tylko błędy techniczne);
+   - **prywatny dysk zdjęć, prefiks `zabezpieczone/<id zdjęcia>/`**: zadanie
+     `PrzeniesPubliczneWariantyDowodu` przenosi tam warianty zabezpieczonego
+     zdjęcia. Wylistuj prefiks (bez pobierania plików) i porównaj identyfikatory
+     z `media`/`zabezpieczenia_dowodow` w odtworzonej bazie: identyfikator, którego
+     rejestr nie zna albo który ma status inny niż `secured`, to zdjęcie
+     zabezpieczone w oknie. Ślad jest **niepełny**: nie ma go dla treści bez
+     zdjęcia, ani gdy dysk wariantów jest tym samym dyskiem co oryginał;
+   - odpowiedzi zgłaszającym i e-maile do autorów (blokada konta) w logu
+     dostawcy poczty, jeśli go masz — ślad pośredni, tylko do potwierdzenia.
+3. **Powtórz każdą decyzję z listy** akcją „CSAM — natychmiast ukryj
+   i zabezpiecz” w panelu (treść z kopii istnieje, więc akcja zadziała od nowa;
+   użyj jej tak samo jak przy pierwszym razie: ze zgłoszenia w kolejce albo ze
+   strony treści; dla samego zdjęcia — przez zgłoszenie celu `media`).
+   Nie licz na to, że brakujące warianty zdjęcia „ukryją” je same: oryginał
+   zostaje w magazynie i może być wydany przez trasę aplikacji.
+4. **Sprawdź wynik zapytaniem** (tylko odczyt) — dla każdej treści z listy:
+   `deleted_at` ustawione, status zdjęć `secured`, wiersz w `zabezpieczenia_dowodow`,
+   konto autora zablokowane. Dla zdjęć to jeszcze nie koniec: akcja zleca
+   `PrzeniesPubliczneWariantyDowodu` na kolejkę `media`, a potem
+   `PurgePublicMediaCache`. Potwierdź terminalne wykonanie obu zadań na
+   odtworzonej bazie, znacznik przeniesienia wariantów, brak publicznego
+   dostępu do dawnych wariantów i zachowanie oryginału jako dowodu.
+   Nie uruchamiaj w tym celu całego produkcyjnego workera ani schedulera.
+   Jeśli nie możesz odizolować obsługi kolejki `media`, zweryfikować cache
+   lub wariant nadal leży na publicznym `r2_legacy` / `public`, zatrzymaj
+   procedurę i przekaż sprawę właścicielowi; samo `media.status = secured`
+   nie dowodzi, że publiczny plik zniknął.
+5. **Jeśli nie da się ustalić listy** (nikt nie zapisał, brak śladów w prefiksie):
+   nie zgaduj. Poproś moderatorów i administratorów o przypomnienie, które
+   sprawy CSAM zamykali w oknie, i przejrzyj ręcznie zgłoszenia z tego okna;
+   to ostatnia deska ratunku, nie procedura. Do czasu rozstrzygnięcia listy
+   **nie uruchamiaj** `kuking:wymaz-ponownie`, publicznego ruchu ani nocnych
+   retencji na odtworzonej bazie.
+
+**Czego to NIE zamyka.** Rozwiązanie trwałe wymaga projektu, którego nie ma:
+dziennik decyzji CSAM poza bazą (analogiczny do `DziennikWymazan`) musiałby
+zapisywać wpis **przed zatwierdzeniem** decyzji, nie mógłby blokować ukrycia
+treści przy awarii magazynu (inaczej niż wymazanie konta, tu opóźnienie jest
+gorsze od braku wpisu), a jego treść — sam identyfikator, rodzaj, chwila,
+bez opisu — wymaga zgody prawnika i właściciela (dziennik sam byłby danymi
+o sprawie karnej, retencja inna niż 120 dni). Do czasu decyzji obowiązują
+kroki 1–5 wyżej. Pozycja do dopisania na liście właściciela w #2708.
 
 ### 3(c) Utracone zdjęcia
 
@@ -1236,13 +1353,13 @@ serwis kopii korzysta z tych samych wartości.
 
 **4. Serwis `kopia-bazy` w Railway**
 
-> ## ⚠️ NIE URUCHAMIAJ DZIŚ `railway config apply`
-> `.railway/railway.ts` opisuje stan DOCELOWY z trzema serwisami
-> (`web`, `worker`, `scheduler`), a produkcja ma dziś JEDEN serwis o nazwie
-> `kuking.pl` w trybie `all` — `apply` nie zostało uruchomione ani razu.
-> Zastosowanie tego pliku dziś **skasowałoby `kuking.pl`** i postawiło trzy
-> serwisy, których nikt nie skonfigurował. Serwis kopii zakłada się więc
-> RĘCZNIE, a deklaracja w `railway.ts` czeka na dzień pierwszego `apply`.
+> ## ⚠️ NIE URUCHAMIAJ `railway config apply` PRZY ODTWARZANIU
+> Stan produkcji potwierdzony 3.10.2026: osobne usługi `kuking.pl` (web),
+> `worker` i `scheduler`. Dawna notatka o jednym serwisie `all` jest nieaktualna.
+> `railway config apply` może zmienić konfigurację usług i zmiennych; nie jest
+> krokiem tej procedury ani sposobem na bezpieczne przełączenie bazy. Przed
+> osobnym zastosowaniem IaC porównaj plan z bieżącym panelem i Shared Variables.
+> Serwis kopii zakłada się według osobnego planu poniżej.
 
 Panel Railway → **+ New** → **GitHub Repo** → `woogitsu/kuking.pl`, a potem
 w ustawieniach nowego serwisu:
@@ -1696,7 +1813,8 @@ tam nie ma: **czym potwierdzasz każdą z nich.**
 > nie obsługuje ani jednego żądania użytkownika, nie ma domeny, nie ma API,
 > nie ma stanu i nie jest częścią aplikacji — chodzi raz na dobę, robi zrzut
 > i gaśnie. Jest **narzędziem operacyjnym**, tak samo jak `cron` na serwerze.
-> Kuking pozostaje modularnym monolitem: jeden serwis aplikacyjny, jedna baza.
+> Kuking pozostaje modularnym monolitem: jedna aplikacja w trzech rolach
+> (`web`, `worker`, `scheduler`) i jedna baza.
 > Powód, dla którego zrzut nie mógł zostać w kontenerze aplikacji, jest jeden
 > i techniczny: `docker/php.ini` wyłącza `proc_open`, bez którego `pg_dump`
 > z PHP nie wystartuje, a osłabienia tego hardeningu `AGENTS.md` zabrania

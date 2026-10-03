@@ -57,6 +57,11 @@ return [
         // „Wyczyść odhaczone” wolno je cofnąć. Po tym czasie migawka jest
         // kasowana. Limit pozycji migawki = `pozycji_max`.
         'cofniecie_minut' => 15,
+        // Nazwane listy (#2528): ile list najwyżej ma osoba, WLICZAJĄC domyślną
+        // („Na co dzień”), i ile znaków ma nazwa. Limit pozycji (`pozycji_max`)
+        // dotyczy całego konta, nie jednej listy.
+        'list_max' => 5,
+        'nazwa_listy_znakow_max' => 60,
     ],
 
     /*
@@ -174,6 +179,17 @@ return [
     'health' => [
         'token' => env('KUKING_HEALTH_TOKEN') ?: null,
         'probka_magazynu_sekund' => (int) env('KUKING_HEALTH_PROBKA_MAGAZYNU_SEKUND', 60),
+    ],
+
+    /*
+     * DOŁĄCZANIE ZDJĘCIA DO ZAPISANEGO „UGOTOWAŁEM” (#2500, D-333 — paczka E).
+     * `dolaczenie_zdjec_dni` — jak długo od zapisu wykonania (`cooked_at`)
+     * kucharz może dołożyć zdjęcie. Wartość najbezpieczniejsza dla publicznej
+     * relacji: tydzień, nie bezterminowo; do potwierdzenia przez właściciela.
+     * Zmiana to zmienna konfiguracji, bez migracji.
+     */
+    'wykonania' => [
+        'dolaczenie_zdjec_dni' => 7,
     ],
 
     'media' => [
@@ -3569,6 +3585,12 @@ return [
     ],
 
     'przepisy' => [
+        // PUNKT ODZYSKANIA TEKSTU SZKICU (#2512, D-333). Jeden punkt na szkic,
+        // tekst sprzed sesji edycji; po tylu dniach od zrobienia kasuje go
+        // `kuking:sprzataj-usuniete-tresci`. Czternaście dni: tyle, by wrócić
+        // po tygodniowej przerwie i zauważyć pomyłkę, a nie tworzyć archiwum.
+        'szkic_punkt_odzyskania_dni' => (int) env('KUKING_SZKIC_PUNKT_ODZYSKANIA_DNI', 14),
+
         // RETENCJA `recipe_versions` (#2024, D-333 — wartości POTWIERDZONE
         // przez właściciela 30.09.2026). Wersja jest kasowana, gdy jest starsza niż
         // `version_retention_months` (24 — wartość z decyzji właściciela
@@ -4146,6 +4168,18 @@ return [
             'dysk' => env('KUKING_IMPORT_PDF_DYSK') ?: (env('LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK') ?: 'local'),
             'katalog' => 'import-pdf-tmp',
             'retencja_godzin' => (int) env('KUKING_IMPORT_PDF_RETENCJA_GODZIN', 4),
+            /*
+             * WYBÓR STRON PRZED ODCZYTEM (#2535). Plik wybrany „najpierw pokaż
+             * strony” czeka na decyzję w osobnym katalogu tego samego prywatnego
+             * dysku (`katalog_wyboru/<id osoby>/<token>/`): plik, miniatury stron
+             * i mały opis. Bez bazy danych. Znika po zatwierdzeniu, po odrzuceniu,
+             * przy usunięciu konta i najpóźniej po `wybor_stron_godziny`
+             * (`kuking:odzyskaj-importy`). Najwyżej `wybor_stron_max_oczekujacych`
+             * naraz na osobę — najstarszy ustępuje nowemu.
+             */
+            'katalog_wyboru' => 'import-pdf-wybor',
+            'wybor_stron_godziny' => (int) env('KUKING_IMPORT_PDF_WYBOR_GODZIN', 2),
+            'wybor_stron_max_oczekujacych' => (int) env('KUKING_IMPORT_PDF_WYBOR_MAX', 3),
         ],
         /*
          * KOLEJKA `low`, NIE OSOBNA `import` (D-298). Produkcja chodzi dziś

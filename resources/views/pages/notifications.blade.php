@@ -5,7 +5,16 @@
          pojedynczych wierszy) nie ma skąd wiedzieć, czy jest co oznaczyć. --}}
     @php
         $saNieprzeczytane ??= false;
+        $tylkoNieprzeczytane ??= false;
+        $numerStrony ??= 1;
     @endphp
+
+    {{-- Zakres listy (#2442): zwykłe linki GET, bez JavaScriptu; samo wejście,
+         zmiana zakresu i kolejna strona nie oznaczają niczego jako przeczytane. --}}
+    <nav class="tabs" aria-label="Które powiadomienia pokazujemy">
+        <a class="tab" href="{{ route('notifications.index') }}" @if(! $tylkoNieprzeczytane) aria-current="page" @endif>Wszystkie</a>
+        <a class="tab" href="{{ route('notifications.index', ['zakres' => \App\Http\Controllers\NotificationController::ZAKRES_NIEPRZECZYTANE]) }}" @if($tylkoNieprzeczytane) aria-current="page" @endif>Nieprzeczytane</a>
+    </nav>
 
     {{--
         Ten sam przycisk stoi TU i jeszcze raz pod listą (issue #276).
@@ -525,6 +534,18 @@
         <button class="btn btn-secondary" type="submit">Oznacz wszystkie jako przeczytane</button>
     </form>
     @endif
+    @elseif($tylkoNieprzeczytane && $numerStrony > 1)
+        {{-- Pusta dalsza strona zakresu (np. po przeczytaniu w drugiej karcie) to nie brak wszystkich nieprzeczytanych. --}}
+        <x-empty-state title="Ta strona jest już pusta">
+            Powiadomienia z niej zostały w międzyczasie przeczytane.
+            <a href="{{ route('notifications.index', ['zakres' => \App\Http\Controllers\NotificationController::ZAKRES_NIEPRZECZYTANE]) }}">Wróć do pierwszej strony nieprzeczytanych</a>
+            albo <a href="{{ route('notifications.index') }}">pokaż wszystkie powiadomienia</a>.
+        </x-empty-state>
+    @elseif($tylkoNieprzeczytane)
+        <x-empty-state title="Nie masz nieprzeczytanych powiadomień">
+            Starsze powiadomienia nadal tu są.
+            <a href="{{ route('notifications.index') }}">Pokaż wszystkie powiadomienia</a>.
+        </x-empty-state>
     @else
         <x-empty-state title="Nie ma jeszcze żadnych powiadomień">
             Tu zobaczysz powiadomienia o Twoich przepisach i wpisach, nowych obserwujących, urodzinach obserwowanych osób, zaproszeniach do wspólnego zeszytu, przepisach, które ktoś Ci pokazuje, oraz ważnych sprawach Twojego konta.

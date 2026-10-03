@@ -8,8 +8,10 @@ use App\Domain\Moderation\PodstawaDecyzji;
 use App\Domain\Recipes\Historia\DecyzjaOWersjiPrzepisu;
 use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Domain\Recipes\Historia\MigawkaWersji;
+use App\Domain\Recipes\Historia\PodgladPoprawkiZWersji;
 use App\Domain\Recipes\Historia\PorownanieWersji;
 use App\Domain\Recipes\Historia\UkrywanieWersji;
+use App\Domain\Recipes\Historia\ZastosujWersjeJakoPoprawke;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Recipe;
@@ -114,6 +116,66 @@ class HistoriaPrzepisuController extends Controller
                 : PorownanieWersji::porownaj($poprzednia->snapshot ?? [], $wersja->snapshot ?? [], (bool) config('kuking.alergeny.wlaczone')),
             'nowszy' => $this->sasiad($numery, $numer, 1),
         ]);
+    }
+
+    /**
+     * „Zastosuj jako nową poprawkę” (#2525) — ODCZYTOWY podgląd. Nic nie jest
+     * zapisywane (ani wersja, ani przepis, ani autozapis): zapis dopiero po jawnym
+     * POST-cie. Wejście: autor własnego, opublikowanego przepisu.
+     */
+    public function podgladPoprawki(Request $request, string $recipe, int $numer): View|RedirectResponse
+    {
+        $model = $this->przepis($request, $recipe, 'recipes.history.apply', $numer);
+        $this->authorize('applyVersion', $model);
+
+        $wersja = $this->wersja($model, $numer, false);
+
+        if (HistoriaWersji::numerNajnowszej($model) === $numer) {
+            return $this->doHistorii($model, Komunikat::informacja("Wersja {$numer} jest najnowszą — to jest dzisiejszy przepis, więc nie ma czego stosować."));
+        }
+
+        return view('pages.recipes.historia-poprawka', [
+            'recipe' => $model,
+            'wersja' => $wersja,
+            'podglad' => PodgladPoprawkiZWersji::dla($model, $wersja),
+            'rewizja' => $model->content_revision,
+        ]);
+    }
+
+    public function zastosujPoprawke(Request $request, string $recipe, int $numer, ZastosujWersjeJakoPoprawke $zastosuj): RedirectResponse
+    {
+        $model = $this->przepisDoZapisu($request, $recipe);
+        $this->authorize('applyVersion', $model);
+
+        $dane = $request->validate([
+            'sekcje' => ['required', 'array', 'min:1'],
+            'sekcje.*' => ['string', 'in:'.implode(',', PodgladPoprawkiZWersji::SEKCJE)],
+            'rewizja' => ['required', 'integer', 'min:0'],
+        ], [
+            'sekcje.required' => 'Zaznacz, co z tej wersji chcesz zastosować. Nic nie zostało zmienione.',
+            'sekcje.min' => 'Zaznacz, co z tej wersji chcesz zastosować. Nic nie zostało zmienione.',
+            'sekcje.*.in' => 'Zaznacz części z listy i spróbuj jeszcze raz.',
+            'rewizja.*' => 'Otwórz podgląd jeszcze raz — brakuje informacji o stanie przepisu z ekranu podglądu.',
+        ]);
+
+        try {
+            $wynik = $zastosuj->handle($request->user(), $model, $numer, $dane['sekcje'], (int) $dane['rewizja'], $request->ip());
+        } catch (BladDlaCzlowieka $blad) {
+            return redirect()->route('recipes.history.apply', [$model->slug, $numer])
+                ->withInput()
+                ->with(Komunikat::blad($blad->getMessage()));
+        }
+
+        if ($wynik['sekcje'] === []) {
+            return $this->doHistorii($model, Komunikat::informacja('Po zastosowaniu treść przepisu byłaby taka sama jak dziś, więc nic nie zapisaliśmy.'));
+        }
+
+        $nowa = $wynik['wersja'];
+
+        return redirect()->route('recipes.history', $model->slug)->with(Komunikat::sukces(
+            'Zastosowane jako nowa poprawka'.($nowa !== null ? ' — powstała wersja '.$nowa->version_number : '')
+            .'. Dotychczasowe wersje zostały bez zmian.',
+        ));
     }
 
     /**

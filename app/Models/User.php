@@ -582,6 +582,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return $this->hasMany(ShoppingListItem::class);
     }
 
+    /** Dodatkowe, nazwane listy zakupów (#2528) — prywatne, tylko właściciel. */
+    public function shoppingLists(): HasMany
+    {
+        return $this->hasMany(ShoppingList::class);
+    }
+
     /** Migawka ostatniego usunięcia z listy zakupów (#2630) — najwyżej jedna. */
     public function shoppingListUndo(): HasOne
     {

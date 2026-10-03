@@ -37,6 +37,10 @@ final class PageContext
         // Link do wspólnego gotowania niesie jednorazowy token (#2385); POST
         // przyjęcia ma ten sam adres, więc jeden wpis maskuje oba.
         'wspolne-gotowanie.link.show',
+        // Poczekalnia wyboru stron PDF (#2535): `{token}` w adresie wskazuje
+        // prywatny plik osoby; POST i DELETE mają ten sam adres co ekran.
+        'recipes.import.pdf.wybor',
+        'recipes.import.pdf.miniatura',
     ];
 
     /** Kontekst diagnostyczny nie jest miejscem na dane uwierzytelniające. */

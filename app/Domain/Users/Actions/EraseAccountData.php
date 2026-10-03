@@ -33,6 +33,7 @@ use App\Models\RecipeHint;
 use App\Models\User;
 use App\Models\WpisZgody;
 use App\Support\Storage\PlikTymczasowyImportu;
+use App\Support\Storage\PoczekalniaPdf;
 use App\Support\ZabezpieczoneDowody;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\QueryException;
@@ -316,6 +317,11 @@ final class EraseAccountData
              */
             $fresh->shoppingListItems()->delete();
 
+            // Nazwane listy (#2528): nazwa to wolny tekst osoby (dana osobowa),
+            // więc znika razem z pozycjami — po pozycjach, żeby kasowanie
+            // listy nie robiło pracy dwa razy.
+            $fresh->shoppingLists()->delete();
+
             // Migawka ostatniego usunięcia z listy (#2630) to kopia tych samych
             // pozycji — wymazanie konta kasuje ją razem z listą, żeby nic już
             // nie dało się „cofnąć” po wymazaniu.
@@ -363,6 +369,15 @@ final class EraseAccountData
              * Wiersze kluczem `owner_id` tego jednego konta.
              */
             DB::table('deleted_collections')->where('owner_id', $fresh->getKey())->delete();
+
+            /*
+             * PUNKTY ODZYSKANIA TEKSTU SZKICÓW ZNIKAJĄ RAZEM Z KONTEM (#2512).
+             *
+             * To kopia prywatnego tekstu szkicu. Po wymazaniu konta nie ma komu
+             * jej oddać. Jawnie, nie kaskadą: kont się nie kasuje, tylko
+             * anonimizuje (D-022).
+             */
+            DB::table('draft_restore_points')->where('user_id', $fresh->getKey())->delete();
 
             /*
              * ZAPAMIĘTANY POSTĘP GOTOWANIA ZNIKA RAZEM Z KONTEM (#2016).
@@ -556,6 +571,13 @@ final class EraseAccountData
              */
             DB::table('wczytane_z_paczki')->where('user_id', $fresh->getKey())->delete();
             app(MagazynPaczek::class)->zapomnijWszystkie($fresh);
+
+            /*
+             * PLIKI PDF CZEKAJĄCE NA WYBÓR STRON (#2535). Plik, miniatury stron
+             * i podpisy leżą w prywatnej poczekalni osoby do dwóch godzin; po
+             * wymazaniu konta nie zostaje z nich nic.
+             */
+            app(PoczekalniaPdf::class)->zapomnijWszystkie($fresh);
 
             /*
              * REZERWACJA TYGODNIA PODSUMOWANIA ZNIKA RAZEM Z KONTEM (#2280).

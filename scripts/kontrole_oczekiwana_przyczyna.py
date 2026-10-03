@@ -35,8 +35,21 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Importowany szkic traci bramkę odczytu w kopii (#2800)': r'KOPIA_2800_IMPORT_OMINIETY',
+    'Niezmieniona kopia szkicu wychodzi do ludzi (#2507)': r'KOPIA_2507_PUBLIKACJA',
+    'Kopia szkicu gubi podpis Mojej wersji (#2507)': r'KOPIA_2507_ATRYBUCJA',
+    'Kopia szkicu przejmuje zdjęcia kroków (#2507)': r'KOPIA_2507_MEDIA',
+    'Kopia szkicu ocenia prawo na starym stanie (#2507)': r'KOPIA_2507_SWIEZY_STAN',
+    'Kopię cudzego szkicu zrobi każdy (#2507)': r'KOPIA_2507_WLASCICIEL',
     'Kolaż hero bez podpisu autora przy zdjęciu (#2708)': r'Kafel nie ma podpisu z nazwą dokładnie jednego autora',
+    'Dołączenie zdjęcia: podmiana UUID kucharza (#2500)': r'DOLACZENIE_2500_PODMIANA_UUID',
+    'Dołączenie zdjęcia liczy limit bez przypiętych (#2500)': r'DOLACZENIE_2500_LIMIT',
+    'Dołączenie zdjęcia ignoruje świeży stan pod blokadą (#2500)': r'DOLACZENIE_2500_SWIEZY_STAN',
+    'Dołączenie zdjęcia przejmuje cudze albo cudzo-przypięte (#2500)': r'DOLACZENIE_2500_WLASNOSC_MEDIOW',
     'Rollback udostępnień przepisów kasuje bez pytania (#2650)': r'Rollback skasował udostępnienia bez pytania',
+    'Listy zakupów mieszają pozycje (#2528)': r'LISTY_2528_POZYCJE_NIE_MIESZAJA_SIE',
+    'Cudza lista zakupów otwiera ekran i przyjmuje zapis (#2528)': r'LISTY_2528_CUDZA_LISTA_ODMOWA',
+    'Usunięcie listy ignoruje zmienioną liczbę pozycji (#2528)': r'LISTY_2528_USUNIECIE_NIEAKTUALNA_LICZBA',
     'Lista ostatnio oglądanych sięga do analityki (#2553)': r'OSTATNIO_OGLADANE_2553_PRYWATNA_LISTA_POZA_ZAMKNIETA_LISTA',
     'Lista ostatnio oglądanych pokazuje przepis konta zbanowanego (#2553)': r'OSTATNIO_OGLADANE_2553_TYTUL_NIEDOSTEPNEGO_PRZEPISU',
     'Lista ostatnio oglądanych miesza konta (#2553)': r'OSTATNIO_OGLADANE_2553_KONTO_[AB]_WIDZI_LISTE_[AB]',
@@ -553,7 +566,12 @@ OCZEKUJ = {
     'Onboarding bez grupy z nazwą kroków (#2406)': r'nie ma grupy kroków z role="group"',
     'Odwołanie od blokady CSAM bez ochrony decyzji (#2427)': r'CSAM_BAN_APPEAL_MUST_STAY_OPEN',
     'Runbook odtworzenia stosuje rejestr usunięć po podpięciu bazy (#2708)': r'RUNBOOK_REJESTR_PO_PODPIECIU',
+    'Runbook podpina bazę przed drugim wymazaniem (#2708)': r'RUNBOOK_DRUGI_WYMAZ_PRZED_PODPIECIEM',
+    'Awaria izolacji usług pozwala wymazać przed sprawdzeniem CSAM (#2708)': r'CSAM_AWARIA_NIE_POMIJA_SPRAWDZENIA',
+    'Odtworzenie CSAM po pierwszym wymazaniu kont (#2708)': r'CSAM_PRZED_PIERWSZYM_WYMAZANIEM',
+    'Odtworzenie nowych decyzji CSAM po ponownym wymazaniu (#2708)': r'CSAM_PRZED_PONOWNYM_WYMAZANIEM',
     'Zepsute kodowanie polskich liter w komunikacie Planera (paczka L)': r'Polskie litery zapisane w zepsutym kodowaniu.*PlanerController\.php',
+    'Ścisłe gotowanie przyjmuje ukrytą wersję (#2808)': r'GOTUJ_2808_UKRYTA_WERSJA',
 }
 
 

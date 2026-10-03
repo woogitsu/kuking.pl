@@ -14,6 +14,7 @@ use App\Jobs\PrzeanalizujAwatar;
 use App\Jobs\PrzeanalizujTresc;
 use App\Jobs\PrzeliczPytaniaBezOdpowiedzi;
 use App\Jobs\PrzeniesPubliczneWariantyDowodu;
+use App\Jobs\PrzygotujPodgladPdf;
 use App\Jobs\PurgePublicMediaCache;
 use App\Jobs\WyslijPowiadomieniePush;
 use App\Models\Post;
@@ -98,6 +99,8 @@ class UmowaKolejkiTest extends TestCase
         ImportujPrzepisZAdresu::class => 'low',
         // Import przepisu z wysłanego pliku PDF (#28, etap 2): Poppler + ewentualny model poza żądaniem WWW.
         ImportujPrzepisZPdf::class => 'low',
+        // Podgląd stron PDF przed odczytem (#2535): sam Poppler, bez modelu, w tej samej kolejce.
+        PrzygotujPodgladPdf::class => 'low',
     ];
 
     /**
@@ -121,6 +124,7 @@ class UmowaKolejkiTest extends TestCase
             OdczytajPrzepis::class => new OdczytajPrzepis('import-id'),
             ImportujPrzepisZAdresu::class => new ImportujPrzepisZAdresu('import-id'),
             ImportujPrzepisZPdf::class => new ImportujPrzepisZPdf('import-id'),
+            PrzygotujPodgladPdf::class => new PrzygotujPodgladPdf('user-id', 'token'),
         ];
     }
 

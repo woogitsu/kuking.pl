@@ -1,7 +1,7 @@
 {{--
     Instrukcja zgłoszenia do organów — TEKST Z DOKUMENTÓW, nie własny:
     `docs/flota/CSAM_JEDNA_KARTKA.md` („Co moderator robi DZIŚ”) i
-    `docs/legal/MODERATION_PLAYBOOK.md` §7.1 oraz §7.1a. Instrukcja
+    `docs/legal/MODERATION_PLAYBOOK.md` §7.1. Instrukcja
     operacyjna, nie porada prawna. Serwis niczego nie wysyła na zewnątrz —
     zgłoszenie składa człowiek.
 
@@ -17,15 +17,28 @@
 
     <ol class="panel-liczby">
         <li>
-            <strong>Nie kopiuj, nie pobieraj, nie przesyłaj dalej</strong> — także między moderatorami.
-            Nie zapisuj pliku na dysk lokalny.
+            <strong>Najpierw ogranicz dostęp i zabezpiecz minimum faktów</strong> — adres treści,
+            identyfikatory, czas ze strefą czasową. Ta akcja już ukryła treść.
         </li>
         <li>
-            <strong>Zgłoś</strong>:
+            <strong>Zawiadom bezpośrednio Policję albo prokuraturę, bez zbędnej zwłoki</strong>
+            (art. 18 DSA) — nie czekaj na zwykłą kolejkę i nie tylko przy zagrożeniu „teraz”.
+            Podaj fakty, adres treści, identyfikatory, czas i kontakt do siebie; zapisz numer sprawy.
+        </li>
+        <li>
+            <strong>Dodatkowo</strong> zgłoś lokalizację w
             <a href="https://www.dyzurnet.pl/" rel="noopener noreferrer" target="_blank">Dyżurnet.pl</a>
-            (zespół NASK, zgłoszenie online, całodobowo),
-            oraz/lub <strong>Policja: 997 albo 112</strong>, jeśli sytuacja wskazuje na trwające zagrożenie
-            albo wykorzystywanie dziecka. Przy zagrożeniu suicydalnym: <strong>116 123</strong>.
+            (zespół NASK, zgłoszenie online, całodobowo). To kanał uzupełniający, nie zamiennik
+            zawiadomienia organów.
+        </li>
+        <li>
+            Przy <strong>bezpośrednim zagrożeniu życia dzwoń 112</strong>. Przy zagrożeniu
+            suicydalnym: <strong>116 123</strong>.
+        </li>
+        <li>
+            <strong>Plików nie przesyłaj</strong> — ani e-mailem, ani przez Discord, czat, repozytorium
+            czy inny model AI. <strong>Nie pobieraj ich i nie rób zrzutów ekranu</strong>, także między
+            moderatorami. Przekazanie materiału tylko drogą uzgodnioną z organem.
         </li>
         <li>
             <strong>Nie kontaktuj się z autorem</strong> w żaden inny sposób i nie próbuj samodzielnie
@@ -39,13 +52,6 @@
             <strong>Nie uznawaj sprawy za zamkniętą po tym ekranie.</strong>
         </li>
     </ol>
-
-    <h3 class="text-title-sm">Czego jeszcze nie rozstrzygnięto</h3>
-    <p class="panel-liczby">
-        Czy zgłoszenie do Dyżurnet.pl wyczerpuje obowiązek z art. 18 DSA — czeka na prawnika
-        (playbook §7.1a). <strong>Dopóki prawnik nie potwierdzi: zgłoś do Dyżurnet.pl, a przy trwającym
-        zagrożeniu dzwoń na Policję.</strong>
-    </p>
 
     <h3 class="text-title-sm">Pliki — ile to jeszcze potrwa</h3>
     <p class="panel-liczby">

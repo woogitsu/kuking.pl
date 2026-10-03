@@ -19,7 +19,8 @@ SOURCES = {
     "app/Domain/Import/Url/ZlecImportZAdresu.php":
         "ImportujPrzepisZAdresu::dispatch((string) $zlecenie->getKey(), $zgodaAi)",
     "app/Domain/Import/Pdf/ZlecImportZPdf.php":
-        "ImportujPrzepisZPdf::dispatch((string) $zlecenie->getKey(), $zgodaAi)",
+        # #2535: zlecenie niesie wybrane strony (null = cały plik).
+        "ImportujPrzepisZPdf::dispatch((string) $zlecenie->getKey(), $zgodaAi, $strony)",
     "app/Domain/Import/ZlecImportPrzepisu.php":
         "OdczytajPrzepis::dispatch((string) $zlecenie->getKey())",
 }

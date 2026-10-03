@@ -51,7 +51,10 @@ class ImportujPrzepisZPdf implements ShouldQueue
 
     public int $tries = 1;
 
-    public function __construct(public string $importId, public bool $zgodaAi = false)
+    /**
+     * @param  list<int>  $strony  wybrane strony (#2535: rosnąco, od 1); puste = bez wyboru, jak dotąd
+     */
+    public function __construct(public string $importId, public bool $zgodaAi = false, public array $strony = [])
     {
         $this->onQueue((string) config('kuking.import.kolejka', 'low'));
     }
@@ -96,7 +99,7 @@ class ImportujPrzepisZPdf implements ShouldQueue
         }
 
         try {
-            $pdf = $odczyt->handle($lokalna, $zlecenie->user, $this->zgodaAi, (string) $probaId);
+            $pdf = $odczyt->handle($lokalna, $zlecenie->user, $this->zgodaAi, (string) $probaId, $this->strony === [] ? null : $this->strony);
         } catch (ImportOdrzucony $e) {
             $this->zakoncz($zlecenie, self::kodZlecenia($e->kod), $pliki);
 

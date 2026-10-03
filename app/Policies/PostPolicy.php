@@ -120,6 +120,19 @@ class PostPolicy
     }
 
     /**
+     * Ponowna publikacja WŁASNEGO wpisu przywróconego przez moderację jako
+     * szkic (#2461). Policy sprawdza tylko własność: stan wpisu (szkic,
+     * ostatnia decyzja `unhide`, brak ukrycia, przepis) i konto autora
+     * rozstrzyga akcja `PublishRestoredDraft` pod blokadą — dzięki temu
+     * drugie żądanie na już opublikowanym wpisie dostaje spokojną
+     * informację zamiast gołego 403. Moderator nie publikuje za autora.
+     */
+    public function publishRestored(User $user, Post $post): bool
+    {
+        return $user->getKey() === $post->author_id;
+    }
+
+    /**
      * „Dopisz przepis” do własnego wpisu ze zdjęciem (issue #1334).
      *
      * Tylko autor i tylko zwykły, opublikowany wpis z daniem, który ma gotowe
