@@ -20,8 +20,10 @@
             dopóki go nie opublikujesz. Po tym terminie przepis jest usuwany na stałe i nie da się go odzyskać.
         </p>
 
-        @if($przepisy->isEmpty())
+        @if($przepisy->isEmpty() && !$dalsza)
             <x-empty-state title="Nie masz teraz usuniętych przepisów do odzyskania" :mark="false" />
+        @elseif($przepisy->isEmpty())
+            <x-empty-state title="Nie ma więcej przepisów do odzyskania" :mark="false" />
         @else
             <ul class="stack list-none p-0 m-0" id="lista-usunietych-przepisow">
                 @foreach($przepisy as $przepis)
@@ -36,6 +38,12 @@
                     </li>
                 @endforeach
             </ul>
+        @endif
+
+        @if($nastepny !== null)
+            <p class="text-center mt-6"><a class="btn btn-secondary" href="{{ route('collections.deleted-recipes', ['od' => $nastepny]) }}">Pokaż więcej</a></p>
+        @elseif($dalsza)
+            <p><a href="{{ route('collections.deleted-recipes') }}">Wróć do najnowszych</a></p>
         @endif
 
         <p class="notice">
