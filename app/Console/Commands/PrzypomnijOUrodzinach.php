@@ -100,14 +100,27 @@ class PrzypomnijOUrodzinach extends Command
 
             // Wstępny wybór solenizantów odbywa się poza transakcją. Decyzja
             // o widoczności albo data mogła się od tej chwili zmienić. SHARE
-            // serializuje zapis powiadomienia z UPDATE konta, także gdy
-            // człowiek wyłącza przypomnienia w trakcie przebiegu komendy.
-            $aktualnySolenizant = User::query()
-                ->whereKey($solenizant->getKey())
-                ->sharedLock()
-                ->first();
+            // serializuje zapis powiadomienia z UPDATE konta. Blokujemy OBA
+            // konta rosnąco po UUID, jak ZamekPary: INSERT powiadomienia bierze
+            // też KEY SHARE odbiorcy przez FK, więc sam SHARE jubilata mógłby
+            // zakleszczyć się z równoległą blokadą między tymi osobami.
+            $idOdbiorcy = (string) $odbiorca->getKey();
+            $idSolenizanta = (string) $solenizant->getKey();
+            $ids = array_unique([$idOdbiorcy, $idSolenizanta]);
+            sort($ids, SORT_STRING);
 
-            if ($aktualnySolenizant === null
+            /** @var array<string, User|null> $konta */
+            $konta = [];
+            foreach ($ids as $id) {
+                $konta[$id] = User::query()
+                    ->whereKey($id)
+                    ->sharedLock()
+                    ->first();
+            }
+            $aktualnyOdbiorca = $konta[$idOdbiorcy];
+            $aktualnySolenizant = $konta[$idSolenizanta];
+
+            if ($aktualnyOdbiorca === null || $aktualnySolenizant === null
                 || $aktualnySolenizant->status !== User::STATUS_ACTIVE
                 || ! $aktualnySolenizant->birthday_visible_to_followers
                 || $aktualnySolenizant->is_seeded
@@ -128,7 +141,7 @@ class PrzypomnijOUrodzinach extends Command
                 return self::PONAD_LIMIT;
             }
 
-            return $powiadom->handle($odbiorca, Notification::TYPE_BIRTHDAY, $aktualnySolenizant) !== null
+            return $powiadom->handle($aktualnyOdbiorca, Notification::TYPE_BIRTHDAY, $aktualnySolenizant) !== null
                 ? self::UTWORZONO
                 : self::POMINIETO;
         });

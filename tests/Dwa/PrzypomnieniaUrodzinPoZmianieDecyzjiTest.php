@@ -100,6 +100,50 @@ final class PrzypomnieniaUrodzinPoZmianieDecyzjiTest extends TestDwochPolaczen
         $this->assertSame(1, $this->ile($solenizant, $odbiorca), 'URODZINY_2880_ZGODA_TWORZY');
     }
 
+    public function test_blokada_przy_mniejszym_odbiorcy_nie_zakleszcza_powiadomienia(): void
+    {
+        $this->przypomnienieKontraBlokada(mniejszyOdbiorca: true);
+    }
+
+    public function test_blokada_przy_wiekszym_odbiorcy_nie_zakleszcza_powiadomienia(): void
+    {
+        $this->przypomnienieKontraBlokada(mniejszyOdbiorca: false);
+    }
+
+    private function przypomnienieKontraBlokada(bool $mniejszyOdbiorca): void
+    {
+        [$mniejsze, $wieksze] = $this->paraPosortowana();
+        [$solenizant, $odbiorca] = $mniejszyOdbiorca ? [$wieksze, $mniejsze] : [$mniejsze, $wieksze];
+        $dzis = Czas::lokalnie(Carbon::now());
+        $solenizant->forceFill([
+            'birthday_day' => $dzis->day,
+            'birthday_month' => $dzis->month,
+            'birthday_visible_to_followers' => true,
+        ])->save();
+        $odbiorca->following()->attach($solenizant->getKey());
+
+        // Komenda stoi po SHARE, przed INSERT powiadomienia. Prawdziwy
+        // BlockUser bierze konta przez ZamekPary; FK powiadomienia bierze
+        // KEY SHARE odbiorcy. Przy większym jubilacie sam SHARE jego konta
+        // tworzył cykl z FOR UPDATE mniejszego odbiorcy, potem jubilata.
+        $bariera = $this->bariera('SELECT pg_advisory_xact_lock(2318, 1)', []);
+        $komenda = $this->wTle('przypomnij-o-urodzinach', []);
+        $this->czekajNaZablokowane(1);
+        $blokada = $this->wTle('zablokuj', [
+            'kto' => (string) $odbiorca->getKey(),
+            'kogo' => (string) $solenizant->getKey(),
+        ]);
+        $this->czekajNaZablokowane(2);
+        $this->zwolnijBariere($bariera);
+
+        foreach (['powiadomienie' => $komenda->wynik(), 'blokada' => $blokada->wynik()] as $krok => $wynik) {
+            $this->assertBezZakleszczenia($wynik, 'URODZINY_2880_BLOKADA_PARY_NIE_ZAKLESZCZA '.$krok);
+            $this->assertTrue($wynik['ok'], $krok.': '.$wynik['komunikat']);
+        }
+        $this->assertSame(1, $this->ile($solenizant, $odbiorca), 'Powiadomienie zapisane przed blokadą zostaje w historii.');
+        $this->assertTrue($odbiorca->hasBlockRelationWith($solenizant), 'Blokada musi zostać zapisana po zakończeniu komendy.');
+    }
+
     /** @return array{0: User, 1: User} */
     private function para(): array
     {
