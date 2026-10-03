@@ -285,6 +285,7 @@ final class GotowanieZWersjiWykonaniaTest extends TestCase
             );
             $this->fail('GOTUJ_2808_UKRYTA_WERSJA: ukryta wersja nie może dostać nowego wykonania.');
         } catch (BladDlaCzlowieka $e) {
+            $this->assertStringContainsString('nie jest teraz dostępna', $e->getMessage(), 'GOTUJ_2808_UKRYTA_WERSJA_WYJASNIENIE');
             $this->assertSame($przed, CookedEvent::query()->count(), 'GOTUJ_2808_UKRYTA_WERSJA: zapisano wykonanie ukrytej wersji.');
             $this->assertSame($powiadomienia, Notification::query()->where('type', Notification::TYPE_COOKED)->count());
             $this->assertSame(0, DB::table('cooked_event_media')->where('media_id', $zdjecie->getKey())->count());
