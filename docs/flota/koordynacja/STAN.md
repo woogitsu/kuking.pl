@@ -1,4 +1,40 @@
-# Aktualizacja koordynatora — 3.10.2026, 11:39 UTC
+# Stan koordynacji — 3.10.2026, 15:52 UTC
+
+- Normalne pełne pushe zakończyły się terminalnie0: Cc0 sesja14471
+  i O91 sesja80957. Canonical exit/log odczytane, procesy zakończone,
+  czyste heady i zdalne referencje potwierdzone. Starsze próby parallel
+  pozostają zachowane jako FAIL; #2893 naprawia ich odrębny przyrząd.
+- O #2890 ma już head91e58bd07b719c27f12b7973c526f906cbefd2db.
+  Nowe CI37134398858 trwa; zagregowany CodeQL111235948787 terminalnie
+  SUCCESS dokładnego91, nie tylko trzy Analyze. Wydanie nadal wymaga
+  pełnego CI, świeżego main, merge expectedHeadSha i całej produkcyjnej
+  bramki. Main09f8, trzyRailwaySUCCESS i /wydanie/health odebrane15:29.
+- Mały niedraftowy PR naprawy C #2894: c0c78f013b75e0cae75c471b1a9d61a48ee9baeb
+  do e625ab336f04f87df7f2be7eb86fa4866e7a13a6, dokładnie5plików,
+  pełne CI37134534040 w toku. Naprawę scalać dopiero po pełnej zieleni;
+  potem terminalnie zielony push C przed dalszą paczką.
+- Przyjęto jedną wspólną paczkę W/X/Y w istniejącym #2891. Niezależny
+  merge-tree i root zwykłe lokalne merge W622→X5f→Y0b są bez konfliktów;
+  wynikowe drzewo d862467c67cd11a06e6634054fa73641e0ca098e. Kod, konfiguracja,
+  migracje, locki i rejestry są identyczne z odebranym Y; W/X są przodkami.
+  Dołożyć faktyczną odebraną zieloną C, uporządkować STAN i zamrozić head,
+  potem jeden nowy normalny pełny hook oraz pełne niedraftowe CI2891.
+  Zielone stare W622 nie zatwierdza wspólnej paczki. To zastępuje plan
+  osobnych kumulujących PR-ów/gate X i Y; wszystkie zależności zachowane.
+- #2796 odebrane root i peer ACCEPT na708ea63fb7fb48bee1588ec3f8f5ed7722717074:
+  32/444HTTP,99/800regresje,93/2539strażniki, Pint/fullPHPStan0;
+  trzy końcowe6PASS→4właściweFAIL+2PASS→6PASS/exactrestore,81raw sprawdzone.
+  Wyłącznie3DELETE zgodnieD-302pkt10. Osobna paczka PO wspólnym W/X/Y;
+  nie jest w obecnych580kontrolach. IssueOPENdoprodukcji, comment5970693948.
+- #2893 w osobnym WT: stare35zachowane, nowa3×3macierz daje44/154PASS
+  zarówno seryjnie, jak oficjalnyparallel4, zeroERROR/SKIP. Końcowe
+  fizyczne kontrole i review w toku; nie dołączać do aktywnych headów.
+- #2852: osobny agent kończy brakujący prawdziwy Laravel/Chromium/PDF
+  odbiór podpisu oryginału, własna baza/runtime odO91, bez instalacji.
+  Dotychczasowy Feature57/418 i ujemna nie zastępują tego oglądu.
+  Issue nadalOPEN; pozostałe kryteria pilota/prawa/paneli pozostają otwarte.
+
+## Historia koordynatora — 3.10.2026, 11:39 UTC
 
 S #2886 odebrane na main i produkcji `09f8af1c738789c4498d35158f940ac237c30eee`: pełne CI24/24, CodeQL, trzy Railway SUCCESS i live wydanie/health200. #2851/#2854/#2862 zamknięte z dowodem; #2861 czeka na dwa dodatkowe kryteria Dwa w Y. N–U #2865 zdalny `c31238b012518345fa807daee71e82e8f8525e27` przeszedł pełny normalny hook i czeka na świeże CI37119391938. #2810 NIE jest jego naprawionym zakresem; rzeczywistą awarię punktu odtworzono i naprawia ją agent w Y. V po zwykłym merge N–U i S zachowuje dokładnie wcześniejszy kod app/views/Dwa i rozpoczyna własną pełną bramkę przed PR. W i X idą potem zgodnie z odbiorami; zamrożonych headów w trwającym hooku nie zmieniamy. Właściciel zatwierdził dokładny izolowany test opóźnionego ReportContent; wcześniejszy niepotwierdzony wyścig nie jest jeszcze naprawą ani zamknięciem issue.
 
