@@ -1355,6 +1355,12 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Dokumentacja bazy wraca do martwej lokalnej kotwicy",
+     "docs/baza/zeszyty-udostepnienia-i-odzyskiwanie.md",
+     "wzgledne_linki_w_plikach_obszarow_trafiaja_w_istniejacy_cel",
+     lambda s: replace_once(s,
+         "ugotowalem-komentarze-zeszyty.md#collection_items--przepisy-oraz-wpisy",
+         "#collection_items--przepisy-oraz-wpisy")),
     ("Kopia odzyskania gubi ręczną kolejność (#2816)", "app/Domain/Collections/Odzyskiwanie/UsunZeszyt.php",
      "test_reczne_ulozenie_przezywa_usuniecie_i_odzyskanie_calego_zeszytu",
      lambda s: replace_once(s, "'position' => $p->position === null ? null : (int) $p->position,", "'position' => null,")),

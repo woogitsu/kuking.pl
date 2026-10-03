@@ -1007,6 +1007,14 @@ lokalnie (`KUKING_KONTROLE_LOKALNIE=1`) sprawdzają rodzinę na starcie, bo
 inaczej każdy test w pętli odmawiałby startu, a kontrola czytałaby to jako
 „mutacja złapana”.
 
+## 19. Link po przeniesieniu rozdziału trafia w plik, ale nie w nagłówek
+
+Przy podziale `docs/DATABASE.md` opis `collection_items` przeniesiono do
+innego pliku, a link z zeszytów zachował lokalne `#collection_items…`.
+Sprawdzanie samego istnienia pliku przepuściło martwą kotwicę. Kontrola
+`IndeksDokumentacjiBazyTest` sprawdza teraz także fragmenty linków do
+nagłówków w `docs/baza/`; ma własną próbkę poprawnej i błędnej kotwicy.
+
 ## Skąd ta lista
 
 Trzy warstwy zewnętrznego audytu z 10.09.2026
