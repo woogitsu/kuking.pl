@@ -82,6 +82,13 @@ try {
         }
     });
 
+    if ($etap === 'blad-b') {
+        // Kontrola przyrządu: rzeczywisty błąd SQL procesu B nie dowodzi
+        // zakończonego resetu, który ominął wspólną blokadę.
+        DB::select('SELECT * FROM "fixture_2861_nieistniejaca_tabela_b"');
+        throw new RuntimeException('Kontrola B nie wywołała oczekiwanego błędu SQL.');
+    }
+
     if ($etap === 'przygotuj') {
         $konto = User::query()->findOrFail($argumenty['konto']);
         [, $login, $cookie] = zadanie2861('login', 'POST', ['login' => $konto->email, 'password' => $argumenty['haslo']]);

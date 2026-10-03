@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Password;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PragmaRX\Google2FA\Google2FA;
+use RuntimeException;
+use Throwable;
 
 /** #2861: literalny panel moderatora i rzeczywiste okno confirmTwoFactor → invalidateSessions. */
 #[Group('dwa-polaczenia')]
@@ -102,22 +104,22 @@ final class Potwierdzenie2faPodWspolnaBlokadaTest extends TestDwochPolaczen
         ]);
         try {
             $this->czekajNaBariere($a);
-            $b = $this->wTle('ustaw-haslo', $argumentyB);
-            $this->assertResetCzekaNaWlaczenie($b);
+            $b = $this->wTle('ustaw-haslo', $argumentyB, ['PGAPPNAME' => 'uzupelnienie2861-reset-b']);
+            $this->assertResetCzekaNaWlaczenie($b, $konto, $argumentyB['haslo'], $generacjaPrzed);
             // Drugie połączenie nie widzi jeszcze potwierdzenia: wspólna
             // transakcja nie zatwierdziła połowy czynności.
-            $this->assertNull($konto->fresh()?->two_factor_confirmed_at, '2FA_2861_OKNO_WSPOLNA_BLOKADA');
+            $this->assertNull($konto->fresh()?->two_factor_confirmed_at, '2FA_2861_BARIERA_POTWIERDZENIA');
         } finally {
             $this->zwolnijBariere($bariera);
         }
         $wynikA = $a->wynik();
-        $wynikB = $b->wynik();
+        $wynikB = $this->wynikPoprawnegoResetu($b);
         $this->assertTrue($wynikA['ok'], $wynikA['komunikat']);
         $this->assertTrue($wynikB['ok'], $wynikB['komunikat']);
         $this->assertSame([], $wynikB['wartosc']['bledy'] ?? null);
         $this->assertSame(route('settings.two_factor.codes'), $wynikA['wartosc']['dokad'] ?? null);
         $this->assertTrue($wynikA['wartosc']['potwierdzone'] ?? false, 'Bariera nie stanęła PO confirmTwoFactor.');
-        $this->assertSame(1, $wynikA['wartosc']['poziom'] ?? null, '2FA_2861_OKNO_WSPOLNA_BLOKADA');
+        $this->assertSame(1, $wynikA['wartosc']['poziom'] ?? null, '2FA_2861_BARIERA_POTWIERDZENIA');
         $po = $konto->fresh();
         $this->assertInstanceOf(User::class, $po);
         $this->assertTrue($po->hasTwoFactorConfirmed());
@@ -183,15 +185,13 @@ final class Potwierdzenie2faPodWspolnaBlokadaTest extends TestDwochPolaczen
         $this->assertSame(route('login'), $odczyt['wartosc']['ustawienia_dokad'] ?? null, $marker);
     }
 
-    private function assertResetCzekaNaWlaczenie(ProcesRownolegly $b): void
+    private function assertResetCzekaNaWlaczenie(ProcesRownolegly $b, User $konto, string $hasloB, int $generacjaPrzed): void
     {
-        $zapytanie = $this->obserwator->prepare("SELECT count(*) FROM pg_stat_activity a JOIN pg_stat_activity b ON a.pid = ANY(pg_blocking_pids(b.pid)) WHERE a.datname = ? AND a.application_name = 'uzupelnienie2861-wlacz' AND b.datname = a.datname AND b.wait_event_type = 'Lock' AND b.query ILIKE '%from \"users\"%for update%'");
+        $zapytanie = $this->obserwator->prepare("SELECT count(*) FROM pg_stat_activity a JOIN pg_stat_activity b ON a.pid = ANY(pg_blocking_pids(b.pid)) WHERE a.datname = ? AND a.application_name = 'uzupelnienie2861-wlacz' AND b.datname = a.datname AND b.application_name = 'uzupelnienie2861-reset-b' AND b.wait_event_type = 'Lock' AND b.query ILIKE '%from \"users\"%for update%'");
         $koniec = microtime(true) + self::SEKUNDY_NA_KOLEJKE;
         do {
             $zapytanie->execute([$this->baza]);
-            if ((int) $zapytanie->fetchColumn() === 1) {
-                $this->assertTrue($b->trwa(), '2FA_2861_OKNO_WSPOLNA_BLOKADA');
-
+            if ((int) $zapytanie->fetchColumn() === 1 && $b->trwa()) {
                 return;
             }
             if (! $b->trwa()) {
@@ -199,7 +199,34 @@ final class Potwierdzenie2faPodWspolnaBlokadaTest extends TestDwochPolaczen
             }
             usleep(20_000);
         } while (microtime(true) < $koniec);
-        $this->fail('2FA_2861_OKNO_WSPOLNA_BLOKADA: reset nie czeka na proces potwierdzenia 2FA.');
+        if ($b->trwa()) {
+            throw new RuntimeException('2FA_2861_PROCES_B_TIMEOUT: nie potwierdzono kolejki ani zakończenia resetu B.');
+        }
+        $this->wynikPoprawnegoResetu($b);
+        $poB = $konto->fresh();
+        if (! $poB instanceof User || ! Hash::check($hasloB, (string) $poB->password)
+            || (int) $poB->session_generation !== $generacjaPrzed + 1) {
+            throw new RuntimeException('2FA_2861_PROCES_B_BLAD: wynik JSON nie odpowiada zakończonemu resetowi w bazie.');
+        }
+        // Wyłącznie udany, zatwierdzony reset może dowieść ominięcia blokady.
+        $this->fail('2FA_2861_OKNO_WSPOLNA_BLOKADA: poprawny reset B zakończył się przed zwolnieniem A.');
+    }
+
+    /** @return array{ok: bool, sqlstate: ?string, komunikat: string, wartosc: mixed, wyjatek: ?string} */
+    private function wynikPoprawnegoResetu(ProcesRownolegly $b): array
+    {
+        try {
+            $wynik = $b->wynik();
+        } catch (Throwable $e) {
+            throw new RuntimeException('2FA_2861_PROCES_B_BLAD: brak poprawnego wyniku procesu B ('.$e::class.').');
+        }
+        if (! $wynik['ok'] || $wynik['sqlstate'] !== null || $wynik['wyjatek'] !== null
+            || ! is_array($wynik['wartosc']) || ($wynik['wartosc']['bledy'] ?? null) !== []) {
+            throw new RuntimeException('2FA_2861_PROCES_B_BLAD: reset B odmówił lub zawiódł; SQLSTATE='
+                .($wynik['sqlstate'] ?? 'brak').'; wyjątek='.($wynik['wyjatek'] ?? 'brak').'.');
+        }
+
+        return $wynik;
     }
 
     private function czekajNaBariere(ProcesRownolegly $a): void

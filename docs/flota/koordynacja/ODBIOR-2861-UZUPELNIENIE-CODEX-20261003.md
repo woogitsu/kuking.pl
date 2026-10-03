@@ -3,6 +3,11 @@
 Data pomiaru: 3 października 2026. Baza kodu:
 `09f8af1c738789c4498d35158f940ac237c30eee` (wydanie S, PR #2886).
 
+**Korekta odbioru przyrządu:** wyniki poniżej opisują pierwotny pomiar
+z `14f825b98`. Niezależny przegląd wykrył, że porażka okna mogła również
+pochodzić z błędu B. Odtworzenie tej luki i nowy dowód po poprawce są
+w końcowej sekcji „Korekta: awaria procesu B nie potwierdza mutacji”.
+
 ## Zakres
 
 Uzupełnienie dwóch wykonawczych kryteriów #2861. Kod aplikacji, Policy,
@@ -139,3 +144,112 @@ uruchomiono pełnego `check.sh`, całej grupy Dwa, całego PHPStan ani nowego CI
 Pełny odbiór i wydanie paczki Y należą do sesji głównej. Lokalny dowód tych
 dwóch scen nie zamyka issue i nie zastępuje bramki produkcyjnej właściwego
 wydania. Powrót polega na cofnięciu samych testów i nowych wywołań.
+
+## Korekta: awaria procesu B nie potwierdza mutacji
+
+3 października 2026, nowa gałąź `codex/2861-blad-procesu-b-20261003`
+od Y `ae28fadca67abe6981a7627ddc62bf5b2dd41d01`. Własny lokalny WT:
+`C:\Users\matma\.codex\worktrees\2861-blad-procesu-b\Portale`.
+Zakres to istniejąca nowa klasa Dwa, jej własny helper, kontrola i test
+werdyktu oraz ten receipt. Domain/Policy, stare S4 i duży `bin/scenariusz.php`
+nie zostały zmienione. Nie dubluje to osobnej macierzy dziewięciu cookies S4.
+
+### Wykryta luka i rzeczywisty baseline
+
+Stare `assertResetCzekaNaWlaczenie()` po zakończeniu B lub przekroczeniu
+czasu zgłaszało `2FA_2861_OKNO_WSPOLNA_BLOKADA` bez odczytu wyniku B.
+`sprawdz_junit()` odrzucał JUnit ERROR, lecz wynik ten miał postać FAILURE
+z oczekiwanym markerem. Poprzedni dowód nie wykluczał więc błędu
+infrastruktury jako przyczyny czerwieni okna.
+
+W nowym runtime najpierw wykonano niezmienioną klasę: **5/219 PASS**.
+Następnie fizycznie zastąpiono wyłącznie start B własnym etapem `blad-b`,
+wykonującym zapytanie do nieistniejącej tabeli fixture. Proces B zwrócił
+rzeczywisty JSON `ok=false`, `sqlstate=42P01`,
+`wyjatek=Illuminate\Database\QueryException`. Stara klasa dała **2 FAILURE
++ 3 PASS**, kod 1, a stary werdykt **przyjął to jako mutację okna**.
+Po dokładnym przywróceniu bajtów i mtime klasy ponownie **5/219 PASS**.
+To błąd przyrządu; sam dodatni wynik nie usuwał tej luki.
+
+### Poprawiony warunek dowodu
+
+- Kolejka musi należeć do rzeczywistego B (`PGAPPNAME=uzupelnienie2861-reset-b`),
+  blokowanego przez A z `application_name=uzupelnienie2861-wlacz` na własnej
+  bazie; nadal mierzymy `pg_blocking_pids`, Lock i prawdziwy SELECT FOR UPDATE.
+- Marker `2FA_2861_OKNO_WSPOLNA_BLOKADA` powstaje wyłącznie po zakończeniu B,
+  poprawnym JSON (`ok=true`, brak SQLSTATE/wyjątku, `bledy=[]`) i sprawdzeniu
+  zatwierdzonego hasha oraz wzrostu generacji sesji o jeden w świeżym wierszu.
+  Dopiero ten dowód pozwala nazwać zakończony reset ominięciem blokady A.
+- Błąd B, niepoprawny/brakujący wynik i odmowa resetu dają RuntimeException
+  `2FA_2861_PROCES_B_BLAD`; niepotwierdzona kolejka z nadal działającym B daje
+  `2FA_2861_PROCES_B_TIMEOUT`. Żaden z nich nie niesie markera mutacji.
+  Diagnostyka bariery A ma osobny marker `2FA_2861_BARIERA_POTWIERDZENIA`.
+- Werdykt odmawia ERROR/SKIP oraz awarii B/SQLSTATE również podszytej pod
+  FAILURE. Osobna kontrola awarii wymaga dokładnie trzech zielonych cookies,
+  dwóch ERROR z własnym `42P01`, pełnej tożsamości pięciu przypadków i kodu 2;
+  następnie sprawdza, że zwykły werdykt mutacji odmówił.
+- Fizyczna kontrola zachowuje i sprawdza bajty oraz nanosekundowe mtime
+  w `finally`, także gdy sam werdykt odmówi. Źródło oraz nowa klasa są
+  po każdej próbie odtworzone i ponownie wykonywane dodatnio.
+
+### Izolacja i wyniki poprawki
+
+Runtime jest osobnym Git worktree
+`/home/codex-admin/kuking-koordynacja-20261003-codex/race_repo_2861_b_guard`
+z własnym fizycznym `vendor` zgodnym z `composer.lock`. Rejestr:
+`registry-2861-b-guard/.git/worktrees/race_repo_2861_b_guard`.
+Przed migracją ustalono i sprawdzono **PostgreSQL 18.6**, host `127.0.0.1`,
+port `55488`, właściciela `kuking_pg18_owner` i bazę
+`kuking_race_race_repo_2861_b_guard`; ta baza wcześniej nie istniała.
+Klucz powstał tylko w nowej instancji. Nazwę Dwa potwierdziła funkcja
+`kuking_nazwa_bazy_wyscigow()` tego worktree.
+
+| Pomiar | Wynik |
+|---|---|
+| Poprawiona klasa i każde odtworzenie | **5/217 PASS**, bez failure/error/skip |
+| Stare dwie klasy S4 plus poprawiona nowa klasa | **20/720 PASS**, bez failure/error/skip |
+| Usunięcie świeżego sprawdzenia sesji (fizyczny FIX z 14f) | **3 właściwe FAILURE + 2 PASS**, `2FA_2861_COOKIE_A_PANEL_ODMOWA` |
+| Wyniesienie odwołania sesji poza wspólną transakcję (fizyczny FIX z 14f) | **2 właściwe FAILURE + 3 PASS**, poprawny reset B zatwierdzony przed zwolnieniem A |
+| Fizyczne zastąpienie B procesem z błędem SQL | **2 ERROR + 3 PASS**, własny `2FA_2861_PROCES_B_BLAD`, `42P01`, kod 2; odrzucone jako mutacja |
+| Testy parsowania/werdyktu i odtworzenia po odmowie | **13 PASS** na Windows i Linux |
+| Pint, składnia PHP, PHPStan obu źródeł PHP | PASS, 0 błędów PHPStan |
+
+Dwa ubytki asercji wynikają z usunięcia asercji `B->trwa()` z markerem
+mutacji; tożsamość, liczba i zakres pięciu przypadków pozostają takie same.
+Rejestr strażników źródeł przeczytano przed zmianą: nowe sprawdzenia mierzą
+wykonanie procesu i stan bazy, nie tekst źródła. Nie powstał nowy strażnik
+czytający pliki.
+
+Wpięcia są już obecne i zachowane: `scripts/check.sh` i lint CI wykonują
+ten sam test werdyktu, a `scripts/testy-dwa-polaczenia.sh` uruchamia ten sam
+przyrząd po dodatniej grupie. `scripts/ci/zakres.sh` obejmuje `tests/Dwa/`
+i istniejącą kontrolę 2861-uzupelnienie. Nie usunięto żadnego innego wywołania.
+
+### Artefakty korekty i granica odbioru
+
+Katalog `/home/codex-admin/kuking-koordynacja-20261003-codex/` zawiera:
+
+- `2861-b-guard-baseline.json`, `2861-b-guard-b-error.json` oraz baseline
+  JUnit/logi, w tym `2861-b-guard-baseline-b-error.xml` i przywrócenie;
+- `2861-b-guard-final-control.log`, `2861-b-guard-final.json` i katalog
+  `2861-b-guard-final-proof/` z siedmioma dokładnymi JUnit i logami:
+  dodatni, cookie, restore, okno, restore, awaria B, restore;
+- `2861-b-guard-regression.xml/.log`, `2861-b-guard-python.log`,
+  `2861-b-guard-phpstan.log` oraz `2861-b-guard-pint.log`.
+
+Kopię dowodów zapisano poza repo w
+`%TEMP%\kuking-2861-b-guard\`. Pliki JSON i log przyrządu zapisują SHA256
+i nanosekundowe mtime odtworzonej domeny oraz nowej klasy:
+
+| Odtworzony plik | SHA256 | mtime_ns runtime |
+|---|---|---|
+| `WlaczDwuetapowa.php` | `d2ed765f07e0333d32bd8c040fbc377b6d371f5740f29c76a24cadcbc74a7c1f` | `1791030159795698958` |
+| `Potwierdzenie2faPodWspolnaBlokadaTest.php` | `71aa2844b14a77ad73180abcd8aefdb6d4b700ab8006fd9444210a1a837d80e0` | `1791030714416151623` |
+
+SHA256 czterech finalnych źródeł przyrządu porównano między runtime
+i lokalnym WT: identyczne. Domenę i stare trzy źródła S4 oraz starą kontrolę
+porównano bajt po bajcie z bazą Y: identyczne.
+
+Pełny check/CI,
+odbiór Y i wydanie pozostają zadaniem sesji głównej; nie wykonano push,
+PR ani operacji produkcyjnych. Ten odbiór nie zamyka zbiorczego #2861.

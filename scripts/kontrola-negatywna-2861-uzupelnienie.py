@@ -12,6 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "app/Domain/Security/Actions/WlaczDwuetapowa.php"
+TEST_SOURCE = ROOT / "tests/Dwa/Potwierdzenie2faPodWspolnaBlokadaTest.php"
 CLASS = r"Tests\Dwa\Potwierdzenie2faPodWspolnaBlokadaTest"
 COOKIE_TEST = "test_spoznione_potwierdzenie_nie_otwiera_panelu_literalnym_cookie"
 WINDOW_TEST = "test_potwierdzenie_i_odwolanie_sesji_serializuja_reset"
@@ -22,6 +23,8 @@ CASES = {
        ("nowe hasło", "identyczne hasło")},
 }
 MARKERS = {"cookie": "2FA_2861_COOKIE_A_PANEL_ODMOWA", "okno": "2FA_2861_OKNO_WSPOLNA_BLOKADA"}
+B_ERROR = "2FA_2861_PROCES_B_BLAD"
+B_TIMEOUT = "2FA_2861_PROCES_B_TIMEOUT"
 
 
 def srodowisko():
@@ -40,28 +43,41 @@ def srodowisko():
             raise RuntimeError("#2861: lokalnie tylko własny PG18 poza portem 5432.")
 
 
-def sprawdz_junit(raport, kod, mutowana=None):
-    """Pięć dokładnych przypadków; pominięcie lub cudza porażka odmawia dowodu."""
+def przypadki_junit(raport):
+    """Tożsamość pięciu przypadków wspólna dla dodatniego, mutanta i awarii B."""
     if not raport.is_file():
         raise RuntimeError("#2861: brak JUnit.")
     przypadki = list(ET.parse(raport).getroot().iter("testcase"))
     if len(przypadki) != len(CASES):
         raise RuntimeError("#2861: oczekiwano dokładnie pięciu przypadków.")
     widziane = set()
-    porazki = 0
     for przypadek in przypadki:
         nazwa = przypadek.get("name", "")
         if (przypadek.get("class") != CLASS or przypadek.get("classname") != CLASS.replace("\\", ".")
                 or nazwa not in CASES or nazwa in widziane):
             raise RuntimeError("#2861: obca klasa/metoda, nieznany wariant lub duplikat.")
         widziane.add(nazwa)
+    return przypadki
+
+
+def szczegoly_junit(elementy):
+    return " ".join(" ".join(e.itertext()) + " " + str(e.attrib) for e in elementy)
+
+
+def sprawdz_junit(raport, kod, mutowana=None):
+    """Pięć dokładnych przypadków; pominięcie lub cudza porażka odmawia dowodu."""
+    porazki = 0
+    for przypadek in przypadki_junit(raport):
+        nazwa = przypadek.get("name")
         if przypadek.find("skipped") is not None or przypadek.find("error") is not None:
             raise RuntimeError("#2861: pominięcie/błąd środowiska nie jest dowodem.")
         failures = przypadek.findall("failure")
+        szczegoly = szczegoly_junit(failures)
+        if any(marker in szczegoly for marker in (B_ERROR, B_TIMEOUT, "SQLSTATE")):
+            raise RuntimeError("#2861: awaria procesu B nie potwierdza mutacji.")
         if mutowana is not None and CASES[nazwa] == mutowana:
             if len(failures) != 1:
                 raise RuntimeError("#2861: mutant nie oblał dokładnie raz właściwego przypadku.")
-            szczegoly = " ".join(" ".join(f.itertext()) + " " + str(f.attrib) for f in failures)
             if MARKERS[mutowana] not in szczegoly:
                 raise RuntimeError("#2861: porażka nie ma własnego markera.")
             porazki += 1
@@ -70,6 +86,30 @@ def sprawdz_junit(raport, kod, mutowana=None):
     oczekiwane = sum(rodzina == mutowana for rodzina in CASES.values()) if mutowana else 0
     if porazki != oczekiwane or (kod != 0 if mutowana is None else kod != 1):
         raise RuntimeError("#2861: liczba porażek lub kod wyjścia nie odpowiada właściwemu przebiegowi.")
+
+
+def sprawdz_blad_b(raport, kod):
+    """Celowa awaria musi dać dwa ERROR z własnym 42P01, nigdy dowód mutacji."""
+    for przypadek in przypadki_junit(raport):
+        if przypadek.find("skipped") is not None or przypadek.find("failure") is not None:
+            raise RuntimeError("#2861: kontrola awarii B dostała skip/failure zamiast ERROR.")
+        errors = przypadek.findall("error")
+        if CASES[przypadek.get("name")] == "okno":
+            szczegoly = szczegoly_junit(errors)
+            if (len(errors) != 1 or B_ERROR not in szczegoly or "SQLSTATE=42P01" not in szczegoly
+                    or MARKERS["okno"] in szczegoly or B_TIMEOUT in szczegoly):
+                raise RuntimeError("#2861: kontrola B nie wykazała dokładnie własnego błędu SQL.")
+        elif errors:
+            raise RuntimeError("#2861: awaria B dotknęła rodzinę cookie.")
+    if kod != 2:
+        raise RuntimeError("#2861: awaria B nie zakończyła się kodem błędu 2.")
+    try:
+        sprawdz_junit(raport, kod, "okno")
+    except RuntimeError as e:
+        if "pominięcie/błąd" not in str(e):
+            raise
+    else:
+        raise RuntimeError("#2861: awaria B została uznana za potwierdzoną mutację.")
 
 
 def przebieg(mutowana=None):
@@ -85,7 +125,19 @@ def przebieg(mutowana=None):
             text=True, encoding="utf-8", errors="replace",
         )
         print(wynik.stdout, flush=True)
-        sprawdz_junit(raport, wynik.returncode, mutowana)
+        if os.environ.get("KUKING_2861_DOWODY"):
+            dowody = Path(os.environ["KUKING_2861_DOWODY"]).resolve()
+            if dowody == ROOT or ROOT in dowody.parents:
+                raise RuntimeError("#2861: dowody muszą być poza repozytorium.")
+            dowody.mkdir(parents=True, exist_ok=True)
+            etykieta = f"{len(list(dowody.glob('*.xml'))):02d}-{mutowana or 'positive'}"
+            if raport.is_file():
+                shutil.copyfile(raport, dowody / (etykieta + ".xml"))
+            (dowody / (etykieta + ".log")).write_text(wynik.stdout, encoding="utf-8")
+        if mutowana == "blad-b":
+            sprawdz_blad_b(raport, wynik.returncode)
+        else:
+            sprawdz_junit(raport, wynik.returncode, mutowana)
 
 
 def zastap_raz(tekst, stare, nowe):
@@ -102,23 +154,34 @@ def mutant(tekst, rodzina):
                      "        $user->invalidateSessions($zachowajSesje);\n\n        AuditLogEntry::recordBezWywracania('account.two_factor_enabled'")
 
 
+def mutant_b(tekst):
+    return zastap_raz(tekst,
+                     "            $b = $this->wTle('ustaw-haslo', $argumentyB, ['PGAPPNAME' => 'uzupelnienie2861-reset-b']);",
+                     "            $b = $this->wlasnyProces('blad-b', []);")
+
+
+def kontrola_fizyczna(plik, zmien, rodzina):
+    oryginal = plik.read_bytes()
+    stat = plik.stat()
+    try:
+        plik.write_bytes(zmien(oryginal.decode("utf-8")).encode("utf-8"))
+        przebieg(rodzina)
+    finally:
+        plik.write_bytes(oryginal)
+        os.utime(plik, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+        if plik.read_bytes() != oryginal or plik.stat().st_mtime_ns != stat.st_mtime_ns:
+            raise RuntimeError("#2861: bajty/mtime źródła nieprzywrócone.")
+        print(f"#2861 {rodzina}: restore SHA256={hashlib.sha256(oryginal).hexdigest()} mtime_ns={stat.st_mtime_ns}", flush=True)
+    przebieg()
+
+
 def main():
     srodowisko()
     przebieg()
     for rodzina in MARKERS:
-        oryginal = SOURCE.read_bytes()
-        stat = SOURCE.stat()
-        try:
-            SOURCE.write_bytes(mutant(oryginal.decode("utf-8"), rodzina).encode("utf-8"))
-            przebieg(rodzina)
-        finally:
-            SOURCE.write_bytes(oryginal)
-            os.utime(SOURCE, ns=(stat.st_atime_ns, stat.st_mtime_ns))
-        if SOURCE.read_bytes() != oryginal or SOURCE.stat().st_mtime_ns != stat.st_mtime_ns:
-            raise RuntimeError("#2861: bajty/mtime źródła nieprzywrócone.")
-        print(f"#2861 {rodzina}: restore SHA256={hashlib.sha256(oryginal).hexdigest()} mtime_ns={stat.st_mtime_ns}", flush=True)
-        przebieg()
-    print("#2861 uzupełnienie: 5 PASS; cookie 3 właściwe FAIL + 2 PASS; okno 2 właściwe FAIL + 3 PASS; każde restore 5 PASS.")
+        kontrola_fizyczna(SOURCE, lambda tekst: mutant(tekst, rodzina), rodzina)
+    kontrola_fizyczna(TEST_SOURCE, mutant_b, "blad-b")
+    print("#2861 uzupełnienie: 5 PASS; cookie 3 właściwe FAIL + 2 PASS; okno 2 właściwe FAIL + 3 PASS; awaria B 2 ERROR + 3 PASS, odrzucona jako mutacja; każde restore 5 PASS.")
 
 
 if __name__ == "__main__":
