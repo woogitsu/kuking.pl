@@ -1,72 +1,77 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
-## Aktualny odbiór Codex — 3.10.2026, 02:55 UTC
+## Aktualny odbiór Codex — 3.10.2026, 03:43 UTC
 
 Ten blok zastępuje stan operacyjny historycznego handoveru poniżej.
-AGENTS.md, aktualne decyzje D-333 i nowsze polecenia właściciela pozostają
-wiążące. Właściciel zlecił autonomiczne poprawki, PR-y i scalanie; obecna
-sesja ma trzy dodatkowe agenty i koordynatora. Nie tworzymy nowych funkcji
-bez wymaganej decyzji o ich partii ani nie zmieniamy kosztu bez zgody.
+Obowiązują aktualne AGENTS.md, decyzje D-333 i nowsze polecenia właściciela.
+Zespół: koordynator i trzy dodatkowe agenty. Poprawki istniejących issues,
+push z normalnymi hakami, pełne CI i merge dokładnego heada są zlecone;
+nowe funkcje i koszt zachowują osobne decyzje.
 
-- **Wydanie L odebrane.** Main i produkcja:
-  `b913e3b234a1e1725b2dd3dbbe675ccfac41b641`. CI push main
-  `37074499270` zakończone SUCCESS; web, worker i scheduler zakończone
-  SUCCESS dla tego samego SHA, `/wydanie` zgodne, `/health` 200. Dowód:
+- **L odebrane na produkcji:** main
+  `b913e3b234a1e1725b2dd3dbbe675ccfac41b641`, terminalne CI push
+  `37074499270` SUCCESS, SUCCESS web/workera/harmonogramu tego SHA,
+  zgodne `/wydanie` i `/health` 200. Dowód:
   [komentarz #2777](https://github.com/woogitsu/kuking.pl/pull/2777#issuecomment-5963031581).
-- **M przekazana i scalona do C**, przez #2793 z kontrolą dokładnego heada.
-  C: `2e55128e96c1802fb454a8905cef8799cacb3f71`; pełne CI push
-  `37082918564` zakończone SUCCESS. M nie jest jeszcze wydana na produkcję.
-- **Przed wydaniem M:** własna korekta
-  `codex/m-odtwarzanie-csam-20261003`, head
-  `3195e275325ee13f71b7577425204403dd2920a8`. Zawiera kolejność odtworzenia
-  CSAM przed obiema operacjami ponownego wymazania, poprawiony test tej
-  instrukcji, widoczność ścisłego zapisu wersji (#2808), blokadę kopiowania
-  importowanego szkicu (#2800) i świeżą ocenę uprawnień importu (#2815).
-  Próba 836 odmówiła przy 13 864 zaliczonych i jednym niezaliczonym
-  teście UTF-8. Po korekcie podziału wierszy 9 / 106 PASS; nowy normalny
-  pre-push na izolowanym Linux/PG18 trwa. Nie ma jeszcze PR-a ani dowodu
-  pełnej zieleni. Nie zmieniać zamrożonej gałęzi podczas bramki.
-- **N przygotowana lokalnie**, własna `codex/paczka-n-20261003`. Zawiera
-  źródłowe drafty N oraz poprawki prywatności, kursora, importu i retencji.
-  Połączony zestaw na złożeniu `59e2141a1`: 337 testów / 4018 asercji PASS,
-  pełny PHPStan bez błędów. Później dołączono #2835; pełny PHPStan złożenia
-  `b98f5cfd7` także bez błędów. To nie dowód normalnego pusha ani pełnego CI. Szczegółowe dowody i otwarte kryteria:
+- **M przekazana i scalona do C przez #2793**, exact-head merge.
+  C `2e55128e96c1802fb454a8905cef8799cacb3f71`, pełne CI push
+  `37082918564` SUCCESS. M nie jest jeszcze wydana na produkcję.
+- **Korekta M w #2844 do C:** kolejność odtworzenia CSAM, ścisła wersja
+  #2808, kopia importowanego szkicu #2800 i świeże konto przed importem
+  #2815. Normalny push heada `3195e275325ee13f71b7577425204403dd2920a8`
+  przeszedł całą domyślną bramkę. CI `37091961698` terminalnie czerwone:
+  23 zadania SUCCESS, jedno FAIL w odczycie wyniku mutacji #2815.
+  Mutant rzeczywiście oblał dwa właściwe warianty, ale przyrząd żądał
+  JSON w zwykłym tekście reportera. Poprawka `8b3072928` odczytuje
+  dokładny JUnit i ma siedem testów mechanizmu; fizyczny mutant oblał,
+  po przywróceniu trzy warianty PASS. Krok mechanizmu dodany także
+  do istniejącego joba lint CI. Nowy M
+  `344f6231074129d0955d193cd62a11670a6af06b` jest zamrożony podczas
+  kolejnego normalnego pusha; nie uznawać go jeszcze za pełną zieleń.
+- **N — następny normalny push po konkretnej odmowie.** Poprzedni head
+  `c088b2208f629776dff203a05174151ade394a01` miał 13 954 testy PASS i
+  jeden FAIL: opis `docs/baza/przepisy.md` przekroczył próg 45 KiB.
+  Treść przeniesiona po nagłówku tabeli do
+  `przepisy-wersje-i-udostepnienia.md`, indeks zaktualizowany; progu
+  nie zmieniono. N zawiera też naprawę przyrządu z M. Nowa bramka,
+  zdalny head i pełne CI nadal wymagają odbioru. Szczegóły:
   [ODBIOR-N-CODEX-20261003.md](ODBIOR-N-CODEX-20261003.md).
-- **Kontrola ujemna #2784 ukończona za zgodą właściciela.** Fizyczna mutacja
-  w izolowanej kopii oblała właściwym markerem; dokładne przywrócenie i
-  cała klasa 17 testów / 91 asercji PASS. Dowód:
+- **O — osiem lokalnie odebranych poprawek:** #2829 powrót notatki,
+  #2821 nazwa listy po limicie, #2818 właściwa lista po odmowie,
+  #2814 powrót po alarmie, #2837 sprzeciw wobec anonimowych liczników,
+  #2838 brak zakleszczenia odpowiedzi, #2820 wygasła wskazówka,
+  #2828 zdjęcie aktywnego kroku. Własna `codex/paczka-o-20261003`,
+  złożenie `19890f6b882298cb343037a61c300e6a5c6c0a83` zawiera nowy
+  przyrząd M; podział dokumentacji N trzeba dołączyć przed bramką.
+  Pomiary wcześniejszych złożeń: 43 / 1952 i 73 / 2122 PASS,
+  pełny PHPStan 0. Poszczególne poprawki mają fizyczne kontrole ujemne;
+  zdjęcie obejrzane w rzeczywistym Chrome 320 px / tekst 200%.
+  To nie dowód pełnej bramki końcowego O, CI ani produkcji.
+- **Praca agentów do P:** #2806 powrót listy i pól po błędzie spiżarni,
+  #2842 podsumowanie filtra „Bez składnika”, #2846 podsumowanie
+  wyszukiwania w Planerze. Zakresy rozłączne, własne worktree/PG18;
+  sesja robocza nie tworzy PR i nie pushuje na gałęzie koordynatora.
+- **#2784 kontrola ujemna wykonana za zgodą właściciela:** mutant
+  właściwie FAIL, bytes/mtime restore, 17 / 91 PASS. Dowód:
   [komentarz #2784](https://github.com/woogitsu/kuking.pl/pull/2784#issuecomment-5963122000).
-  Nie pytać o tę zgodę ponownie. #2424–#2426 zamknięte jako zastąpione
-  dopiero po sprawdzeniu odebranego wydania V.
-- **Do N przyjęte:** #2783 i #2826 — tożsamość opakowania chroni edycję
-  i stare potwierdzenie usunięcia, także po awansie identycznego B; #2811
-  klucze zdjęć bez limitu historii sześciu UUID, czyszczenie przy wymazaniu
-  i migracja zgodna z §6; #2807 pusta porcja powiadomień; #2825 świeże
-  członkostwo przy ponowieniu zaproszenia; #2791 cofnięcie dostępu podczas
-  zawieszenia; #2827 zatrzymanie dyktowania po zamknięciu odpowiedzi;
-  #2816 ręczny układ odzyskanego zeszytu; #2835 świeże prawo do zaproszenia.
-  Dowody i granice pomiarów są w dokumencie odbioru. Po zamrożeniu N nowe
-  poprawki idą do następnej paczki; nie zmieniamy heada podczas bramki.
-- **Trzy bieżące zakresy:** #2814 minutnik po powrocie z alarmu,
-  #2818 powrót po limicie zakupów i #2829 notatka na dalszej porcji
-  zeszytu. #2821 gotowa lokalnie, czeka na odbiór następnej paczki.
-- **Otwarte bramki:** #2025 panel Railway; #2708 prawnik, zewnętrzny
-  dziennik, rzeczywisty odbiór R2/CDN i odtworzenia kopii; #2713 kroki
-  właściciela. Zatwierdzenie partii nie zamyka testów z ludźmi 50+.
+  Nie pytać ponownie. #2424–#2426 zamknięte po odbiorze wydania V.
 
 ### Następne kroki
 
-1. Odebrać normalny push korekty M, otworzyć niedraftowy PR do C i sprawdzić
-   pełne terminalne CI dokładnego heada. Scalić z `expectedHeadSha`.
-2. Wydanie M z nowego C do main: pełne CI i CodeQL, scalenie, następnie
-   terminalne CI push main i SUCCESS wszystkich trzech usług dla dokładnego
-   SHA, `/wydanie` oraz `/health`. Dopiero wtedy konkretne zamknięcia z dowodem.
-3. Odebrać N i kolejne poprawki. Nie mieszać trwających bramek ze zmianą
-   ich heada; nie ponawiać ani anulować CI masowo.
-4. Pracować na własnych zależnościach z locka i izolowanym PostgreSQL 18+,
-   z jawnym hostem/portem/nazwą/właścicielem. Stary PG16 i współdzielony
-   vendor/baza z handoveru nie są właściwą bramką. Aktualna instrukcja:
-   [WSPOLNE-issue.md](WSPOLNE-issue.md). Sesja robocza nie otwiera PR-ów.
+1. Odebrać normalny push i pełne terminalne CI dokładnego M #2844.
+   Dopiero zielony niedraftowy PR scalać do C z `expectedHeadSha`.
+2. Wydać M jednym końcowym PR do main, pełne CI wraz z CodeQL;
+   po merge terminalne CI push, SUCCESS trzech usług dla dokładnego
+   SHA, `/wydanie` i `/health`. Dopiero wtedy zamknięcia z dowodem.
+3. Następnie N i O; przy zmianie bazy wymagać świeżego końcowego
+   heada i pełnej bramki. Nie przesuwać heada w trakcie kontroli,
+   nie anulować ani nie ponawiać masowo CI. Nowe poprawki do P.
+4. Używać dokładnego locka i osobnych baz PostgreSQL 18+, z jawnym
+   hostem/portem/właścicielem. Bez współdzielonego vendor i PG16.
+   [WSPOLNE-issue.md](WSPOLNE-issue.md) zawiera instrukcję pracy.
+5. Zachować otwarte #2025 (panel Railway), #2708 (prawo, zewnętrzny
+   dziennik, rzeczywiste R2/CDN i kopia), #2713 (czynności właściciela)
+   oraz pilot 50+. Zatwierdzenie partii nie oznacza ich odbioru.
 
 ## Historyczny handover Claude — migawka 2–3.10.2026
 
