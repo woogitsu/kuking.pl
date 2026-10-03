@@ -118,7 +118,7 @@ final class ProbyPrzepisu
     }
 
     /**
-     * Co się zmieniło od poprzedniej próby: wersja przepisu i rzeczywisty czas.
+     * Wersja i rzeczywisty czas oceniane osobno: zmiana, zgodność albo brak danych.
      *
      * @param  Collection<string, RecipeVersion>  $wersje
      * @return list<string>
@@ -129,35 +129,42 @@ final class ProbyPrzepisu
             return ['To pierwsza zapisana próba.'];
         }
 
-        $roznice = [];
+        $wersjePorownywalne = $proba->recipe_version_id !== null && $poprzednia->recipe_version_id !== null;
+        $czasPorownywalny = $proba->actual_minutes !== null && $poprzednia->actual_minutes !== null;
+        $wersjaZmieniona = $wersjePorownywalne && $proba->recipe_version_id !== $poprzednia->recipe_version_id;
+        $czasZmieniony = $czasPorownywalny && (int) $proba->actual_minutes !== (int) $poprzednia->actual_minutes;
 
-        if ($proba->recipe_version_id !== null
-            && $poprzednia->recipe_version_id !== null
-            && $proba->recipe_version_id !== $poprzednia->recipe_version_id) {
+        if (($wersjePorownywalne && $czasPorownywalny) && ! $wersjaZmieniona && ! $czasZmieniony) {
+            return ['Wersja i czas bez zmian względem poprzedniej próby.'];
+        }
+
+        if (! $wersjePorownywalne && ! $czasPorownywalny) {
+            return ['Brak danych do porównania wersji i czasu z poprzednią próbą.'];
+        }
+
+        $roznice = [];
+        if ($wersjaZmieniona) {
             $nowa = $wersje->get((string) $proba->recipe_version_id)?->version_number;
             $stara = $wersje->get((string) $poprzednia->recipe_version_id)?->version_number;
 
             $roznice[] = $nowa !== null && $stara !== null
                 ? 'Wersja przepisu: '.$nowa.' (poprzednio '.$stara.').'
                 : 'Wersja przepisu inna niż przy poprzedniej próbie.';
+        } else {
+            $roznice[] = $wersjePorownywalne
+                ? 'Wersja przepisu bez zmian względem poprzedniej próby.'
+                : 'Brak danych do porównania wersji przepisu z poprzednią próbą.';
         }
 
-        if ($proba->actual_minutes !== null
-            && $poprzednia->actual_minutes !== null
-            && (int) $proba->actual_minutes !== (int) $poprzednia->actual_minutes) {
+        if ($czasZmieniony) {
             $roznice[] = 'Rzeczywisty czas: '.Czas::czasPrzepisu((int) $proba->actual_minutes)
                 .' (poprzednio '.Czas::czasPrzepisu((int) $poprzednia->actual_minutes).').';
+        } else {
+            $roznice[] = $czasPorownywalny
+                ? 'Rzeczywisty czas bez zmian względem poprzedniej próby.'
+                : 'Brak danych do porównania rzeczywistego czasu z poprzednią próbą.';
         }
 
-        if ($roznice !== []) {
-            return $roznice;
-        }
-
-        $porownywalne = ($proba->recipe_version_id !== null && $poprzednia->recipe_version_id !== null)
-            || ($proba->actual_minutes !== null && $poprzednia->actual_minutes !== null);
-
-        return [$porownywalne
-            ? 'Wersja i czas bez zmian względem poprzedniej próby.'
-            : 'Brak danych do porównania wersji i czasu z poprzednią próbą.'];
+        return $roznice;
     }
 }

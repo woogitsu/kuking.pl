@@ -235,6 +235,19 @@ klucz_wyslania`. Bezstratnie i dlatego `down()` niczego nie odmawia: kolumna
 niesie wyłącznie identyfikator wysłania wygenerowany przez serwer, ani jednego
 słowa napisanego przez człowieka.
 
+**Prywatne porównanie prób (#2412, poprawka #2817).** `ProbyPrzepisu`
+czyta wyłącznie istniejące wykonania osoby oglądającej i nie zapisuje
+nowych danych. Wersja i rzeczywisty czas są oceniane osobno względem
+poprzedniej próby, także przez granicę strony. Dwie znane równe wartości
+potwierdzają zgodność danego pola; dwie różne pokazują różnicę; `NULL`
+po dowolnej stronie oznacza brak danych do porównania tego pola.
+Zapisane `0` minut jest znaną wartością. Komunikat „Wersja i czas bez zmian”
+wymaga znanych równych wartości obu pól. Gdy żadne pole nie jest
+porównywalne, zostaje zbiorczy opis braku danych; pierwsza próba ma osobny
+opis. Zasady prywatności, widoczności numerów wersji i ich retencji pozostają
+bez zmian. Test macierzy i końcowych kart HTML:
+`tests/Feature/CzesciowePorownanieProbPrzepisuTest.php`.
+
 ### cooked_event_media
 Zdjęcia z JEDNEGO gotowania. Tabela łącząca `cooked_events` z `media`,
 bliźniacza do `post_media` i z tego samego powodu: jedno wykonanie bywa
