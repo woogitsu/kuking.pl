@@ -76,10 +76,19 @@
         </section>
     @else
         <p data-stan-produktu><strong>{{ $stan }}</strong></p>
+        @if($bladOpakowania)
+            <p class="field-error" id="f-opakowanie" tabindex="-1">{{ $bladOpakowania }}</p>
+        @endif
     @endif
 
     @php
         $poBledzie = old('_formularz') === 'termin';
+        // Po błędzie nie podstawiamy odcisku aktualnego opakowania w miejsce
+        // starego formularza: ponowienie mogłoby nadpisać awansowane opakowanie.
+        $staryOdcisk = old('odcisk');
+        $odciskPierwszego = $poBledzie
+            ? (is_string($staryOdcisk) ? $staryOdcisk : '')
+            : $opakowanie?->odcisk();
         $wybranyRodzaj = $poBledzie ? (string) old('rodzaj', '') : ($opakowanie?->expiry_kind ?? '');
         $wybranyDzien = $poBledzie ? (string) old('termin_dzien', '') : (string) ($opakowanie?->expires_on?->day ?? '');
         $wybranyMiesiac = $poBledzie ? (string) old('termin_miesiac', '') : (string) ($opakowanie?->expires_on?->month ?? '');
@@ -104,8 +113,8 @@
         <input type="hidden" name="opakowanie" value="{{ $cel }}">
         @if($drugie && $opakowanie !== null)
             <input type="hidden" name="opakowanie_id" value="{{ $opakowanie->opakowanieId }}">
-        @elseif(! $drugie && $maDwa && $opakowanie !== null)
-            <input type="hidden" name="odcisk" value="{{ $opakowanie->odcisk() }}">
+        @elseif(! $drugie && $opakowanie !== null)
+            <input type="hidden" name="odcisk" value="{{ $odciskPierwszego }}">
         @endif
         <button type="submit" class="sr-only" tabindex="-1" aria-hidden="true">Zapisz</button>
 

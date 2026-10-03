@@ -106,11 +106,17 @@ final class Opakowanie
      */
     public function odcisk(): string
     {
-        return self::odciskTresci($this->expires_on?->toDateString(), $this->expiry_kind, $this->quantity_note, $this->frozen);
+        return self::odciskTresci(
+            $this->expires_on?->toDateString(),
+            $this->expiry_kind,
+            $this->quantity_note,
+            $this->frozen,
+            $this->numer === self::PIERWSZE ? ($this->produkt->first_package_id ?? $this->id) : null,
+        );
     }
 
-    public static function odciskTresci(?string $termin, ?string $rodzaj, ?string $ilosc, bool $mrozone): string
+    public static function odciskTresci(?string $termin, ?string $rodzaj, ?string $ilosc, bool $mrozone, ?string $tozsamosc = null): string
     {
-        return substr(sha1(implode('|', [$termin ?? '', $rodzaj ?? '', $ilosc ?? '', $mrozone ? '1' : '0'])), 0, 16);
+        return substr(sha1(implode('|', [$tozsamosc ?? '', $termin ?? '', $rodzaj ?? '', $ilosc ?? '', $mrozone ? '1' : '0'])), 0, 16);
     }
 }

@@ -35,6 +35,8 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Spiżarnia: jedyne opakowanie bez odcisku (#2783)': r'ODCISK_2783_FORMULARZ',
+    'Spiżarnia: identyczne B bez kontroli tożsamości (#2783)': r'ODCISK_2783_TOZSAMOSC',
     'Niezmieniona kopia szkicu wychodzi do ludzi (#2507)': r'KOPIA_2507_PUBLIKACJA',
     'Kopia szkicu gubi podpis Mojej wersji (#2507)': r'KOPIA_2507_ATRYBUCJA',
     'Kopia szkicu przejmuje zdjęcia kroków (#2507)': r'KOPIA_2507_MEDIA',

@@ -93,8 +93,8 @@ final class ZmienTerminProduktu
     /**
      * @param  array<string, mixed>  $dane  surowe pola formularza
      * @param  string|null  $odcisk  odcisk pierwszego opakowania z chwili otwarcia formularza
-     *                               (`Opakowanie::odcisk()`); niesie go tylko formularz produktu z DWOMA
-     *                               opakowaniami (#2568) — bez niego zapis działa jak dawniej
+     *                               (`Opakowanie::odcisk()`); bez niego pierwotne opakowanie zachowuje
+     *                               dawne działanie, lecz po awansie drugiego zapis jest odrzucany
      * @return bool `false`, gdy produktu już nie ma (usunięty równolegle)
      *
      * @throws ValidationException
@@ -113,7 +113,7 @@ final class ZmienTerminProduktu
                 ->where('id', $produkt->getKey())
                 ->where('user_id', $produkt->user_id)
                 ->lockForUpdate()
-                ->first(['id', 'expires_on', 'expiry_kind', 'quantity_note', 'frozen']);
+                ->first(['id', 'first_package_id', 'expires_on', 'expiry_kind', 'quantity_note', 'frozen']);
 
             if ($wiersz === null) {
                 return false;
@@ -122,12 +122,14 @@ final class ZmienTerminProduktu
             // Po usunięciu pierwszego opakowania drugie AWANSUJE na jego miejsce
             // (`DrugieOpakowanieProduktu::usun()`). Stary formularz pierwszego
             // opakowania nie może wtedy zapisać swojej treści na cudze miejsce.
-            if ($odcisk !== null && $odcisk !== '' && $odcisk !== Opakowanie::odciskTresci(
-                $wiersz->expires_on === null ? null : (string) $wiersz->expires_on,
-                $wiersz->expiry_kind,
-                $wiersz->quantity_note,
-                (bool) $wiersz->frozen,
-            )) {
+            if (($wiersz->first_package_id !== null && ($odcisk === null || $odcisk === ''))
+                || ($odcisk !== null && $odcisk !== '' && $odcisk !== Opakowanie::odciskTresci(
+                    $wiersz->expires_on === null ? null : (string) $wiersz->expires_on,
+                    $wiersz->expiry_kind,
+                    $wiersz->quantity_note,
+                    (bool) $wiersz->frozen,
+                    (string) ($wiersz->first_package_id ?? $wiersz->id),
+                ))) {
                 throw ValidationException::withMessages(['opakowanie' => DrugieOpakowanieProduktu::BLAD_ZMIENILO_SIE]);
             }
 
