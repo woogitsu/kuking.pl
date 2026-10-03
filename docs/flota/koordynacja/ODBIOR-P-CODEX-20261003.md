@@ -1,6 +1,6 @@
 # Odbiór paczki P — 3 października 2026
 
-Koordynator przejrzał sześć lokalnych poprawek istniejących issues.
+Koordynator przejrzał osiem lokalnych poprawek istniejących issues.
 P bazuje na O i zachowuje oba podziały dokumentacji oraz naprawę kotwicy.
 Nie jest jeszcze wydana ani uznana za pełną zieleń CI.
 
@@ -23,8 +23,8 @@ Nie jest jeszcze wydana ani uznana za pełną zieleń CI.
   MessageBag i odnośnik do pola; sesyjny błąd innego formularza pozostaje.
   Nowe HTTP: 3 / 26 PASS, fizyczny mutant oblał, restore PASS. Pełna klasa
   na Windows miała starą porażkę daty także na bazowym widoku. Root sprawdził
-  bazowy Planer na O579 w Linux: 11 / 11 PASS; pełne złożenie P nadal wymaga
-  własnego pomiaru. DOM kotwicy zmierzony, brak osobnego dowodu automatycznego
+  pełny Planer w złożonej P na Linux/PG18: 14 / 14 PASS, bez wyciszania testu.
+  DOM kotwicy zmierzony, brak osobnego dowodu automatycznego
   fokusu czy wizualnego 320 px dla tego formularza. Niezależny ACCEPT.
 - **#2822**, `95446511b`: tekst odróżnia koniec współtworzenia od możliwości
   czytania dostępnego publicznego zeszytu. Policy i dane bez zmian. PG18:
@@ -35,7 +35,8 @@ Nie jest jeszcze wydana ani uznana za pełną zieleń CI.
   z żywym linkiem `f-szukaj`; wpisana fraza, filtry i osobny błąd POST zostają.
   Nowe HTTP na PG18: 3 / 32 PASS, fizyczny mutant potwierdzony i przywrócony.
   Pełna klasa Windows 8 / 9, ten sam stary test nie przeszedł także na
-  oryginalnym widoku O. Nie wyciszano testu; Linux/CI musi rozstrzygnąć.
+  oryginalnym widoku O. Root uruchomił pełną klasę w Linux/PG18: 9 / 9 PASS,
+  bez wyciszania testu. Pełne CI nadal jest osobną bramką.
   Analiza typów/Pint PASS, odczytowy przegląd root bez blokera w nowym zakresie.
 - **#2839**, `f9a00e50a`: rzeczywisty POST pobiera ZIP z czytelną kopią HTML
   zachowującą wiersze kroków i historii. Blade nadal escapuje treść.
@@ -45,6 +46,17 @@ Nie jest jeszcze wydana ani uznana za pełną zieleń CI.
   scrollWidth 320 i zero elementów script; długi wyraz się łamie, puste
   wiersze są widoczne. Root obejrzał zrzut screen-200. Jeden proces zamknięty,
   niczego nie instalowano. To nie PDF ani fizyczna drukarka.
+- **#2843**, `b8dc92e`: wybór wersji w odzyskiwanym zeszycie wraca po błędzie
+  tylko dla tego samego konta i paczki. Zapisany wybór jest przecinany ze
+  świeżo dostępnymi wersjami; ukryte pole nie nadaje prawa do cudzej paczki.
+  HTTP/PG18: 22 / 184 PASS; fizyczny mutant oblał markerem
+  `WYBOR_2843_NIE_WRACA_WYKLUCZONA`, dokładny restore. Niezależny ACCEPT.
+- **#2853**, `add0f7de`: niepewna nazwa grupy składnika po OCR blokuje
+  pierwszą publikację. Kreator i zwykłe podsumowanie wskazują poprawny
+  składnik także po pustym wierszu. Dosłowne `[?` poza OCR i prywatne źródło
+  pozostają bez zmian. Własny PG18: 41 / 389 OCR i 20 / 78 kreator PASS;
+  fizyczny mutant oblał markerem `OCR_2853_GRUPA_NIEPEWNA_PUBLIKACJA`.
+  Kontrolowany transport HTTP, bez płatnego wywołania AI. Root ACCEPT.
 
 Każda poprawka ma wpis CHANGELOG, dokumentację i rejestr mutacji CI.
 Konflikty wspólnych rejestrów i CHANGELOG rozwiązano sumą obu dopisków.
@@ -53,10 +65,20 @@ N wymagają odbioru i rollbacku opisanego w ODBIOR-N-CODEX-20261003.md.
 
 ## Bramka końcowa
 
-Root przygotowuje własną kopię Linux, dokładny lock, osobny klucz i PG18
-z jawnym hostem/portem/nazwą. Najpierw całe zmienione klasy oraz strażnicy,
-potem normalny push z istniejącym hakiem i pełne CI dokładnego heada.
-Nie zaliczać starej porażki Windows ani pominiętych opcji jako sukcesu.
+Root uruchomił własną kopię Linux, dokładny lock, osobny klucz i PostgreSQL 18
+na `127.0.0.1:55488`, baza `kuking_test_p_20261003`, rola
+`kuking_pg18_owner`. Na `3a0bffcc71b314477400ddfe7c296f1983ec3bce` całe
+zmienione klasy i strażnicy: **214 / 3470 PASS**. Fizyczna zmiana
+`pre-line` na `normal` oblała właściwym `KOPIA_2839_WIERSZE`; dokładne bajty
+i mtime przywrócone, cała KopiaDanych: **12 / 198 PASS**. Linux i Windows
+różnie normalizują CRLF w DOM, więc asercja DOM porównuje kanoniczne LF;
+liczba pustych wierszy i oryginalne bajty w JSON nadal są sprawdzane.
+
+Po dołożeniu OCR, na `5f177fb5542cd156453ac300a1329fd2b7af3ac7` całe klasy
+OCR, kreatora i strażników tekstu: **76 / 2231 PASS**, pełny PHPStan:
+**0 błędów**. To pomiar zmienionego zakresu, nie pełny hook ani CI.
+Następne kroki: zwykły push z niezmienionym hakiem i pełne CI dokładnego
+końcowego heada. Nie zaliczać pominiętych opcji jako sukcesu.
 P1 #2851 i #2854 otrzymały osobną naprawę od wdrożonego main i niezależną
 recenzję; nie są częścią P ani odebrane tylko na podstawie analizy kodu.
 
