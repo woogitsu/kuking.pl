@@ -108,6 +108,24 @@ Jedno realne gotowanie. Brak unique `(user_id, recipe_id)`.
   **Rollback:** `down()` odmawia, gdy choć jedno wykonanie ma znacznik (D-088 —
   uzupełnione zdjęcie wyglądałoby jak oryginalne). Test:
   `tests/Feature/DolaczenieZdjeciaDoWykonaniaTest.php`.
+
+Ponowienie multipart dołączenia zdjęcia (#2811) niesie osobny UUID
+`klucz_wyslania`. Udane klucze są w `cooked_events.photo_submission_keys`
+(JSONB z bazowym CHECK typu tablicy, domyślnie `[]`, poza masowym przypisaniem).
+Klucz jest przypięty do konkretnego wykonania i zostaje po usunięciu zdjęcia;
+historia udanych UUID nie jest obcinana do limitu bieżących zdjęć, bo siódme
+wysłanie po usunięciu jednego zdjęcia musi działać, a starsze ponowienie nadal
+nie może utworzyć duplikatu. UUID sprawdza formularz przed akcją; klucze
+pozostają prywatnym śladem wykonania i nie są renderowane ani eksportowane.
+Przy wymazaniu konta z zachowaniem wykonania historia tych kluczy jest
+czyszczona: wymazane konto nie może ponowić żądania, a prywatny ślad nie jest
+potrzebny do zachowania publicznego wykonania.
+Ponowienie nie oznacza nowego gotowania ani nowego powiadomienia. Przed zapisem pliku
+sesyjna blokada PostgreSQL serializuje ten sam klucz, potem dotychczasowa
+transakcja zachowuje kolejność media → users → cooked_events i ponownie
+sprawdza prawo. Starszy klient bez klucza zachowuje dawną drogę, a formularz
+WWW zawsze go wysyła. Rollback kolumny odmawia, jeśli zapisano choć jeden
+klucz: utrata historii pozwoliłaby ponowieniu utworzyć nowe zdjęcie.
 - **`faktyczne_porcje numeric(5,2) NULL`** (CHECK `faktyczne_porcje IS NULL OR
   (faktyczne_porcje >= 0.5 AND faktyczne_porcje <= 100)`, migracja
   `2026_10_03_180000_add_faktyczne_porcje_to_cooked_events`, #2540, decyzja

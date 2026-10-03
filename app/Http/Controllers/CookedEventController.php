@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\KomentujWykonanie;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Notifications\Actions\OtworzKomusWyszlo;
+use App\Domain\Recipes\Actions\BlokadaWyslaniaZdjecWykonania;
 use App\Domain\Recipes\Actions\DolaczZdjeciaDoWykonania;
 use App\Domain\Recipes\Actions\PoprawPorcjeWykonania;
 use App\Domain\Recipes\Actions\PoprawWykonanie;
@@ -526,10 +527,12 @@ class CookedEventController extends Controller
             'event' => $cookedEvent->loadMissing(['recipe', 'media']),
             'zachowane' => $this->zdjecia->zachowane(old('media_ids', []), $request->user()),
             'dni' => (int) config('kuking.wykonania.dolaczenie_zdjec_dni'),
+            'kluczWyslaniaZdjec' => is_string(old('klucz_wyslania')) && Str::isUuid(old('klucz_wyslania'))
+                ? old('klucz_wyslania') : (string) Str::uuid7(),
         ]);
     }
 
-    public function dolaczZdjecia(Request $request, CookedEvent $cookedEvent, DolaczZdjeciaDoWykonania $dolacz): RedirectResponse
+    public function dolaczZdjecia(Request $request, CookedEvent $cookedEvent, DolaczZdjeciaDoWykonania $dolacz, BlokadaWyslaniaZdjecWykonania $blokada): RedirectResponse
     {
         $this->authorize('addPhotos', $cookedEvent);
 
@@ -540,46 +543,68 @@ class CookedEventController extends Controller
             'photos.*' => ['file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'media_ids' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
             'media_ids.*' => ['uuid'],
+            'klucz_wyslania' => ['nullable', 'uuid'],
         ], [
             'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
             'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
             'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
             'media_ids.*.uuid' => LimityZdjec::komunikatZepsutegoZachowanegoZdjecia(),
+            'klucz_wyslania.uuid' => 'Formularz jest nieaktualny. Odśwież stronę i wybierz zdjęcie ponownie.',
         ]);
 
+        $kluczWyslania = $request->input('klucz_wyslania');
+        $kluczWyslania = is_string($kluczWyslania) && $kluczWyslania !== '' ? $kluczWyslania : null;
         $wejscie = fn (array $ids): array => $request->except('photos', 'media_ids', 'usun_zdjecie') + ['media_ids' => $ids];
 
-        try {
-            $mediaIds = $this->zdjecia->handle($request->input('media_ids', []), $request->file('photos', []), $user, $cookedEvent->media()->count());
-        } catch (BladZdjecFormularza $e) {
-            return back()->withInput($wejscie($e->mediaIds))->withErrors(['photos' => $e->getMessage()]);
-        }
-
-        if ($request->filled('usun_zdjecie')) {
-            $mediaIds = array_values(array_filter($mediaIds, fn (string $id): bool => $id !== $request->input('usun_zdjecie')));
-
-            return redirect()->route('cooked.photos.create', $cookedEvent)->withInput($wejscie($mediaIds));
-        }
-
-        if ($mediaIds === []) {
-            // Ponowienie tej samej wysyłki: zdjęcie już jest przy wykonaniu.
-            $zgloszone = array_filter((array) $request->input('media_ids', []), 'is_string');
-            if ($zgloszone !== [] && $cookedEvent->media()->whereIn('media.id', $zgloszone)->count() === count($zgloszone)) {
-                return redirect()->route('cooked.show', $cookedEvent)->with(Komunikat::informacja('To zdjęcie jest już przy Twoim wykonaniu. Niczego nie dopisaliśmy drugi raz.'));
+        $wykonaj = function () use ($request, $user, $cookedEvent, $dolacz, $kluczWyslania, $wejscie): RedirectResponse {
+            if ($kluczWyslania !== null) {
+                // Kontrola obecnych uprawnień także przy ponowieniu; nie można
+                // wykorzystać starego klucza po zawieszeniu lub po 7 dniach.
+                $swiezy = CookedEvent::query()->findOrFail($cookedEvent->getKey());
+                $swiezyUser = User::query()->findOrFail($user->getKey());
+                Gate::forUser($swiezyUser)->authorize('addPhotos', $swiezy);
+                if (in_array($kluczWyslania, $swiezy->photo_submission_keys ?? [], true)) {
+                    return redirect()->route('cooked.show', $cookedEvent)
+                        ->with(Komunikat::informacja('To zdjęcie jest już przy Twoim wykonaniu. Niczego nie dopisaliśmy drugi raz.'));
+                }
             }
 
-            return back()->withInput($wejscie([]))->withErrors(['photos' => 'Wybierz zdjęcie, które chcesz dołączyć do tego wykonania.']);
-        }
+            try {
+                $mediaIds = $this->zdjecia->handle($request->input('media_ids', []), $request->file('photos', []), $user, $cookedEvent->media()->count());
+            } catch (BladZdjecFormularza $e) {
+                return back()->withInput($wejscie($e->mediaIds))->withErrors(['photos' => $e->getMessage()]);
+            }
 
-        try {
-            $ile = $dolacz->handle($user, $cookedEvent, $mediaIds);
-        } catch (BladDlaCzlowieka $e) {
-            return back()->withInput($wejscie($mediaIds))->withErrors(['photos' => $e->getMessage()]);
-        }
+            if ($request->filled('usun_zdjecie')) {
+                $mediaIds = array_values(array_filter($mediaIds, fn (string $id): bool => $id !== $request->input('usun_zdjecie')));
 
-        return redirect()->route('cooked.show', $cookedEvent)->with($ile === 0
-            ? Komunikat::informacja('Tego zdjęcia nie trzeba było dołączać drugi raz — jest już przy wykonaniu.')
-            : Komunikat::sukces('Zdjęcie dołączone do wykonania. To nadal to samo gotowanie: data, wersja przepisu i rozmowa zostały bez zmian, a nikt nie dostał nowego powiadomienia o ugotowaniu.'));
+                return redirect()->route('cooked.photos.create', $cookedEvent)->withInput($wejscie($mediaIds));
+            }
+
+            if ($mediaIds === []) {
+                // Ponowienie tej samej wysyłki: zdjęcie już jest przy wykonaniu.
+                $zgloszone = array_filter((array) $request->input('media_ids', []), 'is_string');
+                if ($zgloszone !== [] && $cookedEvent->media()->whereIn('media.id', $zgloszone)->count() === count($zgloszone)) {
+                    return redirect()->route('cooked.show', $cookedEvent)->with(Komunikat::informacja('To zdjęcie jest już przy Twoim wykonaniu. Niczego nie dopisaliśmy drugi raz.'));
+                }
+
+                return back()->withInput($wejscie([]))->withErrors(['photos' => 'Wybierz zdjęcie, które chcesz dołączyć do tego wykonania.']);
+            }
+
+            try {
+                $ile = $dolacz->handle($user, $cookedEvent, $mediaIds, $kluczWyslania);
+            } catch (BladDlaCzlowieka $e) {
+                return back()->withInput($wejscie($mediaIds))->withErrors(['photos' => $e->getMessage()]);
+            }
+
+            return redirect()->route('cooked.show', $cookedEvent)->with($ile === 0
+                ? Komunikat::informacja('Tego zdjęcia nie trzeba było dołączać drugi raz — jest już przy wykonaniu.')
+                : Komunikat::sukces('Zdjęcie dołączone do wykonania. To nadal to samo gotowanie: data, wersja przepisu i rozmowa zostały bez zmian, a nikt nie dostał nowego powiadomienia o ugotowaniu.'));
+        };
+
+        return $kluczWyslania === null
+            ? $wykonaj()
+            : $blokada->wykonaj($user, $cookedEvent, $kluczWyslania, $wykonaj);
     }
 
     public function edytujPorcje(Request $request, CookedEvent $cookedEvent): View
