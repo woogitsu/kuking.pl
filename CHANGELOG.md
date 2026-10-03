@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2856): uszkodzony odnośnik do dalszych wyników wyszukiwania nie kończy się błędem serwera. Gdy miara w adresie jest zbyt mała dla bazy, wyszukiwarka pokazuje właściwe dalsze okno wyników.
+
 - Poprawione (#2820): po wygaśnięciu prośby o wskazówkę można ponownie poprawić własną uwagę przy wykonaniu. Przyjęta wskazówka i otwarte zgłoszenie nadal chronią tekst.
 
 - Poprawione (#2828): przy gotowaniu kilku potraw zdjęcie bieżącego kroku widać obok instrukcji. Zmiana kroku lub potrawy pokazuje właściwe zdjęcie; powiększenie nie zatrzymuje minutników.
