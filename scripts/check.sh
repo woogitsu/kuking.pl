@@ -147,6 +147,14 @@ else
     zle "Kontrola #2880 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-2880-wynik.py"
 fi
 
+# #2861: dokładna klasa, wariant i własna przyczyna z JUnit, bez skip/error.
+krok "Werdykt uzupełnienia 2FA (#2861)"
+if python3 tests/skrypty/kontrola-negatywna-2861-uzupelnienie-wynik.py >/dev/null 2>&1; then
+    ok "Kontrola #2861 odczytuje pięć właściwych wariantów i przyczyny z JUnit"
+else
+    zle "Kontrola #2861 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-2861-uzupelnienie-wynik.py"
+fi
+
 # --- 3b''. Dziennik decyzji: pliki w docs/decyzje/ zgodne z indeksem -------
 # Jedna decyzja = jeden plik; docs/DECISIONS.md jest indeksem generowanym
 # z plików. To samo pilnuje DziennikDecyzjiZgodnyZIndeksemTest.
