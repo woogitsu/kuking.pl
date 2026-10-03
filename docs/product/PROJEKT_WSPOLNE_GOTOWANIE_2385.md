@@ -170,6 +170,20 @@ Pomocnicy mają te same prawa między sobą: każdy może odhaczyć i cofnąć k
 krok (także odhaczony przez kogoś innego — to wspólna lista, nie rejestr
 własności), a żaden nie zarządza pozostałymi.
 
+**Zawieszenie a wyjście (#2889).** Pomocnik może opuścić istniejącą sesję,
+a gospodarz ją zakończyć także podczas zawieszenia czasowego albo
+bezterminowego. W HTTP są to wyłącznie dwa nazwane wyjątki bramki konta:
+`wspolne-gotowanie.leave` i `wspolne-gotowanie.destroy`. Rolę nadal sprawdza
+`CookingSessionPolicy`; obca osoba i niewłaściwa rola dostają neutralne 404.
+Wyjście usuwa tylko udział pomocnika i podnosi rewizję o jeden, zachowując
+odhaczenia, ich podpisy oraz istniejący link. Zakończenie kasuje tylko dane
+tej sesji z jej odhaczeniami, udziałami i linkami. Zawieszenie nadal blokuje
+zapis i cofanie kroków, czyszczenie postępu oraz tworzenie i odwoływanie
+zaproszeń. Zamknięte konto (`banned`, `pending_delete`, `erased`) nie dostaje
+tych wyjątków. Regresję mierzy pełny HTTP w
+`ZawieszoneKontoOpuszczaWspolneGotowanieTest`, z rzeczywistym `User::suspend()`
+i pełnym porównaniem danych oraz rewizji.
+
 Dlaczego pomocnik może odhaczać: to cały sens „pomagam”. Dlaczego nie może
 wyczyścić postępu: jedno przypadkowe kliknięcie nie powinno kasować pracy
 dwóch osób. Odhaczenie jest **ustawieniem** („ten krok: zrobiony/nie”), nie
