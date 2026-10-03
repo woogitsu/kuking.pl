@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Recipes\Udostepnienia\OdbierzDostepDoPrzepisu;
+use App\Domain\Recipes\Udostepnienia\PotwierdzenieOdbiorcy;
 use App\Domain\Recipes\Udostepnienia\UdostepnijPrzepis;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
@@ -35,11 +36,17 @@ class RecipeShareController extends Controller
         $this->authorize('manageShares', $recipe);
 
         $kandydat = null;
-        $nazwaKandydata = $request->session()->get('udostepnij_nazwa');
+        $potwierdzenie = $request->session()->get('udostepnij_potwierdzenie');
+        $danePotwierdzenia = is_string($potwierdzenie)
+            ? PotwierdzenieOdbiorcy::odczytaj($potwierdzenie, $request->user(), $recipe)
+            : null;
 
-        if (is_string($nazwaKandydata) && $request->user()->can('share', $recipe)) {
+        if ($danePotwierdzenia !== null && $request->user()->can('share', $recipe)) {
             try {
-                $kandydat = app(UdostepnijPrzepis::class)->odbiorca($request->user(), $recipe, $nazwaKandydata);
+                $kandydat = app(UdostepnijPrzepis::class)->odbiorca($request->user(), $recipe, $danePotwierdzenia['nazwa']);
+                if ((string) $kandydat->getKey() !== $danePotwierdzenia['odbiorca']) {
+                    $kandydat = null;
+                }
             } catch (BladDlaCzlowieka) {
                 // Stan zmienił się między krokami (blokada, kara) — formularz
                 // zostaje zwykłym pierwszym krokiem, bez potwierdzenia.
@@ -56,7 +63,7 @@ class RecipeShareController extends Controller
                 ->orderBy('id')
                 ->get(),
             'kandydat' => $kandydat,
-            'nazwaKandydata' => $kandydat !== null ? $nazwaKandydata : null,
+            'potwierdzenie' => $kandydat !== null ? $potwierdzenie : null,
             'limit' => (int) config('kuking.udostepnienia.max_osob'),
         ]);
     }
@@ -65,27 +72,35 @@ class RecipeShareController extends Controller
     {
         $this->authorize('share', $recipe);
 
-        $dane = $request->validate([
-            'nazwa' => ['required', 'string', 'max:60'],
-        ], [
-            'nazwa.required' => 'Wpisz nazwę konta osoby, której chcesz pokazać przepis — jest na jej profilu, po znaku @.',
-            'nazwa.max' => 'Nazwa konta jest krótsza. Sprawdź ją na profilu tej osoby i wpisz jeszcze raz.',
-        ]);
-
         $wroc = redirect()->route('recipes.shares.index', $recipe);
 
         if (! $request->boolean('potwierdzam')) {
+            $dane = $request->validate([
+                'nazwa' => ['required', 'string', 'max:60'],
+            ], [
+                'nazwa.required' => 'Wpisz nazwę konta osoby, której chcesz pokazać przepis — jest na jej profilu, po znaku @.',
+                'nazwa.max' => 'Nazwa konta jest krótsza. Sprawdź ją na profilu tej osoby i wpisz jeszcze raz.',
+            ]);
             try {
-                $akcja->odbiorca($request->user(), $recipe, $dane['nazwa']);
+                $odbiorca = $akcja->odbiorca($request->user(), $recipe, $dane['nazwa']);
             } catch (BladDlaCzlowieka $e) {
                 return $wroc->withInput()->withErrors(['nazwa' => $e->getMessage()]);
             }
 
-            return $wroc->with('udostepnij_nazwa', $dane['nazwa']);
+            return $wroc->with('udostepnij_potwierdzenie', PotwierdzenieOdbiorcy::wystaw($request->user(), $recipe, $odbiorca));
+        }
+
+        $token = $request->input('potwierdzenie');
+        $danePotwierdzenia = is_string($token) && strlen($token) <= 4096
+            ? PotwierdzenieOdbiorcy::odczytaj($token, $request->user(), $recipe)
+            : null;
+
+        if ($danePotwierdzenia === null) {
+            return $wroc->withErrors(['nazwa' => UdostepnijPrzepis::PONOW_POTWIERDZENIE]);
         }
 
         try {
-            [$udostepnienie, $nowe] = $akcja->poNazwie($request->user(), $recipe, $dane['nazwa']);
+            [$udostepnienie, $nowe] = $akcja->poPotwierdzeniu($request->user(), $recipe, $danePotwierdzenia['odbiorca'], $danePotwierdzenia['nazwa']);
         } catch (BladDlaCzlowieka $e) {
             return $wroc->withInput()->withErrors(['nazwa' => $e->getMessage()]);
         }

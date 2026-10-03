@@ -87,13 +87,21 @@ class UdostepnieniePrzepisuTest extends TestCase
         return route('recipes.shared.show', $przepis ?? $this->przepis);
     }
 
+    private function potwierdzenie(string $nazwa, ?Recipe $przepis = null): string
+    {
+        $przepis ??= $this->przepis;
+        $this->actingAs($this->halina)->post(route('recipes.shares.store', $przepis), ['nazwa' => $nazwa])->assertRedirect();
+        $token = session('udostepnij_potwierdzenie');
+        self::assertIsString($token);
+
+        return $token;
+    }
+
     // ── Droga przez formularz: dwa kroki, odbiorca i zakres przed zapisem ──
 
     public function test_autorka_widzi_odbiorce_przed_potwierdzeniem_i_dopiero_drugi_krok_zapisuje(): void
     {
-        $this->actingAs($this->halina)
-            ->post(route('recipes.shares.store', $this->przepis), ['nazwa' => '@jurek'])
-            ->assertRedirect(route('recipes.shares.index', $this->przepis));
+        $token = $this->potwierdzenie('@jurek');
 
         $this->assertSame(0, RecipeShare::query()->count(), 'Pierwszy krok nie może niczego zapisać.');
 
@@ -109,7 +117,7 @@ class UdostepnieniePrzepisuTest extends TestCase
             ->assertSee('Kto widzi ten przepis w serwisie: Tylko Ty.');
 
         $this->actingAs($this->halina)
-            ->post(route('recipes.shares.store', $this->przepis), ['nazwa' => '@jurek', 'potwierdzam' => '1'])
+            ->post(route('recipes.shares.store', $this->przepis), ['potwierdzenie' => $token, 'potwierdzam' => '1'])
             ->assertRedirect(route('recipes.shares.index', $this->przepis))
             ->assertSessionHas('status');
 
@@ -181,8 +189,9 @@ class UdostepnieniePrzepisuTest extends TestCase
         }
 
         // Kontrola dodatnia: ten sam formularz na przepisie „Tylko ja" przechodzi.
+        $token = $this->potwierdzenie('jurek');
         $this->actingAs($this->halina)
-            ->post(route('recipes.shares.store', $this->przepis), ['nazwa' => 'jurek', 'potwierdzam' => '1'])
+            ->post(route('recipes.shares.store', $this->przepis), ['potwierdzenie' => $token, 'potwierdzam' => '1'])
             ->assertRedirect();
         $this->assertSame(1, RecipeShare::query()->count());
         $this->actingAs($this->halina)->get(route('recipes.shares.index', $publiczny))
@@ -194,8 +203,9 @@ class UdostepnieniePrzepisuTest extends TestCase
         config(['kuking.udostepnienia.max_osob' => 1]);
         $this->udostepnij();
 
+        $token = $this->potwierdzenie('basia');
         $this->actingAs($this->halina)
-            ->post(route('recipes.shares.store', $this->przepis), ['nazwa' => 'basia', 'potwierdzam' => '1'])
+            ->post(route('recipes.shares.store', $this->przepis), ['potwierdzenie' => $token, 'potwierdzam' => '1'])
             ->assertSessionHasErrors(['nazwa' => UdostepnijPrzepis::PELNY]);
         $this->assertSame(1, RecipeShare::query()->count());
     }
@@ -330,8 +340,9 @@ class UdostepnieniePrzepisuTest extends TestCase
         Queue::fake();
         Http::fake();
 
+        $token = $this->potwierdzenie('jurek');
         $this->actingAs($this->halina)
-            ->post(route('recipes.shares.store', $this->przepis), ['nazwa' => 'jurek', 'potwierdzam' => '1'])
+            ->post(route('recipes.shares.store', $this->przepis), ['potwierdzenie' => $token, 'potwierdzam' => '1'])
             ->assertRedirect();
         $this->actingAs($this->jurek)->get($this->strona())->assertOk();
 
