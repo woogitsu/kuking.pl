@@ -28,8 +28,8 @@ use Illuminate\Support\Str;
  *   nie przełączeniem: dwa urządzenia klikające różne kroki nic sobie nie
  *   gubią, a na ten sam krok wygrywa ostatni zapis. Zapis odbywa się pod
  *   blokadą wiersza, więc równoległe żądania nie nadpisują sobie listy.
- * - `revision` rośnie o 1 przy KAŻDEJ zmianie i jest tym, co widzi drugie
- *   urządzenie, żeby zauważyć, że stan zmienił się bez niego. Zapis, który
+ * - `revision` rośnie o 1 przy KAŻDEJ zmianie; razem z UUID wiersza pozwala
+ *   drugiemu urządzeniu zauważyć także ponowne włączenie od rewizji 1. Zapis, który
  *   niczego nie zmienia (ten sam krok oznaczony drugi raz), rewizji nie
  *   podnosi.
  * - ID kroków, których przepis już nie ma (autor je usunął), nie wracają
@@ -131,13 +131,19 @@ class PostepGotowania
      *
      * @param  list<string>  $idKrokowPrzepisu
      */
-    public function ustaw(CookingProgress $postep, string $krokId, bool $zrobiono, array $idKrokowPrzepisu): ?CookingProgress
+    public function ustaw(CookingProgress $postep, string $krokId, bool $zrobiono, array $idKrokowPrzepisu, ?string $widzianyPostepId = null): ?CookingProgress
     {
-        return DB::transaction(function () use ($postep, $krokId, $zrobiono, $idKrokowPrzepisu): ?CookingProgress {
+        return DB::transaction(function () use ($postep, $krokId, $zrobiono, $idKrokowPrzepisu, $widzianyPostepId): ?CookingProgress {
             $wiersz = $this->zablokuj($postep);
 
             if ($wiersz === null) {
                 return null;
+            }
+
+            // Porównanie POD blokadą: wyłączenie i ponowne włączenie tworzy
+            // nowy UUID z tą samą rewizją 1. Dawna karta nie może go zmienić.
+            if ($widzianyPostepId !== null && $wiersz->getKey() !== $widzianyPostepId) {
+                throw new NieaktualnyPostepGotowania;
             }
 
             $ids = $this->zrobione($wiersz, $idKrokowPrzepisu);

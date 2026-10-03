@@ -60,6 +60,7 @@ use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\Alergeny\DeklaracjaAlergenow;
 use App\Domain\Recipes\Alergeny\OznaczAlergenyPrzepisu;
+use App\Domain\Recipes\Gotowanie\NieaktualnyPostepGotowania;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Gotowanie\Wspolne\PostepWspolnegoGotowania;
 use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
@@ -725,12 +726,17 @@ try {
         // test ma pęknąć, jeśli zniknie `lockForUpdate()` w `PostepGotowania`.
         'postep-ustaw' => (function () use ($argumenty): int {
             $postep = CookingProgress::query()->whereKey($argumenty['postep'])->firstOrFail();
-            $po = app(PostepGotowania::class)->ustaw(
-                $postep,
-                $argumenty['krok'],
-                true,
-                (array) json_decode($argumenty['kroki'], true),
-            );
+            try {
+                $po = app(PostepGotowania::class)->ustaw(
+                    $postep,
+                    $argumenty['krok'],
+                    true,
+                    (array) json_decode($argumenty['kroki'], true),
+                    $argumenty['widziany'] ?? null,
+                );
+            } catch (NieaktualnyPostepGotowania) {
+                return -2;
+            }
 
             return $po === null ? -1 : $po->revision;
         })(),

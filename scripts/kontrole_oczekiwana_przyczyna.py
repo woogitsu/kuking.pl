@@ -139,6 +139,7 @@ OCZEKUJ = {
     "Stary formularz przywraca porcje z innego urządzenia (#2502)": r'PORCJE_2502_STARY_FORMULARZ_NIE_PRZYWRACA',
     "Powrót porcji ABA przywraca stare odmierzenie (#2502)": r'PORCJE_2502_ABA_NIE_PRZYWRACA',
     "Stary formularz po ponownym włączeniu postępu (#2502)": r'PORCJE_2502_NOWY_POSTEP_NIE_PRZYWRACA',
+    "Stara karta zmienia nowy postęp (#2860)": r'POSTEP_2860_STARA_KARTA_NIE_COFA_KROKU',
     'Moje wpisy: stara strona udaje pusty dorobek (#2473)': r'MOJE_WPISY_2473_STARA_STRONA_WRACA',
     'Zapamiętane gotowanie: 500 ukrytych wypiera dostępne (#2439)': r'ZAPAMIETANE_2439_PIERWSZA_PO_500',
     'Moje wpisy: pusta porcja traci kontener (#2473)': r'MOJE_WPISY_2473_PUSTA_PORCJA_MA_LISTE',
