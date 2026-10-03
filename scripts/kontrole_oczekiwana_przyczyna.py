@@ -569,6 +569,7 @@ OCZEKUJ = {
     'Odtworzenie CSAM po pierwszym wymazaniu kont (#2708)': r'CSAM_PRZED_PIERWSZYM_WYMAZANIEM',
     'Odtworzenie nowych decyzji CSAM po ponownym wymazaniu (#2708)': r'CSAM_PRZED_PONOWNYM_WYMAZANIEM',
     'Zepsute kodowanie polskich liter w komunikacie Planera (paczka L)': r'Polskie litery zapisane w zepsutym kodowaniu.*PlanerController\.php',
+    'Ścisłe gotowanie przyjmuje ukrytą wersję (#2808)': r'GOTUJ_2808_UKRYTA_WERSJA',
 }
 
 

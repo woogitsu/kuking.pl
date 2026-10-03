@@ -6,8 +6,11 @@ namespace Tests\Feature;
 
 use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Domain\Recipes\Actions\SnapshotRecipeVersion;
+use App\Domain\Recipes\Gotowanie\WersjaWykonania;
+use App\Domain\Recipes\Historia\UkrywanieWersji;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\CookedEvent;
+use App\Models\Media;
 use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
@@ -15,6 +18,7 @@ use App\Models\RecipeStep;
 use App\Models\RecipeVersion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -260,5 +264,54 @@ final class GotowanieZWersjiWykonaniaTest extends TestCase
         } finally {
             $this->assertSame(0, CookedEvent::query()->where('note', 'Wyścig')->count(), 'GOTUJ_2491_ZAPIS_WERSJI: ścisła wersja ustąpiła dzisiejszej.');
         }
+    }
+
+    public function test_ukrycie_wersji_po_wstepnej_kontroli_odmawia_scislego_zapisu_bez_zdjecia_i_powiadomienia(): void
+    {
+        $this->assertSame($this->v1->getKey(), WersjaWykonania::dla($this->proba, $this->kucharz)?->getKey());
+        $zdjecie = Media::factory()->create(['owner_id' => $this->kucharz->getKey()]);
+        $przed = CookedEvent::query()->count();
+        $powiadomienia = Notification::query()->where('type', Notification::TYPE_COOKED)->count();
+
+        $this->assertSame(UkrywanieWersji::UKRYTO, app(UkrywanieWersji::class)->ukryj($this->autor, $this->przepis, 1));
+        $this->assertNotNull($this->v1->fresh()?->hidden_at);
+        $this->assertNull(WersjaWykonania::dla($this->proba, $this->kucharz));
+
+        try {
+            app(RecordCookedEvent::class)->handle(
+                cook: $this->kucharz, recipe: $this->przepis->fresh(), note: 'Po ukryciu',
+                mediaIds: [(string) $zdjecie->getKey()],
+                wersjaPrzepisuId: (string) $this->v1->getKey(), wersjaScisla: true,
+            );
+            $this->fail('GOTUJ_2808_UKRYTA_WERSJA: ukryta wersja nie może dostać nowego wykonania.');
+        } catch (BladDlaCzlowieka $e) {
+            $this->assertSame($przed, CookedEvent::query()->count(), 'GOTUJ_2808_UKRYTA_WERSJA: zapisano wykonanie ukrytej wersji.');
+            $this->assertSame($powiadomienia, Notification::query()->where('type', Notification::TYPE_COOKED)->count());
+            $this->assertSame(0, DB::table('cooked_event_media')->where('media_id', $zdjecie->getKey())->count());
+        }
+    }
+
+    public function test_autor_i_moderator_moga_scisle_zapisac_wlasne_wykonanie_z_ukryta_wersja(): void
+    {
+        $this->assertSame(UkrywanieWersji::UKRYTO, app(UkrywanieWersji::class)->ukryj($this->autor, $this->przepis, 1));
+
+        foreach ([$this->autor, $this->moderator()] as $widz) {
+            $wykonanie = app(RecordCookedEvent::class)->handle(
+                cook: $widz, recipe: $this->przepis->fresh(),
+                wersjaPrzepisuId: (string) $this->v1->getKey(), wersjaScisla: true,
+            );
+            $this->assertSame($this->v1->getKey(), $wykonanie->recipe_version_id);
+        }
+    }
+
+    public function test_zwykly_zapis_zachowuje_dotychczasowe_przypiecie_ukrytej_wersji(): void
+    {
+        $this->assertSame(UkrywanieWersji::UKRYTO, app(UkrywanieWersji::class)->ukryj($this->autor, $this->przepis, 1));
+
+        $wykonanie = app(RecordCookedEvent::class)->handle(
+            cook: $this->kucharz, recipe: $this->przepis->fresh(),
+            wersjaPrzepisuId: (string) $this->v1->getKey(),
+        );
+        $this->assertSame($this->v1->getKey(), $wykonanie->recipe_version_id);
     }
 }
