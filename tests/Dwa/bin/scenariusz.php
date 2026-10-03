@@ -1295,6 +1295,115 @@ try {
         // w ustawieniach albo reset linkiem. Bariera przyrządu staje zaraz
         // po zapisie `users.password` — w oknie, w którym stary kod miał
         // hasło już zatwierdzone, a zamówioną zmianę adresu jeszcze żywą.
+        'spoznione-2fa' => (function () use ($argumenty): array {
+            Http::fake(['api.pwnedpasswords.com/*' => Http::response('', 200)]);
+            Notification::fake();
+            app()->instance(Vite::class, new class extends Vite
+            {
+                public function __invoke($entrypoints, $buildDirectory = null): HtmlString
+                {
+                    return new HtmlString('');
+                }
+            });
+            $hasher = Hash::getFacadeRoot();
+            Hash::swap(new class($hasher, $argumenty['droga'] === 'wlacz') implements Hasher
+            {
+                private bool $zatrzymany = false;
+
+                public function __construct(private readonly HashManager $hasher, private readonly bool $poKodzie) {}
+
+                public function info($hashedValue): array
+                {
+                    return $this->hasher->info($hashedValue);
+                }
+
+                public function make(#[SensitiveParameter] $value, array $options = []): string
+                {
+                    if ($this->poKodzie && ! $this->zatrzymany) {
+                        $this->zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2861, 1)');
+                    }
+
+                    return $this->hasher->make($value, $options);
+                }
+
+                public function check(#[SensitiveParameter] $value, $hashedValue, array $options = []): bool
+                {
+                    $poprawne = $this->hasher->check($value, $hashedValue, $options);
+                    if (! $this->poKodzie && $poprawne && ! $this->zatrzymany) {
+                        $this->zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2861, 1)');
+                    }
+
+                    return $poprawne;
+                }
+
+                public function needsRehash($hashedValue, array $options = []): bool
+                {
+                    return $this->hasher->needsRehash($hashedValue, $options);
+                }
+
+                public function isHashed(#[SensitiveParameter] $value): bool
+                {
+                    return $this->hasher->isHashed($value);
+                }
+
+                public function verifyConfiguration($value): bool
+                {
+                    return $this->hasher->verifyConfiguration($value);
+                }
+            });
+
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            Auth::guard('web')->login($konto);
+            $pierwsze = Request::create(route('settings.security'), 'GET');
+            $pierwszaOdpowiedz = app(HttpKernel::class)->handle($pierwsze);
+            $cookie = collect($pierwszaOdpowiedz->headers->getCookies())
+                ->first(fn ($item): bool => $item->getName() === config('session.cookie'));
+            Auth::forgetGuards();
+            app('session')->forgetDrivers();
+            $dodatni = Request::create(route('settings.security'), 'GET', [], [
+                (string) config('session.cookie') => $cookie?->getValue() ?? '',
+            ]);
+            $dodatniaOdpowiedz = app(HttpKernel::class)->handle($dodatni);
+            $dodatnieCookie = collect($dodatniaOdpowiedz->headers->getCookies())
+                ->first(fn ($item): bool => $item->getName() === config('session.cookie'));
+            Auth::forgetGuards();
+            app('session')->forgetDrivers();
+
+            $wlacz = $argumenty['droga'] === 'wlacz';
+            $dane = $wlacz
+                ? ['password' => $argumenty['obecne'], 'code' => $argumenty['kod']]
+                : ['password' => $argumenty['obecne']];
+            $request = Request::create(
+                $wlacz ? route('settings.two_factor.confirm') : route('settings.two_factor.disable'),
+                'POST', $dane, [(string) config('session.cookie') => $dodatnieCookie?->getValue() ?? ''],
+            );
+            $odpowiedz = app(HttpKernel::class)->handle($request);
+            $stareDane = $request->session()->get('_old_input', []);
+            $cookieA = collect($odpowiedz->headers->getCookies())
+                ->first(fn ($item): bool => $item->getName() === config('session.cookie'));
+            Auth::forgetGuards();
+            app('session')->forgetDrivers();
+            $kolejne = Request::create(route('settings.security'), 'GET', [], [
+                (string) config('session.cookie') => $cookieA?->getValue() ?? '',
+            ]);
+            $kolejnaOdpowiedz = app(HttpKernel::class)->handle($kolejne);
+
+            return [
+                'pierwszy_status' => $pierwszaOdpowiedz->getStatusCode(),
+                'dodatni_status' => $dodatniaOdpowiedz->getStatusCode(),
+                'cookie_przed' => $cookie !== null && $cookie->getValue() !== '',
+                'cookie_a' => $cookieA !== null && $cookieA->getValue() !== '',
+                'status' => $odpowiedz->getStatusCode(),
+                'redirect' => $odpowiedz->headers->get('Location'),
+                'old' => $stareDane,
+                'kolejne_status' => $kolejnaOdpowiedz->getStatusCode(),
+                'kolejne_dokad' => $kolejnaOdpowiedz->headers->get('Location'),
+                'listy' => count(Notification::sentNotifications()),
+            ];
+        })(),
+
         'ustaw-haslo' => (function () use ($argumenty): array {
             Http::fake(['api.pwnedpasswords.com/*' => Http::response('', 200)]);
             DB::listen(static function (QueryExecuted $query): void {

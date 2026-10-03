@@ -35,6 +35,11 @@ class WlaczDwuetapowaTest extends TestCase
         return app(WlaczDwuetapowa::class);
     }
 
+    private function wlacz(User $konto, string $haslo, string $kod, ?string $ip): Wynik
+    {
+        return $this->akcja()->handle($konto, $haslo, $kod, $ip, (int) $konto->session_generation, 'testowa-sesja');
+    }
+
     /** @return array{0: User, 1: string} konto z niepotwierdzonym sekretem i aktualny kod */
     private function zaczete(): array
     {
@@ -55,7 +60,7 @@ class WlaczDwuetapowaTest extends TestCase
     {
         [$konto, $kod] = $this->zaczete();
 
-        $wynik = $this->akcja()->handle($konto, self::HASLO, $kod, '203.0.113.7');
+        $wynik = $this->wlacz($konto, self::HASLO, $kod, '203.0.113.7');
 
         $this->assertSame(Wynik::WLACZONO, $wynik->status);
         $this->assertCount(8, $wynik->kodyJawne);
@@ -69,7 +74,7 @@ class WlaczDwuetapowaTest extends TestCase
     {
         $konto = $this->user();
 
-        $wynik = $this->akcja()->handle($konto, self::HASLO, '123456', null);
+        $wynik = $this->wlacz($konto, self::HASLO, '123456', null);
 
         $this->assertSame(Wynik::BRAK_SEKRETU, $wynik->status);
         $this->assertSame([], $wynik->kodyJawne);
@@ -80,10 +85,10 @@ class WlaczDwuetapowaTest extends TestCase
     public function juz_wlaczona_2fa_nie_sprawdza_kodu_i_nie_wymienia_kompletu(): void
     {
         [$konto, $kod] = $this->zaczete();
-        $this->akcja()->handle($konto, self::HASLO, $kod, null);
+        $this->wlacz($konto, self::HASLO, $kod, null);
         $komplet = $konto->refresh()->getRawOriginal('two_factor_backup_codes');
 
-        $wynik = $this->akcja()->handle($konto, self::HASLO, '000000', null);
+        $wynik = $this->wlacz($konto, self::HASLO, '000000', null);
 
         $this->assertSame(Wynik::JUZ_WLACZONE, $wynik->status);
         $this->assertSame($komplet, $konto->refresh()->getRawOriginal('two_factor_backup_codes'));
@@ -95,14 +100,14 @@ class WlaczDwuetapowaTest extends TestCase
     {
         [$konto, $kod] = $this->zaczete();
 
-        $wynik = $this->akcja()->handle($konto, 'nie-to-haslo', $kod, null);
+        $wynik = $this->wlacz($konto, 'nie-to-haslo', $kod, null);
 
         $this->assertSame(Wynik::ZLE_HASLO, $wynik->status);
         $this->assertNull($konto->refresh()->two_factor_last_used_at, 'Kod nie mógł zostać zużyty.');
         $this->assertFalse($konto->hasTwoFactorConfirmed());
 
         // Ten sam kod z dobrym hasłem przechodzi — zła próba go nie spaliła.
-        $this->assertSame(Wynik::WLACZONO, $this->akcja()->handle($konto, self::HASLO, $kod, null)->status);
+        $this->assertSame(Wynik::WLACZONO, $this->wlacz($konto, self::HASLO, $kod, null)->status);
     }
 
     #[Test]
@@ -110,7 +115,7 @@ class WlaczDwuetapowaTest extends TestCase
     {
         [$konto] = $this->zaczete();
 
-        $wynik = $this->akcja()->handle($konto, self::HASLO, '000000', null);
+        $wynik = $this->wlacz($konto, self::HASLO, '000000', null);
 
         $this->assertSame(Wynik::ZLY_KOD, $wynik->status);
         $this->assertFalse($konto->refresh()->hasTwoFactorConfirmed());
@@ -134,7 +139,7 @@ class WlaczDwuetapowaTest extends TestCase
             }
         });
 
-        $wynik = $this->akcja()->handle($konto, self::HASLO, $kod, null);
+        $wynik = $this->wlacz($konto, self::HASLO, $kod, null);
 
         $this->assertSame(Wynik::PRZEGRANA_Z_DRUGA_KARTA, $wynik->status);
         $this->assertSame([], $wynik->kodyJawne);
@@ -153,7 +158,7 @@ class WlaczDwuetapowaTest extends TestCase
         $druga->confirmTwoFactor(['skrot-z-drugiej-karty']);
         $komplet = $druga->refresh()->getRawOriginal('two_factor_backup_codes');
 
-        $wynik = $this->akcja()->handle($konto, self::HASLO, $kod, null);
+        $wynik = $this->wlacz($konto, self::HASLO, $kod, null);
 
         $this->assertSame(Wynik::JUZ_WLACZONE, $wynik->status);
         $this->assertSame($komplet, $konto->refresh()->getRawOriginal('two_factor_backup_codes'));
@@ -176,7 +181,7 @@ class WlaczDwuetapowaTest extends TestCase
             }
         });
 
-        $this->akcja()->handle($konto, self::HASLO, $kod, null);
+        $this->wlacz($konto, self::HASLO, $kod, null);
 
         $this->assertSame('blokada_konta', $kolejnosc[0] ?? null);
         $this->assertLessThan(
