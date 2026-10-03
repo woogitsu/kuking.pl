@@ -23,7 +23,7 @@ use Illuminate\Support\Carbon;
  * @property ?string $source_url
  * @property ?string $tekst_zrodla
  * @property ?Carbon $sprawdzone_at
- * @property ?array{skladniki: int, kroki: int, obciete: list<string>} $pominiete liczby i nazwy pól, bez treści (#2521)
+ * @property ?array{skladniki: int, kroki: int, obciete: list<string>, ostrzezenia_parsera?: array{skladniki?: int, przygotowanie?: bool, gotowanie?: bool}} $pominiete liczby i nazwy pól, bez treści (#2521/#2546/#2548)
  */
 class PrzepisZImportu extends Model
 {

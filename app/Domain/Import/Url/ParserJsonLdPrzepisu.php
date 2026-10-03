@@ -116,7 +116,7 @@ final class ParserJsonLdPrzepisu
      */
     private function zWezla(array $wezel): ?OdczytanyPrzepis
     {
-        $skladniki = $this->listaTekstow($wezel['recipeIngredient'] ?? $wezel['ingredients'] ?? []);
+        [$skladniki, $nierozpoznaneSkladniki] = $this->listaTekstow($wezel['recipeIngredient'] ?? $wezel['ingredients'] ?? []);
         $kroki = $this->kroki($wezel['recipeInstructions'] ?? [], 0);
 
         if ($skladniki === [] && $kroki === []) {
@@ -124,30 +124,45 @@ final class ParserJsonLdPrzepisu
         }
 
         $tytul = self::tekst($wezel['name'] ?? $wezel['headline'] ?? '');
+        $czasPrzygotowania = $wezel['prepTime'] ?? null;
+        $czasGotowania = $wezel['cookTime'] ?? null;
+        $przygotowanieMinut = self::minuty($czasPrzygotowania);
+        $gotowanieMinut = self::minuty($czasGotowania);
+        $ostrzezenia = [];
+        if ($nierozpoznaneSkladniki > 0) {
+            $ostrzezenia['skladniki'] = $nierozpoznaneSkladniki;
+        }
+        if (self::odrzuconyCzas($czasPrzygotowania, $przygotowanieMinut)) {
+            $ostrzezenia['przygotowanie'] = true;
+        }
+        if (self::odrzuconyCzas($czasGotowania, $gotowanieMinut)) {
+            $ostrzezenia['gotowanie'] = true;
+        }
 
         return new OdczytanyPrzepis(
             tytul: $tytul !== '' ? $tytul : 'Przepis ze strony',
             opis: self::tekst($wezel['description'] ?? '') ?: null,
             porcje: self::porcje($wezel['recipeYield'] ?? null),
-            przygotowanieMinut: self::minuty($wezel['prepTime'] ?? null),
-            gotowanieMinut: self::minuty($wezel['cookTime'] ?? null),
+            przygotowanieMinut: $przygotowanieMinut,
+            gotowanieMinut: $gotowanieMinut,
             lacznieMinut: self::minuty($wezel['totalTime'] ?? null),
             skladniki: $skladniki,
             kroki: $kroki,
+            ostrzezeniaParsera: $ostrzezenia,
         );
     }
 
     /**
-     * @return list<string>
+     * @return array{0: list<string>, 1: int} teksty i liczba obiektów bez rozpoznanej treści
      */
     private function listaTekstow(mixed $wartosc): array
     {
         if (is_string($wartosc)) {
-            return self::wiersze($wartosc);
+            return [self::wiersze($wartosc), 0];
         }
 
         if (! is_array($wartosc)) {
-            return [];
+            return [[], $wartosc === null ? 0 : 1];
         }
 
         // Pojedynczy obiekt (np. jeden `PropertyValue`) to jedna pozycja, a nie
@@ -157,6 +172,7 @@ final class ParserJsonLdPrzepisu
         }
 
         $wynik = [];
+        $nierozpoznane = 0;
 
         foreach ($wartosc as $element) {
             if (is_array($element) && $this->jestTypem($element, 'PropertyValue')) {
@@ -164,23 +180,36 @@ final class ParserJsonLdPrzepisu
 
                 if ($tekst !== '') {
                     $wynik[] = $tekst;
+                } else {
+                    $nierozpoznane++;
                 }
             } elseif (is_string($element) || is_int($element) || is_float($element)) {
                 $tekst = self::tekst((string) $element);
 
                 if ($tekst !== '') {
                     $wynik[] = $tekst;
+                } else {
+                    $nierozpoznane++;
                 }
             } elseif (is_array($element) && isset($element['text']) && is_string($element['text'])) {
                 $tekst = self::tekst($element['text']);
 
                 if ($tekst !== '') {
                     $wynik[] = $tekst;
+                } else {
+                    $nierozpoznane++;
                 }
+            } elseif ($element !== null) {
+                $nierozpoznane++;
             }
         }
 
-        return $wynik;
+        return [$wynik, $nierozpoznane];
+    }
+
+    public static function odrzuconyCzas(mixed $wartosc, ?int $minuty): bool
+    {
+        return $minuty === null && $wartosc !== null && $wartosc !== '';
     }
 
     /**
@@ -209,6 +238,7 @@ final class ParserJsonLdPrzepisu
             is_string($wartosc) => self::tekst($wartosc),
             default => '',
         };
+        $nieznanaIlosc = $wartosc !== null && ! is_int($wartosc) && ! is_float($wartosc) && ! is_string($wartosc);
 
         if ($nazwa === '' && $ilosc === '') {
             return '';
@@ -216,7 +246,7 @@ final class ParserJsonLdPrzepisu
 
         // Jednostka bez ilości nic nie znaczy — nie dopisujemy jej do samej nazwy.
         if ($ilosc === '') {
-            return $nazwa;
+            return $nieznanaIlosc ? $nazwa.' — sprawdź ilość w źródle' : $nazwa;
         }
 
         $jednostka = self::tekst($wezel['unitText'] ?? '');

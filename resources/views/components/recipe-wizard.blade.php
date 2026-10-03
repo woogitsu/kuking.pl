@@ -1703,7 +1703,7 @@ new class extends Component
                         <input type="checkbox" wire:model="sprawdzilemOdczyt" id="f-sprawdzilem">
                         <span class="choice-label">Sprawdziłem odczytany tekst</span>
                     </label>
-                    <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem.@if($pominiete !== null) Wiem, że ten import jest niepełny — brakujące pozycje są dopisane albo świadomie ich nie dodaję.@endif</span>
+                    <span class="field-help">Zaznacz, gdy porównasz składniki i kroki ze źródłem.@if(\App\Domain\Import\PominieteWImporcie::zTablicy($pominiete)?->niepelny()) Wiem, że ten import jest niepełny — brakujące pozycje są dopisane albo świadomie ich nie dodaję.@elseif(\App\Domain\Import\PominieteWImporcie::zTablicy($pominiete)?->maOstrzezeniaParsera()) Wiem, że pola wskazane w ostrzeżeniu są sprawdzone i uzupełnione.@endif</span>
                 </div>
             @endif
 
