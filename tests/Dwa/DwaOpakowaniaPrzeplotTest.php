@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature;
+namespace Tests\Dwa;
 
 use App\Domain\Pantry\DrugieOpakowanieProduktu;
 use App\Domain\Pantry\Opakowanie;
@@ -10,25 +10,17 @@ use App\Domain\Pantry\ZmienTerminProduktu;
 use App\Models\PantryItem;
 use Illuminate\Database\Connection;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Group;
 
 /** Dwa rzeczywiste połączenia PG18 mierzą blokadę wiersza przy zamianie A na B (#2783). */
-final class DwaOpakowaniaPrzeplotTest extends TestCase
+#[Group('dwa-polaczenia')]
+final class DwaOpakowaniaPrzeplotTest extends TestDwochPolaczen
 {
-    use DatabaseMigrations;
-
-    private ?string $produktId = null;
-
     protected function tearDown(): void
     {
         try {
-            // Strażnik down() słusznie odmawia utraty UUID awansowanego B.
-            if ($this->produktId !== null) {
-                DB::connection('pgsql')->table('pantry_items')->where('id', $this->produktId)->delete();
-            }
             DB::disconnect('pantry_race_2');
         } finally {
             DB::setDefaultConnection('pgsql');
@@ -117,14 +109,14 @@ final class DwaOpakowaniaPrzeplotTest extends TestCase
 
     private function produktZDwomaOpakowaniami(): PantryItem
     {
-        $osoba = $this->user();
+        $osoba = $this->konto();
         $produkt = $osoba->pantryItems()->create(['name' => 'mleko']);
-        $this->produktId = (string) $produkt->getKey();
-        DB::table('pantry_items')->where('id', $this->produktId)->update([
+        $produktId = (string) $produkt->getKey();
+        DB::table('pantry_items')->where('id', $produktId)->update([
             'expires_on' => '2026-10-14', 'expiry_kind' => 'best_before', 'quantity_note' => '1 litr A',
         ]);
         DB::table('pantry_second_packages')->insert([
-            'pantry_item_id' => $this->produktId, 'expires_on' => '2026-10-20',
+            'pantry_item_id' => $produktId, 'expires_on' => '2026-10-20',
             'expiry_kind' => 'use_by', 'quantity_note' => '2 litry B', 'frozen' => false,
         ]);
 
@@ -136,6 +128,8 @@ final class DwaOpakowaniaPrzeplotTest extends TestCase
         config(['database.connections.pantry_race_2' => config('database.connections.pgsql')]);
         $drugie = DB::connection('pantry_race_2');
         $this->assertSame('pgsql', $drugie->getDriverName());
+        $drugie->statement("SET statement_timeout = '30s'");
+        $drugie->statement("SET idle_in_transaction_session_timeout = '30s'");
         $this->assertNotSame(
             DB::connection('pgsql')->selectOne('SELECT pg_backend_pid() AS pid')->pid,
             $drugie->selectOne('SELECT pg_backend_pid() AS pid')->pid,

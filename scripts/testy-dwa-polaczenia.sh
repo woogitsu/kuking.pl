@@ -94,6 +94,11 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna zamka pary #2404 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        # #2783: oba odczyty opakowań muszą czekać na blokadę produktu.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2783.py; then
+            printf "${CZERWONY}Kontrola ujemna przeplotów opakowań #2783 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2402.py; then
             printf "${CZERWONY}Kontrola ujemna atomowości importów #2402 nie przeszła.${RESET}\n" >&2
             exit 1

@@ -37,8 +37,6 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 OCZEKUJ = {
     'Spiżarnia: jedyne opakowanie bez odcisku (#2783)': r'ODCISK_2783_FORMULARZ',
     'Spiżarnia: identyczne B bez kontroli tożsamości (#2783)': r'ODCISK_2783_TOZSAMOSC',
-    'Spiżarnia: zapis A czyta przed blokadą awansu B (#2783)': r'ODCISK_2783_WYS_CZYTA_POD_BLOKADA',
-    'Spiżarnia: awans B czyta przed blokadą zapisu A (#2783)': r'ODCISK_2783_AWANS_CZYTA_POD_BLOKADA',
     'Niezmieniona kopia szkicu wychodzi do ludzi (#2507)': r'KOPIA_2507_PUBLIKACJA',
     'Kopia szkicu gubi podpis Mojej wersji (#2507)': r'KOPIA_2507_ATRYBUCJA',
     'Kopia szkicu przejmuje zdjęcia kroków (#2507)': r'KOPIA_2507_MEDIA',
