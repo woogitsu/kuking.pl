@@ -397,6 +397,63 @@ class UdostepnieniePrzepisuTest extends TestCase
         $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
     }
 
+    /** @return array<string, array{string}> */
+    public static function niedostepnePrzepisy(): array
+    {
+        return [
+            'ukryty przepis' => ['ukryty'],
+            'zawieszona autorka' => ['zawieszona'],
+        ];
+    }
+
+    #[DataProvider('niedostepnePrzepisy')]
+    public function test_odbiorca_rezygnuje_z_niedostepnego_przepisu_z_listy_bez_odczytu_tresci(string $stan): void
+    {
+        $ukryte = $this->udostepnij();
+        $dostepnyPrzepis = Recipe::factory()->create([
+            'author_id' => $this->basia->getKey(),
+            'visibility' => 'private',
+            'title' => 'Dostępny przepis Basi',
+        ]);
+        [$drugie] = app(UdostepnijPrzepis::class)->poNazwie($this->basia, $dostepnyPrzepis, 'jurek');
+
+        if ($stan === 'ukryty') {
+            $this->przepis->forceFill(['status' => Recipe::STATUS_HIDDEN])->save();
+        } else {
+            $this->halina->suspend(now()->addDays(3));
+        }
+
+        $adresListy = route('recipes.shared.index');
+        $adresRezygnacji = route('recipes.shared.leave', $ukryte);
+        $lista = $this->actingAs($this->jurek)->get($adresListy)->assertOk();
+        $this->assertStringContainsString('Udostępniony przepis jest teraz niedostępny', $lista->getContent(), 'UDOSTEPNIENIE_2859_ANONIMOWA_REZYGNACJA');
+        $lista->assertSee('Udostępniony przepis jest teraz niedostępny')
+            ->assertSee('Dostępny przepis Basi')
+            ->assertDontSee('Sernik babci Wandy')
+            ->assertDontSee('Halina')
+            ->assertDontSee($this->strona(), false)
+            ->assertSee('action="'.$adresRezygnacji.'"', false)
+            ->assertSee('name="_method" value="DELETE"', false)
+            ->assertSee('Zrezygnować z dostępu do tej pozycji?');
+        $this->assertDatabaseHas('recipe_shares', ['id' => $ukryte->getKey()]); // Zamknięcie <details> niczego nie usuwa.
+        $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
+        $this->actingAs($this->basia)->delete($adresRezygnacji)->assertForbidden();
+        $this->assertDatabaseHas('recipe_shares', ['id' => $ukryte->getKey()]);
+
+        // Między pokazaniem potwierdzenia a DELETE prawo czytania może wrócić.
+        if ($stan === 'ukryty') {
+            $this->przepis->forceFill(['status' => Recipe::STATUS_PUBLISHED])->save();
+        } else {
+            $this->travel(4)->days();
+        }
+
+        $this->actingAs($this->jurek)->delete($adresRezygnacji)->assertRedirect($adresListy);
+        $this->assertFalse(RecipeShare::query()->whereKey($ukryte->getKey())->exists(), 'UDOSTEPNIENIE_2859_REZYGNACJA_Z_NIEDOSTEPNEGO');
+        $this->assertDatabaseHas('recipe_shares', ['id' => $drugie->getKey()]);
+        $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
+        $this->actingAs($this->jurek)->get(route('recipes.shared.show', $dostepnyPrzepis))->assertOk();
+    }
+
     public function test_udostepnienie_innego_przepisu_pod_adresem_tego_to_404(): void
     {
         $inny = Recipe::factory()->create(['author_id' => $this->basia->getKey(), 'visibility' => 'private']);

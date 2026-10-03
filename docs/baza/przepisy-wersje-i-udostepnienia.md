@@ -163,6 +163,13 @@ przepisu KASUJĄ wiersz — nic nie może go po cichu przywrócić (odblokowanie
 zmiana widoczności). Zawieszenie, ban, zamykanie konta i ukrycie przepisu
 przez moderację wiersza nie kasują; dostęp wstrzymuje
 `RecipePolicy::readShared()`, która pyta bazę przy każdym żądaniu (bez cache).
+Lista odbiorcy zachowuje wtedy anonimowy wiersz grantu z potwierdzoną
+rezygnacją po jego `id` (#2859). Nie pokazuje tytułu, autora, zdjęcia,
+adresu przepisu ani powodu niedostępności. Strona czytania nadal odmawia.
+Każde potwierdzenie dotyczy jednego grantu; zmiana widoczności między
+wyświetleniem listy a wysłaniem formularza nie rozszerza zakresu usunięcia.
+Bez zmian schematu; wycofanie tej poprawki przywraca dawną listę, na której
+odbiorca nie mógł sam zrezygnować podczas czasowej niedostępności.
 
 `$fillable` modelu `RecipeShare` jest puste — klucze ustawia wyłącznie
 `UdostepnijPrzepis` (pod `ZamekPary`, potem blokada doradcza `2650` na przepis
