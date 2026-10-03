@@ -25,4 +25,16 @@ class ZakresCsamWInstrukcjiTest extends TestCase
         self::assertStringContainsString('`collection`', $instrukcja);
         self::assertStringContainsString('Próba na wdrożonym R2/CDN nadal nie została wykonana', $instrukcja);
     }
+
+    public function test_tabela_nie_opisuje_juz_starej_instrukcji_zglaszania(): void
+    {
+        $katalog = dirname(__DIR__, 2);
+        $instrukcja = (string) file_get_contents($katalog.'/docs/legal/MODERATION_PLAYBOOK.md');
+        $panel = (string) file_get_contents($katalog.'/resources/views/pages/admin/csam/_instrukcja.blade.php');
+
+        self::assertStringContainsString('Zawiadom bezpośrednio Policję albo prokuraturę, bez zbędnej zwłoki', $panel);
+        self::assertStringContainsString('Dyżurnet.pl</a>', $panel);
+        self::assertStringContainsString('każe zawiadomić bezpośrednio Policję albo prokuraturę bez zbędnej zwłoki', $instrukcja, 'CSAM_2708_TABELA_ZGODNA_Z_EKRANEM');
+        self::assertStringNotContainsString('nadal podaje stary porządek', $instrukcja);
+    }
 }

@@ -50,6 +50,7 @@ OCZEKUJ = {
     'Dołączenie zdjęcia przejmuje cudze albo cudzo-przypięte (#2500)': r'DOLACZENIE_2500_WLASNOSC_MEDIOW',
     'Rollback udostępnień przepisów kasuje bez pytania (#2650)': r'Rollback skasował udostępnienia bez pytania',
     'Instrukcja CSAM myli awatar i osobne zdjęcie z nieobsługiwanymi (#2708)': r'CSAM_2708_MEDIA_NIE_SA_POZA_ZAKRESEM',
+    'Tabela CSAM wraca do starej instrukcji zgłoszenia (#2708)': r'CSAM_2708_TABELA_ZGODNA_Z_EKRANEM',
     'Udostępnienie przechodzi na nowego właściciela nazwy (#2790)': r'ODBIORCA_2790_NIE_PRZECHODZI_NA_NOWE_KONTO',
     'Listy zakupów mieszają pozycje (#2528)': r'LISTY_2528_POZYCJE_NIE_MIESZAJA_SIE',
     'Cudza lista zakupów otwiera ekran i przyjmuje zapis (#2528)': r'LISTY_2528_CUDZA_LISTA_ODMOWA',

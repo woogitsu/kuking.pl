@@ -6,7 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
-- Doprecyzowane (#2708): instrukcja moderacji odróżnia obsługiwany awatar i osobne zdjęcie od „Ugotowałem” i zeszytu, które nadal nie mają akcji CSAM. Wskazuje też, gdzie w panelu dostępny jest przycisk dla zdjęcia oraz że próba na wdrożonym R2/CDN pozostaje do wykonania.
+- Doprecyzowane (#2708): instrukcja moderacji odróżnia obsługiwany awatar i osobne zdjęcie od „Ugotowałem” i zeszytu, które nadal nie mają akcji CSAM. Wskazuje też, gdzie w panelu dostępny jest przycisk dla zdjęcia, aktualną treść ekranu zgłoszenia do organów oraz że próba na wdrożonym R2/CDN pozostaje do wykonania.
 - Poprawione (#2790): potwierdzenie udostępnienia przepisu jest przypięte do konkretnej osoby i przepisu. Gdy ktoś zmieni nazwę konta między sprawdzeniem a zatwierdzeniem, formularz prosi o ponowne sprawdzenie odbiorcy zamiast przekazać dostęp osobie, która zajęła dawną nazwę.
 - Doprecyzowane (#2708, pyt. 6): wewnętrzny rejestr czynności osobno podaje wygaśnięcie postępu, dopisku i wspólnego gotowania po 24 godzinach oraz ZIP po przekroczeniu 2 godzin, a osobno ich fizyczne usunięcie przy nocnym sprzątaniu. Polityka prywatności i jej archiwum pozostają bez zmian; test zegara pilnuje dokładnej granicy wygaśnięcia.
 - Poprawione (#2708): instrukcja odtwarzania kopii wymaga ponownego zabezpieczenia decyzji CSAM i publicznych wariantów zdjęć przed wymazaniem kont oraz wznowieniem usług. Gdy nie da się potwierdzić spraw i ich zabezpieczenia, procedura zatrzymuje się zamiast uruchamiać ruch lub nocne retencje.
