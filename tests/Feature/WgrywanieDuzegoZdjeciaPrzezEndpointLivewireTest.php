@@ -53,7 +53,8 @@ class WgrywanieDuzegoZdjeciaPrzezEndpointLivewireTest extends TestCase
      */
     private function podpisanyAdresUploadu(): string
     {
-        return app(GenerateSignedUploadUrl::class)->forLocal();
+        // forLocal() nie ma stanu; jawny typ omija testową podmianę Livewire dotyczącą tylko forS3().
+        return (new GenerateSignedUploadUrl)->forLocal();
     }
 
     public function test_zdjecie_z_telefonu_13_mb_przechodzi_przez_prawdziwy_endpoint_livewire(): void

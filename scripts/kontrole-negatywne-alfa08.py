@@ -2829,6 +2829,13 @@ checks = [
      lambda s: replace_once(s,
          "            default => redirect()->route('planer.show')\n                ->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),\n        };\n    }\n\n    /**\n     * Ekran „Zmień tekst”",
          "            default => redirect()->route('planer.show')\n                ->with(Komunikat::blad('Tej pozycji ju\u00c5\u00bc nie ma w planie. Od\u00c5\u203awie\u00c5\u00bc stron\u00c4\u2122.')),\n        };\n    }\n\n    /**\n     * Ekran „Zmień tekst”")),
+    # #2808: ścisła wersja została ukryta po kontroli formularza. Nie może
+    # wrócić do zwykłego zapytania, które celowo zachowuje starą semantykę.
+    ("Ścisłe gotowanie przyjmuje ukrytą wersję (#2808)", "app/Domain/Recipes/Actions/RecordCookedEvent.php",
+     "test_ukrycie_wersji_po_wstepnej_kontroli_odmawia_scislego_zapisu_bez_zdjecia_i_powiadomienia",
+     lambda s: replace_once(s,
+         "? HistoriaWersji::zapytanie($recipe, HistoriaWersji::widziUkryte($cook, $recipe))",
+         "? HistoriaWersji::zapytanie($recipe, true)")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

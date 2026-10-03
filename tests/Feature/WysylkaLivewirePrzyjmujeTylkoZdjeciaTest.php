@@ -34,7 +34,7 @@ class WysylkaLivewirePrzyjmujeTylkoZdjeciaTest extends TestCase
     private function wyslij(UploadedFile $plik): TestResponse
     {
         // Skrypt Livewire wysyła plik przez XHR i czeka na JSON.
-        return $this->postJson(app(GenerateSignedUploadUrl::class)->forLocal(), ['files' => [$plik]]);
+        return $this->postJson((new GenerateSignedUploadUrl)->forLocal(), ['files' => [$plik]]);
     }
 
     public function test_zdjecie_przechodzi(): void
