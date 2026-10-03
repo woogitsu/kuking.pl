@@ -2,7 +2,7 @@
 
 ## Zakres i kolejność
 
-Paczka N powstaje na własnej gałęzi `codex/paczka-n-20261003`. Paczka M (#2793) została jawnie przekazana w komentarzu 5963674285 i scalona do C jako `2e55128e96c1802fb454a8905cef8799cacb3f71` po terminalnie zielonym pełnym CI `37080657954`; CI push C `37082918564` również zakończyło się sukcesem. Przed wydaniem M wymagana jest korekta `836918af6237123e3beb86498f804543544b8f99`: runbook CSAM, widoczność starszej wersji (#2808), odmowa kopiowania importu (#2800) i świeży stan konta podczas importu (#2815). N ma zostać wydana dopiero po odebraniu M; przed ostatecznym PR-em wymagane jest scalenie świeżej bazy oraz pełne CI końcowego heada.
+Paczka N powstaje na własnej gałęzi `codex/paczka-n-20261003`. Paczka M (#2793) została jawnie przekazana w komentarzu 5963674285 i scalona do C jako `2e55128e96c1802fb454a8905cef8799cacb3f71` po terminalnie zielonym pełnym CI `37080657954`; CI push C `37082918564` również zakończyło się sukcesem. Przed wydaniem M wymagana jest korekta `3195e275325ee13f71b7577425204403dd2920a8`: runbook CSAM, widoczność starszej wersji (#2808), odmowa kopiowania importu (#2800) i świeży stan konta podczas importu (#2815). N ma zostać wydana dopiero po odebraniu M; przed ostatecznym PR-em wymagane jest scalenie świeżej bazy oraz pełne CI końcowego heada.
 
 W lokalnym złożeniu są „Moje rozmowy” (#2432), zapamiętane gotowania (#2439), zakres zeszytów w „Co ugotuję” (#2591), dowód zabezpieczenia awatara i poprawna kolejność odtwarzania kopii (#2708), a także dwa projekty dokumentacyjne: dziennik decyzji CSAM i klucz dostępu (#2530). Projekty nie uruchamiają funkcji ani nowej infrastruktury. Kontrolę ujemną uprawnień dla #2784 właściciel zatwierdził osobno; została wykonana i odwrócona w izolowanej kopii.
 
@@ -48,3 +48,21 @@ Pierwszy normalny pre-push korekty M (`5986968d5`) odmówił wysłania: dwie nie
 - po odbiorze wydania M sprawdzić ponownie świeżą bazę i wymagane CI N;
 - zachować osobno otwarte kryteria pilota 50+, przeglądu prawnego i kroków panelowych;
 - oczekiwać potwierdzenia właściciela w #2025 w sprawie oczekiwania workera i harmonogramu na zielone CI.
+
+## Odbiór z 3 października, 02:55 UTC
+
+Złożenie `59e2141a1d411847c4d3002568f68e3233d4883e`: **337 testów / 4018 asercji PASS**, bez failures/errors/skips, pełny PHPStan 0. Po dołączeniu #2835 pełny PHPStan na `b98f5cfd7` także 0. Nie jest to pełna bramka końcowego heada ani odbiór produkcji.
+
+- #2783 `5faeb5e16` i dowód `ce1c2ad52`: tożsamość A/B, również przy identycznych polach. 103 / 636 PASS i dwie fizyczne mutacje. Pomiar dwóch sesji zgodny z D-105 (`tests/Dwa`): 2 / 33 PASS i dwa mutanty właściwych blokad. Sprawdza timeout na SELECT FOR UPDATE i ponowienie po zatwierdzeniu, nie zwolnienie tej samej czekającej komendy.
+- #2807 `e8bdbff09`: 11 / 76 PHP, 11 testów modułu i Chromium 1/1. Dodatkowy browser używa rzeczywistego HTML HTTP kernel Laravel podanego przez route.fulfill i produkcyjnego modułu, nie zdalnej produkcji. Fizyczne usunięcie UL oblało browser, restore bajtów/mtime dał PASS. W rejestrze CI jest osobna kontrola PHP; ręczna mutacja przeglądarkowa nie jest automatyczną kontrolą CI.
+- #2811 `da6e892c7`, migracja `c054b5cc8`: klucze ponowień pozostają po usunięciu zdjęcia, siódme nowe wysłanie działa, wymazanie usuwa prywatną historię. Raport wykonawcy: 17 / 100 HTTP, 1 / 13 Dwa i dodatkowe 5 / 58 oraz właściwe mutanty. Root odtworzył naruszenie §6 (3 PASS / 1 FAIL CHECK), po korekcie 11 / 76 PASS. CHECK jest NOT VALID i osobno walidowany poza transakcją; przerwane DDL można ponowić. Fizyczne wyłączenie odmowy rollbacku: 1 FAIL `DOLACZENIE_2811_ROLLBACK_ZACHOWUJE_KLUCZE`, dokładny restore i 1 PASS. Wstępna próba kotwicy odmówiła przed mutacją i nie jest zaliczoną kontrolą.
+- #2825 `3c1ce2b4c`: aktualne członkostwo i prawo odczytu pod blokadą. 32 / 194 PASS; pięć porażek właściwego markera po mutacji i przywrócenie. Niezależny review ACCEPT.
+- #2791 `bc55a3113`: zawieszenie przepuszcza tylko cofnięcie własnego dostępu; nowy grant i cudzy przepis odmawiają. 33 / 242 PASS; fizycznie 2 FAIL → restore → 2 PASS właściwego markera. Niezależny review ACCEPT.
+- #2827 `b85d89923`, fixture `2cda733ab`: zamknięcie details zatrzymuje mowę/timery/spóźnione wyniki bez utraty tekstu. 19 testów modułu; fizycznie 19 PASS → 1 FAIL właściwego markera → 19 PASS. Chromium 1/1 używa syntetycznego DOM i symulowanego SpeechRecognition, nie prawdziwego mikrofonu ani pełnego renderu Laravel. Charset fixture poprawiony po rzeczywistym błędzie kodowania.
+- #2826 `ca542ce00`, followup `34c75cb36`: oba znaczniki sprawdzane atomowo przed DELETE. Odtworzono również A → identyczne B → awans B; stary formularz odmawia. 56 / 357 Feature, 4 / 55 Dwa w obu kolejnościach, dwie właściwe mutacje i restore.
+- #2816 `1ca0fad9d`: Ułóż → Usuń → Odzyskaj zachowuje kolejność, dopiski, wydruk i eksport; starsze kopie pozostają zgodne. 24 / 120 PASS i dwie właściwe mutacje. Wymagany eager-load autora naprawia wyjątek rzeczywistego eksportu. Bez migracji/retencji/kosztu.
+- #2835 `0ee38b303`: nowe zaproszenie po nazwie lub linkiem ponawia Policy na świeżym koncie w kolejności konta → zeszyt. 34 / 205 Feature, 4 / 54 Dwa w obu kolejnościach; mutant oblał dokładnie dwie kolejności sankcja-pierwsza, restore bajtów/mtime i 4 PASS. Istniejący odczyt zawieszonej osoby pozostaje.
+
+Root `tests/skrypty/zakres.sh`: 43 przypadki tabeli, ścieżki bez listy, duży diff i kontrole ujemne wszystkich siedmiu wyjść PASS. Preflight kotwic jest wyłącznie odczytem. Pełne Windows check agentów nie są deklarowane jako zielone. Powyższe wyniki wykonawców odróżniono od pomiarów root i niezależnego review.
+
+N ma dwie nowe migracje: `first_package_id` (#2783) i `photo_submission_keys` (#2811), z wąską odmową rollbacku chroniącą zachowaną tożsamość/historię. Nie cofać produkcyjnej bazy automatycznie. CSAM/passkey, produkcyjne R2/CDN, prawo i pilot 50+ nadal mają otwarte kryteria. Kolejne poprawki trafiają do osobnych gałęzi po zamrożeniu N.

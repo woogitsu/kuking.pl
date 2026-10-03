@@ -1,6 +1,6 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
-## Aktualny odbiór Codex — 3.10.2026, 02:10 UTC
+## Aktualny odbiór Codex — 3.10.2026, 02:55 UTC
 
 Ten blok zastępuje stan operacyjny historycznego handoveru poniżej.
 AGENTS.md, aktualne decyzje D-333 i nowsze polecenia właściciela pozostają
@@ -18,17 +18,19 @@ bez wymaganej decyzji o ich partii ani nie zmieniamy kosztu bez zgody.
   `37082918564` zakończone SUCCESS. M nie jest jeszcze wydana na produkcję.
 - **Przed wydaniem M:** własna korekta
   `codex/m-odtwarzanie-csam-20261003`, head
-  `836918af6237123e3beb86498f804543544b8f99`. Zawiera kolejność odtworzenia
+  `3195e275325ee13f71b7577425204403dd2920a8`. Zawiera kolejność odtworzenia
   CSAM przed obiema operacjami ponownego wymazania, poprawiony test tej
   instrukcji, widoczność ścisłego zapisu wersji (#2808), blokadę kopiowania
   importowanego szkicu (#2800) i świeżą ocenę uprawnień importu (#2815).
-  Normalny pre-push na izolowanym Linux/PG18 trwa; nie ma jeszcze PR-a ani
-  dowodu pełnej zieleni. Nie zmieniać zamrożonej gałęzi podczas bramki.
+  Próba 836 odmówiła przy 13 864 zaliczonych i jednym niezaliczonym
+  teście UTF-8. Po korekcie podziału wierszy 9 / 106 PASS; nowy normalny
+  pre-push na izolowanym Linux/PG18 trwa. Nie ma jeszcze PR-a ani dowodu
+  pełnej zieleni. Nie zmieniać zamrożonej gałęzi podczas bramki.
 - **N przygotowana lokalnie**, własna `codex/paczka-n-20261003`. Zawiera
   źródłowe drafty N oraz poprawki prywatności, kursora, importu i retencji.
-  Połączony zestaw na złożeniu `330849933`: 179 testów / 1273 asercje PASS,
-  pełny PHPStan bez błędów. Późniejsze zmiany dokumentu nie są dowodem
-  normalnego pusha ani pełnego CI. Szczegółowe dowody i otwarte kryteria:
+  Połączony zestaw na złożeniu `59e2141a1`: 337 testów / 4018 asercji PASS,
+  pełny PHPStan bez błędów. Później dołączono #2835; pełny PHPStan złożenia
+  `b98f5cfd7` także bez błędów. To nie dowód normalnego pusha ani pełnego CI. Szczegółowe dowody i otwarte kryteria:
   [ODBIOR-N-CODEX-20261003.md](ODBIOR-N-CODEX-20261003.md).
 - **Kontrola ujemna #2784 ukończona za zgodą właściciela.** Fizyczna mutacja
   w izolowanej kopii oblała właściwym markerem; dokładne przywrócenie i
@@ -36,11 +38,18 @@ bez wymaganej decyzji o ich partii ani nie zmieniamy kosztu bez zgody.
   [komentarz #2784](https://github.com/woogitsu/kuking.pl/pull/2784#issuecomment-5963122000).
   Nie pytać o tę zgodę ponownie. #2424–#2426 zamknięte jako zastąpione
   dopiero po sprawdzeniu odebranego wydania V.
-- **Trzy rozłączne zakresy:** #2783 tożsamość opakowania i dowód dwóch
-  połączeń, #2811 ponowienie zdjęć (odbiór wykrył wadliwy limit sześciu
-  historycznych kluczy — do poprawy przed PR-em), #2807 pusta dalsza strona
-  powiadomień (przegląd zaakceptowany). Po #2811 agent wraca do #2825,
-  ujawnienia nazwy prywatnego zeszytu po odebraniu członkostwa.
+- **Do N przyjęte:** #2783 i #2826 — tożsamość opakowania chroni edycję
+  i stare potwierdzenie usunięcia, także po awansie identycznego B; #2811
+  klucze zdjęć bez limitu historii sześciu UUID, czyszczenie przy wymazaniu
+  i migracja zgodna z §6; #2807 pusta porcja powiadomień; #2825 świeże
+  członkostwo przy ponowieniu zaproszenia; #2791 cofnięcie dostępu podczas
+  zawieszenia; #2827 zatrzymanie dyktowania po zamknięciu odpowiedzi;
+  #2816 ręczny układ odzyskanego zeszytu; #2835 świeże prawo do zaproszenia.
+  Dowody i granice pomiarów są w dokumencie odbioru. Po zamrożeniu N nowe
+  poprawki idą do następnej paczki; nie zmieniamy heada podczas bramki.
+- **Trzy bieżące zakresy:** #2814 minutnik po powrocie z alarmu,
+  #2818 powrót po limicie zakupów i #2829 notatka na dalszej porcji
+  zeszytu. #2821 gotowa lokalnie, czeka na odbiór następnej paczki.
 - **Otwarte bramki:** #2025 panel Railway; #2708 prawnik, zewnętrzny
   dziennik, rzeczywisty odbiór R2/CDN i odtworzenia kopii; #2713 kroki
   właściciela. Zatwierdzenie partii nie zamyka testów z ludźmi 50+.
