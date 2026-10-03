@@ -1356,6 +1356,10 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ('Wycofana wskazówka podmienia tekst otwartej sprawy (#2884)',
+     'app/Domain/Recipes/Gotowanie/PolaKorekty.php',
+     'OchronaZgloszonejWskazowkiPrzyKorekcieTest::test_zgloszenie_wycofanie_i_pelna_korekta_nie_podmieniaja_uwagi_w_panelu',
+     lambda s: replace_once(s, 'if ($zgloszenieWskazowkiOtwarte) {', 'if (false) {')),
     ("Historia przepisu: błąd wyboru prowadzi do nieistniejącej sekcji (#2875)",
      "resources/views/pages/recipes/historia-poprawka.blade.php",
      "test_blad_pustego_wyboru_prowadzi_do_widocznej_grupy_gdy_dane_sa_bez_zmian",

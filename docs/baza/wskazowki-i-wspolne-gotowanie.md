@@ -115,6 +115,14 @@ brzegu. Opis okna: `docs/infra/CLOUDFLARE_CACHE_597_610.md`.
 
 **Zgłoszenie wskazówki (#2352, `reports.target_type = 'recipe_hint'`).**
 
+- *Ochrona tekstu (#2884):* wskazówka korzysta z `cooked_events.note`, więc
+  powiązana sprawa `open`, `triage` albo `reviewing` chroni tę uwagę również
+  po wycofaniu zgody i ukryciu moderacyjnym. `PolaKorekty` odczytuje świeży
+  stan przed zapisem korekty. Wycofanie nadal działa od razu; nie blokujemy
+  niezwiązanych `changes_note` ani `actual_minutes`. Formularz podaje ogólny
+  powód niedostępności uwagi bez szczegółów sprawy. Po zakończeniu sprawy
+  ta blokada znika; inne dotychczasowe blokady pozostają. Bez nowej kopii
+  tekstu, zmiany retencji ani schematu.
 - *Kto zgłasza* (`RecipeHintPolicy::report`): każdy, kto wskazówkę **widzi w
   sekcji przy przepisie** — gość przez logowanie (jak przy innych celach), obca
   osoba i autor przepisu. Wskazówka musi być `accepted`, nieukryta, przepis

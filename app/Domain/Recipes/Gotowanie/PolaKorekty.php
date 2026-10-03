@@ -29,6 +29,8 @@ use Illuminate\Database\Eloquent\Builder;
  *     który widział; poprawka w trakcie sprawy nadpisałaby dowód. Tekstów
  *     (uwaga, opis zmian) nie ruszamy do rozstrzygnięcia; czas jest liczbą
  *     poza zgłoszeniem, więc zostaje do poprawy.
+ *     Zgłoszenie powiązanej wskazówki chroni tylko wspólną uwagę (#2884),
+ *     także po wycofaniu zgody; nie dotyczy opisu zmian ani czasu.
  *
  * Zablokowane pole zostaje w bazie bez zmian, a formularz pokazuje jego
  * zapisaną treść i powód — nic nie znika po cichu.
@@ -42,6 +44,8 @@ final class PolaKorekty
 
     public const POWOD_ZGLOSZENIE = 'Ktoś zgłosił to wykonanie i moderacja jeszcze nie skończyła sprawy, więc tekstu na razie nie można zmienić. '
         .'Czas nadal możesz poprawić. Jeśli chcesz coś wyjaśnić, dopisz komentarz pod wykonaniem.';
+
+    public const POWOD_UWAGA_CHRONIONA = 'Tej uwagi nie można teraz zmienić. Czas i opis zmian nadal możesz poprawić.';
 
     /**
      * @return array<string, string> pole => powód, dla pól zablokowanych
@@ -74,6 +78,18 @@ final class PolaKorekty
         if ($zgloszenieOtwarte) {
             $zablokowane['note'] ??= self::POWOD_ZGLOSZENIE;
             $zablokowane['changes_note'] = self::POWOD_ZGLOSZENIE;
+        }
+
+        // Wskazówka nie ma kopii uwagi. Wycofanie zgody usuwa ją z przepisu,
+        // ale nie zmienia tekstu, który moderacja jeszcze musi rozpatrzyć.
+        $zgloszenieWskazowkiOtwarte = Report::query()
+            ->where('target_type', 'recipe_hint')
+            ->whereIn('target_id', RecipeHint::query()->select('id')->where('cooked_event_id', $wykonanie->getKey()))
+            ->whereIn('status', Report::STATUSY_OTWARTE)
+            ->exists();
+
+        if ($zgloszenieWskazowkiOtwarte) {
+            $zablokowane['note'] ??= self::POWOD_UWAGA_CHRONIONA;
         }
 
         return $zablokowane;
