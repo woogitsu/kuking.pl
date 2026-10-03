@@ -6,14 +6,19 @@ namespace App\Http\Controllers\Settings;
 
 use App\Domain\Users\Actions\CancelEmailChange;
 use App\Domain\Users\Actions\UstawNoweHaslo;
+use App\Domain\Users\Actions\WylogujInneSesje;
+use App\Domain\Users\Actions\ZmianaHaslaWymagaPonownegoLogowania;
 use App\Http\Controllers\Controller;
-use App\Models\AuditLogEntry;
 use App\Support\Komunikat;
+use App\Support\Sesja\GeneracjaSesji;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
+use LogicException;
 
 /**
  * Bezpieczeństwo konta — issue #12.
@@ -71,13 +76,19 @@ class SecuritySettingsController extends Controller
         // Zmiana hasła kasuje też zamówioną zmianę adresu (issue #195):
         // list ostrzegawczy mówi „jeśli to nie Ty — zmień hasło".
         // Uzasadnienie kolejności w `UstawNoweHaslo`.
-        $anulowanaZmianaAdresu = $ustaw->handle(
-            $user,
-            $data['password'],
-            CancelEmailChange::POWOD_ZMIANA_HASLA,
-            $request->ip(),
-            $request->session()->getId(),
-        );
+        try {
+            $anulowanaZmianaAdresu = $ustaw->handle(
+                $user,
+                $data['password'],
+                CancelEmailChange::POWOD_ZMIANA_HASLA,
+                $request->ip(),
+                $request->session()->getId(),
+                obecneHaslo: $data['current_password'],
+                generacjaSesji: (int) $request->session()->get(GeneracjaSesji::KLUCZ, 0),
+            );
+        } catch (ZmianaHaslaWymagaPonownegoLogowania $e) {
+            return $this->odmowStarejSesji($request, $e);
+        }
 
         // Nowy identyfikator bieżącej sesji po zmianie hasła. Gdyby stary
         // znał ktoś obcy, sam wyjątek dla bieżącej sesji zostawiłby go na
@@ -91,7 +102,7 @@ class SecuritySettingsController extends Controller
         ));
     }
 
-    public function logoutOtherSessions(Request $request): RedirectResponse
+    public function logoutOtherSessions(Request $request, WylogujInneSesje $wyloguj): RedirectResponse
     {
         $request->merge(['_wiersz' => 'wyloguj']);
 
@@ -108,11 +119,33 @@ class SecuritySettingsController extends Controller
                 ->withInput(['_wiersz' => 'wyloguj']);
         }
 
-        $user->invalidateSessions($request->session()->getId());
-
-        AuditLogEntry::record('account.sessions_logged_out_others', $user, $user, ip: $request->ip());
+        try {
+            $wyloguj->handle(
+                $user,
+                $data['password'],
+                (int) $request->session()->get(GeneracjaSesji::KLUCZ, 0),
+                $request->session()->getId(),
+                $request->ip(),
+            );
+        } catch (ZmianaHaslaWymagaPonownegoLogowania $e) {
+            return $this->odmowStarejSesji($request, $e);
+        }
 
         return back()->with(Komunikat::sukces('Gotowe. Wylogowaliśmy wszystkie inne urządzenia zalogowane na to konto. Ten komputer/telefon zostaje zalogowany.',
         ));
+    }
+
+    private function odmowStarejSesji(Request $request, ZmianaHaslaWymagaPonownegoLogowania $e): RedirectResponse
+    {
+        $guard = Auth::guard('web');
+        if (! $guard instanceof SessionGuard) {
+            throw new LogicException('Web guard musi obsługiwać wylogowanie bieżącego urządzenia.');
+        }
+
+        $guard->logoutCurrentDevice();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login')->withErrors(['login' => $e->getMessage()]);
     }
 }

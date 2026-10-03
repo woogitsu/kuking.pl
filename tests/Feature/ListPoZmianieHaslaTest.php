@@ -43,6 +43,17 @@ class ListPoZmianieHaslaTest extends TestCase
         ])->assertRedirect();
     }
 
+    private function zmienAkcja(User $user): void
+    {
+        app(UstawNoweHaslo::class)->handle(
+            $user,
+            self::NOWE_HASLO,
+            CancelEmailChange::POWOD_ZMIANA_HASLA,
+            obecneHaslo: 'haslo-testowe-123',
+            generacjaSesji: (int) $user->session_generation,
+        );
+    }
+
     private function listyDo(string $adres): int
     {
         $n = 0;
@@ -145,7 +156,7 @@ class ListPoZmianieHaslaTest extends TestCase
         });
 
         try {
-            app(UstawNoweHaslo::class)->handle($basia, self::NOWE_HASLO, CancelEmailChange::POWOD_ZMIANA_HASLA);
+            $this->zmienAkcja($basia);
             $this->fail('Wstrzyknięta awaria nie dotarła do akcji — test niczego by nie mierzył.');
         } catch (RuntimeException $e) {
             $this->assertSame('Awaria wstrzyknięta przez test #2565.', $e->getMessage());
@@ -163,7 +174,7 @@ class ListPoZmianieHaslaTest extends TestCase
 
         try {
             DB::transaction(function () use ($basia): void {
-                app(UstawNoweHaslo::class)->handle($basia, self::NOWE_HASLO, CancelEmailChange::POWOD_ZMIANA_HASLA);
+                $this->zmienAkcja($basia);
 
                 throw new RuntimeException('Wycofanie wywołane przez test #2565.');
             });
@@ -201,7 +212,7 @@ class ListPoZmianieHaslaTest extends TestCase
         $basia = $this->user('basia', ['email' => 'basia@example.test']);
         $basia->forceFill(['status' => User::STATUS_ERASED, 'data_erased_at' => now()])->save();
 
-        app(UstawNoweHaslo::class)->handle($basia, self::NOWE_HASLO, CancelEmailChange::POWOD_ZMIANA_HASLA);
+        $this->zmienAkcja($basia);
 
         Notification::assertNothingSent();
     }
@@ -212,7 +223,7 @@ class ListPoZmianieHaslaTest extends TestCase
         $basia = $this->user('basia', ['email' => 'basia@example.test']);
         $basia->forceFill(['status' => User::STATUS_BANNED])->save();
 
-        app(UstawNoweHaslo::class)->handle($basia, self::NOWE_HASLO, CancelEmailChange::POWOD_ZMIANA_HASLA);
+        $this->zmienAkcja($basia);
 
         Notification::assertSentOnDemandTimes(PotwierdzenieZmianyHasla::class, 1);
     }
@@ -222,7 +233,7 @@ class ListPoZmianieHaslaTest extends TestCase
         Notification::fake();
         $basia = $this->user('basia', ['email' => 'basia@example.test', 'email_verified_at' => null]);
 
-        app(UstawNoweHaslo::class)->handle($basia, self::NOWE_HASLO, CancelEmailChange::POWOD_ZMIANA_HASLA);
+        $this->zmienAkcja($basia);
 
         Notification::assertNothingSent();
     }

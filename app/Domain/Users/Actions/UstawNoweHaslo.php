@@ -72,7 +72,10 @@ use Throwable;
  */
 final class UstawNoweHaslo
 {
-    public function __construct(private readonly CancelEmailChange $anuluj) {}
+    public function __construct(
+        private readonly CancelEmailChange $anuluj,
+        private readonly PotwierdzSesjePrzedZmianaBezpieczenstwa $potwierdzSesje,
+    ) {}
 
     /**
      * @param  string  $powod  `CancelEmailChange::POWOD_ZMIANA_HASLA` albo `POWOD_RESET_HASLA`
@@ -80,6 +83,8 @@ final class UstawNoweHaslo
      *                                      zmianę; `null` kasuje wszystkie (reset)
      * @param  string|null  $tokenResetu  token z linku — wymagany przy resecie,
      *                                    sprawdzany ponownie pod blokadą (#2055)
+     * @param  string|null  $obecneHaslo  tylko ustawienia: poświadczenie sprawdzane ponownie pod blokadą (#2851)
+     * @param  int|null  $generacjaSesji  tylko ustawienia: generacja uwierzytelnionej sesji z początku żądania
      * @return bool czy anulowaliśmy przy tym zamówioną zmianę adresu
      *
      * @throws BladDlaCzlowieka gdy konta już nie ma
@@ -92,6 +97,8 @@ final class UstawNoweHaslo
         ?string $ip = null,
         ?string $zachowajSesje = null,
         #[\SensitiveParameter] ?string $tokenResetu = null,
+        #[\SensitiveParameter] ?string $obecneHaslo = null,
+        ?int $generacjaSesji = null,
     ): bool {
         $zdarzenie = match ($powod) {
             CancelEmailChange::POWOD_ZMIANA_HASLA => 'account.password_changed',
@@ -105,7 +112,11 @@ final class UstawNoweHaslo
             throw new InvalidArgumentException('Reset hasła wymaga tokenu z linku.');
         }
 
-        return ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $haslo, $powod, $ip, $zachowajSesje, $zdarzenie, $tokenResetu): bool {
+        if ($powod === CancelEmailChange::POWOD_ZMIANA_HASLA && ($obecneHaslo === null || $generacjaSesji === null)) {
+            throw new InvalidArgumentException('Zmiana hasła w ustawieniach wymaga obecnego hasła i generacji sesji.');
+        }
+
+        return ZamekKonta::zablokuj($user, function (?User $swiezy) use ($user, $haslo, $powod, $ip, $zachowajSesje, $zdarzenie, $tokenResetu, $obecneHaslo, $generacjaSesji): bool {
             if ($swiezy === null) {
                 throw new BladDlaCzlowieka('Tego konta już nie ma, więc nie ustawiliśmy nowego hasła.');
             }
@@ -117,6 +128,13 @@ final class UstawNoweHaslo
             // nie zmienia.
             if ($tokenResetu !== null && ! Password::tokenExists($swiezy, $tokenResetu)) {
                 throw new LinkResetuNieaktualny;
+            }
+
+            // Wstępne sprawdzenie formularza mogło wyprzedzić reset albo
+            // zmianę hasła z drugiej sesji. Obie rzeczy muszą nadal pasować
+            // do ŚWIEŻEGO konta pod tą samą blokadą, zanim cokolwiek zapiszemy.
+            if ($powod === CancelEmailChange::POWOD_ZMIANA_HASLA) {
+                $this->potwierdzSesje->sprawdz($swiezy, (string) $obecneHaslo, (int) $generacjaSesji);
             }
 
             // Jedna nazwana droga do hasła — `password` jest poza `$fillable`.
