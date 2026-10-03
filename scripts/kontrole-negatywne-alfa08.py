@@ -1355,6 +1355,9 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Pełny limit chowa nazwę nowej listy (#2821)", "resources/views/pages/zakupy/index.blade.php",
+     "test_limit_z_drugiej_karty_zostawia_nazwe_pole_i_zywy_odnosnik_bledu",
+     lambda s: replace_once(s, "@if($mozeDodacListe || $blad_nazwy)", "@if($mozeDodacListe)")),
     ("Ponowienie zaproszenia ujawnia nazwę po odebraniu dostępu (#2825)", "app/Domain/Collections/Wspoldzielenie/OdpowiedzNaZaproszenie.php",
      "test_ponowienie_przyjetego_zaproszenia_bez_aktualnego_dostepu_nie_zdradza_nowej_nazwy",
      lambda s: replace_once(s, "if ($zeszyt->owner_id !== $swiezyWlasciciel->getKey()\n                    || ! $zeszyt->maCzlonka($swiezaOsoba)\n                    || ! (new CollectionPolicy)->view($swiezaOsoba, $zeszyt)) {", "if (false) {")),
