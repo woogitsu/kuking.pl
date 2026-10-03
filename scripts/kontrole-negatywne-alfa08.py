@@ -1525,6 +1525,11 @@ checks = [
     ("Wspólna sesja traci zdjęcie kroku (#2486)", "resources/views/pages/wspolne-gotowanie/show.blade.php",
      "test_zamienniki_i_zdjecia_sa_przy_wlasciwych_elementach_dla_obu_rol",
      lambda s: replace_once(s, '@if($krok->media)', '@if(false)')),
+    ("Link oferuje dołączenie mimo blokady pomocnika (#2787)", "app/Http/Controllers/WspolneGotowanieController.php",
+     "WspolneGotowanieWieluPomocnikowTest::test_link_nie_oferuje_dolaczenia_przy_istniejacej_blokadzie_z_pomocnikiem_w_obie_strony",
+     lambda s: replace_once(s,
+         "$moze = $pomocnicy->count() < $maxPomocnikow\n                && ! $this->zaproszenia->maBlokadeZPomocnikiem($osoba, $pomocnicy);",
+         "$moze = $pomocnicy->count() < $maxPomocnikow;")),
     # #2449: osobno wykrycie jawnej zmiany i odmowa zgadywania starego wyboru.
     ("Historia ignoruje wybór Bez ilości (#2449)", "app/Domain/Recipes/Historia/PorownanieWersji.php",
      "test_jawna_zmiana_bez_ilosci_w_obie_strony_jest_widoczna_bez_zmiany_tekstu_autora",

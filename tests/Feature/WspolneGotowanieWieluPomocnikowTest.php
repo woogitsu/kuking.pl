@@ -250,6 +250,52 @@ class WspolneGotowanieWieluPomocnikowTest extends TestCase
         $this->assertStringNotContainsString('zablok', mb_strtolower((string) $zBlokada->getContent()));
     }
 
+    public function test_link_nie_oferuje_dolaczenia_przy_istniejacej_blokadzie_z_pomocnikiem_w_obie_strony(): void
+    {
+        foreach (['obecny-blokuje-nowego', 'nowy-blokuje-obecnego'] as $kierunek) {
+            [$gospodarz, $sesja] = $this->sesjaGospodarza();
+            $obecny = $this->dolacz($gospodarz, $sesja, 'Obecny');
+            $token = $this->token($gospodarz, $sesja);
+            $nowy = $this->user('nowy'.substr(md5($kierunek), 0, 8), ['display_name' => 'Nowy']);
+
+            $kierunek === 'obecny-blokuje-nowego'
+                ? app(BlockUser::class)->handle($obecny, $nowy)
+                : app(BlockUser::class)->handle($nowy, $obecny);
+
+            $odmowa = $this->actingAs($nowy)->get(route('wspolne-gotowanie.link.show', $token));
+            $this->assertSame(410, $odmowa->getStatusCode(), 'WSPOLNE_2787_GET_BEZ_OFERTY: blokada obecnego pomocnika nie może pokazywać przycisku „Dołączam”.');
+            $tresc = $this->trescEkranu((string) $odmowa->getContent());
+            $this->assertStringContainsString(e(ZaproszenieDoGotowania::NIEAKTUALNE), $tresc);
+            $this->assertStringNotContainsString('Dołączam', $tresc);
+            $this->assertStringNotContainsString('Obecny', $tresc);
+            $this->assertStringNotContainsString('zablok', mb_strtolower($tresc));
+            $this->actingAs($nowy)->post(route('wspolne-gotowanie.link.accept', $token))->assertStatus(410);
+            $this->assertSame([(string) $obecny->getKey()], $this->idPomocnikow($sesja));
+
+            // Blokada nadal istnieje, ale po wyjściu jej strony z sesji nie
+            // wyklucza już kandydata. Ten sam ważny link znowu działa.
+            $this->actingAs($obecny)->delete(route('wspolne-gotowanie.leave', $sesja))->assertRedirect();
+            $zaproszenie = $this->actingAs($nowy)->get(route('wspolne-gotowanie.link.show', $token))->assertOk();
+            $this->assertStringContainsString('Dołączam', $this->trescEkranu((string) $zaproszenie->getContent()));
+            $this->actingAs($nowy)->post(route('wspolne-gotowanie.link.accept', $token))
+                ->assertRedirect(route('wspolne-gotowanie.show', $sesja));
+        }
+    }
+
+    public function test_link_pokazany_przed_nowa_blokada_nie_omija_swiezej_kontroli_przy_dolaczeniu(): void
+    {
+        [$gospodarz, $sesja] = $this->sesjaGospodarza();
+        $obecny = $this->dolacz($gospodarz, $sesja, 'Obecny');
+        $token = $this->token($gospodarz, $sesja);
+        $nowy = $this->user('nowypootwarciu');
+
+        $this->actingAs($nowy)->get(route('wspolne-gotowanie.link.show', $token))->assertOk()
+            ->assertSee('Dołączam');
+        app(BlockUser::class)->handle($obecny, $nowy);
+        $this->actingAs($nowy)->post(route('wspolne-gotowanie.link.accept', $token))->assertStatus(410);
+        $this->assertSame([(string) $obecny->getKey()], $this->idPomocnikow($sesja));
+    }
+
     public function test_blokada_w_trakcie_miedzy_pomocnikami_usuwa_zablokowanego_a_blokujacy_i_reszta_zostaja(): void
     {
         [$gospodarz, $sesja, $kroki] = $this->sesjaGospodarza();

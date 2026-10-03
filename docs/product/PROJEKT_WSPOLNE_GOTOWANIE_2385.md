@@ -103,6 +103,11 @@ blokady między pomocnikami, widok i eksport dla wielu osób).
   „Nie możesz dołączyć do tej sesji. Poproś gospodarza o nowy link.” — to samo
   zdanie dla tokenu nieznanego, wygasłego, odwołanego, przy komplecie osób i dla braku
   dostępu do przepisu (adres nie jest wyrocznią).
+- Podgląd linku nie pokazuje „Dołączam”, gdy już istnieje blokada z którymś
+  obecnym pomocnikiem, nawet jeśli jest wolne miejsce. Stosuje tę samą regułę
+  co zapis, bez podawania tożsamości ani powodu odmowy. Gdy pomocnik odejdzie,
+  sam fakt dawnej blokady nie zamyka ważnego linku. POST zawsze ponawia kontrolę
+  na świeżym stanie pod blokadą sesji, bo warunki mogły się zmienić po GET.
 - Limit żądań: istniejący `zaproszenia` (20/10 min) dla tras zaproszeń,
   `cooking_krok` (60/min) dla odhaczeń i odczytu stanu. Nowych kluczy limitów
   nie dokładamy.

@@ -6,6 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2787): link do wspólnego gotowania nie pokazuje przycisku „Dołączam” osobie, której istniejąca blokada z pomocnikiem i tak uniemożliwiłaby dołączenie. Odmowa nie wskazuje osoby ani powodu.
 - Poprawione (#2847): paczka danych pokazuje nazwy list zakupów i ich pozycje z jednej chwili. Przemianowanie listy podczas przygotowywania paczki nie przypisuje pozycji innej liście o dawnej nazwie.
 - Poprawione (#2872): po odmowie usunięcia listy zakupów podsumowanie prowadzi do otwartego pytania o właściwą listę, pokazuje aktualną liczbę pozycji i komunikat przy potwierdzeniu.
 
