@@ -47,6 +47,7 @@ OCZEKUJ = {
     'Podsumowanie Bez składnika prowadzi do nieistniejącego pola (#2842)': r'BEZ_SKLADNIKA_2842_CEL',
     'Limit przepisu gubi wybraną listę zakupów (#2818)': r'LISTY_2818_WRACA_NA_WYBRANA',
     'Anonimowy licznik omija sprzeciw wobec statystyk (#2837)': r'SPRZECIW_2837_ANI_ANONIMOWO',
+    'Dokumentacja bazy wraca do martwej lokalnej kotwicy': r'BAZA_KOTWICA_20261003',
     'Kopia odzyskania gubi ręczną kolejność (#2816)': r'ODZYSKANIE_2816_RECZNA_KOLEJNOSC',
     'Odtworzenie zeszytu gubi ręczną kolejność (#2816)': r'ODZYSKANIE_2816_RECZNA_KOLEJNOSC',
     'Pełny limit chowa nazwę nowej listy (#2821)': r'LISTY_2821_ZYWE_POLE',

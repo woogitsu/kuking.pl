@@ -1,6 +1,6 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
-## Aktualny odbiór Codex — 3.10.2026, 03:43 UTC
+## Aktualny odbiór Codex — 3.10.2026, 04:14 UTC
 
 Ten blok zastępuje stan operacyjny historycznego handoveru poniżej.
 Obowiązują aktualne AGENTS.md, decyzje D-333 i nowsze polecenia właściciela.
@@ -49,11 +49,18 @@ nowe funkcje i koszt zachowują osobne decyzje.
   Pomiary wcześniejszych złożeń: 43 / 1952 i 73 / 2122 PASS,
   pełny PHPStan 0. Poszczególne poprawki mają fizyczne kontrole ujemne;
   zdjęcie obejrzane w rzeczywistym Chrome 320 px / tekst 200%.
+  Dalsze złożenie `579da5999`: 58 / 2000 PASS, bazowy Planer 11/11;
+  przyjęto też naprawę kotwicy `3caab9c67` po fizycznej kontroli ujemnej.
   To nie dowód pełnej bramki końcowego O, CI ani produkcji.
 - **Praca agentów do P:** #2806 powrót listy i pól po błędzie spiżarni,
   #2842 podsumowanie filtra „Bez składnika”, #2846 podsumowanie
   wyszukiwania w Planerze. Zakresy rozłączne, własne worktree/PG18;
   sesja robocza nie tworzy PR i nie pushuje na gałęzie koordynatora.
+  Root złożył też #2822 oraz #2850; pełna klasa #2850 na Windows
+  ma starą porażkę także na oryginalnym widoku, Linux rozstrzygnie.
+- **Nowe P1 #2851:** osobna gałąź od main b913, naprawa spóźnionej
+  zmiany hasła i testy realnego przeplotu. Drugi agent niezależnie
+  sprawdza kontrakt resetu/generacji, trzeci kończy #2839.
 - **#2784 kontrola ujemna wykonana za zgodą właściciela:** mutant
   właściwie FAIL, bytes/mtime restore, 17 / 91 PASS. Dowód:
   [komentarz #2784](https://github.com/woogitsu/kuking.pl/pull/2784#issuecomment-5963122000).

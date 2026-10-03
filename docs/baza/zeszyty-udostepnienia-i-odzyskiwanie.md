@@ -49,7 +49,7 @@ w zeszycie stoją także wpisy. Zastępują go **dwa indeksy częściowe**,
 `collection_items_recipe_unique` i `collection_items_post_unique`, i pilnują
 dokładnie tego samego: ta sama pozycja nie stanie w tym samym zeszycie dwa
 razy (issue #43). Pełny opis razem z CHECK-iem stoi wyżej, w sekcji
-[`collection_items — przepisy ORAZ wpisy`](#collection_items--przepisy-oraz-wpisy).
+[`collection_items — przepisy ORAZ wpisy`](ugotowalem-komentarze-zeszyty.md#collection_items--przepisy-oraz-wpisy).
 
 > **Nie przywracaj tu klucza głównego.** Wpisanie z powrotem
 > `PRIMARY KEY (collection_id, recipe_id)` wymaga `recipe_id NOT NULL`, czyli

@@ -115,3 +115,29 @@ terminalne CI push main, SUCCESS wszystkich trzech usług Railway,
 zgodny produkcyjny `/wydanie` oraz `/health` 200. Dopiero potem zamknięcia
 zastąpionych PR i issues z pełnymi kryteriami. #2025, #2708, #2713
 i pilot z ludźmi 50+ zachowują osobne otwarte czynności.
+
+## Dalszy pomiar 579 i sprawdzenie kotwic
+
+Na `579da599924f011ae15d811ff5dfcf551a906891` w tej samej izolowanej
+kopii Linux/PG18: 58 testów / 2000 asercji PASS, bez failures/errors/skips.
+Obejmuje KorektaWykonania, zdjęcia kolejki, całą bazową klasę Planera
+(11/11), indeks i schemat dokumentacji oraz strażnik mutacji. Mechanizm
+JUnit #2815: siedem testów PASS. Pełna bramka pusha pozostaje osobna.
+
+Niezależny przegląd podziału dokumentacji wykrył odnośnik do nagłówka
+przeniesionego do innego pliku. O przyjmuje `3caab9c67`: poprawny względny
+plik z fragmentem oraz helper sprawdzający rzeczywiste nagłówki Markdown.
+Agent: własny PG18, 5 / 65 PASS; fizyczny powrót starej lokalnej kotwicy
+oblał z `BAZA_KOTWICA_20261003`, po dokładnym restore ponownie PASS.
+Kontrola helpera ma pozytywną i negatywną fixture, rejestr CI i pułapkę.
+Po scaleniu wymaga jeszcze pomiaru na końcowym O i normalnego pusha.
+
+Do P złożono lokalnie także #2850. Nowe P1 #2851 otrzymało osobną gałąź
+od wdrożonego main: naprawa spóźnionej zmiany hasła, test przeplotu resetu
+i konkurującej zmiany oraz niezależna recenzja. Nie jest odebrane ani wydane.
+
+Końcowe O `004a840446e82f64ba627e61ad86ec0ad96867ef`: Linux PG18
+kontrola czterech klas dokumentacji/strażnika po przyjęciu kotwicy
+18 / 1745 PASS, JUnit bez failures/errors/skips, czyste drzewo.
+Następny commit dopisuje tylko ten wynik i poprawia godzinę dziennika;
+pełny normalny pre-push pozostaje wymagany.
