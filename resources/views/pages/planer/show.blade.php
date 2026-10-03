@@ -81,6 +81,13 @@
         <h2 class="mt-0" id="szukaj-w-planach-tytul">Szukaj w moich planach</h2>
         <p class="meta meta-samodzielne">Pamiętasz, co jest w planie, ale nie kiedy? Wpisz kawałek tekstu, np. „obiad u mamy”, a pokażemy dni z Twojego planu. To inne szukanie niż „Szukaj przepisu” przy dniu, które dodaje przepis do planu.</p>
         <form class="planer-dopisz" method="GET" action="{{ route('planer.show') }}#wyniki-w-planach">
+            @if($bladWPlanach)
+                {{-- Błąd GET ma własny klucz i cel; nie zastępuje błędów innych formularzy z sesji. --}}
+                @include('components.error-summary', [
+                    'errors' => new \Illuminate\Support\MessageBag(['szukaj_w_planach' => $bladWPlanach]),
+                    'fieldIds' => ['szukaj_w_planach' => 'szukaj-w-planach'],
+                ])
+            @endif
             <div class="field @if($bladWPlanach) has-error @endif">
                 <label for="szukaj-w-planach">Czego szukasz w planie?</label>
                 <input class="field-input" id="szukaj-w-planach" type="search" name="szukaj_w_planach" value="{{ $wPlanach }}" autocomplete="off"
