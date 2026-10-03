@@ -1355,6 +1355,9 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Anonimowy licznik omija sprzeciw wobec statystyk (#2837)", "app/Domain/Analytics/ZapiszSygnal.php",
+     "test_sprzeciw_zatrzymuje_siedem_typow_z_osmiu_sciezek_bez_zatrzymania_funkcji",
+     lambda s: replace_once(s, "$this->zapisz($user, $signalName, $properties, false);", "$this->zapisz(null, $signalName, $properties, false);")),
     ("Kopia odzyskania gubi ręczną kolejność (#2816)", "app/Domain/Collections/Odzyskiwanie/UsunZeszyt.php",
      "test_reczne_ulozenie_przezywa_usuniecie_i_odzyskanie_calego_zeszytu",
      lambda s: replace_once(s, "'position' => $p->position === null ? null : (int) $p->position,", "'position' => null,")),
