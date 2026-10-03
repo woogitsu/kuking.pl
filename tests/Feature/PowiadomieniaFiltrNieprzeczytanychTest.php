@@ -152,16 +152,35 @@ class PowiadomieniaFiltrNieprzeczytanychTest extends TestCase
         for ($i = 0; $i < 35; $i++) {
             $wiersze[] = $this->powiadomienie($ala, $nadawca, now()->subMinutes($i), false, 'n-'.$i);
         }
+        $pierwsza = $this->actingAs($ala)->get(route('notifications.index', ['zakres' => 'nieprzeczytane']))->assertOk()->getContent();
+        $this->assertStringContainsString('<ul class="lista-naga marka-powiadomienia" id="lista-powiadomien">', $pierwsza);
+        $this->assertStringNotContainsString('<ul id="lista-powiadomien" hidden></ul>', $pierwsza);
+
         // Ktoś (druga karta) przeczytał to, co leżało na stronie drugiej: 5 najstarszych.
         DB::table('notifications')->whereIn('id', array_map(fn ($w) => $w, array_slice($wiersze, 30)))->update(['read_at' => now()]);
 
         $html = $this->actingAs($ala)->get(route('notifications.index', ['zakres' => 'nieprzeczytane', 'page' => 2]))->assertOk()->getContent();
 
+        // Opcjonalnie oddaj oba prawdziwe HTML-e izolowanemu testowi Chromium.
+        // Test przeglądarkowy używa tych bajtów, więc mutacja Blade zmienia jego odpowiedź.
+        $katalog = getenv('POWIADOMIENIA_2807_HTML_KATALOG');
+        if ($katalog !== false && $katalog !== '') {
+            $realny = realpath($katalog);
+            $temp = realpath(sys_get_temp_dir());
+            $this->assertNotFalse($realny);
+            $this->assertNotFalse($temp);
+            $this->assertStringStartsWith($temp.DIRECTORY_SEPARATOR.'kuking-2807-', $realny);
+            file_put_contents($realny.DIRECTORY_SEPARATOR.'pierwsza.html', $pierwsza);
+            file_put_contents($realny.DIRECTORY_SEPARATOR.'druga.html', $html);
+        }
+
         $this->assertStringContainsString('Ta strona jest już pusta', $html);
+        $this->assertStringContainsString('<ul id="lista-powiadomien" hidden></ul>', $html, 'POWIADOMIENIA_2807_PUSTA_PORCJA: pusta dalsza odpowiedź musi zachować rozpoznawalny kontrakt listy.');
         $this->assertStringContainsString('Wróć do pierwszej strony nieprzeczytanych', $html);
         // To nie jest „brak wszystkich nieprzeczytanych”: pierwsza strona nadal je ma.
         $this->assertStringNotContainsString('Nie masz nieprzeczytanych powiadomień', $html);
         $this->assertStringContainsString('Oznacz wszystkie jako przeczytane', $html);
+
     }
 
     public function test_oznacz_wszystkie_obejmuje_nieprzeczytane_spoza_biezacej_strony_i_wraca_do_zakresu(): void

@@ -115,6 +115,7 @@ OCZEKUJ = {
     'Odżywcze: masa razem mnożona przez puszki (#2487)': r'ODZYWCZE_2487_LACZNA_MASA_BEZ_MNOZENIA',
     'Odżywcze: sprzeczna masa wpada w domyślną miarę (#2487)': r'ODZYWCZE_2487_SPRZECZNY_NAWIAS_ODMAWIA',
     'Sam skan bez notatki znika ze strony przepisu': r'Sam skan musi otwierać sekcję pochodzenia przepisu\.',
+    'Pusta dalsza porcja powiadomień bez listy (#2807)': r'POWIADOMIENIA_2807_PUSTA_PORCJA',
     'Pomiar panelu tylko w części 2 (#2446)': r'PANEL_2446_POMIAR_KAZDA_CZESC',
     'Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)': r'DICTATION_AUTH_HEADER',
     'Dyktowanie daje mikrofon gościowi (#2377 etap 2)': r'DICTATION_GUEST_HEADER',

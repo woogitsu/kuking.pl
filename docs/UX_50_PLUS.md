@@ -214,6 +214,13 @@ przywróciłby jednak ryzyko przypadkowej utraty wpisu.
 
 ## Accessibility
 
+Przy „Pokaż więcej” poprawna pusta dalsza odpowiedź kończy paginację bez
+komunikatu o awarii połączenia. Wcześniejsze karty zostają, region wyniku
+ogłasza koniec listy, a po usunięciu przycisku fokus pozostaje na ostatniej
+karcie. Brak rozpoznawalnej listy w odpowiedzi nadal jest błędem (np. ekran
+logowania), nie pustą porcją. Powiadomienia zachowują ten kontrakt również
+gdy ktoś przeczyta drugą stronę w innej karcie (#2807).
+
 Cel WCAG 2.2 AA.
 
 Testy:

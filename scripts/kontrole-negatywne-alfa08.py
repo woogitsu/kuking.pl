@@ -2755,6 +2755,10 @@ checks = [
      lambda s: replace_once(s,
          "@if(($recipe->source_note || $recipe->source_person || $recipe->sourceScan) && ! $dlaPomocnika)",
          "@if(($recipe->source_note || $recipe->source_person) && ! $dlaPomocnika)")),
+    # #2807: HTTP 200 z pustą dalszą porcją ma nadal zawierać id listy.
+    ("Pusta dalsza porcja powiadomień bez listy (#2807)", "resources/views/pages/notifications.blade.php",
+     "test_pusta_dalsza_strona_po_odczycie_w_drugiej_karcie_ma_droge_do_pierwszej",
+     lambda s: replace_once(s, '<ul id="lista-powiadomien" hidden></ul>', '')),
     # #2405 (UX-001): błąd wyboru formy ma być powiązany z radiami.
     ("Błąd wyboru formy bez stabilnego id (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
      lambda s: replace_once(s, '<span class="field-error" id="f-form_of_address-error">', '<span class="field-error">')),
