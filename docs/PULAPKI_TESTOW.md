@@ -1122,3 +1122,21 @@ Kontrola wyścigu importuje `kontrola_przyczyny.py`, która używa
 `zawezenie_testow.py`. Zmiana wyłącznie tych plików musi uruchomić job
 `dwa-polaczenia`. Tabela `tests/skrypty/zakres.sh` sprawdza oba wejścia
 z prawdziwym skryptem; celowe usunięcie każdego filtra oblewa tabelę.
+
+### Autoryzacja przed barierą nie chroni późnego INSERT (#2887)
+
+`ZgloszenieWskazowkiKontraWycofanieTest` zatrzymuje rzeczywisty `ReportContent`
+po pierwszej udanej Policy, potem wykonuje wycofanie i korektę. Odmowę mierzy
+liczbą spraw i skutków oraz prawdziwym HTTP 404. W odwrotnej kolejności
+bariera stoi przy `Report::creating`, już pod blokadami poprawki; osobny
+proces naprawdę wycofuje i poprawia wykonanie. Czekanie potwierdza krawędź
+`pg_blocking_pids`, a termin oczekiwania służy wyłącznie do przerwania
+nieudanego pomiaru. Sam upływ czasu nie jest dowodem serializacji.
+
+`scripts/kontrola-negatywna-2887.py` fizycznie wyłącza FIX tylko dla wskazówki.
+Właściwy przypadek musi oblać na `WSKAZOWKA_2887_PO_WYCOFANIU_BEZ_REPORT`,
+po dokładnym odtworzeniu bajtów i mtime przejść ponownie. Przyrząd wymaga
+jednej dokładnej klasy, metody i nazwanego wariantu z JUnit; odrzuca brak
+raportu, obcy test, skip, error i porażkę z innej przyczyny. Jego dziesięć
+kontroli w `tests/skrypty/kontrola-negatywna-2887-wynik.py` biegnie w lokalnej
+bramce i CI; fizyczny mutant FIX w blokującym jobie `dwa-polaczenia`.

@@ -506,11 +506,12 @@ jobs:
       - name: Kontrole ujemne budżetu pominiętych testów
         run: python3 -m unittest discover -s scripts -p test_sprawdz_pominiete_testy.py -v
 
-      - name: Testy werdyktów kontroli wyścigów (#2811, #2815, #2880)
+      - name: Testy werdyktów kontroli wyścigów (#2811, #2815, #2880, #2887)
         run: |
           python3 tests/skrypty/kontrola-negatywna-2811-wynik.py
           python3 tests/skrypty/kontrola-negatywna-2815-wynik.py
           python3 tests/skrypty/kontrola-negatywna-2880-wynik.py
+          python3 tests/skrypty/kontrola-negatywna-2887-wynik.py
 
       # Bramka audytu zależności (#2215) decyduje o czerwieni joba `audit`;
       # jej własne kontrole muszą biec, zanim zaczniemy jej ufać.
