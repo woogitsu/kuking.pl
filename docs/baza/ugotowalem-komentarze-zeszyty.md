@@ -126,6 +126,9 @@ transakcja zachowuje kolejność media → users → cooked_events i ponownie
 sprawdza prawo. Starszy klient bez klucza zachowuje dawną drogę, a formularz
 WWW zawsze go wysyła. Rollback kolumny odmawia, jeśli zapisano choć jeden
 klucz: utrata historii pozwoliłaby ponowieniu utworzyć nowe zdjęcie.
+Migracja dodaje CHECK jako `NOT VALID`, następnie osobno go waliduje,
+poza jedną transakcją (AGENTS.md §6). Przerwane DDL można ponowić;
+istniejąca kolumna lub ograniczenie nie przerywa kolejnej próby.
 - **`faktyczne_porcje numeric(5,2) NULL`** (CHECK `faktyczne_porcje IS NULL OR
   (faktyczne_porcje >= 0.5 AND faktyczne_porcje <= 100)`, migracja
   `2026_10_03_180000_add_faktyczne_porcje_to_cooked_events`, #2540, decyzja

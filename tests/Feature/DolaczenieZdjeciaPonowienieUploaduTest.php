@@ -13,6 +13,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -175,6 +176,35 @@ final class DolaczenieZdjeciaPonowienieUploaduTest extends TestCase
             'photos' => [UploadedFile::fake()->image('obiad.jpg', 800, 600)],
         ])->assertForbidden();
         $this->assertSame(1, Media::query()->where('owner_id', $kucharz->getKey())->count(), 'DOLACZENIE_2811_POLICY_PRZY_PONOWIENIU');
+    }
+
+    public function test_migracja_pustej_historii_daje_sie_cofnac_i_ponowic_po_czesciowym_ddl(): void
+    {
+        $migracja = require database_path('migrations/2026_10_08_080000_add_photo_submission_keys_to_cooked_events.php');
+        $this->assertFalse($migracja->withinTransaction);
+        $migracja->down();
+        $this->assertFalse(Schema::hasColumn('cooked_events', 'photo_submission_keys'));
+        DB::statement("ALTER TABLE cooked_events ADD COLUMN photo_submission_keys jsonb NOT NULL DEFAULT '[]'::jsonb");
+        $migracja->up();
+        $migracja->up();
+        $ograniczenie = DB::selectOne("SELECT convalidated FROM pg_constraint WHERE conrelid = 'cooked_events'::regclass AND conname = ?", ['cooked_events_photo_submission_keys_array']);
+        $this->assertNotNull($ograniczenie);
+        $this->assertTrue($ograniczenie->convalidated);
+    }
+
+    public function test_cofniecie_migracji_nie_gubi_udanych_kluczy(): void
+    {
+        $klucz = (string) Str::uuid7();
+        $wykonanie = CookedEvent::factory()->create();
+        $wykonanie->forceFill(['photo_submission_keys' => [$klucz]])->save();
+        $migracja = require database_path('migrations/2026_10_08_080000_add_photo_submission_keys_to_cooked_events.php');
+        try {
+            $migracja->down();
+            $this->fail('DOLACZENIE_2811_ROLLBACK_ZACHOWUJE_KLUCZE: cofnięcie powinno odmówić.');
+        } catch (\RuntimeException $blad) {
+            $this->assertStringContainsString('historii kluczy', $blad->getMessage());
+        }
+        $this->assertSame([$klucz], $wykonanie->fresh()->photo_submission_keys);
     }
 
     public function test_wymazanie_konta_usuwa_prywatna_historie_kluczy_lecz_zostawia_wykonanie(): void
