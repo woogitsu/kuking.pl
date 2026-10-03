@@ -157,6 +157,10 @@ tekstu; zmiana w innym oknie daje konflikt bez zapisu. `edited_at` jest poza
 `$fillable`, wchodzi do migawki „Cofnij usunięcie” i do paczki RODO
 (`tekst_poprawiony_przez_wlasciciela`, `poprawiono`). Ekran mówi o pozycji
 skopiowanej z przepisu i poprawionej, że nie jest już dosłowną linią z przepisu.
+„Anuluj, zostaw jak jest” jest zwykłym odnośnikiem GET: wraca do listy tej
+pozycji (domyślnej lub nazwanej) i do jej kotwicy, również po błędzie formularza.
+Nie zapisuje pozycji. Wybrana nazwana lista jest ponownie sprawdzana przy
+otwieraniu strony, więc odnośnik nie daje dostępu do cudzej listy.
 **Rollback (D-088):** `down()` ODMAWIA, gdy choć jedna pozycja ma `edited_at`
 (komunikat podaje kopię `pg_dump -t shopping_list_items` i
 `UPDATE shopping_list_items SET edited_at = NULL`); bez korekt przechodzi.

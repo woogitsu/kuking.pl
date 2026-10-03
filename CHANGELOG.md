@@ -10,6 +10,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 - Poprawione (#2872): po odmowie usunięcia listy zakupów podsumowanie prowadzi do otwartego pytania o właściwą listę, pokazuje aktualną liczbę pozycji i komunikat przy potwierdzeniu.
 
 - Poprawione (#2875): przy stosowaniu starszej wersji przepisu błąd pustego wyboru prowadzi do widocznej grupy „Co zastosować?”, także gdy dane przepisu są bez zmian. Wybrane składniki lub kroki pozostają zaznaczone po innym błędzie formularza.
+- Poprawione (#2873): „Anuluj” podczas poprawiania pozycji zakupów wraca do jej nazwanej listy, zamiast do listy domyślnej. Pozycja pozostaje bez zmian.
 - Poprawione (#2869): nowa paczka danych zachowuje historię otrzymanego zaproszenia, lecz nie pokazuje późniejszej nazwy cudzego prywatnego zeszytu po odebraniu dostępu lub odejściu.
 - Poprawione (#2868): ekran „Usunięte przepisy” pokazuje starsze odzyskiwalne przepisy mimo nowszych pozycji objętych moderacją. „Pokaż więcej” prowadzi przez kolejne porcje bez ujawniania chronionych przepisów.
 - Poprawione (#2860): po wyłączeniu i ponownym włączeniu zapamiętywania postępu stara karta nie cofnie kroków ani liczby porcji zapisanych później. Pokaże zmianę i poprosi o otwarcie aktualnego gotowania.
