@@ -135,3 +135,9 @@ Po scaleniu wymaga jeszcze pomiaru na końcowym O i normalnego pusha.
 Do P złożono lokalnie także #2850. Nowe P1 #2851 otrzymało osobną gałąź
 od wdrożonego main: naprawa spóźnionej zmiany hasła, test przeplotu resetu
 i konkurującej zmiany oraz niezależna recenzja. Nie jest odebrane ani wydane.
+
+Końcowe O `004a840446e82f64ba627e61ad86ec0ad96867ef`: Linux PG18
+kontrola czterech klas dokumentacji/strażnika po przyjęciu kotwicy
+18 / 1745 PASS, JUnit bez failures/errors/skips, czyste drzewo.
+Następny commit dopisuje tylko ten wynik i poprawia godzinę dziennika;
+pełny normalny pre-push pozostaje wymagany.

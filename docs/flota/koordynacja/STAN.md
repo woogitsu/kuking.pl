@@ -1,6 +1,6 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
-## Aktualny odbiór Codex — 3.10.2026, 04:17 UTC
+## Aktualny odbiór Codex — 3.10.2026, 04:14 UTC
 
 Ten blok zastępuje stan operacyjny historycznego handoveru poniżej.
 Obowiązują aktualne AGENTS.md, decyzje D-333 i nowsze polecenia właściciela.
