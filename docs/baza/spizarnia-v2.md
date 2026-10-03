@@ -20,6 +20,7 @@ co mam” (`App\Domain\Pantry\CoUgotuje`). Migracja
 | `expiry_kind` | `varchar(12) NULL` | rodzaj terminu: `use_by` („Należy zużyć do”) albo `best_before` („Najlepiej spożyć przed”). `NULL` dokładnie wtedy, gdy `expires_on IS NULL`. Priorytet liczy się jednakowo, różnica jest na opakowaniu i ma zostać widoczna |
 | `quantity_note` | `varchar(40) NULL` | ilość jako WOLNY TEKST własnymi słowami („pół kostki”, „1 litr”); bez liczb i jednostek (D-333: tak jak `ingredient_text`). `NULL` = nie podano. Jedyna nowa kolumna w `$fillable` |
 | `frozen` | `boolean NOT NULL DEFAULT false` | produkt w zamrażarce wypada z sekcji „Zużyj w pierwszej kolejności”; wpisany termin zostaje. Poza `$fillable` |
+| `first_package_id` | `uuid NULL` | tożsamość pierwszego opakowania po awansie drugiego (#2783). `NULL` oznacza pierwotne opakowanie o tożsamości `pantry_items.id`; po awansie kolumna zachowuje UUID usuniętego wiersza `pantry_second_packages`. Nie pochodzi z formularza ani z `$fillable` |
 
 Ograniczenia:
 - `pantry_items_name_check`: `char_length(btrim(name)) BETWEEN 2 AND 120
@@ -153,8 +154,17 @@ Reguły, które na tym stoją:
 - **Usunięcie jednego opakowania nie rusza drugiego.** Usunięcie drugiego kasuje
   jego wiersz. Usunięcie pierwszego przenosi treść drugiego na miejsce pierwszego
   (kolumny `pantry_items`) i kasuje wiersz drugiego w jednej transakcji pod
-  blokadą wiersza produktu; formularz niesie odcisk treści z chwili otwarcia, więc
-  stary formularz nie zadziała na opakowaniu, którego człowiek nie widział.
+  blokadą wiersza produktu; formularz pierwszego opakowania zawsze niesie odcisk
+  treści **i trwałej tożsamości** z chwili otwarcia, także gdy opakowanie było
+  wtedy jedyne. Po awansie drugiego jego UUID przechodzi do
+  `pantry_items.first_package_id`, więc nawet identyczna treść nie pozwala
+  staremu formularzowi nadpisać innego opakowania. Formularz sprzed tej ochrony,
+  bez odcisku, jest odrzucany po awansie. Po błędzie formularz zachowuje dawny
+  odcisk i wpisane pola; trzeba świadomie otworzyć aktualne opakowanie z listy.
+  Kolumnę dodaje `2026_10_03_210000_track_first_pantry_package_identity`.
+  Rollback odmawia, gdy choć jeden produkt ma `first_package_id`: bez tej
+  kolumny kolejny `up()` nie odtworzy tożsamości awansowanego opakowania.
+  Gdy żadne opakowanie nie awansowało, `down()` i ponowny `up()` są bezpieczne.
   Usunięcie całego produktu (`pantry.destroy`) kasuje oba kaskadą.
 - **Limit 150** dotyczy produktów (`CoMamWDomu::MAKS_PRODUKTOW`), nie opakowań;
   opakowań jest więc najwyżej 300.

@@ -9,6 +9,7 @@ use App\Domain\Pantry\CoUgotuje;
 use App\Domain\Pantry\DrugieOpakowanieProduktu;
 use App\Domain\Pantry\Opakowanie;
 use App\Domain\Pantry\PriorytetZuzycia;
+use App\Domain\Pantry\ZmienTerminProduktu;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
@@ -44,6 +45,8 @@ class DwaOpakowaniaProduktuTest extends TestCase
     use RefreshDatabase;
 
     private const MIGRACJA = 'database/migrations/2026_10_03_200000_create_pantry_second_packages_table.php';
+
+    private const MIGRACJA_TOZSAMOSCI = 'database/migrations/2026_10_03_210000_track_first_pantry_package_identity.php';
 
     protected function setUp(): void
     {
@@ -177,6 +180,173 @@ class DwaOpakowaniaProduktuTest extends TestCase
 
         $this->assertSame('2026-10-12', (string) DB::table('pantry_items')->value('expires_on'));
         $this->assertSame(['2026-10-25', 'best_before', 'pół litra'], [(string) DB::table('pantry_second_packages')->value('expires_on'), DB::table('pantry_second_packages')->value('expiry_kind'), DB::table('pantry_second_packages')->value('quantity_note')]);
+    }
+
+    public function test_stary_formularz_jedynego_opakowania_nie_nadpisuje_drugiego_po_awansie(): void
+    {
+        $ja = $this->user();
+        $mleko = $this->produkt($ja, 'mleko', ['2026-10-14', 'best_before'], iloscPierwsze: '1 litr');
+        $odciskA = Opakowanie::zProduktu($mleko->fresh(['secondPackage']))[0]->odcisk();
+
+        $stronaA = $this->actingAs($ja)->get(route('pantry.edit', $mleko))->assertOk();
+        $this->assertStringContainsString(
+            'name="odcisk" value="'.$odciskA.'"',
+            (string) $stronaA->getContent(),
+            'ODCISK_2783_FORMULARZ: także jedyne opakowanie musi wysłać odcisk.',
+        );
+
+        $this->actingAs($ja)->put(route('pantry.update', $mleko), [
+            '_formularz' => 'termin', 'opakowanie' => 'drugie',
+            'rodzaj' => 'use_by', 'termin_dzien' => '20', 'termin_miesiac' => '10', 'termin_rok' => '2026',
+            'ilosc' => '2 litry', 'mrozone' => '1',
+        ])->assertRedirect(route('pantry.index'));
+        $this->actingAs($ja)->delete(route('pantry.destroyOpakowanie', $mleko), [
+            'opakowanie' => 'pierwsze', 'odcisk' => $odciskA,
+        ])->assertRedirect(route('pantry.index'));
+
+        $this->actingAs($ja)->put(route('pantry.update', $mleko), [
+            '_formularz' => 'termin', 'opakowanie' => 'pierwsze', 'odcisk' => $odciskA,
+            'rodzaj' => 'best_before', 'termin_dzien' => '15', 'termin_miesiac' => '10', 'termin_rok' => '2026',
+            'ilosc' => 'pół litra',
+        ])->assertRedirect(route('pantry.edit', $mleko))
+            ->assertSessionHasErrors('opakowanie');
+
+        $zostalo = DB::table('pantry_items')->where('id', $mleko->getKey())->first();
+        $this->assertSame(
+            ['2026-10-20', 'use_by', '2 litry', true],
+            [(string) $zostalo->expires_on, $zostalo->expiry_kind, $zostalo->quantity_note, (bool) $zostalo->frozen],
+            'ODCISK_2783_AWANS: stary formularz A nie może zmienić żadnego pola opakowania B.',
+        );
+        $this->assertSame(0, DB::table('pantry_second_packages')->count());
+
+        $this->actingAs($ja)->get(route('pantry.edit', $mleko))
+            ->assertOk()
+            ->assertSee('name="odcisk" value="'.$odciskA.'"', false)
+            ->assertSee('value="pół litra"', false);
+
+        // Ponowne wysłanie po błędzie też nie może dostać świeżego odcisku B.
+        $this->actingAs($ja)->followingRedirects()->put(route('pantry.update', $mleko), [
+            '_formularz' => 'termin', 'opakowanie' => 'pierwsze', 'odcisk' => $odciskA,
+            'rodzaj' => 'best_before', 'termin_dzien' => '15', 'termin_miesiac' => '10', 'termin_rok' => '2026',
+            'ilosc' => 'pół litra',
+        ])->assertOk()
+            ->assertSee('id="f-opakowanie"', false)
+            ->assertSeeText('Opakowania tego produktu zmieniły się od otwarcia tej strony');
+    }
+
+    public function test_identical_pola_nie_pozwalaja_staremu_formularzowi_nadpisac_awansowanego_opakowania(): void
+    {
+        $ja = $this->user();
+        $mleko = $this->produkt($ja, 'mleko', ['2026-10-14', 'best_before'], iloscPierwsze: '1 litr');
+        $odciskA = Opakowanie::zProduktu($mleko->fresh(['secondPackage']))[0]->odcisk();
+
+        $this->actingAs($ja)->get(route('pantry.edit', $mleko))->assertOk()
+            ->assertSee('name="odcisk" value="'.$odciskA.'"', false);
+        $this->actingAs($ja)->put(route('pantry.update', $mleko), [
+            '_formularz' => 'termin', 'opakowanie' => 'drugie',
+            'rodzaj' => 'best_before', 'termin_dzien' => '14', 'termin_miesiac' => '10', 'termin_rok' => '2026',
+            'ilosc' => '1 litr',
+        ])->assertRedirect(route('pantry.index'));
+        $idB = (string) DB::table('pantry_second_packages')->where('pantry_item_id', $mleko->getKey())->value('id');
+        $this->actingAs($ja)->delete(route('pantry.destroyOpakowanie', $mleko), [
+            'opakowanie' => 'pierwsze', 'odcisk' => $odciskA,
+        ])->assertRedirect(route('pantry.index'));
+
+        $this->assertSame($idB, DB::table('pantry_items')->where('id', $mleko->getKey())->value('first_package_id'));
+        $this->assertNotSame($odciskA, Opakowanie::zProduktu($mleko->fresh(['secondPackage']))[0]->odcisk());
+
+        $staryZapis = $this->actingAs($ja)->put(route('pantry.update', $mleko), [
+            '_formularz' => 'termin', 'opakowanie' => 'pierwsze', 'odcisk' => $odciskA,
+            'rodzaj' => 'use_by', 'termin_dzien' => '15', 'termin_miesiac' => '10', 'termin_rok' => '2026',
+            'ilosc' => 'pół litra', 'mrozone' => '1',
+        ]);
+
+        $zostalo = DB::table('pantry_items')->where('id', $mleko->getKey())->first();
+        $this->assertSame(
+            ['2026-10-14', 'best_before', '1 litr', false],
+            [(string) $zostalo->expires_on, $zostalo->expiry_kind, $zostalo->quantity_note, (bool) $zostalo->frozen],
+            'ODCISK_2783_TOZSAMOSC: identyczna treść nie uprawnia do nadpisania innego opakowania.',
+        );
+        $staryZapis->assertSessionHasErrors('opakowanie');
+
+        $this->actingAs($ja)->put(route('pantry.update', $mleko), [
+            '_formularz' => 'termin', 'opakowanie' => 'pierwsze',
+            'rodzaj' => 'use_by', 'termin_dzien' => '15', 'termin_miesiac' => '10', 'termin_rok' => '2026',
+            'ilosc' => 'pół litra', 'mrozone' => '1',
+        ])->assertSessionHasErrors('opakowanie');
+        $this->assertSame('1 litr', DB::table('pantry_items')->where('id', $mleko->getKey())->value('quantity_note'));
+    }
+
+    public function test_cofniecie_tozsamosci_odmawia_po_awansie_i_przechodzi_gdy_nikt_nie_awansowal(): void
+    {
+        $ja = $this->user();
+        $mleko = $this->produkt($ja, 'mleko', ['2026-10-14', 'best_before'], ['2026-10-20', 'use_by']);
+        $odciskA = Opakowanie::zProduktu($mleko->fresh(['secondPackage']))[0]->odcisk();
+        $this->assertSame(DrugieOpakowanieProduktu::USUNIETO, app(DrugieOpakowanieProduktu::class)->usun($mleko, 'pierwsze', $odciskA));
+
+        $migracja = require base_path(self::MIGRACJA_TOZSAMOSCI);
+        try {
+            $migracja->down();
+            $this->fail('Cofnięcie nie może zgubić tożsamości awansowanego opakowania.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('Nie można cofnąć identyfikatora', $e->getMessage());
+        }
+        $this->assertTrue(Schema::hasColumn('pantry_items', 'first_package_id'));
+
+        $mleko->delete();
+        $migracja->down();
+        $this->assertFalse(Schema::hasColumn('pantry_items', 'first_package_id'));
+        $migracja->up();
+        $this->assertTrue(Schema::hasColumn('pantry_items', 'first_package_id'));
+    }
+
+    public function test_akcja_domenowa_odmawia_staremu_modelowi_po_awansie_nawet_bez_odcisku(): void
+    {
+        $ja = $this->user();
+        $mleko = $this->produkt($ja, 'mleko', ['2026-10-14', 'best_before'], ['2026-10-20', 'use_by'], iloscPierwsze: '1 litr', iloscDrugie: '2 litry');
+        $nieaktualny = PantryItem::query()->findOrFail($mleko->getKey());
+        $odciskA = Opakowanie::zProduktu($mleko->fresh(['secondPackage']))[0]->odcisk();
+        $this->assertSame(DrugieOpakowanieProduktu::USUNIETO, app(DrugieOpakowanieProduktu::class)->usun($mleko, 'pierwsze', $odciskA));
+
+        try {
+            app(ZmienTerminProduktu::class)->handle($nieaktualny, ['ilosc' => 'pół litra']);
+            $this->fail('Akcja domenowa nie może ufać staremu modelowi z formularza A.');
+        } catch (ValidationException $e) {
+            $this->assertSame([DrugieOpakowanieProduktu::BLAD_ZMIENILO_SIE], $e->errors()['opakowanie']);
+        }
+        $this->assertSame('2 litry', DB::table('pantry_items')->where('id', $mleko->getKey())->value('quantity_note'));
+    }
+
+    public function test_zapis_starego_formularza_przed_awansem_dotyczy_tylko_pierwszego_opakowania(): void
+    {
+        $ja = $this->user();
+        $mleko = $this->produkt($ja, 'mleko', ['2026-10-14', 'best_before'], iloscPierwsze: '1 litr');
+        $odciskA = Opakowanie::zProduktu($mleko->fresh(['secondPackage']))[0]->odcisk();
+
+        $this->actingAs($ja)->get(route('pantry.edit', $mleko))->assertOk()
+            ->assertSee('name="odcisk" value="'.$odciskA.'"', false);
+        $this->actingAs($ja)->put(route('pantry.update', $mleko), [
+            '_formularz' => 'termin', 'opakowanie' => 'drugie',
+            'rodzaj' => 'use_by', 'termin_dzien' => '20', 'termin_miesiac' => '10', 'termin_rok' => '2026',
+            'ilosc' => '2 litry', 'mrozone' => '1',
+        ])->assertRedirect(route('pantry.index'));
+
+        $this->actingAs($ja)->put(route('pantry.update', $mleko), [
+            '_formularz' => 'termin', 'opakowanie' => 'pierwsze', 'odcisk' => $odciskA,
+            'rodzaj' => 'best_before', 'termin_dzien' => '15', 'termin_miesiac' => '10', 'termin_rok' => '2026',
+            'ilosc' => 'pół litra',
+        ])->assertRedirect(route('pantry.index'));
+
+        $drugie = DB::table('pantry_second_packages')->where('pantry_item_id', $mleko->getKey())->first();
+        $this->assertSame(
+            ['2026-10-20', 'use_by', '2 litry', true],
+            [(string) $drugie->expires_on, $drugie->expiry_kind, $drugie->quantity_note, (bool) $drugie->frozen],
+        );
+        $nowyOdciskA = Opakowanie::zProduktu($mleko->fresh(['secondPackage']))[0]->odcisk();
+        $this->actingAs($ja)->delete(route('pantry.destroyOpakowanie', $mleko), [
+            'opakowanie' => 'pierwsze', 'odcisk' => $nowyOdciskA,
+        ])->assertRedirect(route('pantry.index'));
+        $this->assertSame('2 litry', DB::table('pantry_items')->where('id', $mleko->getKey())->value('quantity_note'));
     }
 
     public function test_zwykle_dodanie_tej_samej_nazwy_nie_tworzy_drugiego_opakowania(): void
