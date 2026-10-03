@@ -1,5 +1,36 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
+## Aktualny odbiór Codex — 3.10.2026, 06:45 UTC
+
+- **M wydana:** main `6c3d2a936ee10c672b542e0814bacc41586399e7`, CI push
+  `37101361410` SUCCESS; web, worker i harmonogram SUCCESS tego SHA.
+  `/wydanie` 200 z dokładnym SHA i `/health` 200. Pełny dowód:
+  [odbiór #2866](https://github.com/woogitsu/kuking.pl/pull/2866#issuecomment-5966380433).
+  Wszystkie 17 źródłowych PR-ów już scalone. 14 issues pozostaje na
+  konkretny pilot/UX/panele i późniejsze poprawki; mapa:
+  [brakujące kryteria](https://github.com/woogitsu/kuking.pl/pull/2866#issuecomment-5966440675).
+- **P1 kont ma pierwszeństwo:** #2851/#2854/#2861/#2862, frozen head
+  `588a1fafc016ed4ad067c4a7d4f7eca3fbf9d23e`. Normalny pełny push trwa;
+  bez odbioru zdalnego i PR-a.
+- **N/O #2865:** przygotowany `d4fd5c5d94da0a853bb756206162f2745cbc2db1`;
+  normalny push trwa. Stara czerwień zdalna nie jest wynikiem nowej wersji.
+- **P:** `3da0c1721507c60ce92c547fa3c1e7f6d85f4b82`; dwie wcześniejsze
+  porażki naprawione w fixture. Planer/Livewire18PASS przy debug false/true
+  na pięciu własnych kopiach; pełny push trwa.
+- **Q:** `8dd86399bfdcb50a0083fa8075dc30b4741910d3`; pełny push trwa.
+- **R:** #2863/#2855/#2859/#2867 lokalnie odebrane: 102/4765 funkcjonalnych,
+  8/153 dwóch połączeń, właściwe fizyczne mutanty i restore, pełny PHPStan zero.
+  [Dowody i pozostałe bramki](ODBIOR-R-CODEX-20261003.md).
+  Po zapisie odbioru normalny push i pełne CI pozostają do wykonania.
+- **#2871:** fixture haków izoluje lokalne zmienne Gita; kontrola dziedziczenia
+  PASS w S/O/P/Q/R, wywołujące repo zachowane. Stare odmowy i logi zachowane poza repo.
+- **Kolejna praca:** #2869 lokalnie gotowa, bez push; #2860 w odbiorze,
+  #2868 i #2870 u dwóch agentów w rozłącznych kopiach. Root plus trzy subagenty.
+
+Panelowe #2025/#2708/#2713, prawo i pilot zachowują kryteria. Nie zamykać
+issues samym CI, nie zmieniać kontrolowanego heada, nie anulować/ponawiać
+masowo przebiegów. Starsze bloki poniżej są historycznymi migawkami.
+
 ## Aktualny odbiór Codex — 3.10.2026, 06:14 UTC
 
 Ten blok zastępuje wcześniejsze migawki. Aktualne AGENTS.md, D-333,
