@@ -1580,6 +1580,12 @@ checks = [
     ("Wydruk zeszytu pomija gotowe sztuki (#2876)", "resources/views/pages/collections/do-druku.blade.php",
      "WydrukZeszytuTest::test_wydruk_calego_zeszytu_pokazuje_sztuki_osobno_od_porcji_i_czasu",
      lambda s: replace_once(s, '$sztuki = $przepis->yieldLabel();', '$sztuki = null;')),
+    ("Odmowa usunięcia listy gubi cel pytania (#2872)", "resources/views/pages/zakupy/index.blade.php",
+     "NazwaneListyZakupowTest::test_odmowa_starego_potwierdzenia_otwiera_wlasciwe_pytanie_z_zywym_linkiem",
+     lambda s: replace_once(s, 'id="f-potwierdzam"', 'id="stary-nieistniejacy-cel"')),
+    ("Odmowa usunięcia listy zwija pytanie (#2872)", "resources/views/pages/zakupy/index.blade.php",
+     "NazwaneListyZakupowTest::test_odmowa_starego_potwierdzenia_otwiera_wlasciwe_pytanie_z_zywym_linkiem",
+     lambda s: replace_once(s, '<details class="confirm" @if($blad_potwierdzenia) open @endif>', '<details class="confirm">')),
     # #2611: wyłączenie preflightu musi oblać izolowane procesy PHP 256M
     # konkretną odmową (w starym kodzie kończyły się fatalem), a nie bazę CI.
     ("Paczka JSON bez budżetu struktury (#2611)", "app/Domain/Users/Import/PodgladPaczkiEksportu.php",

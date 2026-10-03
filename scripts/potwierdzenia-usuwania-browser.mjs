@@ -148,6 +148,35 @@ async function checkScreen(page, path, item, id, statePath) {
   assert.equal(rows(statePath)[item], null, `${item}: potwierdzenie nie usunęło rekordu.`);
 }
 
+/** #2872: nazwana lista z długą nazwą i długim przyciskiem, bez usuwania danych. */
+async function checkNamedList(page, base, data, statePath) {
+  const before = rows(statePath).zakup_nazwany;
+  const response = await page.goto(`${base}/lista-zakupow?lista=${data.lista_nazwana}`, { waitUntil: 'load' });
+  assert.equal(response?.status(), 200, 'Nazwana lista nie otworzyła się.');
+  const details = page.locator('#ta-lista details.zakupy-potwierdzenie');
+  assert.equal(await details.count(), 1, 'Brakuje osobnego pytania o nazwaną listę.');
+  const summary = details.locator('#f-potwierdzam');
+  const confirm = details.locator('button[type="submit"]');
+  await summary.focus();
+  await page.keyboard.press('Enter');
+  assert.notEqual(await details.getAttribute('open'), null, 'Enter nie otworzył pytania o listę.');
+  assert.equal(await summary.evaluate(el => document.activeElement === el), true, 'Fokus uciekł z pytania.');
+  assert.match(await details.innerText(), /Święta-zakupy-bardzo-długa-nazwa-rodzinna-2026/u);
+  const size = await rootWidth(page);
+  assert.ok(size.scroll <= size.width + 1,
+    `SZAKUPY_2872_REFLOW: pytanie o nazwaną listę wypycha stronę ${size.scroll} > ${size.width}.`);
+  const button = await confirm.boundingBox();
+  assert.ok(button && button.width >= 180,
+    `SZAKUPY_2872_REFLOW: przycisk ma tylko ${button?.width}px i łamie wyrazy.`);
+  await page.keyboard.press('Tab');
+  assert.equal(await confirm.evaluate(el => document.activeElement === el), true,
+    'Tab nie przechodzi z pytania na świadome potwierdzenie.');
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Enter');
+  assert.equal(await details.getAttribute('open'), null, 'Enter nie anuluje pytania o listę.');
+  assert.deepEqual(rows(statePath).zakup_nazwany, before, 'Otwarcie lub anulowanie zmieniło pozycję.');
+}
+
 try {
   const port = await availablePort();
   const base = `http://127.0.0.1:${port}`;
@@ -185,6 +214,7 @@ try {
       for (const item of ['zakupy', 'spizarnia', 'planer']) {
         await checkScreen(page, `${base}${data.paths[item]}`, item, data[item], path);
       }
+      await checkNamedList(page, base, data, path);
       console.log(`PASS: prawdziwe formularze, bez JS, 320px, czcionka ${font200 ? '200%' : '100%'}.`);
     } finally {
       try { await context?.close(); } finally { fixture('posprzataj', path); }
