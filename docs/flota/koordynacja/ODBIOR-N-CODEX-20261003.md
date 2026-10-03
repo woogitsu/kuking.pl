@@ -26,8 +26,6 @@ To dowody lokalne dla wskazanego złożenia. Nie zastępują pełnej bramki koń
 - `5986968d56e2f1d73a9cdf4886d03c5d5390424e`: runbook wymaga odtworzenia CSAM przed każdym wymazaniem, a brak możliwości izolacji usług zatrzymuje procedurę. Dwa testy jednostkowe / 23 asercje oraz trzy fizyczne mutanty z własnymi markerami i przywróceniami przeszły. Nie wykonywano odtwarzania produkcji ani komend na danych użytkowników.
 - Złożenie `67f230fae79b488ba2c8c5b7ad66497e3eef2049` zawiera wszystkie powyższe poprawki i świeżą C po M. Konflikty tras i rejestrów rozwiązano sumą obu stron; runbook jest dokładną wersją korekty M. Pełna końcowa bramka pozostaje do wykonania.
 
-## Otwarte czynności
-
 ## Kontrola z 3 października — dalsze poprawki
 
 - #2803 (`409f94f7b`): kursor „Moich rozmów” z niemożliwą datą nie powoduje błędu PostgreSQL. Poprawny dzień przestępny, dokładność czasu i remis UUID pozostają. 20 testów / 112 asercji, fizyczna kontrola `ROZMOWY_2803_NIEMOZLIWY_CZAS` oraz dokładne przywrócenie pliku przeszły.
@@ -39,6 +37,7 @@ To dowody lokalne dla wskazanego złożenia. Nie zastępują pełnej bramki koń
 - #2815 (`94a97c808`, w korekcie M jako `3bf472ca8`): każda pozycja paczki sprawdza świeże konto przed śladem i zapisem. 20 testów / 179 asercji oraz pięć przeplotów na dwóch połączeniach / 73 asercje przeszły. Mutant oblał wpis i zeszyt markerem `IMPORT_2815_SANKCJA_PRZED_ZAPISEM`; wcześniejsza poprawna pozycja zostaje.
 - Test runbooku (`204ef0a66`): pilnuje obu par podgląd/wykonanie, nowej bazy i kolejności przed podpięciem usług. 1 test / 27 asercji oraz dwie fizyczne mutacje z odrębnymi markerami przeszły.
 - Połączone złożenie N `fc5018124e806e7f0e004b0453fa6eecdc63c347`, przed dodaniem #2800 i #2815: 120 testów / 813 asercji i pełny PHPStan bez błędów. To dowód tego SHA, a nie późniejszego końcowego heada.
+- Złożenie N `330849933ae3fff8bcdb092acfb85db070674168`, po włączeniu korekty M: 179 testów / 1273 asercje, bez porażek, błędów i pominięć oraz pełny PHPStan bez błędów. Preflight odczytowy sprawdził 509 kotwic i dwa mechanizmy; nie uruchamiał mutantów ani nie zmieniał plików. Zestaw nie zastępuje pełnej baterii, CI i odbioru produkcji.
 
 Pierwszy normalny pre-push korekty M (`5986968d5`) odmówił wysłania: dwie nieznane klasy testowego generatora Livewire oraz 29 porażek pełnej baterii. Nie pominięto testów ani haka. Generator testowej ścieżki lokalnej otrzymał jawny typ (`1862cb8a0`, w M jako `99560b08e`), zgodny z niezmienioną implementacją Livewire; pełny PHPStan i oba testy endpointu przeszły. Odrębny klaster PostgreSQL 18 z `C.utf8` naprawił konfigurację małych polskich liter. Osobna próba tych samych testów dała 35 / 90 PASS seryjnie, lecz siedem porażek przy ParaTest; kolejna pełna bramka korzysta z domyślnego seryjnego trybu `check.sh`, bez `KUKING_TESTY_ROWNOLEGLE`. Nie zmienia to wymagania pełnego CI PR-a ani żadnej bramki wydania.
 
