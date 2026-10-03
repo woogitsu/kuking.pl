@@ -38,6 +38,7 @@ OCZEKUJ = {
     'Planer pomija błąd frazy w podsumowaniu (#2846)': r'PLANER_2846_BLAD_W_PODSUMOWANIU',
     'Odebranie współtworzenia obiecuje brak widoku zeszytu (#2822)': r'ZESZYT_2822_KONIEC_WSPOLTWORZENIA',
     'Potwierdzenie odejścia obiecuje brak widoku zeszytu (#2822)': r'ZESZYT_2822_POTWIERDZENIE_BEZ_OBIETNICY',
+    'Błąd szukania w zeszytach nie trafia do podsumowania (#2850)': r'ZESZYTY_2850_BLAD_W_PODSUMOWANIU',
     'Wygasła prośba nadal blokuje poprawę uwagi (#2820)': r'KOREKTA_2820_WYGASLA_PROSBA_ODBLOCKOWUJE',
     'Kolejka gubi zdjęcie bieżącego kroku (#2828)': r'ZDJECIE_2828_BIEZACY_KROK',
     'Usunięta lista zakupów prowadzi do nieistniejącego formularza (#2806)': r'ZAKUPY_2806_BEZ_DRUGIEGO_PRZEKIEROWANIA',
