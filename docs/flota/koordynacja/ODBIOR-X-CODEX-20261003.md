@@ -63,3 +63,12 @@ Nie zmienia to odebranego scenariusza #2884 z zapisaną wcześniej sprawą.
 Ręczne kryteria pilota50+, prawa, paneli, R2/CDN i kopii pozostają otwarte.
 #2861 wymaga jeszcze dodatkowej sceny panelu moderatora i okna wewnątrz
 operacji potwierdzenia2FA; agent przygotowuje ją osobno, bez cofania ochrony.
+
+## Odświeżenie zależności bez zmiany kodu
+
+3.10.2026 zwykły merge dołączył odebraną W `4f16fc756da0fbb2a8d14e2a68fe5004ef98c22d`,
+zawierającą świeżą V4d3 i C30 po N–U. Po merge aplikacja, zasoby i testy Dwa
+są bitowo identyczne z X `23b6ab6532a845d0fd0cf160be4d23ba984c6fa2`,
+której pełny zwykły push zakończył exit 0. Różnica to dokumentacja zależności.
+Dokładny nowy head wymaga jeszcze zwykłego pełnego pushu oraz pełnego CI
+PR-a po przyjęciu W do C; nie otwierać kumulującego duplikatu wcześniej.
