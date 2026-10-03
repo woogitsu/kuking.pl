@@ -1080,3 +1080,19 @@ miejsce zapisu):
    `exists()` jest dobre na ładny komunikat i tam zostaje.
 2. **Blokada bez rewalidacji pod nią nie pilnuje niczego** — serializuje, ale
    nie mówi żądaniu, że świat zmienił się, gdy ono czekało.
+
+
+## Pomocniczy test formularza musi mieć środowisko testowe (#2857, 3.10.2026)
+
+Przyrząd przeglądarkowy dziedziczy w CI `APP_ENV=local`, bo inne kroki oglądają
+rzeczywistą lokalną instancję. Jego pomocnicze `php artisan test` tworzące HTML
+musi jednak jawnie otrzymać `APP_ENV=testing`. Sam wpis bez `force` w phpunit.xml
+nie nadpisuje zmiennej z otoczenia. Inaczej POST przygotowujący prywatny dopisek
+nie przechodzi testowej ścieżki middleware: GET daje 200, lecz formularz nie ma
+proponowanego dopisku. Nie jest to usterka produkcyjnego zabezpieczenia.
+
+Odtworzenie na własnej PostgreSQL18, przy pozostałych parametrach CI bez zmian:
+`APP_ENV=local` oblało istniejący test na `DOPISEK_2857_BEZ_PORZUCAJACEGO_LINKU`;
+`APP_ENV=testing` przeszło ten sam test (1 test, 8 asercji). Nie wyłączamy CSRF
+w aplikacji ani middleware w teście. Przełączamy tylko środowisko jego procesu
+potomnego. Rzeczywisty Chromium i multipart nadal mierzy pełny job CI.
