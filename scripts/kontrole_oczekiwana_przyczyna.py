@@ -35,8 +35,20 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Niezmieniona kopia szkicu wychodzi do ludzi (#2507)': r'KOPIA_2507_PUBLIKACJA',
+    'Kopia szkicu gubi podpis Mojej wersji (#2507)': r'KOPIA_2507_ATRYBUCJA',
+    'Kopia szkicu przejmuje zdjęcia kroków (#2507)': r'KOPIA_2507_MEDIA',
+    'Kopia szkicu ocenia prawo na starym stanie (#2507)': r'KOPIA_2507_SWIEZY_STAN',
+    'Kopię cudzego szkicu zrobi każdy (#2507)': r'KOPIA_2507_WLASCICIEL',
     'Kolaż hero bez podpisu autora przy zdjęciu (#2708)': r'Kafel nie ma podpisu z nazwą dokładnie jednego autora',
+    'Dołączenie zdjęcia: podmiana UUID kucharza (#2500)': r'DOLACZENIE_2500_PODMIANA_UUID',
+    'Dołączenie zdjęcia liczy limit bez przypiętych (#2500)': r'DOLACZENIE_2500_LIMIT',
+    'Dołączenie zdjęcia ignoruje świeży stan pod blokadą (#2500)': r'DOLACZENIE_2500_SWIEZY_STAN',
+    'Dołączenie zdjęcia przejmuje cudze albo cudzo-przypięte (#2500)': r'DOLACZENIE_2500_WLASNOSC_MEDIOW',
     'Rollback udostępnień przepisów kasuje bez pytania (#2650)': r'Rollback skasował udostępnienia bez pytania',
+    'Listy zakupów mieszają pozycje (#2528)': r'LISTY_2528_POZYCJE_NIE_MIESZAJA_SIE',
+    'Cudza lista zakupów otwiera ekran i przyjmuje zapis (#2528)': r'LISTY_2528_CUDZA_LISTA_ODMOWA',
+    'Usunięcie listy ignoruje zmienioną liczbę pozycji (#2528)': r'LISTY_2528_USUNIECIE_NIEAKTUALNA_LICZBA',
     'Lista ostatnio oglądanych sięga do analityki (#2553)': r'OSTATNIO_OGLADANE_2553_PRYWATNA_LISTA_POZA_ZAMKNIETA_LISTA',
     'Lista ostatnio oglądanych pokazuje przepis konta zbanowanego (#2553)': r'OSTATNIO_OGLADANE_2553_TYTUL_NIEDOSTEPNEGO_PRZEPISU',
     'Lista ostatnio oglądanych miesza konta (#2553)': r'OSTATNIO_OGLADANE_2553_KONTO_[AB]_WIDZI_LISTE_[AB]',

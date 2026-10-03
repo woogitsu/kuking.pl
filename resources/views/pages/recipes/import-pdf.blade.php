@@ -39,6 +39,16 @@
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Zapisz jako szkic</button>
         </div>
+
+        {{-- Wybór stron przed odczytem (#2535): ten sam plik, ale najpierw podgląd stron
+             i wybór tych z jednym przepisem. Nic nie jest odczytywane ani wysyłane,
+             dopóki nie zatwierdzisz wyboru; zgodę na wysłanie skanu zaznaczysz tam. --}}
+        <div class="stack mt-6">
+            <p class="m-0">Plik ma kilka przepisów albo zbędne strony? Najpierw zobaczysz strony i wybierzesz te, które mają być odczytane.</p>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-secondary" formaction="{{ route('recipes.import.pdf.wybor.przyjmij') }}">Najpierw wybiorę strony z przepisem</button>
+            </div>
+        </div>
     </form>
 
     <p class="mt-6"><a href="{{ route('recipes.create') }}">Wolę wpisać przepis ręcznie</a></p>

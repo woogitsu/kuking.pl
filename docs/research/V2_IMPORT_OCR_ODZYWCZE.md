@@ -432,6 +432,7 @@ zleceniu, prostym językiem:
 | Wiersz `importy_przepisow` (bez treści) | baza | 90 dni, potem usuwany komendą `kuking:sprzataj-importy` (wzorzec `app/Domain/Compliance`, `docs/decyzje/ADR_RETENCJE.md`) |
 | `odpowiedz_modelu` (surowy JSON, do diagnozy błędów) | baza | **30 dni**, potem `NULL` — ta sama komenda |
 | Tekst pobranej strony | tylko pamięć joba | nie zapisujemy; zostaje `source_url` |
+| PDF czekający na wybór stron (#2535) | prywatny katalog osoby na dysku importu: plik, miniatury, opis | do zatwierdzenia/odrzucenia/usunięcia konta; porzucony najpóźniej po 2 godzinach (`kuking.import.pdf.wybor_stron_godziny`), nocne `kuking:odzyskaj-importy`; ADR retencji §5.12 |
 | Po stronie OpenAI | OpenAI | według warunków API; `store: false` **nie jest** obietnicą zerowej retencji (pilot #912). Aktualny okres przechowywania na potrzeby nadużyć i możliwość Zero Data Retention — sprawdzić i wpisać **przed** startem (**P-5**) |
 
 Eksport danych (`GenerateUserExport`) obejmuje listę importów (data,

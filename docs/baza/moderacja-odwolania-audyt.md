@@ -326,7 +326,9 @@ Egzekwuje `kuking:sprzataj-audyt`, harmonogram codziennie o 04:10.
 
 **Wpis atomowy albo pomocniczy (D-249, #1343, #1373, #1363).** Wpis będący
 częścią decyzji (`moderation.decided`, `moderation.automat_dismissed`,
-`user.role_changed`, `post.published`, wybór redakcyjny `daily_board.updated`,
+`user.role_changed`, `post.published`, `post.republished` (autor publikuje
+ponownie wpis przywrócony jako szkic, #2461 — zwykły okres retencji dziennika),
+wybór redakcyjny `daily_board.updated`,
 `daily_board.cleared`, `hero_kolaz.updated`, `hero_kolaz.cleared`) idzie przez
 `record()` **wewnątrz**
 transakcji zmiany: awaria dziennika cofa decyzję, a ponowienie daje jeden

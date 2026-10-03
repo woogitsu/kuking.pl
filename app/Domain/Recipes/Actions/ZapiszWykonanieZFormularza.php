@@ -33,6 +33,7 @@ final class ZapiszWykonanieZFormularza
         ?string $ip,
         ?string $kluczWyslania,
         ?string $wersjaPrzepisuId = null,
+        bool $wersjaScisla = false,
     ): CookedEvent {
         // „Zrobisz to jeszcze raz?" ma TRZY stany, nie dwa (audyt A22).
         //
@@ -66,6 +67,7 @@ final class ZapiszWykonanieZFormularza
             ip: $ip,
             kluczWyslania: $kluczWyslania,
             wersjaPrzepisuId: $wersjaPrzepisuId,
+            wersjaScisla: $wersjaScisla,
             dzienGotowania: isset($dane['dzien_gotowania']) && is_string($dane['dzien_gotowania']) ? $dane['dzien_gotowania'] : null,
             faktycznePorcje: isset($dane['faktyczne_porcje']) && is_string($dane['faktyczne_porcje']) ? $dane['faktyczne_porcje'] : null,
         );

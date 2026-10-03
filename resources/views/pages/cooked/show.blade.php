@@ -56,6 +56,16 @@
             @endif
         </section>
 
+        {{-- Dołączenie zdjęcia do zapisanego wykonania (#2500): tylko kucharz,
+             w oknie czasu i przy dostępnym przepisie (`CookedEventPolicy::addPhotos`). --}}
+        @can('addPhotos', $event)
+            <section class="sekcja-strony" aria-labelledby="dolacz-zdjecie">
+                <h2 id="dolacz-zdjecie">Zdjęcie do tego wykonania</h2>
+                <p>Masz zdjęcie tego dania? Możesz je dołączyć do tego wykonania, bez zgłaszania gotowania drugi raz.</p>
+                <p><a class="btn btn-secondary" href="{{ route('cooked.photos.create', $event) }}">Dołącz zdjęcie</a></p>
+            </section>
+        @endcan
+
         <div class="danger-zone">
             <x-confirm-button
                 :action="route('cooked.destroy', $event)"

@@ -58,6 +58,20 @@ czy Kuking jest mikro/małym przedsiębiorstwem, czy nie.** To jest dziś
 
 ### 1.2 Art. 19 — zwolnienie mikro/małych z Sekcji 3 (w tym art. 20)
 
+> **Objaśnienie z 2.10.2026 (#2708, analiza prawna pyt. 10; analiza AI, nie
+> opinia prawnika).** Nie piszemy „zwolnienie z art. 19–28” bez objaśnienia.
+> Art. 19 jest pierwszym przepisem Sekcji 3 (art. 19–28) i **zwalnia** z niej
+> mikro i małych dostawców platform, **z wyjątkiem art. 24 ust. 3**. Art. 11–18
+> obowiązują zawsze (w tym art. 16–18, na których stoi ten dokument).
+> Art. 15 (sprawozdanie przejrzystości) ma **osobne** zwolnienie w ust. 2. Po
+> utracie statusu zwolnienie trwa jeszcze 12 miesięcy, ale nie obejmuje
+> obowiązków, z których firma nigdy nie była zwolniona. RODO, PKE, prawo
+> konsumenckie i autorskie zostają w mocy.
+> **Status mikro:** oświadczenie właściciela z 2.10.2026 (D-333). Pisemna
+> notatka kwalifikacyjna (zatrudnienie, obrót lub suma bilansowa, powiązania,
+> okresy, data przeglądu) jest **do zrobienia**; certyfikat UKE nie jest
+> potrzebny.
+
 `docs/legal/COMPLIANCE.md:26-33` twierdzi, że Kuking jako mikro/małe
 przedsiębiorstwo jest zwolniony z art. 20 DSA na mocy art. 19. Cytat
 potwierdza tę strukturę:
@@ -158,7 +172,9 @@ Zweryfikowane w kodzie, nie na słowo z issue. Lista poniżej to rzeczy, któryc
    - model `app/Models/Appeal.php` — `UNIQUE (moderation_action_id)`,
      `responseDeadline()` liczący 7 dni roboczych z konfiguracji,
    - akcja złożenia `app/Domain/Moderation/Actions/FileAppeal.php` — limit
-     jedno odwołanie na decyzję, termin 14 dni (`appealDeadline()`),
+     jedno odwołanie na decyzję, termin złożenia 6 miesięcy (`appealDeadline()`;
+     dawne „14 dni” jest nieaktualne), odpowiedź w 7 dni roboczych jak w
+     regulaminie,
      autoryzacja `subject_user_id === $osoba->getKey()` (linia 43),
    - formularz dla zalogowanych: `app/Http/Controllers/AppealController.php::show/store`,
      trasa `GET/POST /odwolanie/{action}`,

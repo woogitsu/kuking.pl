@@ -41,6 +41,8 @@
         @forelse($drafts as $draft)
             <li class="stack-tight">
                 <a class="btn btn-secondary" href="{{ route('recipes.create', ['szkic' => $draft->getKey()]) }}">Dokończ: {{ $draft->title }}</a>
+                {{-- „Zrób kopię” (#2507): ekran potwierdzenia zakresu, nic nie zapisuje samo z listy. --}}
+                <a class="btn btn-secondary" href="{{ route('recipes.drafts.copy', $draft->getKey()) }}">Zrób kopię<span class="visually-hidden">: {{ $draft->title }}</span></a>
                 @if($odlozone)
                     <form method="POST" action="{{ route('recipes.drafts.resume', $draft->getKey()) }}">
                         @csrf @method('DELETE')

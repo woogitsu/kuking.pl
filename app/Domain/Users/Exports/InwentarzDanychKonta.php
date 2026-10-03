@@ -66,6 +66,8 @@ final class InwentarzDanychKonta
         'comments.author_id' => [self::EKSPORT, 'moje_komentarze'],
         'collections.owner_id' => [self::EKSPORT, 'kolekcje'],
         'deleted_collections.owner_id' => [self::EKSPORT, 'usuniete_zeszyty'],
+        // Kopia tekstu szkicu do odzyskania po pomyłce (#2512, D-333).
+        'draft_restore_points.user_id' => [self::EKSPORT, 'kopie_tekstu_szkicow'],
         // Wspólny zeszyt (#1743, D-302). Pozycje dodane we WŁASNYM zeszycie
         // są w `kolekcje` (z podpisem „dodane_przez"), w cudzym — tutaj.
         'collection_members.user_id' => [self::EKSPORT, 'zeszyty_udostepnione_mi'],
@@ -109,6 +111,7 @@ final class InwentarzDanychKonta
         'appeals.user_id' => [self::EKSPORT, 'odwolania'],
         'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],
         'shopping_list_items.user_id' => [self::EKSPORT, 'lista_zakupow'],
+        'shopping_lists.user_id' => [self::EKSPORT, 'listy_zakupow'],
         'shopping_list_undos.user_id' => [self::NIE_DOTYCZY, 'Tymczasowa kopia pozycji ostatnio usuniętych z listy zakupów, trzymana najwyżej 15 minut tylko po to, żeby dało się cofnąć usunięcie. To te same pozycje, które były w sekcji lista_zakupow; po tym czasie są kasowane.'],
         'przepisy_z_importu.user_id' => [self::EKSPORT, 'importy_przepisow'],
         'push_subscriptions.user_id' => [self::EKSPORT, 'powiadomienia_poza_serwisem'],

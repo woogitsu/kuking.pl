@@ -28,6 +28,11 @@
                     <time datetime="{{ $event->poprawiono_at->toIso8601String() }}">{{ \App\Support\Czas::data($event->poprawiono_at, 'j F Y') }}</time>
                 </p>
             @endif
+            {{-- Zdjęcie dołączone do zapisanego wykonania (#2500): publiczny dopisek,
+                 żeby nikt nie sądził, że zdjęcie było od początku. --}}
+            @if($event->photos_added_at !== null)
+                <p class="meta m-0">Zdjęcie uzupełnione <time datetime="{{ $event->photos_added_at->toIso8601String() }}">{{ \App\Support\Czas::data($event->photos_added_at, 'j F Y') }}</time>.</p>
+            @endif
             {{-- Prywatny dzień gotowania (#2583): tylko kucharz. Inni, w tym
                  autor przepisu, widzą wyłącznie datę dodania powyżej. --}}
             @if($event->dzien_gotowania !== null && auth()->id() === $event->user_id)

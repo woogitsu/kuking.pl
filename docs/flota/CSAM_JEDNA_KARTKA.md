@@ -137,6 +137,14 @@ pośrednik.
    nie dotyka pliku. **Eskaluj odcięcie pliku do osoby z dostępem do magazynu.**
 8. **Nie uznawaj sprawy za zamkniętą po „Decyzja zapisana".**
 9. **Udokumentuj**: numery spraw, czas, adresata, numer referencyjny. Bez kopii materiału.
+10. **Przechowywanie i koniec sprawy (analiza z 2.10.2026, pyt. 17, etapy 5–6):**
+    zabezpieczony plik zostaje w magazynie tylko na czas zabezpieczenia i przekazania
+    organowi. **Nie przechowujemy materiału 36 miesięcy** i nie robimy dodatkowych kopii.
+    Po przekazaniu i zgodnie z instrukcją organu dane bez dalszej podstawy trzeba usunąć,
+    a z kopii zapasowej nie wolno przywrócić publicznego dostępu. Panel nie ma jeszcze
+    ścieżki usunięcia ani rejestru dla odtworzenia z kopii; do czasu jej zbudowania
+    decyzję o usunięciu podejmuje właściciel po uzgodnieniu z organem (luka opisana w
+    `MODERATION_PLAYBOOK.md` §7.1, tabela sześciu etapów).
 
 ## Do rozstrzygnięcia przez właściciela
 

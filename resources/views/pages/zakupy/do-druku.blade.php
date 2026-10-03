@@ -24,7 +24,7 @@
         @if($pozycje === [])
             <p class="notice">Na liście zakupów nie ma teraz nic do kupienia, więc nie ma czego drukować. Odhaczone pozycje nie trafiają na kartkę. Dopisz, co trzeba kupić, i wróć tutaj.</p>
             <div class="form-actions">
-                <a class="btn btn-secondary" href="{{ route('shopping.index') }}">Wróć do listy zakupów</a>
+                <a class="btn btn-secondary" href="{{ $naListe }}">Wróć do listy zakupów</a>
             </div>
         @else
             <p class="mb-3">
@@ -32,8 +32,8 @@
                 To kopia z chwili otwarcia tej strony: późniejsze zmiany na liście nie zmienią kartki. Jeśli coś dopiszesz, otwórz wydruk jeszcze raz.
             </p>
             <div class="form-actions">
-                <a class="btn btn-primary" href="{{ route('shopping.print', ['druk' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis>Wydrukuj kartkę</a>
-                <a class="btn btn-quiet" href="{{ route('shopping.index') }}">Wróć do listy zakupów</a>
+                <a class="btn btn-primary" href="{{ route('shopping.print', [...$parametryListy, 'druk' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis>Wydrukuj kartkę</a>
+                <a class="btn btn-quiet" href="{{ $naListe }}">Wróć do listy zakupów</a>
             </div>
             @if(request()->boolean('druk'))
                 <div class="notice mt-4" id="jak-wydrukowac" role="status">
@@ -50,7 +50,7 @@
 
     @if($pozycje !== [])
         <article class="sciagawka kartka-zakupow sekcja-strony" aria-labelledby="kartka-zakupow-tytul">
-            <h2 id="kartka-zakupow-tytul">Do kupienia</h2>
+            <h2 id="kartka-zakupow-tytul">Do kupienia{{ $nazwaListy !== null ? ' — '.$nazwaListy : '' }}</h2>
             <p class="kartka-zakupow-data">Stan z: {{ $dataOdczytu }}. To kopia — nie zmienia się razem z listą.</p>
             <ul class="kartka-zakupow-lista">
                 @foreach($pozycje as $tekst)

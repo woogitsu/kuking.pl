@@ -163,7 +163,7 @@ class AuditLogEntry extends Model
      *
      * NIE DLA wpisów, które są częścią decyzji i mają z nią stać albo paść
      * razem (D-249, klasa 1: `moderation.decided`,
-     * `moderation.automat_dismissed`, `user.role_changed`, `post.published`):
+     * `moderation.automat_dismissed`, `user.role_changed`, `post.published`, `post.republished`):
      * te wołają `record()` WEWNĄTRZ transakcji zmiany.
      *
      * @param  array<string, mixed>  $metadata

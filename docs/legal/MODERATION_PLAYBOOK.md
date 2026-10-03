@@ -46,7 +46,7 @@ Krótka, ludzka wersja — pisana tak, żeby 65-latek zrozumiał ją bez czytani
 | Niebezpieczna porada zdrowotna/żywieniowa | "Soda oczyszcza z raka", niebezpieczne przetwory bez zasad bezpieczeństwa | Ukrycie treści; wyjaśnienie wpisujesz w pole „Wiadomość do użytkownika” przy decyzji — rzeczowo, bez oskarżania | Przy uporczywym powtarzaniu → blokada czasowa | Ukryć. Serwis nie umie dopiąć „kontekstu” do treści: pod treścią, która zostaje widoczna, moderator może najwyżej napisać zwykły komentarz, jak każdy inny użytkownik | Tak, rzeczowo, bez oceniania |
 | Nieletni na koncie | Wpis/profil sugerujący wiek poniżej 16 lat | Zawieszenie konta do wyjaśnienia — **profil zostaje widoczny** | Potwierdzone → trwałe zamknięcie konta (blokada), z informacją | Ukryć pojedyncze treści; profilu nie da się ukryć osobno | Tak, z wyjaśnieniem zasad wieku |
 | Reklama alkoholu | Post promujący markę alkoholu (nie: przepis zawierający alkohol jako składnik) | Usunięcie posta reklamowego | Powtórka → ostrzeżenie, potem blokada | Usunąć | Tak |
-| CSAM / seksualizacja dzieci | Jakakolwiek treść tego typu | **Zero tolerancji — patrz sekcja 6** | Natychmiastowe zgłoszenie do organów | Usunąć — usunięcie jest miękkie, wiersz i zdjęcie zostają w bazie jako dowód | **Powiadomienie wychodzi automatycznie przy KAŻDEJ decyzji.** Wybierz podstawę **„Krzywdzenie dzieci — usuwamy natychmiast”** i zostaw „Wiadomość do użytkownika” PUSTĄ — pójdzie wtedy samo neutralne zdanie domyślne. **Nie wybieraj „Treść niezgodna z prawem”**: przy tej podstawie formularz NIE PRZYJMIE pustej wiadomości (`required_if`), a to jest ostatnia chwila, w której chcesz walczyć z walidacją. Poza tym nie kontaktuj się — patrz sekcja 6 |
+| CSAM / seksualizacja dzieci | Jakakolwiek treść tego typu | **Zero tolerancji — patrz sekcja 7.1** | Natychmiastowe zawiadomienie Policji lub prokuratury (art. 18 DSA), Dyżurnet.pl dodatkowo | Użyj akcji „CSAM — natychmiast ukryj i zabezpiecz” (§7.1), nie zwykłego „Usuń”. Samo miękkie usunięcie nie jest kwarantanną dowodową ani nie odcina pliku | **Powiadomienie wychodzi automatycznie przy KAŻDEJ decyzji.** Wybierz podstawę **„Krzywdzenie dzieci — usuwamy natychmiast”** i zostaw „Wiadomość do użytkownika” PUSTĄ — pójdzie wtedy samo neutralne zdanie domyślne. **Nie wybieraj „Treść niezgodna z prawem”**: przy tej podstawie formularz NIE PRZYJMIE pustej wiadomości (`required_if`), a to jest ostatnia chwila, w której chcesz walczyć z walidacją. Poza tym nie kontaktuj się — patrz sekcja 6 |
 | Groźby / zagrożenie życia | Wypowiedź wskazująca na realne zagrożenie życia (własnego lub cudzego) | **Zgłoszenie do organów — patrz sekcja 6** | — | Ukryć treść. Kopia robi się sama: ukrycie zmienia tylko status, wiersz zostaje w bazie i nic go nie kasuje | Ostrożnie, priorytet to bezpieczeństwo, nie moderacja. Powiadomienie do autora i tak wyjdzie automatycznie |
 
 ### Czego panel moderacji NIE potrafi — czytaj razem z tabelą wyżej
@@ -69,7 +69,7 @@ Kolumny „Pierwsza reakcja" i „Eskalacja" opisują politykę. Narzędzie ma d
 
 | Priorytet | Co się kwalifikuje | Cel czasowy reakcji |
 |---|---|---|
-| P0 — krytyczny | CSAM, groźby zagrażające życiu, aktywny doxxing | Natychmiast po zauważeniu, maks. kilka godzin, poza kolejnością wszystkiego innego |
+| P0 — krytyczny | CSAM, groźby zagrażające życiu, aktywny doxxing | Natychmiast po zauważeniu, poza kolejnością wszystkiego innego. „Maks. kilka godzin” to cel operacyjny, **nie prawo do czekania**: art. 18 DSA wymaga zawiadomienia „bez zbędnej zwłoki” i nie ma ustawowych 24/48/72 godzin (analiza z 2.10.2026, pyt. 17) |
 | P1 — pilny | Nękanie, mowa nienawiści, dane osobowe osób trzecich, nagość, oszustwo (scam) | W ciągu 24 godzin w dni robocze |
 | P2 — standardowy | Spam, prawa autorskie, niebezpieczne porady, podszywanie | W ciągu 72 godzin |
 | P3 — niski | Drobne naruszenia stylu/tonu, wątpliwe kategorie | W ciągu 7 dni, mogą czekać na tygodniowy przegląd |
@@ -416,16 +416,33 @@ To jedyna sytuacja, w której **nie stosujemy** standardowej ścieżki "ostrzeż
 
 1. **Nie rozpowszechniaj, nie kopiuj, nie przesyłaj dalej** podejrzanej treści (nawet wewnętrznie, np. e-mailem między moderatorami). Ogranicz dostęp do minimum: dla wpisu, przepisu albo komentarza wybierz `CSAM — natychmiast ukryj i zabezpiecz` i **nie ściągaj pliku na dysk lokalny**. Dla treści spoza zakresu tej akcji zastosuj instrukcję przekazania sprawy właścicielowi powyżej. Nie zastępuj zabezpieczenia zwykłym `Usuń treść` ani ręczną zmianą statusu w bazie.
 2. **Natychmiast ukryj/usuń treść z widoku publicznego** (techniczne wyłączenie widoczności), ale **zachowaj metadane** (ID treści, ID konta, timestamp) potrzebne do zgłoszenia — nie kasuj rekordu z bazy przed zgłoszeniem organom.
-3. **Zgłoś natychmiast do organów:**
-   - Polska: **Dyżurnet.pl** (zespół NASK ds. nielegalnych treści w internecie, w tym CSAM) — zgłoszenie online, działa całodobowo jako punkt przyjęcia zgłoszeń.
-   - Oraz/lub bezpośrednio **Policja** (997 lub najbliższa jednostka), jeśli sytuacja wskazuje na trwające zagrożenie/wykorzystywanie dziecka.
-   - [do weryfikacji z prawnikiem: czy jako dostawca hostingu Kuking ma dodatkowy obowiązek zgłoszenia do konkretnego organu na mocy Art. 18 DSA lub przepisów krajowych implementujących walkę z CSAM — potwierdzić dokładną ścieżkę **przed startem**, nie w trakcie realnego incydentu].
+3. **Zawiadom bezpośrednio organy, bez zbędnej zwłoki (art. 18 DSA; brzmienie z 2.10.2026, analiza prawna pyt. 17):**
+   - **Najpierw (albo równolegle z ograniczeniem dostępu) Policja lub prokuratura** — wiarygodne podejrzenie materiału przedstawiającego seksualne wykorzystywanie dziecka wystarcza; nie czekaj na pewność, nie ustalaj sprawcy i **nie czekaj na zwykłą kolejkę moderacji**. Opisz podejrzenie i fakty (nie przesądzaj o winie), podaj dane operatora i kontakt do osoby zdolnej szybko współpracować, zapisz potwierdzenie, numer sprawy i otrzymane instrukcje. „Bez zbędnej zwłoki” nie ma ustawowych 24/48/72 godzin, a wewnętrzny cel „kilka godzin” nie jest prawem do czekania, gdy zawiadomienie można złożyć od razu.
+   - **Dodatkowo** **Dyżurnet.pl** (zespół NASK, zgłoszenie online, całodobowo) — według jego instrukcji, przede wszystkim lokalizacja i fakty, bez obiegu plików. **To kanał dodatkowy, nie zamiennik zawiadomienia z art. 18.**
+   - **Bezpośrednie, aktualne zagrożenie życia lub bezpieczeństwa: 112** oraz równoległe ograniczenie ekspozycji w serwisie.
+   - Gdy nie da się z rozsądną pewnością ustalić właściwego państwa członkowskiego: art. 18 ust. 2 (organy państwa siedziby lub Europol); nie odkładaj zawiadomienia do pełnego ustalenia lokalizacji.
+   - Analiza AI z 2.10.2026 nie jest podpisaną opinią prawnika; szczegółowy tryb dowodowy i przekazania materiału **ma zatwierdzić polski prawnik karny** i uzgodnić z właściwą jednostką **przed publicznym startem** (zob. §7.1a).
 4. **Zablokuj konto autora natychmiast i trwale**, bez wysyłania standardowego szablonu z uzasadnieniem szczegółowym — wystarczy neutralna informacja "Twoje konto zostało trwale zablokowane z powodu naruszenia prawa" (nie opisuj szczegółowo powodu w komunikacji z użytkownikiem — to może zaszkodzić postępowaniu, jeśli sprawa trafi do organów).
 5. **Nie kontaktuj się z autorem w żaden inny sposób i nie próbuj samodzielnie "wyjaśniać sprawy"** — to zadanie organów ścigania, nie moderacji.
 6. **Udokumentuj wewnętrznie** fakt zgłoszenia (data, do kogo, numer referencyjny jeśli dostępny) — potrzebne na wypadek pytań regulatora.
 7. **Zagrożenie życia (np. groźby samobójcze, groźby wobec innej osoby)** — analogicznie: zachowaj treść, zgłoś do odpowiednich służb (Policja 112/997, w przypadku zagrożenia suicydalnego można też wskazać użytkownikowi telefon zaufania — 116 123 Centrum Wsparcia dla osób w kryzysie psychicznym — w odpowiedzi, jeśli sytuacja na to pozwala i nie utrudnia to działań służb).
 
 **To jedyna kategoria w tym dokumencie, gdzie "szybciej i ostrożniej" zawsze wygrywa z "poczekajmy i sprawdźmy dokładniej".**
+
+#### Sześć etapów (analiza prawna z 2.10.2026, pyt. 17) a to, co robi panel i procedura
+
+Źródło: [`OPINIA_AI_2026-10-02.md`](../prawo/OPINIA_AI_2026-10-02.md) pyt. 17 i [`ODPOWIEDZI_NA_OPINIE_2026-10-02.md`](../prawo/ODPOWIEDZI_NA_OPINIE_2026-10-02.md). Tabela mówi, co jest w procedurze, a co w kodzie. **Luki w kodzie nie są poprawiane w tym dokumencie**, tylko opisane jako zadania osobne.
+
+| Etap | Wymaganie | Procedura (punkty wyżej) | Panel (kod, stan na 2.10.2026) |
+|---|---|---|---|
+| 1. Ograniczenie dostępu | Niedostępne: oryginał, miniatury, kopie pod URL, podglądy, CDN. Nie sztywna kolejność „zdjęcie, konto, treść” | pkt 1–2, akcja „CSAM — natychmiast ukryj i zabezpiecz” | Ukrycie treści, `status = secured` zdjęć, przeniesienie publicznych wariantów na prywatny dysk i czyszczenie CDN (zadania asynchroniczne). **Luki:** adresy podpisane wydane wcześniej żyją do 5 min, cache brzegowy niezmierzony; stary publiczny bucket `r2_legacy` bez przeniesienia (job zgłasza błąd); brak przycisku dla „Ugotowałem”, awatara, zeszytu i samego zdjęcia (sprawę przekazuje się ręcznie właścicielowi) |
+| 2. Minimalne zabezpieczenie faktów | Identyfikatory, daty ze strefą, adres lokalizacji, źródło zgłoszenia, wykonane działania; bez szerokich kopii i własnego śledztwa | pkt 2, 6 | Rejestr `zabezpieczenia_dowodow`, decyzja, wpis w dzienniku audytu. Adres lokalizacji i numer sprawy wpisuje człowiek w notatce |
+| 3. Bezpośrednie zawiadomienie | Policja lub prokuratura bez zbędnej zwłoki; Dyżurnet dodatkowo | pkt 3 (brzmienie z 2.10.2026) | **Panel niczego nie wysyła.** **Luka:** ekran instrukcji (`resources/views/pages/admin/csam/_instrukcja.blade.php`) nadal podaje stary porządek: „Dyżurnet.pl oraz/lub Policja, jeśli trwające zagrożenie” i „Dopóki prawnik nie potwierdzi: zgłoś do Dyżurnet.pl, a przy trwającym zagrożeniu dzwoń na Policję”. Jest sprzeczny z pkt 3 |
+| 4. Kontrolowane przekazanie | Brak plików w e-mailu, czacie, Discordzie, repozytorium, telefonie, AI; brak zrzutów | pkt 1 | Aplikacja nie pokazuje zdjęcia nikomu, także moderatorowi. Żadnego eksportu pliku dla organu nie ma: tryb przekazania do ustalenia z organem |
+| 5. Odrębne, minimalne przechowanie | Sam `deleted_at` nie jest kwarantanną; dostęp kontrolowany; bez dodatkowych kopii; **bez przechowywania 36 miesięcy** | pkt 2 | Oryginał zostaje w magazynie (`secured`), wszystkie sprzątacze go omijają (`ZabezpieczoneDowody`), wymazanie konta autora jest zablokowane. **Luka:** rejestr nie ma terminu ani drogi zdjęcia zabezpieczenia („zdejmowania nie ma”), więc przechowywanie jest dziś bezterminowe, nie 36-miesięczne; brak rejestru czynności na pliku poza dziennikiem audytu samej akcji |
+| 6. Zakończenie i zapobieżenie odtworzeniu | Po przekazaniu usunąć dane bez dalszej podstawy, zostawić ślad sprawy; nie przywrócić dostępu z kopii | pkt 6 (dokumentuj) | **Luka:** brak ścieżki usunięcia po przekazaniu organowi. Dziennik wymazań (`kuking:wymaz-ponownie`) dotyczy tylko wymazania kont; po odtworzeniu bazy z kopii ukryta treść CSAM nie ma odpowiednika „zastosuj rejestr przed uruchomieniem”. Nie sprawdzono, czy odtworzenie bazy przywraca widoczność wpisu |
+
+**Co NIE jest zatwierdzone przez analizę:** ścieżka „Dyżurnet, a Policja tylko przy trwającym zagrożeniu”; przechowywanie zakazanego materiału 36 miesięcy; tworzenie dodatkowych kopii dowodowych; testy na prawdziwym CSAM. **Warunek startu (pyt. 17):** panel musi być wdrożony i sprawdzony próbą na **nieszkodliwym pliku testowym** (wszystkie adresy, miniatury, CDN, konta, powiadomienia, zapisy dowodowe, odtworzenie kopii), z osobą zastępczą na czas nieobecności moderatora. Panel zapowiedziany w „najbliższym wydaniu” nie wystarcza.
 
 ### 7.1a Projekt ścieżki z art. 18 DSA — DO POTWIERDZENIA PRZEZ PRAWNIKA, NIE ROZSTRZYGNIĘTE
 
@@ -434,9 +451,13 @@ To jedyna sytuacja, w której **nie stosujemy** standardowej ścieżki "ostrzeż
 **nie rozstrzyga** — zbiera materiał, żeby prawnik dostał trzy konkretne
 pytania zamiast pustej kartki, i żeby nikt nie musiał tego zbierać w dniu
 realnego incydentu. **Dopóki prawnik nie potwierdzi, obowiązuje punkt 3
-wyżej w dotychczasowym brzmieniu: zgłoś do Dyżurnet.pl, a przy trwającym
-zagrożeniu dzwoń na Policję.** Ta kolejność jest bezpieczna operacyjnie
-niezależnie od tego, jak wypadnie ocena prawna.
+wyżej w brzmieniu z 2.10.2026: bezpośrednie zawiadomienie Policji lub
+prokuratury (art. 18 DSA), Dyżurnet.pl dodatkowo.** Dawne brzmienie
+(„Dyżurnet, a przy trwającym zagrożeniu Policja”) zostało wycofane: analiza
+prawna z 2.10.2026 (pyt. 17; analiza AI, nie podpisana opinia prawnika)
+nie zatwierdza ścieżki kończącej się na Dyżurnet. Pytanie 1 poniżej zostaje
+do potwierdzenia przez polskiego prawnika, ale do tego czasu nie wolno
+zakładać, że zgłoszenie do Dyżurnet zastępuje zawiadomienie organu.
 
 **Każde twierdzenie niżej ma źródło i datę.** Stan prawny zmienia się poza
 tym repozytorium, a zdanie bez daty starzeje się po cichu.
@@ -520,7 +541,12 @@ Trzy rzeczy, które z tego wynikają wprost i których nie trzeba potwierdzać:
    zachowanie**, oraz o wskazanie, po jakim czasie i na czyje polecenie
    wolno te dane skasować. Ma to skutek dla retencji: dziś sprawy
    moderacyjne kasuje automat po 36 miesiącach
-   (`kuking:sprzataj-sprawy-moderacyjne`).
+   (`kuking:sprzataj-sprawy-moderacyjne`), ale sprawy zabezpieczone
+   dowodowo ten automat pomija. Analiza z 2.10.2026 **nie zatwierdza
+   przechowywania samego materiału 36 miesięcy** (ani innego z góry
+   ustalonego terminu): zachowuje się istniejący plik na niezbędny czas
+   zabezpieczenia i przekazania organowi, potem usuwa dane bez dalszej
+   podstawy i zostawia uzasadniony ślad sprawy.
 
 3. **Jaki jest aktualny stan ustawy wdrażającej DSA w Polsce i czy nakłada
    ona na dostawcę hostingu obowiązki zgłoszeniowe wykraczające poza
@@ -531,11 +557,14 @@ Trzy rzeczy, które z tego wynikają wprost i których nie trzeba potwierdzać:
 
 #### Czego ta sekcja świadomie nie robi
 
-Nie zmienia ani jednego kroku procedury z §7.1, nie wskazuje organu
-i nie zdejmuje z punktu 3 oznaczenia `[do weryfikacji z prawnikiem]`.
-Zdjęcie go bez odpowiedzi prawnika byłoby dokładnie tym błędem, przed
-którym ostrzega reguła listy gotowości: punkt bez dowodu, który wygląda
-na sprawdzony.
+Nie wskazuje konkretnej jednostki Policji ani prokuratury i nie zdejmuje
+wymogu zatwierdzenia trybu dowodowego przez polskiego prawnika karnego
+(zob. §7.1, tabela sześciu etapów). Punkt 3 został w §7.1 poprawiony
+2.10.2026 według analizy prawnej; wcześniejsze brzmienie tej sekcji
+(„nie zmienia ani jednego kroku”) odnosiło się do stanu z 20.09.2026.
+Oznaczenie „do potwierdzenia” zostaje przy pytaniach niżej: potwierdzenie bez
+odpowiedzi prawnika byłoby błędem, przed którym ostrzega reguła listy
+gotowości: punkt bez dowodu, który wygląda na sprawdzony.
 
 ---
 

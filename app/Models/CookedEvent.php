@@ -37,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $dzien_gotowania
  * @property float|null $faktyczne_porcje
  * @property Carbon|null $poprawiono_at
+ * @property Carbon|null $photos_added_at
  */
 class CookedEvent extends Model
 {
@@ -75,6 +76,9 @@ class CookedEvent extends Model
             // Ślad korekty uwagi, opisu zmian albo czasu (#2459). Poza
             // `$fillable`; ustawia go wyłącznie `PoprawWykonanie`.
             'poprawiono_at' => 'datetime',
+            // Chwila dołączenia zdjęcia do zapisanego wykonania (#2500). Poza
+            // `$fillable`; ustawia ją wyłącznie `DolaczZdjeciaDoWykonania`.
+            'photos_added_at' => 'datetime',
             'would_make_again' => 'boolean',
             'actual_minutes' => 'integer',
             // Wspomnienia z własnych wykonań (F6). Poza `$fillable`: zapisuje
