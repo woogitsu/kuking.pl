@@ -301,6 +301,14 @@ i PHP; chodzi przez `scripts/check.sh` i istniejący krok joba `lint`.
 Fizyczne cofnięcie bramki do JSON oblewa próbę poprawnego JUnit przy tekstowym
 wyjściu na `PRZYRZAD_2811_TEKST_NIE_ODRZUCA_JUNIT`.
 
+
+**Szersza klasa wymaga wzorca każdej porażki (#2856).** Mutant usuwający
+kursor rankingu poprawnie oblał także nowe próby z prawidłową miarą, ale
+stary wzorzec znał tylko trzy wcześniejsze komunikaty. Dopisano wyłącznie
+oba własne markery `KURSOR_REAL_2856_PRAWIDLOWA_MIARA_*`, bez ogólnego
+`Failed asserting`. Test przyrządu potwierdza stare i nowe przyczyny oraz
+odmowę obcej asercji, wyjątku i markera występującego jedynie w logu.
+
 **Dlaczego łańcuch, a nie wyrażenie regularne.** Łańcuch albo jest w pliku,
 albo go nie ma. Wyrażenie regularne ma trzecią możliwość — „pasuje do czegoś
 innego, niż myślałeś" — i to ona dała połowę no-opów z 19 września.
