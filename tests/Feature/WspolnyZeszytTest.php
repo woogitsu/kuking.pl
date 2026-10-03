@@ -187,6 +187,13 @@ final class WspolnyZeszytTest extends TestCase
     public function test_odrzucenie_nie_daje_dostepu(): void
     {
         $zaproszenie = $this->zaproszenie();
+        $obcy = $this->user('obcyodmowy');
+
+        $this->actingAs($obcy)->post(route('collections.invitations.decline', $zaproszenie))->assertNotFound();
+        $this->assertSame(CollectionInvitation::STATUS_PENDING, $zaproszenie->fresh()->status);
+
+        $this->actingAs($this->jurek)->post(route('collections.invitations.decline', $zaproszenie))
+            ->assertRedirect(route('collections.index'));
 
         $this->actingAs($this->jurek)->post(route('collections.invitations.decline', $zaproszenie))
             ->assertRedirect(route('collections.index'));
@@ -223,6 +230,7 @@ final class WspolnyZeszytTest extends TestCase
 
         // Drugi raz ten sam link nie działa dla nikogo.
         $this->actingAs($obcy)->post(route('collections.link.accept', $token))->assertStatus(410);
+        $this->actingAs($obcy)->post(route('collections.link.decline', $token))->assertStatus(410);
         $this->assertFalse($this->zeszyt->maCzlonka($obcy));
 
         [$drugi, $token2] = app(ZaprosDoZeszytu::class)->linkiem($this->halina, $this->zeszyt);
@@ -230,10 +238,12 @@ final class WspolnyZeszytTest extends TestCase
             ->delete(route('collections.invitations.destroy', ['collection' => $this->zeszyt, 'invitation' => $drugi]))
             ->assertRedirect();
         $this->actingAs($obcy)->get(route('collections.link.show', $token2))->assertStatus(410);
+        $this->actingAs($obcy)->post(route('collections.link.decline', $token2))->assertStatus(410);
 
         [, $token3] = app(ZaprosDoZeszytu::class)->linkiem($this->halina, $this->zeszyt);
         $this->travel(8)->days();
         $this->actingAs($obcy)->post(route('collections.link.accept', $token3))->assertStatus(410);
+        $this->actingAs($obcy)->post(route('collections.link.decline', $token3))->assertStatus(410);
     }
 
     public function test_wspolpracownik_zapisuje_i_wyjmuje_a_widac_kto_dodal(): void

@@ -130,7 +130,16 @@ final class OdpowiedzNaZaproszenie
 
     public function odrzuc(User $osoba, CollectionInvitation $zaproszenie): void
     {
-        DB::transaction(function () use ($osoba, $zaproszenie): void {
+        $wlasciciel = $zaproszenie->collection->owner
+            ?? throw new BladDlaCzlowieka(self::NIEAKTUALNE);
+
+        // Ta sama kolejność co przy przyjęciu: konta, zaproszenie. Przy linku
+        // invitee_id jest NULL, a jego ustawienie sprawdza FK do users.
+        ZamekPary::zablokuj($osoba, $wlasciciel, function (?User $swiezaOsoba, ?User $swiezyWlasciciel) use ($zaproszenie): void {
+            if ($swiezaOsoba === null || $swiezyWlasciciel === null) {
+                throw new BladDlaCzlowieka(self::NIEAKTUALNE);
+            }
+
             $swieze = CollectionInvitation::query()->whereKey($zaproszenie->getKey())->lockForUpdate()->first();
 
             // Już odrzucone przez tę osobę albo nie ma czego odrzucać — cisza.
@@ -138,7 +147,11 @@ final class OdpowiedzNaZaproszenie
                 return;
             }
 
-            $this->sprawdzAdresata($swieze, $osoba);
+            $this->sprawdzAdresata($swieze, $swiezaOsoba);
+
+            if ($swieze->collection->owner_id !== $swiezyWlasciciel->getKey()) {
+                throw new BladDlaCzlowieka(self::NIEAKTUALNE);
+            }
 
             if ($swieze->status !== CollectionInvitation::STATUS_PENDING) {
                 throw new BladDlaCzlowieka(self::NIEAKTUALNE);
@@ -149,7 +162,7 @@ final class OdpowiedzNaZaproszenie
             // utworzyć nowy.
             $swieze->forceFill([
                 'status' => CollectionInvitation::STATUS_DECLINED,
-                'invitee_id' => $swieze->invitee_id ?? $osoba->getKey(),
+                'invitee_id' => $swieze->invitee_id ?? $swiezaOsoba->getKey(),
                 'token_hash' => null,
                 'responded_at' => now(),
             ])->save();

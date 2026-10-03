@@ -559,6 +559,17 @@ CHECK-i i indeksy:
   jedno oczekujące zaproszenie tej samej osoby, także przy wyścigu;
 - `collection_invitations_invitee_idx`, indeksy `collection_id`, `inviter_id`.
 
+**Odpowiedź na link (#2838).** Przyjęcie i odmowa blokują najpierw oba
+wiersze `users` przez `ZamekPary` w stałej kolejności, dopiero potem świeży
+wiersz `collection_invitations`. Przy linku `invitee_id` jest początkowo pusty;
+odmowa ustawia go na adresata, a klucz obcy do `users` bierze wtedy blokadę
+`FOR KEY SHARE`. Odwrotna kolejność tworzyła zakleszczenie z równoległym
+przyjęciem (`40P01`). Obie akcje ponownie sprawdzają adresata i stan
+zaproszenia pod zamkiem. Test dwóch połączeń wymusza oba przeploty, a kontrola
+ujemna odwraca kolejność i musi odtworzyć zakleszczenie. Schemat i tokeny
+pozostają bez zmian. Wycofanie kodu przywraca ryzyko `40P01`; nie wymaga
+rollbacku bazy.
+
 `collection_items.added_by_id uuid NULL` → `users` `ON DELETE SET NULL`
 (`collection_items_added_by_fk`, dodany `NOT VALID` + `VALIDATE`), indeks
 częściowy `collection_items_added_by_idx` (`CONCURRENTLY`). **Kto dodał

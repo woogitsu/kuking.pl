@@ -10,6 +10,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 - Poprawione (#2818): gdy dodanie składników przepisu przekroczy limit zakupów, odmowa wraca na nadal dostępną wybraną listę. Można tam zobaczyć odhaczone pozycje i skorzystać z „Wyczyść odhaczone”; nic nie jest usuwane automatycznie.
 - Poprawione (#2837): sprzeciw wobec statystyk zatrzymuje również anonimowe liczniki gotowania i spiżarni. Bez sprzeciwu nadal nie zapisują identyfikatora osoby, a gotowanie i edycja spiżarni działają tak samo.
+- Poprawione (#2838): przyjęcie i odmowa tego samego linku do wspólnego zeszytu nie zakleszczają bazy. Jedna odpowiedź rozstrzyga zaproszenie; druga dostaje informację, że jest już nieaktualne, bez podwójnego członkostwa i powiadomienia.
 
 - Poprawione (#2816): odzyskanie własnego usuniętego zeszytu zachowuje ręczną kolejność przepisów. Starsza kopia bez informacji o kolejności wraca bez zgadywania układu; usunięty przepis nadal nie wraca.
 
