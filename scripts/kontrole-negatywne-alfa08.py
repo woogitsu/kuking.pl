@@ -1356,6 +1356,12 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Częściowe dane prób znów potwierdzają zgodność obu pól (#2817)",
+     "app/Domain/Recipes/Gotowanie/ProbyPrzepisu.php",
+     "CzesciowePorownanieProbPrzepisuTest",
+     lambda s: replace_once(s,
+         "($wersjePorownywalne && $czasPorownywalny)",
+         "($wersjePorownywalne || $czasPorownywalny)")),
     ('Wycofana wskazówka podmienia tekst otwartej sprawy (#2884)',
      'app/Domain/Recipes/Gotowanie/PolaKorekty.php',
      'OchronaZgloszonejWskazowkiPrzyKorekcieTest::test_zgloszenie_wycofanie_i_pelna_korekta_nie_podmieniaja_uwagi_w_panelu',
