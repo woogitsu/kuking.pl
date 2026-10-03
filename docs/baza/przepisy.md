@@ -344,6 +344,11 @@ ALTER TABLE recipes VALIDATE CONSTRAINT recipes_yield_unit_check;
   wartości** (`PublishRecipe` zapisuje ją tylko, gdy klucz przyszedł).
 - Przeliczenie żyje w adresie (`?sztuki=36`, `WyborSztuk`), nigdy w bazie.
   Wybór sztuk i wybór porcji wykluczają się: liczy się jedna podstawa.
+  Jawne `?sztuki=24` przy 24 sztukach autora nadal wybiera podstawę autora,
+  nawet gdy osoba ma zapamiętane inne porcje. Niepoprawne `?sztuki=0` pokazuje
+  ilości autora z komunikatem; powrót z innej liczby sztuk prowadzi do
+  `?porcje=autor`. Sam adres bez parametrów zachowuje preferencję porcji.
+  Link wydruku przenosi wybraną podstawę, nie zmieniając preferencji.
   Koszt przeliczony jest proporcjonalny do sztuk; wartości odżywcze zostają
   „na porcję” (sztuki ich nie zmieniają).
 - Idzie do migawki wersji (`SnapshotRecipeVersion`, porównanie wersji),
