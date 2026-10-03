@@ -216,7 +216,18 @@ K (#2447, #2494, #2454, #2443, #2448, #2462, #2459, #2460, #2411, #2430,
 - Po wdrożeniu L: za zgodą właściciela `kuking:przenies-potwierdzenia-rodo --dry-run`
   (backfill retencji RODO, #2754, pozycja w #2713). Komendę uruchamia właściciel.
 
-### Paczka M — KOŃCZY STARA SESJA, gałąź `claude/paczka-M-20261002`
+### Paczka M — PRZEKAZANA NOWEJ SESJI (3.10, ok. 00:35 UTC): [#2793](https://github.com/woogitsu/kuking.pl/pull/2793), head `1ff798cfa`
+
+**Przekazanie:** pełne CI na `1ff798cfa` zielone (24 success, 0 failure), `mergeable_state=clean`.
+Od teraz merge M do C, wydanie M, bramka i zamknięcia robi nowa sesja. Stara sesja
+nie pushuje już na `claude/paczka-M-20261002`. Poprawki dołożone po złożeniu:
+kotwica kontroli #2402 (`d825b39`), przyrząd minutników bierze importy z `app.js`
+(`3bac44f`), wybór listy zakupów na „Wybierz składniki” i w podglądzie porcji
+(#2528, `1ff798c`; kontrola ujemna wykonana, dowód w komentarzu na #2793).
+Otwarte do potwierdzenia przez właściciela: cudza lista → 403 (jak główna ścieżka),
+potwierdzenie duplikatu tylko dla listy z ostrzeżenia.
+
+Historia (gałąź `claude/paczka-M-20261002`):
 - Skład (kolejność scalania): #2773 (docs #2708), #2775 (CSAM instrukcja),
   #2776 (CSAM runbook kopii), #2758 (#2461), #2761 (#2528), #2764 (#2529),
   #2765 (#2500), #2767 (#2491), #2770 (#2525), #2771 (#2507), #2759 (#2504),
