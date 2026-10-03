@@ -221,7 +221,7 @@
                                 <button class="btn btn-secondary" type="submit" data-rola="wyjmij-z-tego-zeszytu">Usuń z tego zeszytu</button>
                             </form>
                         @endif
-                        <x-notatka-zapisu :zeszyt="$collection" typ="przepis" :pozycja="$recipe" :dostep="$dostepDoNotatek" :wspolny="$wspolny" />
+                        <x-notatka-zapisu :zeszyt="$collection" typ="przepis" :pozycja="$recipe" :dostep="$dostepDoNotatek" :wspolny="$wspolny" :strona="$recipes->currentPage()" />
                         @if($mozePrzenosic)
                             <p class="mt-2"><a class="btn btn-secondary" href="{{ route('collections.move.form', ['collection' => $collection, 'typ' => 'przepis', 'pozycja' => $recipe->getKey()]) }}" data-rola="przenies-do-zeszytu">Przenieś do innego zeszytu</a></p>
                         @endif
@@ -246,7 +246,7 @@
                         @if($wspolny)
                             <p class="meta mt-2" data-kto-dodal>Dodane przez: {{ $podpisyDodania[(string) $post->pivot->added_by_id] ?? 'osoba, która usunęła konto' }}</p>
                         @endif
-                        <x-notatka-zapisu :zeszyt="$collection" typ="wpis" :pozycja="$post" :dostep="$dostepDoNotatek" :wspolny="$wspolny" />
+                        <x-notatka-zapisu :zeszyt="$collection" typ="wpis" :pozycja="$post" :dostep="$dostepDoNotatek" :wspolny="$wspolny" :strona="$posts->currentPage()" />
                         @if($mozePrzenosic)
                             <p class="mt-2"><a class="btn btn-secondary" href="{{ route('collections.move.form', ['collection' => $collection, 'typ' => 'wpis', 'pozycja' => $post->getKey()]) }}" data-rola="przenies-do-zeszytu">Przenieś do innego zeszytu</a></p>
                         @endif

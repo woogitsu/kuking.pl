@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2829): gdy notatka przy zapisie z dalszej porcji zeszytu ma błąd albo została zmieniona w innej karcie, formularz wraca przy właściwym przepisie lub wpisie z zachowanym tekstem. Pozostałe notatki nie przejmują tego tekstu.
+
 - Poprawione (#2816): odzyskanie własnego usuniętego zeszytu zachowuje ręczną kolejność przepisów. Starsza kopia bez informacji o kolejności wraca bez zgadywania układu; usunięty przepis nadal nie wraca.
 
 - Poprawione (#2825): ponowienie przyjętego zaproszenia po odebraniu dostępu nie pokazuje nowej nazwy prywatnego zeszytu ani nie przywraca członkostwa. Gdy dostęp nadal trwa, ponowienie działa bez drugiego powiadomienia.
