@@ -1565,6 +1565,11 @@ checks = [
      lambda s: replace_once(s,
          '$zapisanyWybor = $request->session()->get($this->kluczWyboru($request, $paczka));',
          '$zapisanyWybor = null;')),
+    ("Wydruk zeszytu pomija podpis oryginału wersji (#2852)", "resources/views/pages/collections/do-druku.blade.php",
+     "WydrukZeszytuTest::test_wydruk_calosci_i_wyboru_podpisuje_widoczny_oryginal_niezaleznie_od_zdjec_i_notatek",
+     lambda s: replace_once(s,
+         '<x-na-podstawie-przepisu :recipe="$przepis" :oryginal="$oryginalyDlaPodpisu->get($przepis->forked_from_id)" :oryginal-ustalony="true" />',
+         '')),
     # #2611: wyłączenie preflightu musi oblać izolowane procesy PHP 256M
     # konkretną odmową (w starym kodzie kończyły się fatalem), a nie bazę CI.
     ("Paczka JSON bez budżetu struktury (#2611)", "app/Domain/Users/Import/PodgladPaczkiEksportu.php",

@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2852): wydruk zeszytu pokazuje przy „Mojej wersji” podpis oryginału. Gdy oryginał nie jest dostępny, podpis zostaje bez jego tytułu i autora.
+
 - Poprawione (#2846): przy błędnej frazie w „Szukaj w moich planach” komunikat jest także w podsumowaniu z odnośnikiem do pola. Wpisana fraza i błędy pozostałych formularzy zostają na miejscu.
 
 - Poprawione (#2822): po odejściu ze wspólnego zeszytu lub odebraniu udziału komunikat mówi o końcu współtworzenia. Publiczny zeszyt może nadal być dostępny do czytania, zależnie od aktualnych uprawnień.

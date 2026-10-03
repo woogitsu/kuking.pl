@@ -216,6 +216,11 @@ CREATE INDEX recipes_forked_from_idx ON recipes (forked_from_id)
 - Indeks częściowy obsługuje listę „Wersje innych osób" na stronie oryginału
   i `ON DELETE SET NULL`.
 
+Wydruk zeszytu (#2852) pokazuje ten sam nieusuwalny podpis „Mojej wersji” co
+strona przepisu. Oryginały widoczne dla oglądającego są pobierane zbiorczo;
+gdy oryginał jest niedostępny, na papier trafia neutralny podpis bez jego
+tytułu, autora i adresu. Opcje zdjęć i notatek nie wpływają na podpis.
+
 DDL na istniejącej tabeli: `ADD COLUMN` bez `DEFAULT` (bez przepisania
 tabeli), klucz obcy i CHECK przez `NOT VALID` + `VALIDATE`, indeks
 `CONCURRENTLY`, poza jedną transakcją.

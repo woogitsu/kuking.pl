@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Block;
 use App\Models\Collection;
 use App\Models\CookedEvent;
 use App\Models\Media;
@@ -81,6 +82,97 @@ class WydrukZeszytuTest extends TestCase
         $zadanie = $kto === null ? $this : $this->actingAs($kto);
 
         return $zadanie->get(route('collections.print', ['collection' => $zeszyt] + $parametry));
+    }
+
+    private function wersjaWZeszycie(Recipe $oryginal, string $tytul): Recipe
+    {
+        $wersja = $this->przepis($this->halina, $tytul);
+        $wersja->forceFill([
+            'source_type' => Recipe::SOURCE_ADAPTATION,
+            'forked_from_id' => $oryginal->getKey(),
+            'forked_at' => now(),
+        ])->save();
+
+        return $wersja;
+    }
+
+    public function test_wydruk_calosci_i_wyboru_podpisuje_widoczny_oryginal_niezaleznie_od_zdjec_i_notatek(): void
+    {
+        $oryginal = Recipe::factory()->create(['author_id' => $this->jurek->getKey(), 'title' => 'Oryginalny żurek']);
+        $wersja = $this->wersjaWZeszycie($oryginal, 'Żurek po mojemu');
+        $this->zeszyt->recipes()->updateExistingPivot($wersja->getKey(), ['note' => 'Prywatny dopisek do wersji']);
+        $this->przepis($this->halina, 'Zwykły sernik');
+
+        $caly = (string) $this->druk($this->halina)->assertOk()->getContent();
+        $this->assertStringContainsString('Na podstawie przepisu:', $caly, 'PODPIS_2852_WIDOCZNY: papier pomija autora oryginału.');
+        $this->assertStringContainsString('„Oryginalny żurek”', $caly, 'PODPIS_2852_WIDOCZNY: papier pomija tytuł oryginału.');
+        $this->assertStringContainsString('· Jurek', $caly, 'PODPIS_2852_WIDOCZNY: papier pomija konto oryginału.');
+        $this->assertStringNotContainsString('Prywatny dopisek do wersji', $caly);
+        $this->assertSame(1, substr_count($caly, 'data-test="na-podstawie"'), 'Zwykły przepis nie może dostać podpisu wersji.');
+
+        $wybrane = (string) $this->druk($this->halina, null, [
+            'przepisy' => [(string) $wersja->getKey()], 'bez-zdjec' => 1, 'z-notatkami' => 1,
+        ])->assertOk()->getContent();
+        $this->assertStringContainsString('Na podstawie przepisu:', $wybrane, 'PODPIS_2852_WYBOR: wariant bez zdjęć gubi podpis.');
+        $this->assertStringContainsString('„Oryginalny żurek”', $wybrane, 'PODPIS_2852_WYBOR: wybór gubi oryginał.');
+        $this->assertStringContainsString('Prywatny dopisek do wersji', $wybrane);
+        $this->assertStringNotContainsString('Zwykły sernik', $wybrane);
+    }
+
+    public function test_niewidoczny_zablokowany_i_skasowany_oryginal_daje_tylko_neutralny_podpis(): void
+    {
+        $autor = $this->user('autor2852', ['display_name' => 'Tajne Konto']);
+        $oryginal = Recipe::factory()->create(['author_id' => $autor->getKey(), 'title' => 'Tajna receptura']);
+        $this->wersjaWZeszycie($oryginal, 'Moja zupa');
+
+        Block::create(['blocker_id' => $autor->getKey(), 'blocked_id' => $this->halina->getKey()]);
+        $html = (string) $this->druk($this->halina)->assertOk()->getContent();
+        $this->assertStringContainsString('Na podstawie przepisu innej osoby — oryginał jest niedostępny.', $html, 'PODPIS_2852_NIEDOSTEPNY: brak neutralnego podpisu.');
+        $this->assertStringNotContainsString('Tajna receptura', $html);
+        $this->assertStringNotContainsString('Tajne Konto', $html);
+        $this->assertStringNotContainsString($oryginal->slug, $html);
+
+        $oryginal->forceDelete();
+        $html = (string) $this->druk($this->halina)->assertOk()->getContent();
+        $this->assertStringContainsString('Na podstawie przepisu innej osoby — oryginał jest niedostępny.', $html, 'PODPIS_2852_NIEDOSTEPNY: twarde usunięcie nie zdejmuje podpisu.');
+        $this->assertStringNotContainsString('Tajna receptura', $html);
+    }
+
+    public function test_zawężenie_do_obserwujacych_i_miekkie_usuniecie_nie_wyciekaja_na_wydruk(): void
+    {
+        $oryginal = Recipe::factory()->create([
+            'author_id' => $this->jurek->getKey(), 'title' => 'Rosół Jurka', 'visibility' => 'followers',
+        ]);
+        $this->wersjaWZeszycie($oryginal, 'Mój rosół');
+
+        $zamkniety = (string) $this->druk($this->halina)->assertOk()->getContent();
+        $this->assertStringContainsString('oryginał jest niedostępny', $zamkniety, 'PODPIS_2852_NIEDOSTEPNY: zawężony oryginał ma neutralny podpis.');
+        $this->assertStringNotContainsString('Rosół Jurka', $zamkniety);
+
+        $this->halina->following()->attach($this->jurek->getKey(), ['created_at' => now()]);
+        $widoczny = (string) $this->druk($this->halina)->assertOk()->getContent();
+        $this->assertStringContainsString('Rosół Jurka', $widoczny, 'PODPIS_2852_WIDOCZNY: obserwująca osoba widzi tytuł oryginału.');
+
+        $oryginal->delete();
+        $usuniety = (string) $this->druk($this->halina)->assertOk()->getContent();
+        $this->assertStringContainsString('oryginał jest niedostępny', $usuniety, 'PODPIS_2852_NIEDOSTEPNY: usunięty oryginał ma neutralny podpis.');
+        $this->assertStringNotContainsString('Rosół Jurka', $usuniety);
+    }
+
+    public function test_wiele_wersji_nie_dodaje_zapytania_na_kazdy_oryginal(): void
+    {
+        $pierwszy = Recipe::factory()->create(['author_id' => $this->jurek->getKey(), 'title' => 'Oryginał pierwszy']);
+        $this->wersjaWZeszycie($pierwszy, 'Wersja pierwsza');
+        $jedna = $this->liczbaZapytan();
+
+        foreach (range(2, 11) as $i) {
+            $autor = $this->user("oryginal{$i}");
+            $oryginal = Recipe::factory()->create(['author_id' => $autor->getKey(), 'title' => "Oryginał {$i}"]);
+            $this->wersjaWZeszycie($oryginal, "Wersja {$i}");
+        }
+
+        $wiele = $this->liczbaZapytan();
+        $this->assertSame($jedna, $wiele, "PODPIS_2852_BEZ_N_PLUS_1: jedno {$jedna}, wiele {$wiele} zapytań.");
     }
 
     public function test_wlasciciel_dostaje_okladke_spis_i_przepisy_z_trescia(): void
