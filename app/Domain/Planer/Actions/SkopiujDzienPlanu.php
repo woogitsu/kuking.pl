@@ -32,6 +32,8 @@ use Illuminate\Validation\ValidationException;
  *   usuniętym są tylko policzone — bez tytułu i bez kopiowania,
  * - brak miejsca (dzienny limit) odrzuca CAŁĄ kopię, bez częściowego zestawu,
  * - nowe pozycje mają własne UUID i daty; nie dziedziczą „Zrobione”.
+ * - wybrane porcje i prywatny dopisek jadą z nową pozycją, jak w kopii
+ *   tygodnia; ich zmiana po podglądzie też wymaga nowego podglądu (#2836).
  *
  * Nie rusza listy zakupów, spiżarni ani wykonań.
  */
@@ -90,7 +92,11 @@ final class SkopiujDzienPlanu
             };
 
             $pozycje[] = $pozycja + ['klasa' => $klasa];
-            $odciskWiersze[] = $wpis->getKey().'|'.$klasa.'|'.($wpis->recipe_id ?? '').'|'.($wpis->label ?? '');
+            // JSON zachowuje granice pól także wtedy, gdy tekst zawiera „|”.
+            $odciskWiersze[] = json_encode([
+                $wpis->getKey(), $klasa, $wpis->recipe_id, $wpis->label,
+                $wpis->planned_servings, $wpis->note,
+            ], JSON_THROW_ON_ERROR);
         }
 
         return [
@@ -166,6 +172,8 @@ final class SkopiujDzienPlanu
                     'label' => $pozycja['wpis']->label,
                 ]);
                 $kopia->user_id = $swiezy->getKey();
+                $kopia->planned_servings = $pozycja['wpis']->planned_servings;
+                $kopia->note = $pozycja['wpis']->note;
                 $kopia->save();
             }
 

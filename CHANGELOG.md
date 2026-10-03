@@ -6,6 +6,14 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2817): „Moje próby tego przepisu” oceniają wersję i rzeczywisty czas osobno. Brak czasu albo przypiętej wersji nie oznacza już zgodności obu pól; znane różnice i brak danych są opisane także przy przejściu na kolejną stronę prób.
+- Poprawione (#2836): „Skopiuj ten dzień” zachowuje wybrane porcje i prywatny dopisek. Ich zmiana po podglądzie wymaga nowego podglądu; istniejące pozycje celu pozostają bez zmian, a nowe kopie nie dziedziczą „Zrobione”.
+
+- Poprawione (#2882): przelicznik porcji nie mnoży samego mianownika zapisów `1⁄2` i `1∕2`. Zachowuje cały wiersz i prosi o samodzielne sprawdzenie ilości na stronie przepisu, w gotowaniu i przy zakupach. Zwykłe ułamki `1/2` i `½` nadal się przeliczają; tekst autora pozostaje bez zmian.
+- Poprawione (#2882): odmowa ułamka obejmuje także liczby Unicode w liczniku i mianowniku, np. `¹⁄2`, `1∕₂` i `¹⁄₂`. Nie przeliczamy fragmentu takiego zapisu; całość pozostaje tekstem autora z prośbą o samodzielne sprawdzenie ilości.
+
+- Poprawione (#2884): wycofanie wskazówki od gotujących nie pozwala podmienić uwagi, której zgłoszenie nadal czeka na rozpatrzenie. Czas i opis zmian pozostają do poprawy, a po zakończeniu sprawy można znów poprawić uwagę.
+- Poprawione (#2883): gdy wybranego zdjęcia nie można już dołączyć do wykonania, formularz prosi o ponowny wybór. Nie potwierdza nieistniejącego przypięcia i nie pokazuje niedostępnego zdjęcia jako zachowanego. Rzeczywiste ponowienie udanej wysyłki pozostaje bezpieczne.
 - Poprawione (#2787): link do wspólnego gotowania nie pokazuje przycisku „Dołączam” osobie, której istniejąca blokada z pomocnikiem i tak uniemożliwiłaby dołączenie. Odmowa nie wskazuje osoby ani powodu.
 - Poprawione (#2847): paczka danych pokazuje nazwy list zakupów i ich pozycje z jednej chwili. Przemianowanie listy podczas przygotowywania paczki nie przypisuje pozycji innej liście o dawnej nazwie.
 - Poprawione (#2872): po odmowie usunięcia listy zakupów podsumowanie prowadzi do otwartego pytania o właściwą listę, pokazuje aktualną liczbę pozycji i komunikat przy potwierdzeniu.
@@ -85,6 +93,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 - Poprawione (#2851, #2854): spóźniona zmiana hasła i „Wyloguj inne urządzenia” po resecie albo zmianie w drugiej sesji nie mogą użyć starego hasła do nadpisania nowego ani przywrócić odwołanej sesji. Serwis prosi wtedy o ponowne logowanie; aktualna sesja nadal może wykonać obie akcje.
 
+- Poprawione (#598): nieudany pomiar puli połączeń zostawia w dzienniku stan niedostępny i puste liczniki zamiast znikać ze szeregu. Kod błędu oraz dotychczasowy alarm pozostają bez zmian.
 - Poprawione (#2844): kontrola wyścigu importu odczytuje wynik testu z raportu JUnit. Rozpoznaje dwie oczekiwane porażki po celowej mutacji i trzy przejścia po przywróceniu kodu; nie uznaje obcego błędu za dowód.
 - Poprawione (#2815): wczytywanie własnej paczki ponownie sprawdza stan konta przed każdą pozycją. Zawieszenie w trakcie żądania zatrzymuje kolejne zapisy bez śladu importu; wcześniejsze poprawnie zapisane pozycje zostają.
 - Poprawione (#2708): instrukcja odtwarzania kopii wymaga ponownego zabezpieczenia decyzji CSAM i publicznych wariantów zdjęć przed wymazaniem kont oraz wznowieniem usług. Gdy nie da się potwierdzić spraw i ich zabezpieczenia, procedura zatrzymuje się zamiast uruchamiać ruch lub nocne retencje.

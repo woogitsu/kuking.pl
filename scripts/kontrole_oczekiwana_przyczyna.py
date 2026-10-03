@@ -35,6 +35,13 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Częściowe dane prób znów potwierdzają zgodność obu pól (#2817)': r'PROBY_2817_OSOBNE_POLA_DOMENA|PROBY_2817_OSOBNE_POLA_HTTP_PAGINACJA',
+    'Kopia dnia gubi wybrane porcje (#2836)': r'PLANER_2836_KOPIA_PORCJI_DANE|PLANER_2836_KOPIA_PORCJI_LINK',
+    'Kopia dnia gubi prywatny dopisek (#2836)': r'PLANER_2836_KOPIA_DOPISKU',
+    'Kopia dnia nie wykrywa zmiany porcji lub dopisku (#2836)': r'PLANER_2836_ZMIANA_WYMAGA_PODGLADU',
+    'Wycofana wskazówka podmienia tekst otwartej sprawy (#2884)': r'UWAGA_2884_ZGLOSZONY_TEKST',
+    'Odrzucone zdjęcie potwierdza nieistniejące przypięcie (#2883)': r'DOLACZENIE_2883_ODMOWA_ZAMIAST_PONOWIENIA|DOLACZENIE_2883_DOMENA_SWIEZY_STAN',
+    'Odmowa dołączenia zachowuje niedostępny wybór (#2883)': r'DOLACZENIE_2883_BEZ_FALSZYWEGO_ZACHOWANIA',
     'Link oferuje dołączenie mimo blokady pomocnika (#2787)': r'WSPOLNE_2787_GET_BEZ_OFERTY',
     'Historia przepisu: błąd wyboru prowadzi do nieistniejącej sekcji (#2875)': r'KOTWICA_2875_ZYWA',
     'Anulowanie poprawki zakupów gubi nazwaną listę (#2873)': r'ZAKUPY_2873_ANULUJ_LISTA',
@@ -63,6 +70,8 @@ OCZEKUJ = {
     'Moje rozmowy pomijają Policy wpisu (#2432)': r'ROZMOWY_2432_POLICY_TRESCI',
     'Import odrzuca ułamek czasu bez ostrzeżenia (#2546)': r'IMPORT_2546_CZAS_WIDOCZNY',
     'Import nie zapisuje ostrzeżeń parsera przy szkicu (#2548)': r'IMPORT_2548_OSTRZEZENIE_TRWA',
+    'Niedostępny pomiar znika z dziennika (#598)': r'POMIAR_598_NIEDOSTEPNY_REKORD',
+    'Niedostępny pomiar udaje zmierzone zero (#598)': r'POMIAR_598_NIEDOSTEPNY_NULL',
     'Importowany szkic traci bramkę odczytu w kopii (#2800)': r'KOPIA_2800_IMPORT_OMINIETY',
     'Spiżarnia: jedyne opakowanie bez odcisku (#2783)': r'ODCISK_2783_FORMULARZ',
     'Notatka z dalszej porcji wraca na pierwszą stronę (#2829)': r'NOTATKA_2829_DRUGA_STRONA',
@@ -174,6 +183,9 @@ OCZEKUJ = {
     'Wspólna sesja traci zdjęcie kroku (#2486)': r'WSPOLNE_2486_ZDJECIE_PRZY_KROKU',
     'Historia ignoruje wybór Bez ilości (#2449)': r'HISTORIA_BEZ_ILOSCI_ZMIANA',
     'Historia zgaduje wybór w starej migawce (#2449)': r'HISTORIA_BEZ_ILOSCI_BRAK_DANYCH',
+    'Ułamek Unicode przelicza tylko mianownik (#2882)': r'ULAMEK_2882_CALY_ZAPIS',
+    'Ułamek Unicode zmienia ilość w HTTP (#2882)': r'ULAMEK_2882_HTTP_CALY_ZAPIS',
+    'Ułamek Unicode z indeksem omija odmowę (#2882)': r'ULAMEK_2882_UNICODE_ODMOWA',
     'Grupowanie tysięcy rozbite na fragmenty (#2455)': r'GRUPOWANIE_TYSIECY_WYNIK',
     'Pasteryzacja wraca do słownika bez przeglądu (#2434)': r'PASTERYZACJA_USUNIETA_DO_PRZEGLADU',
     'Sparzyć znów łapie oparzenie (#2343)': r'SLOWNIK_RDZEN_INNE_ZNACZENIE',

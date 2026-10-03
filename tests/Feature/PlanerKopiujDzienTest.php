@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\ViewErrorBag;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -112,6 +113,113 @@ final class PlanerKopiujDzienTest extends TestCase
         }
         $this->assertSame(2, MealPlanEntry::query()->where('day', '2026-10-04')->count());
         $this->assertSame(5, MealPlanEntry::query()->count());
+    }
+
+    public static function wyboryPorcji(): array
+    {
+        return ['szesc' => [6.0], 'ulamek' => [2.5], 'bez wyboru' => [null]];
+    }
+
+    #[DataProvider('wyboryPorcji')]
+    public function test_kopia_dnia_zachowuje_porcje_bez_zmiany_zrodla_i_receptury(?float $porcje): void
+    {
+        $ja = $this->user('planujaca');
+        $przepis = $this->przepis($ja, ['servings' => 2]);
+        $wpis = $this->pozycja($ja, '2026-10-04', $przepis);
+        $wpis->forceFill(['planned_servings' => $porcje, 'done_at' => now()])->save();
+        $zrodloPrzed = $wpis->refresh()->getAttributes();
+        $przepisPrzed = $przepis->refresh()->getAttributes();
+
+        $this->skopiuj($ja, '2026-10-04', '2026-10-18')->assertSessionHas('status_rodzaj', 'sukces');
+
+        $kopia = MealPlanEntry::query()->where('day', '2026-10-18')->sole();
+        $this->assertSame($porcje, $kopia->planned_servings, 'PLANER_2836_KOPIA_PORCJI_DANE');
+        $this->assertNull($kopia->done_at, 'Kopia nie udaje wykonania.');
+        $this->assertNotSame($wpis->getKey(), $kopia->getKey());
+        $this->assertSame($zrodloPrzed, $wpis->refresh()->getAttributes());
+        $this->assertSame($przepisPrzed, $przepis->refresh()->getAttributes());
+    }
+
+    public function test_kopia_dnia_otwiera_porcje_z_linku_docelowego_dnia(): void
+    {
+        $ja = $this->user('planujaca');
+        $przepis = $this->przepis($ja, ['slug' => 'zupa-plan-kopia', 'servings' => 2]);
+        $wpis = $this->pozycja($ja, '2026-10-04', $przepis);
+        $wpis->forceFill(['planned_servings' => 6])->save();
+        $this->skopiuj($ja, '2026-10-04', '2026-10-18')->assertSessionHas('status_rodzaj', 'sukces');
+
+        // Ten tydzień nie zawiera źródła: jego poprawny link nie ukryje błędu kopii.
+        $html = (string) $this->actingAs($ja)->get(route('planer.show', ['tydzien' => '2026-10-12']))->assertOk()->getContent();
+        $link = route('recipes.show', ['recipe' => $przepis->slug, 'porcje' => '6']);
+        $this->assertStringContainsString('href="'.$link.'"', $html, 'PLANER_2836_KOPIA_PORCJI_LINK');
+        $this->assertStringContainsString('Planowane porcje: 6 porcji', $html);
+        $this->actingAs($ja)->get($link)->assertOk()
+            ->assertViewHas('wyborPorcji', fn ($wybor): bool => $wybor->wybrane === 6.0 && $wybor->mnoznik() === 3.0);
+    }
+
+    public function test_kopia_dnia_zachowuje_dopisek_a_duplikatow_i_niedostepnych_nie_nadpisuje(): void
+    {
+        $ja = $this->user('planujaca');
+        $przepis = $this->przepis($ja);
+        $zupa = $this->pozycja($ja, '2026-10-04', $przepis);
+        $zupa->forceFill(['note' => 'Bez soli | osobno', 'planned_servings' => 6])->save();
+        $duplikat = $this->pozycja($ja, '2026-10-04', $this->przepis($ja));
+        $duplikat->forceFill(['note' => 'Tekst ze zrodla', 'planned_servings' => 6])->save();
+        $cel = $this->pozycja($ja, '2026-10-18', $duplikat->recipe);
+        $cel->forceFill(['note' => 'Wlasny tekst celu', 'planned_servings' => 3, 'done_at' => now()])->save();
+        $celPrzed = $cel->refresh()->getAttributes();
+        $ukryty = $this->przepis($this->user('autorka'));
+        $niedostepny = $this->pozycja($ja, '2026-10-04', $ukryty);
+        $niedostepny->forceFill(['note' => 'Nie kopiowac', 'planned_servings' => 7])->save();
+        $ukryty->forceFill(['visibility' => 'private'])->save();
+        $this->pozycja($ja, '2026-10-04', tekst: 'Obiad u mamy');
+
+        $this->skopiuj($ja, '2026-10-04', '2026-10-18')->assertSessionHas('status_rodzaj', 'sukces');
+
+        $kopia = MealPlanEntry::query()->where('day', '2026-10-18')->where('recipe_id', $przepis->getKey())->sole();
+        $this->assertSame('Bez soli | osobno', $kopia->note, 'PLANER_2836_KOPIA_DOPISKU');
+        $this->assertSame($celPrzed, $cel->refresh()->getAttributes());
+        $this->assertSame(3, MealPlanEntry::query()->where('day', '2026-10-18')->count());
+        $reczny = MealPlanEntry::query()->where('day', '2026-10-18')->where('label', 'Obiad u mamy')->sole();
+        $this->assertNull($reczny->planned_servings);
+        $this->assertNull($reczny->note);
+        $this->assertSame(0, MealPlanEntry::query()->where('day', '2026-10-18')->where('recipe_id', $ukryty->getKey())->count());
+    }
+
+    public static function zmienioneWybory(): array
+    {
+        return [
+            'porcje zmienione' => ['planned_servings', 6.0, 9.0],
+            'porcje wyczyszczone' => ['planned_servings', 6.0, null],
+            'porcje wybrane' => ['planned_servings', null, 6.0],
+            'porcje ulamkowe' => ['planned_servings', 2.5, 2.75],
+            'dopisek zmieniony' => ['note', 'Bez soli | osobno', 'Mniej soli | osobno'],
+            'dopisek wyczyszczony' => ['note', 'Bez soli', null],
+            'dopisek dodany' => ['note', null, 'Bez soli'],
+        ];
+    }
+
+    #[DataProvider('zmienioneWybory')]
+    public function test_zmiana_porcji_lub_dopisku_wymaga_nowego_podgladu(string $pole, float|string|null $przed, float|string|null $po): void
+    {
+        $ja = $this->user('planujaca');
+        $wpis = $this->pozycja($ja, '2026-10-04', $this->przepis($ja));
+        $wpis->forceFill([$pole => $przed])->save();
+        // Odcisk pochodzi z faktycznej odpowiedzi GET, a nie z odtworzenia algorytmu.
+        $html = (string) $this->actingAs($ja)->get(route('planer.copyday', ['dzien' => '2026-10-04', 'cel' => '2026-10-18']))->assertOk()->getContent();
+        $this->assertSame(1, preg_match('~name="odcisk" value="([^"]+)"~', $html, $odcisk));
+        $wpis->forceFill([$pole => $po])->save();
+        $this->pozycja($ja, '2026-10-18', tekst: 'Kolacja');
+
+        $odpowiedz = $this->skopiuj($ja, '2026-10-04', '2026-10-18', $odcisk[1]);
+        $this->assertSame('blad', session('status_rodzaj'), 'PLANER_2836_ZMIANA_WYMAGA_PODGLADU');
+        $odpowiedz->assertRedirect(route('planer.copyday', ['dzien' => '2026-10-04', 'cel' => '2026-10-18']));
+        $this->assertSame(1, MealPlanEntry::query()->where('day', '2026-10-18')->count());
+        $this->assertSame($po, $wpis->refresh()->getAttribute($pole));
+
+        $this->skopiuj($ja, '2026-10-04', '2026-10-18')->assertSessionHas('status_rodzaj', 'sukces');
+        $kopia = MealPlanEntry::query()->where('day', '2026-10-18')->whereNotNull('recipe_id')->sole();
+        $this->assertSame($po, $kopia->getAttribute($pole));
     }
 
     public function test_podglad_pokazuje_nowe_duplikaty_i_niedostepne_bez_tytulow_niedostepnych(): void

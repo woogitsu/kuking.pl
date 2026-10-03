@@ -36,13 +36,15 @@ use Illuminate\Support\Facades\DB;
  * Ponowienie tej samej wysyłki jest bezpieczne: klucz udanego multipart
  * pozostaje przy wykonaniu także po usunięciu zdjęcia; już przypięte Media
  * również jest pomijane (wynik 0). Zdjęcie przypięte do INNEGO wykonania
- * nie zostaje przejęte.
+ * nie zostaje przejęte. Brak nowego zdjęcia jest ponowieniem tylko wtedy,
+ * gdy cały wybór już należy do tego wykonania albo rozpoznano udany klucz.
+ * Niedostępny wybór bez takiego dowodu kończy się odmową (#2883).
  */
 final class DolaczZdjeciaDoWykonania
 {
     /**
      * @param  list<string>  $mediaIds
-     * @return int ile zdjęć faktycznie dołączono (0 = nic nowego)
+     * @return int ile zdjęć faktycznie dołączono (0 = rzeczywiste ponowienie)
      *
      * @throws BladDlaCzlowieka
      */
@@ -96,7 +98,11 @@ final class DolaczZdjeciaDoWykonania
             ));
 
             if ($nowe === []) {
-                return 0;
+                if ($mediaIds !== [] && array_diff($mediaIds, $przypiete) === []) {
+                    return 0;
+                }
+
+                throw new BladDlaCzlowieka('Nie udało się dołączyć wybranego zdjęcia. Wybierz zdjęcie ponownie.');
             }
 
             if (count($przypiete) + count($nowe) > LimityZdjec::maksZdjecNaWysylke()) {

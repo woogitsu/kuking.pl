@@ -30,6 +30,21 @@ odmowie walidacji. Błąd ma własne podsumowanie z linkiem do widocznego pola
 innych formularzy Planera zapisanych w sesji. Pusta i poprawna fraza nie
 tworzą podsumowania. Ta poprawka nie zmienia zapytań ani schematu bazy.
 
+**Kopia jednego dnia (#2836).** Nowa pozycja zachowuje `planned_servings`
+oraz prywatny `note`, tak jak kopia poprzedniego tygodnia. NULL nadal oznacza
+brak osobnego wyboru porcji; nie utrwalamy automatycznie liczby autora.
+Istniejąca pozycja celu zachowuje własne porcje, dopisek i „Zrobione”, a nowa
+kopia dostaje nowe UUID bez `done_at`. Niedostępne przepisy nie są kopiowane.
+Odcisk podglądu obejmuje też porcje i dopisek: zmiana albo wyczyszczenie
+któregokolwiek po podglądzie odrzuca cały zapis i wymaga nowego podglądu
+przez istniejący komunikat konfliktu. Pola odcisku mają jawne granice (JSON),
+więc znak `|` w prywatnym tekście ich nie zaciera. To korekta zachowania
+zatwierdzonych #2494/#2509, bez zmiany schematu, zakupów i receptury.
+Zachowanie dopisku przy kopii dnia rozstrzygnięto według zasady D-333 dla
+paczki C/D: zachować dane osoby, zgodnie z istniejącą kopią tygodnia.
+Test: `PlanerKopiujDzienTest`; pomiar i wycofanie w
+[`ODBIOR-2836-CODEX-20261003`](../flota/koordynacja/ODBIOR-2836-CODEX-20261003.md).
+
 Ograniczenia:
 
 - `meal_plan_entries_jedno_z_dwoch_check` — `recipe_id IS NULL OR label IS NULL`,
