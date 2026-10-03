@@ -98,6 +98,23 @@ class PrzypomnijOUrodzinach extends Command
                 [(string) $odbiorca->getKey()],
             );
 
+            // Wstępny wybór solenizantów odbywa się poza transakcją. Decyzja
+            // o widoczności albo data mogła się od tej chwili zmienić. SHARE
+            // serializuje zapis powiadomienia z UPDATE konta, także gdy
+            // człowiek wyłącza przypomnienia w trakcie przebiegu komendy.
+            $aktualnySolenizant = User::query()
+                ->whereKey($solenizant->getKey())
+                ->sharedLock()
+                ->first();
+
+            if ($aktualnySolenizant === null
+                || $aktualnySolenizant->status !== User::STATUS_ACTIVE
+                || ! $aktualnySolenizant->birthday_visible_to_followers
+                || $aktualnySolenizant->is_seeded
+                || ! Urodziny::czyDzis($aktualnySolenizant)) {
+                return self::POMINIETO;
+            }
+
             $dzisiejsze = Notification::query()
                 ->where('user_id', $odbiorca->getKey())
                 ->where('type', Notification::TYPE_BIRTHDAY)
@@ -111,7 +128,7 @@ class PrzypomnijOUrodzinach extends Command
                 return self::PONAD_LIMIT;
             }
 
-            return $powiadom->handle($odbiorca, Notification::TYPE_BIRTHDAY, $solenizant) !== null
+            return $powiadom->handle($odbiorca, Notification::TYPE_BIRTHDAY, $aktualnySolenizant) !== null
                 ? self::UTWORZONO
                 : self::POMINIETO;
         });
