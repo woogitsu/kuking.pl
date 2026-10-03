@@ -64,6 +64,7 @@ use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Gotowanie\Wspolne\PostepWspolnegoGotowania;
 use App\Domain\Recipes\Gotowanie\Wspolne\ZaproszenieDoGotowania;
 use App\Domain\Recipes\OdzyskajUsunietyPrzepis;
+use App\Domain\Recipes\Odzyskiwanie\PrzedawnionePunktyOdzyskaniaSzkicu;
 use App\Domain\Recipes\Odzywcze\ImportujWartosciOdzywcze;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
@@ -1360,6 +1361,23 @@ try {
         // workerem, czyli jedyny sposób, w jaki kandydat sprzątania może
         // jeszcze zostać odzyskany.
         'sprzataj-usuniete-2620' => app(PrzedawnioneUsunieteTresci::class)->posprzataj((int) $argumenty['dni']),
+
+        // #2849: bariera następuje po rzeczywistym SELECT kandydatów,
+        // przed warunkowym DELETE. Odzyskanie ma czas odnowić ten sam punkt.
+        'sprzataj-punkty-2849' => (function () use ($argumenty): int {
+            config()->set('kuking.przepisy.szkic_punkt_odzyskania_dni', (int) $argumenty['dni']);
+            $zatrzymany = false;
+            DB::listen(static function (QueryExecuted $query) use (&$zatrzymany): void {
+                if (! $zatrzymany
+                    && str_contains($query->sql, 'from "draft_restore_points" as "p"')
+                    && str_contains($query->sql, 'left join "recipes"')) {
+                    $zatrzymany = true;
+                    DB::select('SELECT pg_advisory_lock(2849, 1)');
+                }
+            });
+
+            return app(PrzedawnionePunktyOdzyskaniaSzkicu::class)->posprzataj();
+        })(),
 
         // Dwa równoległe wpisy z tym samym NOWYM tagiem albo z nazwami o wspólnym
         // slugu (ta sama akcja co publikacja wpisu). Bariera stoi w zdarzeniu

@@ -43,6 +43,21 @@ final class PrzedawnionePunktyOdzyskaniaSzkicu
             return $kandydaci->count();
         }
 
-        return DB::table('draft_restore_points')->whereIn('id', $kandydaci->all())->delete();
+        // Wybór ID nie blokuje przywrócenia. Warunek DELETE musi ponownie
+        // ocenić bieżące punkty po ewentualnym oczekiwaniu na ich UPDATE.
+        return DB::table('draft_restore_points')
+            ->whereIn('id', $kandydaci->all())
+            ->where(function ($q) use ($prog): void {
+                $q->where('taken_at', '<', $prog)
+                    ->orWhereNotExists(function ($q): void {
+                        $q->selectRaw('1')
+                            ->from('recipes as r')
+                            ->whereColumn('r.id', 'draft_restore_points.recipe_id')
+                            ->whereNull('r.deleted_at')
+                            ->where('r.status', 'draft')
+                            ->whereNull('r.published_at');
+                    });
+            })
+            ->delete();
     }
 }
