@@ -110,6 +110,7 @@ use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Vite;
 use Illuminate\Hashing\HashManager;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
@@ -120,6 +121,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
@@ -1110,6 +1112,15 @@ try {
         'spoznione-zabezpieczenie-konta' => (function () use ($argumenty): array {
             Http::fake(['api.pwnedpasswords.com/*' => Http::response('', 200)]);
             Notification::fake();
+            // Izolowany test HTTP nie buduje assetów; zastępuje tylko tag Vite,
+            // nie middleware, sesję, cookie ani kod zabezpieczenia.
+            app()->instance(Vite::class, new class extends Vite
+            {
+                public function __invoke($entrypoints, $buildDirectory = null): HtmlString
+                {
+                    return new HtmlString('');
+                }
+            });
             $hasher = Hash::getFacadeRoot();
             Hash::swap(new class($hasher) implements Hasher
             {
@@ -1156,28 +1167,66 @@ try {
 
             $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
             $zmiana = $argumenty['droga'] === 'zmiana';
+            Auth::guard('web')->login($konto);
+            $pierwsze = Request::create(route('settings.security'), 'GET');
+            $pierwszaOdpowiedz = app(HttpKernel::class)->handle($pierwsze);
+            $ciastkoPrzedA = collect($pierwszaOdpowiedz->headers->getCookies())
+                ->first(fn ($cookie): bool => $cookie->getName() === config('session.cookie'));
+            Auth::forgetGuards();
+            app('session')->forgetDrivers();
+            $kontrolaDodatnia = Request::create(route('settings.security'), 'GET', [], [
+                (string) config('session.cookie') => $ciastkoPrzedA?->getValue() ?? '',
+            ]);
+            $dodatniaOdpowiedz = app(HttpKernel::class)->handle($kontrolaDodatnia);
+            $ciastkoDodatnie = collect($dodatniaOdpowiedz->headers->getCookies())
+                ->first(fn ($cookie): bool => $cookie->getName() === config('session.cookie'));
+            Auth::forgetGuards();
+            app('session')->forgetDrivers();
+
             $dane = $zmiana
                 ? ['current_password' => $argumenty['obecne'], 'password' => $argumenty['haslo'], 'password_confirmation' => $argumenty['haslo']]
                 : ['password' => $argumenty['obecne']];
-            $request = Request::create('/', $zmiana ? 'PUT' : 'POST', $dane);
-            $request->setLaravelSession(app('session.store'));
-            $request->session()->put(GeneracjaSesji::KLUCZ, (int) $argumenty['generacja']);
-            app()->instance('request', $request);
-            Auth::guard('web')->setUser($konto);
+            $request = Request::create(
+                $zmiana ? route('settings.security.password') : route('settings.security.logout-others'),
+                $zmiana ? 'PUT' : 'POST',
+                $dane,
+                [(string) config('session.cookie') => $ciastkoDodatnie?->getValue() ?? ''],
+            );
 
-            $odpowiedz = $zmiana
-                ? app()->call([app(SecuritySettingsController::class), 'updatePassword'], ['request' => $request])
-                : app()->call([app(SecuritySettingsController::class), 'logoutOtherSessions'], ['request' => $request]);
-            /** @var ViewErrorBag|null $bledy */
+            $odpowiedz = app(HttpKernel::class)->handle($request);
             $bledy = $request->session()->get('errors');
+            $ciastko = collect($odpowiedz->headers->getCookies())
+                ->first(fn ($cookie): bool => $cookie->getName() === config('session.cookie'));
+            $uwierzytelnieniePoA = Auth::guard('web')->check();
+            $stareDane = $request->session()->get('_old_input', []);
+
+            // DRUGIE żądanie przechodzi przez cały HTTP kernel z dosłownym
+            // ciasteczkiem odpowiedzi A. Nie odtwarzamy użytkownika przez
+            // actingAs ani generacji przez withSession.
+            Auth::forgetGuards();
+            app('session')->forgetDrivers();
+            $kolejne = Request::create(route('settings.security'), 'GET', [], [
+                (string) config('session.cookie') => $ciastko?->getValue() ?? '',
+            ]);
+            $kolejnaOdpowiedz = app(HttpKernel::class)->handle($kolejne);
 
             return [
-                'redirect' => $odpowiedz->getTargetUrl(),
-                'bledy' => $bledy?->all() ?? [],
+                'pierwszy_status' => $pierwszaOdpowiedz->getStatusCode(),
+                'pierwsze_ciastko_obecne' => $ciastkoPrzedA !== null && $ciastkoPrzedA->getValue() !== '',
+                'dodatni_status' => $dodatniaOdpowiedz->getStatusCode(),
+                'dodatnie_ciastko_obecne' => $ciastkoDodatnie !== null && $ciastkoDodatnie->getValue() !== '',
+                'status' => $odpowiedz->getStatusCode(),
+                'redirect' => $odpowiedz->headers->get('Location'),
+                'bledy' => $bledy instanceof ViewErrorBag
+                    ? $bledy->all()
+                    : (is_array($bledy) ? $bledy : []),
                 'generacja' => $request->session()->get(GeneracjaSesji::KLUCZ),
-                'auth' => Auth::guard('web')->check(),
+                'auth' => $uwierzytelnieniePoA,
                 'listy' => count(Notification::sentNotifications()),
-                'old' => $request->session()->get('_old_input', []),
+                'old' => $stareDane,
+                'ciastko_obecne' => $ciastko !== null && $ciastko->getValue() !== '',
+                'kolejne_status' => $kolejnaOdpowiedz->getStatusCode(),
+                'kolejne_dokad' => $kolejnaOdpowiedz->headers->get('Location'),
             ];
         })(),
 

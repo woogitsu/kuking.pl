@@ -8,7 +8,6 @@ use App\Domain\Users\Actions\RequestEmailChange;
 use App\Models\AuditLogEntry;
 use App\Models\PendingEmailChange;
 use App\Models\User;
-use App\Support\Sesja\GeneracjaSesji;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -121,12 +120,15 @@ final class SpoznioneZabezpieczenieKontaTest extends TestDwochPolaczen
         $this->assertSame(route('login'), $wynikA['wartosc']['redirect'] ?? null);
         $this->assertFalse($wynikA['wartosc']['auth'] ?? true, 'STARA_SESJA_2851_2854_ODMOWA');
         $this->assertSame([], $wynikA['wartosc']['old'] ?? null, 'HASLO_2851_2854_BEZ_OLD_INPUT');
+        $this->assertSame(200, $wynikA['wartosc']['pierwszy_status'] ?? null, 'Początkowe logowanie musi otwierać ustawienia.');
+        $this->assertTrue($wynikA['wartosc']['pierwsze_ciastko_obecne'] ?? false);
+        $this->assertSame(200, $wynikA['wartosc']['dodatni_status'] ?? null, 'Ciasteczko sprzed przeplotu musi naprawdę otwierać ustawienia.');
+        $this->assertTrue($wynikA['wartosc']['dodatnie_ciastko_obecne'] ?? false);
+        $this->assertTrue($wynikA['wartosc']['ciastko_obecne'] ?? false, 'Odpowiedź A musi zwrócić prawdziwe ciasteczko sesji.');
 
-        // Kolejne prawdziwe żądanie HTTP z uwierzytelnieniem z poprzedniej
-        // generacji nie może odzyskać ekranu bezpieczeństwa konta.
-        $odpowiedz = $this->actingAs($poA)
-            ->withSession([GeneracjaSesji::KLUCZ => (int) $konto->session_generation])
-            ->get(route('settings.security'));
-        $this->assertSame(route('login'), $odpowiedz->headers->get('Location'), 'HTTP_2851_2854_STARA_GENERACJA_ODMOWA');
+        // To jest dosłowny cookie z odpowiedzi A, podany do następnego GET
+        // przez cały kernel HTTP, bez actingAs/withSession i bez nowego loginu.
+        $this->assertSame(302, $wynikA['wartosc']['kolejne_status'] ?? null);
+        $this->assertSame(route('login'), $wynikA['wartosc']['kolejne_dokad'] ?? null, 'HTTP_2851_2854_STARE_CIASTKO_ODMOWA');
     }
 }
