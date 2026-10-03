@@ -7,6 +7,7 @@ Lokalnie wymaga jawnej zgody i portu izolowanego PG; przywraca bajty i mtime.
 
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -31,14 +32,22 @@ CASES = (
 )
 
 
-if os.environ.get("CI") != "true":
-    if os.environ.get("KUKING_KONTROLA_2783_LOKALNIE") != "1":
-        raise SystemExit("Kontrola #2783 lokalnie wymaga KUKING_KONTROLA_2783_LOKALNIE=1.")
-    if os.environ.get("DB_HOST") not in ("127.0.0.1", "localhost") or os.environ.get("DB_PORT") in (None, "", "5432"):
-        raise SystemExit("Kontrola #2783 wymaga własnego lokalnego PostgreSQL poza portem 5432.")
+def sprawdz_cel() -> None:
+    if os.environ.get("DB_URL"):
+        raise SystemExit("Kontrola #2783 odmawia DB_URL: mógłby wskazać inną bazę niż DB_DATABASE.")
+    if os.environ.get("CI") != "true":
+        if os.environ.get("KUKING_KONTROLA_2783_LOKALNIE") != "1":
+            raise SystemExit("Kontrola #2783 lokalnie wymaga KUKING_KONTROLA_2783_LOKALNIE=1.")
+        if os.environ.get("DB_HOST") not in ("127.0.0.1", "localhost") or os.environ.get("DB_PORT") in (None, "", "5432"):
+            raise SystemExit("Kontrola #2783 wymaga własnego lokalnego PostgreSQL poza portem 5432.")
 
-if not os.environ.get("DB_DATABASE", "").startswith("kuking_race_"):
-    raise SystemExit("Kontrola #2783 wymaga osobnej bazy kuking_race_*.")
+    if re.fullmatch(r"kuking_race(?:_[A-Za-z0-9_]+)?", os.environ.get("DB_DATABASE", "")) is None:
+        raise SystemExit("Kontrola #2783 wymaga bazy kuking_race albo kuking_race_<sufiks>.")
+
+
+sprawdz_cel()
+if sys.argv[1:] == ["--sprawdz-cel"]:
+    raise SystemExit(0)
 
 
 def run_test(method: str) -> WynikTestu:

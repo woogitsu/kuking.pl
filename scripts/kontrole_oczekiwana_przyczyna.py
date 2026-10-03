@@ -327,7 +327,7 @@ OCZEKUJ = {
     'Kontroler znów zleca analizę awatara': r'AvatarSettingsController znów odwołuje się do PrzeanalizujAwatar\.|Dokumenty rozjechały się z kodem awatarów \(D-240, #',
     'DATABASE.md znów mówi, że model ocenia awatar': r'Dokumenty rozjechały się z kodem awatarów \(D-240, #',
     'Indeks bazy gubi plik obszaru': r'Te pliki z docs/baza/ nie są wymienione w docs/DATABASE\.md|docs/DATABASE\.md wskazuje pliki, których nie ma w docs/baza/',
-    'Link względny w docs/baza/ bez poprawki po przeniesieniu': r'Linki względne w docs/baza/ liczą się od tego katalogu',
+    'Link względny w docs/baza/ bez poprawki po przeniesieniu': r'BAZA_KOTWICA_20261003',
     'Wyjęcie przepisu ze wszystkich zeszytów bez transakcji': r'Po awarii w środku wyjęcia część zapisów zniknęła — wyjęcie nie jest',
     'Wyjęcie wpisu ze wszystkich zeszytów bez transakcji': r'Po awarii w środku wyjęcia część zapisów zniknęła — wyjęcie nie jest',
     'Odwołanie autora bez wspólnej transakcji z zawiadomieniami': r'Pismo zostało złożone mimo niepełnego zawiadomienia zespołu \(#',
