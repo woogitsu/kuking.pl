@@ -127,6 +127,10 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna kolejności odpowiedzi na link #2838 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2849.py; then
+            printf "${CZERWONY}Kontrola ujemna odnowionego punktu odzyskania #2849 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
         # #2403: usunięcie retry slugu musi ujawnić 23505/recipes_slug_unique.
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2403.py; then
             printf "${CZERWONY}Kontrola ujemna kolizji slugu #2403 nie przeszła.${RESET}\n" >&2

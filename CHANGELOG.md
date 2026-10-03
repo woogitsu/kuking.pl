@@ -18,6 +18,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 - Poprawione (#2853): niepewna nazwa grupy składników odczytana ze zdjęcia kartki wstrzymuje pierwszą publikację przepisu. Błąd wskazuje pole grupy, a oba ekrany liczą taki fragment w przypomnieniu o sprawdzeniu tekstu.
 - Poprawione (#2856): uszkodzony odnośnik do dalszych wyników wyszukiwania nie kończy się błędem serwera. Gdy miara w adresie jest zbyt mała dla bazy, wyszukiwarka pokazuje właściwe dalsze okno wyników.
+- Poprawione (#2849): nocne sprzątanie nie usuwa kopii tekstu szkicu, która została właśnie odnowiona przy przywróceniu. Poprzedni tekst nadal można przywrócić ponownie.
 
 - Poprawione (#2820): po wygaśnięciu prośby o wskazówkę można ponownie poprawić własną uwagę przy wykonaniu. Przyjęta wskazówka i otwarte zgłoszenie nadal chronią tekst.
 

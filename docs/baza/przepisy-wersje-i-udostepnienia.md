@@ -215,6 +215,12 @@ oraz punkty szkiców opublikowanych/usuniętych miękko. Wymazanie konta kasuje
 punkty jawnie (`EraseAccountData`). Paczka danych: sekcja `kopie_tekstu_szkicow`;
 rejestr czynności: §3.32.
 
+Sprzątanie wybiera najwyżej 1000 kandydatów, ale przy kasowaniu ponownie
+sprawdza termin i stan przepisu w warunku `DELETE` (#2849). Przywrócenie
+odnawia `taken_at` tego samego punktu: stary odczyt listy kandydatów nie może
+usunąć świeżej kopii, która pozwala wrócić do tekstu sprzed przywrócenia.
+Tryb `--dry-run` pozostaje tylko odczytem.
+
 Rollback (D-088): `down()` usuwa tabelę, ale ODMAWIA, gdy jest choć jeden punkt
 w oknie odzyskania. Na pustej tabeli, przy samych przedawnionych punktach i w CI
 przechodzi bez pytania. Wymuszenie po kopii tabeli:
