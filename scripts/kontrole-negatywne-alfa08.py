@@ -2818,6 +2818,10 @@ checks = [
     ("Pusta dalsza porcja powiadomień bez listy (#2807)", "resources/views/pages/notifications.blade.php",
      "test_pusta_dalsza_strona_po_odczycie_w_drugiej_karcie_ma_droge_do_pierwszej",
      lambda s: replace_once(s, '<ul id="lista-powiadomien" hidden></ul>', '')),
+    ("Wiersze przepisu sklejone w kopii HTML (#2839)", "resources/views/exports/styles.blade.php",
+     "test_kopia_html_zachowuje_wiersze_krokow_i_historii_bez_surowego_html",
+     lambda s: replace_once(s, '.tekst-z-wierszami { white-space: pre-line; overflow-wrap: anywhere; }',
+                            '.tekst-z-wierszami { white-space: normal; overflow-wrap: anywhere; }')),
     # #2405 (UX-001): błąd wyboru formy ma być powiązany z radiami.
     ("Błąd wyboru formy bez stabilnego id (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
      lambda s: replace_once(s, '<span class="field-error" id="f-form_of_address-error">', '<span class="field-error">')),

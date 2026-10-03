@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2839): kopia HTML własnego przepisu zachowuje osobne wiersze i puste linie instrukcji oraz rodzinnej historii, także po wydrukowaniu. Treść nadal pozostaje zwykłym, bezpiecznie zapisanym tekstem.
+
 - Poprawione (#2820): po wygaśnięciu prośby o wskazówkę można ponownie poprawić własną uwagę przy wykonaniu. Przyjęta wskazówka i otwarte zgłoszenie nadal chronią tekst.
 
 - Poprawione (#2828): przy gotowaniu kilku potraw zdjęcie bieżącego kroku widać obok instrukcji. Zmiana kroku lub potrawy pokazuje właściwe zdjęcie; powiększenie nie zatrzymuje minutników.

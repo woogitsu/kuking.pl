@@ -101,7 +101,7 @@
         <ol class="kroki" @if(array_key_first($etap['kroki']) > 0) start="{{ array_key_first($etap['kroki']) + 1 }}" @endif>
             @foreach($etap['kroki'] as $indeksKroku => $step)
                 <li>
-                    {{ $step->instruction }}
+                    <span class="tekst-z-wierszami">{{ $step->instruction }}</span>
                     @if($step->timer_seconds)
                         <p class="podpis">Czas: {{ \App\Support\Czas::czasPrzepisu((int) round($step->timer_seconds / 60)) }}</p>
                     @endif
@@ -127,7 +127,7 @@
                  dla „Nasze smaki" i dla „z gazety Przyjaciółka" jednakowo. --}}
             @if($recipe->source_person)<p>Skąd: {{ $recipe->source_person }}</p>@endif
             @if($recipe->family_since_year)<p>W rodzinie od {{ $recipe->family_since_year }} roku.</p>@endif
-            @if($recipe->source_note)<p>{{ $recipe->source_note }}</p>@endif
+            @if($recipe->source_note)<p class="tekst-z-wierszami">{{ $recipe->source_note }}</p>@endif
             @if($recipe->source_url)<p>Źródło: {{ $recipe->source_url }}</p>@endif
         </div>
     @endif
