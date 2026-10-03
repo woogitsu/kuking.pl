@@ -1,3 +1,77 @@
+# Stan koordynacji — 3.10.2026, 17:10 UTC
+
+## Odebrane wydanie O i naprawiona integracja
+
+- O #2890 scalone z expectedHeadSha 91e58bd07b719c27f12b7973c526f906cbefd2db.
+  Main i produkcja: 5ae32b5785a642f8dd643de7606b0ecbe5a2040b.
+  Zwykły pełny seryjny pre-push EXIT 0; pełne PR CI 37134398858 24/24 SUCCESS
+  i zagregowany CodeQL 111235948787 SUCCESS dokładnego heada. Main CI
+  37136405016 terminalnie 24/24 SUCCESS, zero pominięć/anulowania.
+  Railway web e28ad0f4, worker c45b23f8, scheduler 9b5bcf1f: wszystkie SUCCESS
+  tego SHA. Root odczytał /wydanie exact SHA i /health 200/ok o 16:59 UTC.
+  Komentarz odbioru produkcji: 5971349861; opis PR aktualizowany z zachowaniem historii.
+- Zamknięto 39 kwalifikujących issues O, każde z własnym dowodem. Root ponownie
+  odczytał wszystkie 39 stanów CLOSED/completed i komentarze; treści issues
+  zachowane. Audyt 66 surowych plików i 9 źródeł zweryfikowany niezależnie.
+  Sześć zastąpionych draftów było już zamkniętych/scalonych; brak nowych
+  zamknięć tych PR. Piloty, prawo, urządzenia i panele nie są automatycznie wykonane.
+- #2894 odebrane: normalny pełny pre-push EXIT 0, oficjalny pełny dispatch
+  37135146749 24/24 SUCCESS. Auto PR CI miało osiem scope skipów i nie było
+  dowodem pełnej bramki. ExpectedHeadSha merge c0 dał C
+  0dade39187d8143cb557cd1a968161584360667b. Push C 37137412709 terminalnie
+  24/24 SUCCESS, zero pominięć. Nie trzeba dodatkowego dispatch push C:
+  scripts/ci/zakres.sh zawęża ciężkie zadania tylko dla pull_request.
+
+## Jedna wspólna paczka W/X/Y — istniejący PR #2891
+
+- Root normalnie połączył W622, X5f, Y0b i faktyczną zieloną C 0dade.
+  Przewidywany i wykonany merge-tree: 5b1e24debb8daecaf0f5bf75f3a66bcbcf1c2b39.
+  Pięć odebranych blobów C zachowanych, pozostałe 7037 blobów W bez zmian.
+  Niezależny review ACCEPT: źródła W/X/Y jak odebrane Y, 580/580 unikalnych
+  kontroli, wszystkie ścieżki/filtry oraz pojedyncze wywołania siedmiu mechanizmów.
+- Dołączono wyłącznie dokumenty odebranych #2852, #2839, #2821/#2822 i #2814.
+  Root dla nowych odbiorów: 306 surowych plików i 24 źródła układu; 99 plików
+  i 8 źródeł eksportu; 109 plików i wszystkie 6977 źródeł minutnika.
+  Reprezentatywne obrazy obejrzane niezależnie. Natywne 200% potwierdzone
+  przez rzeczywiste ustawienia Chrome, DPR i viewport, bez CSS zoom.
+  Przycięte historyczne fullPage PNG i błędy przygotowania nie są PASS.
+- Root przygotowuje jeden zwykły pełny seryjny push W/X/Y z własnego repo-w
+  i izolowanej bazy kuking_test_w20261003 na PG 18.6 / 127.0.0.1:55488,
+  owner kuking_pg18_owner. Stary canonical push-w EXIT 0 dotyczy wyłącznie
+  W622. Nowa bramka ma osobne push-wxy.sh/log/exit, bez nadpisania starego dowodu.
+  Remote #2891 przed tą nową bramką nadal W622; stara zieleń nie zatwierdza
+  wspólnej paczki. Nie zmieniać heada podczas nowego haka ani CI.
+- Po nowym zwykłym pełnym pushu: aktualizacja opisu #2891 do W/X/Y, pełne
+  niedraftowe CI dokładnego heada i świeżej C, review/merge-tree/diffcheck,
+  expectedHeadSha merge oraz zielony push C. Następnie jedno końcowe wydanie
+  do main: pełne PR CI, zagregowany CodeQL, main CI, trzy Railway SUCCESS,
+  /wydanie exact SHA i /health. Dopiero potem kwalifikujące issues W/X/Y.
+
+## Następna mała paczka i otwarte kryteria
+
+- Po W/X/Y osobna mała paczka #2796 + #2893. Head 708ea63fb7fb48bee1588ec3f8f5ed7722717074:
+  dokładnie trzy DELETE z D-302 pkt 10, root+peer ACCEPT, 32/444 HTTP,
+  99/800 regresje, 93/2539 strażniki, trzy właściwe kontrole i exact restore,
+  Pint/full PHPStan 0. Zachowane Policy, domena, #2791/#2889 i odmowy grantów.
+- Head d204483086d8080adf95987ddbfb43de8a2784a1: #2893 root+peer ACCEPT,
+  35 starych identities + 9 macierzy, 44/154 serial i official parallel 4,
+  właściwe 13/2/3 FAIL, exact restore, 73 raw. Izolowany proces rzeczywistego
+  config; brak zmian Env aplikacji, .env, CI lub globalnych flag. Pint i wąski
+  PHPStan 0; całego nowego haka/pusha/PR jeszcze nie wykonano. Odbiór podzbioru
+  nie zastępuje dawnych całych parallel hooków FAIL zachowanych jako historia.
+- #598: hourly 5 połączeń i rachunek 110 nie są pomiarem szczytu. Nadal potrzebne
+  gęste próbki 1 s podczas normalnego wdrożenia, bez progów/kosztów/sekretów.
+  #601: historyczne ProcessUploadedImage DONE nie dowodzi ready/processed_at,
+  trzech wariantów ani CPU/RSS. Kryteria pozostają jawnie otwarte.
+- Manualne piloty 50+, realne telefony, prawo/CSAM/DPA, R2/CDN, kopie i panele
+  wymagają własnych dowodów. #2810 i #2849 oraz odbiór literalnych cookies/2861
+  należą do W/X/Y, nie do wydania O. Nie nazywać starego fixture session.store
+  nowym potwierdzonym błędem aplikacji.
+- Zgoda właściciela na dokładny izolowany ReportContent #2887 zapisana w D-333
+  i wykonana. Nie pytać ponownie. Zachować dirty primary checkout i cudze zakresy.
+
+## Historia koordynacji — zapis z 16:27 UTC
+
 # Stan koordynacji — 3.10.2026, 16:27 UTC
 
 - Wydanie O #2890 SCALONE z expectedHeadSha91. Nowy main to
