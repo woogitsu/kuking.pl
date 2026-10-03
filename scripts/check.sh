@@ -147,6 +147,14 @@ else
     zle "Kontrola #2880 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-2880-wynik.py"
 fi
 
+# #2887: późny INSERT musi oblać we właściwym wariancie, bez skip/error.
+krok "Werdykt zgłoszenia wskazówki (#2887)"
+if python3 tests/skrypty/kontrola-negatywna-2887-wynik.py >/dev/null 2>&1; then
+    ok "Kontrola #2887 wymaga wykonanej regresji i własnego markera"
+else
+    zle "Kontrola #2887 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-2887-wynik.py"
+fi
+
 # #2861: dokładna klasa, wariant i własna przyczyna z JUnit, bez skip/error.
 krok "Werdykt uzupełnienia 2FA (#2861)"
 if python3 tests/skrypty/kontrola-negatywna-2861-uzupelnienie-wynik.py >/dev/null 2>&1; then

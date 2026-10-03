@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2887): zgłoszenie wskazówki sprawdza jej aktualną dostępność przy zapisie. Wycofanie wskazówki przed przyjęciem zgłoszenia odcina spóźnioną próbę; wcześniej przyjęta sprawa nadal chroni uwagę przed podmianą.
+
 - Poprawione (#2877): zastosowanie dawnej wersji przepisu przywraca także zapisane „nie podano” liczby porcji. Brak pola w starszej wersji nadal pozostawia dzisiejszą liczbę, a pusta nazwa nie zastępuje obecnej.
 - **Wspólny postęp po zawieszeniu (#2879):** odhaczenie, cofnięcie i „Zacznij od początku” sprawdzają aktualny stan konta pod dotychczasową blokadą. Żądanie czekające po wcześniejszej autoryzacji nie zapisuje kroków ani rewizji, gdy w tym czasie zatwierdzono zawieszenie. Kolejność konto → sesja, czytanie, odejście i zakończenie sesji pozostają bez zmian.
 

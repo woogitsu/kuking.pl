@@ -99,6 +99,8 @@ pull_request|scripts/kontrola-negatywna-2404.py|tfffftt
 pull_request|scripts/kontrola-negatywna-2427.py|tfffftt
 pull_request|scripts/kontrola-negatywna-2437.py|tfffftt
 pull_request|scripts/kontrola-negatywna-2551.py|tfffftt
+pull_request|scripts/kontrola-negatywna-2887.py|tfffftt
+pull_request|tests/skrypty/kontrola-negatywna-2887-wynik.py|tfffftt
 pull_request|Dockerfile|tfftfft
 pull_request|composer.lock|ttftftt
 pull_request|pint.json|tffffft
@@ -230,6 +232,7 @@ mutuj wyscigi 'tests/(Dwa/|Support/|' 'tests/(Support/|' || exit 1
 mutuj wyscigi '240[234]' '9999' || exit 1
 mutuj wyscigi '|2427' '' || exit 1
 mutuj wyscigi '|2437' '' || exit 1
+mutuj wyscigi '|2887' '' || exit 1
 mutuj wyscigi 'kontrola_przyczyny\.py|' '' || exit 1
 mutuj wyscigi 'zawezenie_testow\.py|' '' || exit 1
 
