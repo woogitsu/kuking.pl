@@ -10,7 +10,7 @@
 --}}
 <x-layout title="Dodaj kupione do „Co mam w domu”" :noindex="true">
     <p>
-        <a class="btn btn-quiet" href="{{ route('shopping.index') }}">Wróć do listy zakupów</a>
+        <a class="btn btn-quiet" href="{{ route('shopping.index', $wybranaLista !== null ? ['lista' => $wybranaLista->getKey()] : []) }}">Wróć do listy zakupów</a>
     </p>
 
     <h1>Dodaj kupione do „Co mam w domu”</h1>
@@ -20,8 +20,11 @@
         Teraz w „Co mam w domu” jest {{ $wSpizarni }} z {{ $maksProduktow }} możliwych produktów.
     </p>
 
-    <form class="panel-formularza" method="POST" action="{{ route('shopping.pantry.store') }}" novalidate>
+    <form class="panel-formularza" method="POST" action="{{ route('shopping.pantry.store', $wybranaLista !== null ? ['lista' => $wybranaLista->getKey()] : []) }}" novalidate>
         @csrf
+        @if($wybranaLista !== null)
+            <input type="hidden" name="lista" value="{{ $wybranaLista->getKey() }}">
+        @endif
 
         @if($errors->any())
             <div class="error-summary" role="alert" tabindex="-1">
@@ -62,7 +65,7 @@
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Dodaj zaznaczone do „Co mam w domu”</button>
-            <a class="btn btn-secondary" href="{{ route('shopping.index') }}">Anuluj</a>
+            <a class="btn btn-secondary" href="{{ route('shopping.index', $wybranaLista !== null ? ['lista' => $wybranaLista->getKey()] : []) }}">Anuluj</a>
         </div>
     </form>
 </x-layout>
