@@ -66,6 +66,8 @@ OCZEKUJ = {
     'Moje rozmowy pomijają Policy wpisu (#2432)': r'ROZMOWY_2432_POLICY_TRESCI',
     'Import odrzuca ułamek czasu bez ostrzeżenia (#2546)': r'IMPORT_2546_CZAS_WIDOCZNY',
     'Import nie zapisuje ostrzeżeń parsera przy szkicu (#2548)': r'IMPORT_2548_OSTRZEZENIE_TRWA',
+    'Niedostępny pomiar znika z dziennika (#598)': r'POMIAR_598_NIEDOSTEPNY_REKORD',
+    'Niedostępny pomiar udaje zmierzone zero (#598)': r'POMIAR_598_NIEDOSTEPNY_NULL',
     'Importowany szkic traci bramkę odczytu w kopii (#2800)': r'KOPIA_2800_IMPORT_OMINIETY',
     'Spiżarnia: jedyne opakowanie bez odcisku (#2783)': r'ODCISK_2783_FORMULARZ',
     'Notatka z dalszej porcji wraca na pierwszą stronę (#2829)': r'NOTATKA_2829_DRUGA_STRONA',

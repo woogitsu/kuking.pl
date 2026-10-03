@@ -79,8 +79,6 @@ final class StanPolaczenBazy
      */
     public function sprawdz(?Connection $polaczenie = null): array
     {
-        $polaczenie ??= DB::connection();
-
         $pusty = [
             'max_connections' => null,
             'rezerwa_superusera' => null,
@@ -97,11 +95,13 @@ final class StanPolaczenBazy
             'baza' => null,
         ];
 
-        if ($polaczenie->getDriverName() !== 'pgsql') {
-            return ['stan' => self::NIEOBSLUGIWANY] + $pusty;
-        }
-
         try {
+            $polaczenie ??= DB::connection();
+
+            if ($polaczenie->getDriverName() !== 'pgsql') {
+                return ['stan' => self::NIEOBSLUGIWANY] + $pusty;
+            }
+
             $ustawienia = $this->ustawienia($polaczenie);
             $liczby = $this->liczby($polaczenie);
         } catch (Throwable) {
