@@ -103,18 +103,23 @@ use App\Models\RecipeHint;
 use App\Models\Report;
 use App\Models\Tag;
 use App\Models\User;
+use App\Support\Sesja\GeneracjaSesji;
 use Illuminate\Cache\Events\WritingKey;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
+use Illuminate\Hashing\HashManager;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
@@ -1100,12 +1105,86 @@ try {
             return $bledy === null ? 'ok' : implode(' ', $bledy->all());
         })(),
 
+        // Spóźnione żądanie ustawień po resecie lub zmianie hasła w innej sesji.
+        // Bariera zatrzymuje wstępne sprawdzenie hasła przed blokadą konta.
+        'spoznione-zabezpieczenie-konta' => (function () use ($argumenty): array {
+            Http::fake(['api.pwnedpasswords.com/*' => Http::response('', 200)]);
+            Notification::fake();
+            $hasher = Hash::getFacadeRoot();
+            Hash::swap(new class($hasher) implements Hasher
+            {
+                private bool $zatrzymany = false;
+
+                public function __construct(private readonly HashManager $hasher) {}
+
+                public function info($hashedValue): array
+                {
+                    return $this->hasher->info($hashedValue);
+                }
+
+                public function make(#[SensitiveParameter] $value, array $options = []): string
+                {
+                    return $this->hasher->make($value, $options);
+                }
+
+                public function check(#[SensitiveParameter] $value, $hashedValue, array $options = []): bool
+                {
+                    $poprawne = $this->hasher->check($value, $hashedValue, $options);
+                    if ($poprawne && ! $this->zatrzymany) {
+                        $this->zatrzymany = true;
+                        DB::select('SELECT pg_advisory_xact_lock(2851, 1)');
+                    }
+
+                    return $poprawne;
+                }
+
+                public function needsRehash($hashedValue, array $options = []): bool
+                {
+                    return $this->hasher->needsRehash($hashedValue, $options);
+                }
+
+                public function isHashed(#[SensitiveParameter] $value): bool
+                {
+                    return $this->hasher->isHashed($value);
+                }
+
+                public function verifyConfiguration($value): bool
+                {
+                    return $this->hasher->verifyConfiguration($value);
+                }
+            });
+
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            $zmiana = $argumenty['droga'] === 'zmiana';
+            $dane = $zmiana
+                ? ['current_password' => $argumenty['obecne'], 'password' => $argumenty['haslo'], 'password_confirmation' => $argumenty['haslo']]
+                : ['password' => $argumenty['obecne']];
+            $request = Request::create('/', $zmiana ? 'PUT' : 'POST', $dane);
+            $request->setLaravelSession(app('session.store'));
+            $request->session()->put(GeneracjaSesji::KLUCZ, (int) $argumenty['generacja']);
+            app()->instance('request', $request);
+            Auth::guard('web')->setUser($konto);
+
+            $odpowiedz = $zmiana
+                ? app()->call([app(SecuritySettingsController::class), 'updatePassword'], ['request' => $request])
+                : app()->call([app(SecuritySettingsController::class), 'logoutOtherSessions'], ['request' => $request]);
+            /** @var ViewErrorBag|null $bledy */
+            $bledy = $request->session()->get('errors');
+
+            return [
+                'redirect' => $odpowiedz->getTargetUrl(),
+                'bledy' => $bledy?->all() ?? [],
+                'generacja' => $request->session()->get(GeneracjaSesji::KLUCZ),
+                'auth' => Auth::guard('web')->check(),
+                'listy' => count(Notification::sentNotifications()),
+                'old' => $request->session()->get('_old_input', []),
+            ];
+        })(),
+
         // Ustawienie nowego hasła PRAWDZIWYM kontrolerem (#1358): zmiana
         // w ustawieniach albo reset linkiem. Bariera przyrządu staje zaraz
         // po zapisie `users.password` — w oknie, w którym stary kod miał
         // hasło już zatwierdzone, a zamówioną zmianę adresu jeszcze żywą.
-        // Kontroler, a nie akcja, bo test ma pęknąć także wtedy, gdy ktoś
-        // wróci do zapisu hasła poza akcją.
         'ustaw-haslo' => (function () use ($argumenty): array {
             Http::fake(['api.pwnedpasswords.com/*' => Http::response('', 200)]);
             DB::listen(static function (QueryExecuted $query): void {
@@ -1124,6 +1203,9 @@ try {
             // Kolejność ma znaczenie: podmiana `request` w kontenerze
             // przestawia rozwiązywanie użytkownika na guarda.
             $request->setLaravelSession(app('session.store'));
+            if ($argumenty['droga'] === 'zmiana') {
+                $request->session()->put(GeneracjaSesji::KLUCZ, (int) $konto->session_generation);
+            }
             app()->instance('request', $request);
 
             if ($argumenty['droga'] === 'zmiana') {
