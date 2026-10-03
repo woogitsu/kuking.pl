@@ -6,10 +6,13 @@ namespace Tests\Feature;
 
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Gotowanie\RoboczyDopisek;
+use App\Domain\Recipes\Gotowanie\Wspolne\SesjaWspolnegoGotowania;
 use App\Domain\Users\Import\MagazynPaczek;
 use App\Models\CookingNote;
 use App\Models\CookingProgress;
+use App\Models\CookingSession;
 use App\Models\Recipe;
+use App\Models\RecipeStep;
 use App\Models\User;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -63,6 +66,26 @@ class NajgorszyPrzypadekTerminowWygasaniaTest extends TestCase
                 $zadania[$komenda],
                 "Zadanie {$komenda} biegnie rzadziej niż raz na dobę ({$zadania[$komenda]}), a polityka mówi „co noc”.",
             );
+        }
+    }
+
+    public function test_trzy_nocne_przebiegi_z_rejestru_sa_o_zapisanych_godzinach_utc(): void
+    {
+        $this->assertSame('UTC', config('app.timezone'));
+
+        $zadania = [];
+        foreach (app(Schedule::class)->events() as $event) {
+            $zadania[(string) ($event->description ?? '')] = $event;
+        }
+
+        foreach ([
+            'kuking:sprzataj-wspolne-gotowanie' => '30 2 * * *',
+            'kuking:sprzataj-postep-gotowania' => '0 3 * * *',
+            'kuking:sprzataj-paczki-importu' => '10 3 * * *',
+        ] as $komenda => $wyrazenie) {
+            $this->assertArrayHasKey($komenda, $zadania);
+            $this->assertSame($wyrazenie, $zadania[$komenda]->expression);
+            $this->assertContains($zadania[$komenda]->timezone, [null, 'UTC']);
         }
     }
 
@@ -149,6 +172,47 @@ class NajgorszyPrzypadekTerminowWygasaniaTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-10-05 03:00:00'));
         $this->artisan('kuking:sprzataj-postep-gotowania')->assertSuccessful();
         $this->assertSame(0, CookingNote::query()->count(), 'Dopisek nie zniknął w terminie + dobie.');
+    }
+
+    public function test_wspolne_gotowanie_jest_niedostepne_na_granicy_terminu_i_znika_przy_nastepnym_przebiegu(): void
+    {
+        $godzin = (int) config('kuking.wspolne_gotowanie.retencja_godziny');
+        Carbon::setTestNow(Carbon::parse('2026-10-03 02:30:00', 'UTC'));
+        $osoba = User::factory()->create();
+        $recipe = Recipe::factory()->create(['author_id' => $osoba->getKey()]);
+        RecipeStep::create(['recipe_id' => $recipe->getKey(), 'position' => 0, 'instruction' => 'Ugotuj wodę.']);
+        $sesja = app(SesjaWspolnegoGotowania::class)->zaloz($osoba, $recipe);
+        $termin = $sesja->expires_at;
+        $this->assertSame($godzin, (int) Carbon::now()->diffInHours($termin));
+
+        Carbon::setTestNow(Carbon::parse('2026-10-04 02:29:59', 'UTC'));
+        $this->assertTrue($sesja->fresh()?->trwa() ?? false);
+
+        Carbon::setTestNow($termin);
+        $this->assertFalse($sesja->fresh()?->trwa() ?? true, 'RETENCJA_2708_SESJA_WIDOCZNA_NA_GRANICY');
+        $this->assertSame(1, CookingSession::query()->count());
+
+        // Fizyczna mutacja `<=` na `<` w sprzątaniu musi zostawić ten wiersz.
+        $this->artisan('kuking:sprzataj-wspolne-gotowanie')->assertSuccessful();
+        $this->assertSame(0, CookingSession::query()->count(), 'RETENCJA_2708_SESJA_NIEUSUNIETA_NA_GRANICY');
+    }
+
+    public function test_zip_na_dokladnej_granicy_dwoch_godzin_jeszcze_nie_jest_przeterminowany(): void
+    {
+        Storage::fake('local');
+        Carbon::setTestNow(Carbon::parse('2026-10-03 01:10:00', 'UTC'));
+        $osoba = User::factory()->create();
+        $magazyn = app(MagazynPaczek::class);
+        $token = $magazyn->zapisz($osoba, UploadedFile::fake()->createWithContent('a.zip', 'x'));
+        $plik = 'import-paczek/'.$osoba->getKey().'/'.$token.'.zip';
+        touch(Storage::disk('local')->path($plik), Carbon::now()->getTimestamp());
+
+        Carbon::setTestNow(Carbon::parse('2026-10-03 03:10:00', 'UTC'));
+        $this->artisan('kuking:sprzataj-paczki-importu')->assertSuccessful();
+        $this->assertTrue(Storage::disk('local')->exists($plik), 'RETENCJA_2708_ZIP_ZNIKNAL_NA_GRANICY');
+
+        Carbon::setTestNow(Carbon::parse('2026-10-03 03:10:01', 'UTC'));
+        $this->assertNull($magazyn->sciezka($osoba, $token), 'RETENCJA_2708_ZIP_NADAL_DOSTEPNY_PO_TERMINIE');
     }
 
     public function test_paczka_importu_po_terminie_jest_niedostepna_a_porzucona_znika_przy_nocnym_przebiegu(): void

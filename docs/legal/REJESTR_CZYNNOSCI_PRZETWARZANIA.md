@@ -768,9 +768,11 @@ trafi tam pierwszy rekord.
   podawała). Weryfikacja przez prawnika zostaje w #8.
 - **Odbiorcy:** Railway. Dane widzi wyłącznie właściciel
   (`CookingProgressPolicy`); nic nie jest wysyłane do podmiotów trzecich.
-- **Termin usunięcia:** 24 godziny od ostatniej zmiany
-  (`kuking.cooking_progress.retention_hours`; wygasły wiersz jest ignorowany
-  przy odczycie, a `kuking:sprzataj-postep-gotowania` kasuje go co noc o 03:00),
+- **Termin niedostępności:** po 24 godzinach od ostatniej zmiany
+  (`kuking.cooking_progress.retention_hours`; odczyt ignoruje wiersz już przy
+  `expires_at <= now()`). **Fizyczne usunięcie:** następny nocny przebieg
+  `kuking:sprzataj-postep-gotowania` o 03:00 UTC, przy prawidłowo działającym
+  harmonogramie najpóźniej po około 48 godzinach od zmiany;
   wyłączenie funkcji przez osobę albo wymazanie konta (`EraseAccountData`).
 - **Eksport:** `postep_gotowania` (przepis, numery odhaczonych kroków, wybrana
   liczba porcji, przygotowane składniki, daty; tytuł przepisu i teksty składników
@@ -791,9 +793,11 @@ trafi tam pierwszy rekord.
   (`CookingSessionPolicy`; obcy i moderator dostają 404). Każde wejście sprawdza
   też `RecipePolicy::view` — link nie daje dostępu do treści, której osoba nie
   mogłaby zobaczyć. Nic nie jest wysyłane do podmiotów trzecich.
-- **Termin usunięcia:** 24 godziny od założenia
-  (`kuking.wspolne_gotowanie.retencja_godziny`; wygasła sesja jest ignorowana
-  przy odczycie, a `kuking:sprzataj-wspolne-gotowanie` kasuje ją co noc o 02:30),
+- **Termin niedostępności:** po 24 godzinach od założenia
+  (`kuking.wspolne_gotowanie.retencja_godziny`; `expires_at <= now()` oznacza
+  sesję wygasłą). **Fizyczne usunięcie:** następny nocny przebieg
+  `kuking:sprzataj-wspolne-gotowanie` o 02:30 UTC, przy prawidłowo działającym
+  harmonogramie najpóźniej po około 48 godzinach od założenia;
   zakończenie przez gospodarza (kasuje od razu), blokada między osobami (kończy
   udział pomocnika wobec gospodarza, a gdy zablokowani są dwaj pomocnicy — udział zablokowanego), wymazanie konta (`EraseAccountData`).
 - **Eksport:** `wspolne_gotowanie` (rola, tytuł przepisu tylko gdy widoczny dla
@@ -843,10 +847,14 @@ trafi tam pierwszy rekord.
   wskaźnik treści — bez treści).
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
 - **Odbiorcy:** Railway.
-- **Termin usunięcia:** ZIP — po wczytaniu, odrzuceniu albo po
-  `kuking.import_paczki.przechowanie_godzin` = **2 godziny**
-  (`kuking:sprzataj-paczki-importu` co noc o 03:10); przy wymazaniu konta
-  od razu. Znacznik — do usunięcia treści (klucz obcy `cascade`) albo konta
+- **Termin niedostępności ZIP:** po przekroczeniu
+  `kuking.import_paczki.przechowanie_godzin` = **2 godziny** od zapisu
+  (porównanie `mtime < now() - 2 godziny`; dokładnie na granicy plik nadal
+  jest dostępny). **Fizyczne usunięcie:** po wczytaniu, odrzuceniu, wymazaniu
+  konta albo przy następnym nocnym przebiegu
+  `kuking:sprzataj-paczki-importu` o 03:10 UTC; przy prawidłowo działającym
+  harmonogramie najpóźniej w ciągu doby po przekroczeniu terminu.
+  Znacznik — do usunięcia treści (klucz obcy `cascade`) albo konta
   (`EraseAccountData`). Wczytane treści — jak §3.3.
 - **Eksport:** znacznik jest `NIE_DOTYCZY` w `InwentarzDanychKonta` (sama
   treść jest w paczce).
@@ -920,9 +928,11 @@ trafi tam pierwszy rekord.
   (`CookingNotePolicy`); nic nie jest wysyłane do podmiotów trzecich, nie
   trafia do adresu, cache, telemetrii ani do autora przepisu. Do pola „Coś po
   swojemu?” (widocznego przy wykonaniu) przechodzi tylko na prośbę osoby.
-- **Termin usunięcia:** 24 godziny od ostatniej zmiany
-  (`kuking.cooking_note.retention_hours`; wygasły wiersz jest ignorowany przy
-  odczycie, a `kuking:sprzataj-postep-gotowania` kasuje go co noc o 03:00),
+- **Termin niedostępności:** po 24 godzinach od ostatniej zmiany
+  (`kuking.cooking_note.retention_hours`; odczyt ignoruje wiersz już przy
+  `expires_at <= now()`). **Fizyczne usunięcie:** następny nocny przebieg
+  `kuking:sprzataj-postep-gotowania` o 03:00 UTC, przy prawidłowo działającym
+  harmonogramie najpóźniej po około 48 godzinach od zmiany;
   zapisanie wykonania tego przepisu, przycisk „Usuń dopisek” albo wymazanie
   konta (`EraseAccountData`).
 - **Eksport:** `dopiski_z_gotowania` (tytuł przepisu tylko gdy przepis jest

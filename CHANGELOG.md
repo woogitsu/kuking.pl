@@ -6,6 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Doprecyzowane (#2708, pyt. 6): wewnętrzny rejestr czynności osobno podaje wygaśnięcie postępu, dopisku i wspólnego gotowania po 24 godzinach oraz ZIP po przekroczeniu 2 godzin, a osobno ich fizyczne usunięcie przy nocnym sprzątaniu. Polityka prywatności i jej archiwum pozostają bez zmian; test zegara pilnuje dokładnej granicy wygaśnięcia.
 - Poprawione (#2708): instrukcja odtwarzania kopii wymaga ponownego zabezpieczenia decyzji CSAM i publicznych wariantów zdjęć przed wymazaniem kont oraz wznowieniem usług. Gdy nie da się potwierdzić spraw i ich zabezpieczenia, procedura zatrzymuje się zamiast uruchamiać ruch lub nocne retencje.
 - Poprawione (#2546, #2548): szkic z importu strony wskazuje podany, lecz nierozpoznany czas przygotowania lub gotowania oraz liczbę składników, których nie udało się odczytać. Ostrzeżenie zostaje przy szkicu po ponownym otwarciu; ułamkowych minut nie zaokrąglamy.
 - Poprawione (CodeQL, wydanie L): w kolejce gotowania aktywny przepis wybrany w formularzu trafia do adresu kolejki tylko wtedy, gdy ma postać adresu przepisu (małe litery, cyfry, myślnik), i jest kodowany. Inny tekst z pola formularza jest pomijany, więc nie może zmienić adresu przejścia. Test regresyjny w `kolejka-gotowania.test.mjs`.
