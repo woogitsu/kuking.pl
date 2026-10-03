@@ -316,7 +316,7 @@ class OdtworzenieKopiiZRejestremUsunietychKontTest extends TestCase
 
     private function assertParaWymazaniaWRunbooku(string $fragment, string $marker): void
     {
-        $linie = preg_split('/\R/', $fragment);
+        $linie = preg_split('/\r\n|\n|\r/', $fragment);
         $this->assertIsArray($linie);
         $komendy = [];
 
