@@ -780,7 +780,7 @@
                                          dokładnie `ingredient_text`. Jedna linia, żeby Blade
                                          nie wstawił spacji w środek „300 g”. --}}
                                     @if($przeliczony->zmieniony){{ $przeliczony->przed }}<strong class="skladnik-przeliczony">{{ $przeliczony->ilosc }}</strong>{{ $przeliczony->po }}@else{{ $ingredient->ingredient_text }}@endif
-                                    @if($przeliczony->nieprzeliczony)<span class="meta" data-skladnik-suma> — {{ \App\Domain\Recipes\Porcje\PrzeliczonySkladnik::UWAGA_SUMA }}</span>@endif
+                                    @if($przeliczony->nieprzeliczony)<span class="meta" data-skladnik-suma> — {{ $przeliczony->uwagaNieprzeliczenia }}</span>@endif
                                     {{-- „Bez ilości” nie określa sposobu dozowania.
                                          Pokazujemy tekst autora bez dopisków (#878).
                                          BRAK DOPISKU JEST CELOWY (D-232): ten ekran
