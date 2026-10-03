@@ -1,5 +1,39 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
+## Aktualny odbiór Codex — 3.10.2026, 09:50 UTC
+
+- M nadal wydana na `6c3d2a936ee10c672b542e0814bacc41586399e7`:
+  odczyt 09:43 potwierdził pełne CI push main, trzy Railway SUCCESS tego SHA,
+  `/wydanie` zgodne i `/health` 200. Zamknięte #2800/#2808/#2815 z dowodem;
+  pozostałe ręczne kryteria M i owner-panelowe #2025/#2708/#2713 są otwarte.
+- P1 kont #2851/#2854/#2861/#2862: PR #2885 scalony do C przez expected head
+  `5d6e071b`. C `0f5085e2a4daefcd1ceba354b9323ba077ee1036`, pełne źródłowe
+  CI `37109704073` i push C `37110882619` terminalnie SUCCESS 24/24.
+  Drzewo C identyczne z odebraną paczką. Osobna gałąź
+  `codex/wydanie-20261003-s` wskazuje ten SHA; zwykły pełny push trwa.
+  Nie dopisywać do niej kolejnych zakresów ani zamykać issues przed produkcją.
+- N–U nadal jeden #2865. Stary pełny `37109655500` terminalnie czerwony;
+  nowe naprawy: środowisko dziecka #2857, dokładny JUnit #2811, oba własne
+  markery kursora #2856 i importy przyrządu na filtrze wyścigów. Wspólny
+  odbiór i otwarte bramki: [N–U](ODBIOR-N-U-CODEX-20261003.md).
+  Zwykły merge świeżej C wykonany; nie duplikować P/Q/R/T/U.
+- V `762b0ad3555017c06243e08543ce2116f64a91a8` wypchnięta zwykłym pełnym
+  hakiem (exit 0), zakres #2847/#2872/#2873/#2875. Przed pełnym PR włączyć
+  zwykłym merge naprawy N–U; [odbiór V](ODBIOR-V-CODEX-20261003.md).
+- W lokalna `acbb118178184c548e0b73813a433ee59b5a1a39`: #2881/#2880/#2787,
+  root 136/7150 Feature, 17/209 dwa połączenia, sześć właściwych fizycznych
+  kontroli, build i pełny PHPStan zero. Brak push/PR. Przegląd wykrył i
+  naprawił rzeczywisty deadlock przypomnienia urodzin z blokadą pary kont.
+- #2882 osobna późniejsza X, niezależny review odrzucił pierwszy wariant:
+  superscript w liczniku Unicode nadal pozwalał przeliczyć sam mianownik.
+  Agent poprawia w nowej własnej kopii; nie integrować odrzuconego wariantu.
+- Root i do trzech subagentów, oddzielne kopie i bazy PostgreSQL 18+.
+  Chwilowy błąd capacity nie jest zatwierdzeniem ani zielenią. Haki i testy
+  pozostają pełne, przyrząd odcina GIT_* i chroni bajty/mtime caller config.
+
+Poniższe bloki są historycznymi migawkami; dane GitHuba i produkcji odświeżać.
+
+
 ## Aktualny odbiór Codex — 3.10.2026, 07:35 UTC
 
 - M wydana: main `6c3d2a936ee10c672b542e0814bacc41586399e7`, pełne CI push
