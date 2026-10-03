@@ -186,10 +186,10 @@ class NajgorszyPrzypadekTerminowWygasaniaTest extends TestCase
         $this->assertSame($godzin, (int) Carbon::now()->diffInHours($termin));
 
         Carbon::setTestNow(Carbon::parse('2026-10-04 02:29:59', 'UTC'));
-        $this->assertTrue($sesja->fresh()?->trwa() ?? false);
+        $this->assertTrue(CookingSession::query()->findOrFail($sesja->getKey())->trwa());
 
         Carbon::setTestNow($termin);
-        $this->assertFalse($sesja->fresh()?->trwa() ?? true, 'RETENCJA_2708_SESJA_WIDOCZNA_NA_GRANICY');
+        $this->assertFalse(CookingSession::query()->findOrFail($sesja->getKey())->trwa(), 'RETENCJA_2708_SESJA_WIDOCZNA_NA_GRANICY');
         $this->assertSame(1, CookingSession::query()->count());
 
         // Fizyczna mutacja `<=` na `<` w sprzątaniu musi zostawić ten wiersz.
