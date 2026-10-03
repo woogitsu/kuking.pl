@@ -1,38 +1,46 @@
-# Stan koordynacji — 3.10.2026, 15:52 UTC
+# Stan koordynacji ? 3.10.2026, 16:15 UTC
 
-- Normalne pełne pushe zakończyły się terminalnie0: Cc0 sesja14471
-  i O91 sesja80957. Canonical exit/log odczytane, procesy zakończone,
-  czyste heady i zdalne referencje potwierdzone. Starsze próby parallel
-  pozostają zachowane jako FAIL; #2893 naprawia ich odrębny przyrząd.
-- O #2890 ma już head91e58bd07b719c27f12b7973c526f906cbefd2db.
-  Nowe CI37134398858 trwa; zagregowany CodeQL111235948787 terminalnie
-  SUCCESS dokładnego91, nie tylko trzy Analyze. Wydanie nadal wymaga
-  pełnego CI, świeżego main, merge expectedHeadSha i całej produkcyjnej
-  bramki. Main09f8, trzyRailwaySUCCESS i /wydanie/health odebrane15:29.
-- Mały niedraftowy PR naprawy C #2894: c0c78f013b75e0cae75c471b1a9d61a48ee9baeb
-  do e625ab336f04f87df7f2be7eb86fa4866e7a13a6, dokładnie5plików,
-  pełne CI37134534040 w toku. Naprawę scalać dopiero po pełnej zieleni;
-  potem terminalnie zielony push C przed dalszą paczką.
-- Przyjęto jedną wspólną paczkę W/X/Y w istniejącym #2891. Niezależny
-  merge-tree i root zwykłe lokalne merge W622→X5f→Y0b są bez konfliktów;
-  wynikowe drzewo d862467c67cd11a06e6634054fa73641e0ca098e. Kod, konfiguracja,
-  migracje, locki i rejestry są identyczne z odebranym Y; W/X są przodkami.
-  Dołożyć faktyczną odebraną zieloną C, uporządkować STAN i zamrozić head,
-  potem jeden nowy normalny pełny hook oraz pełne niedraftowe CI2891.
-  Zielone stare W622 nie zatwierdza wspólnej paczki. To zastępuje plan
-  osobnych kumulujących PR-ów/gate X i Y; wszystkie zależności zachowane.
-- #2796 odebrane root i peer ACCEPT na708ea63fb7fb48bee1588ec3f8f5ed7722717074:
-  32/444HTTP,99/800regresje,93/2539strażniki, Pint/fullPHPStan0;
-  trzy końcowe6PASS→4właściweFAIL+2PASS→6PASS/exactrestore,81raw sprawdzone.
-  Wyłącznie3DELETE zgodnieD-302pkt10. Osobna paczka PO wspólnym W/X/Y;
-  nie jest w obecnych580kontrolach. IssueOPENdoprodukcji, comment5970693948.
-- #2893 w osobnym WT: stare35zachowane, nowa3×3macierz daje44/154PASS
-  zarówno seryjnie, jak oficjalnyparallel4, zeroERROR/SKIP. Końcowe
-  fizyczne kontrole i review w toku; nie dołączać do aktywnych headów.
-- #2852: osobny agent kończy brakujący prawdziwy Laravel/Chromium/PDF
-  odbiór podpisu oryginału, własna baza/runtime odO91, bez instalacji.
-  Dotychczasowy Feature57/418 i ujemna nie zastępują tego oglądu.
-  Issue nadalOPEN; pozostałe kryteria pilota/prawa/paneli pozostają otwarte.
+- C14471 i O80957 zako?czone zwyk?ym pe?nym seryjnym pre-push EXIT0;
+  czyste lokalne/runtime/zdalne heady c0/91 i canonical exit/log odebrane.
+  Starsze pr?by ca?ego parallel by?y FAIL, zachowane .parallel-4; nie s? zieleni?.
+- O #2890 exact91e58bd07b719c27f12b7973c526f906cbefd2db: pe?ne CI37134398858
+  w toku, zagregowany CodeQL111235948787 terminalSUCCESS. Stare dwa alerty
+  high dotyczy?y30be i zosta?y naprawione DOMParserem, nie dismissowane.
+  Wymagane fresh main, review/bezkonfliktowo??/expectedHeadSha merge,
+  mainCI i trzyRailwaySUCCESS/exactwydanie/health. Main09f8 odebrane.
+- Naprawa czerwonej C #2894 c0c78f013b75e0cae75c471b1a9d61a48ee9baeb
+  do Ce625,5plik?w. AutoCI37134534040 ma osiem skip?w przez zakres,
+  wi?c nie stanowi pe?nej bramki. Raz uruchomiony oficjalny dispatch
+  ci.yml37135146749 exactc0 w??cza wszystkie zakresy w osobnej grupie
+  concurrency, bez anulowania PR. Wymagaj jego pe?nego24/24 SUCCESS
+  i zako?czenia autoCI przed merge naprawy; nast?pnie terminalny pushC.
+- Jedna paczka W/X/Y w istniej?cym #2891: root zwyk?e lokalne merge
+  W622?X5f?Y0b, niezale?ny audit bez konflikt?w; ?r?d?a aplikacji,
+  konfiguracja/migracje/locki/scripts/tests identyczne odebranemu Y,
+  580/580 kontroli. Lokalny W zawiera ju? receipt2852 (wy??cznie docs).
+  Remote #2891 nadal W622; stara ziele? nie zatwierdza nowej paczki.
+  Po odebranej rzeczywistej C: merge aktualnejC, jeden nowy normalny
+  pe?ny push, aktualny opis2891, pe?ny niedraftowy CI/review/expectedmerge,
+  greenpushC i jedno zweryfikowane wydanie WXY do main.
+- #2796 root+peer ACCEPT708ea63fb7fb48bee1588ec3f8f5ed7722717074:
+  32/444HTTP,99/800regresje,93/2539stra?niki,3w?a?ciwe phys/exactrestore,
+  Pint/fullPHPStan0. Dok?adnie3DELETE D-302pkt10, zachowanePolicy/odmowy.
+  Osobna paczka PO WXY, nieobecna w580; brak fullpush/PR/produkcji.
+- #2893 root+peer ACCEPTd204483086d8080adf95987ddbfb43de8a2784a1:
+  35starych identities+9wykonawczych macierzy,44/154serial i officialparallel4;
+  13/2/3properFAIL?exactrestore?PASS,73raw sprawdzone. W?asny proces
+  wykonuje rzeczywisty config, bez zmian Env aplikacji/.env/global/CI.
+  Pint/w?skiPHPStan0; pe?ny gate/push/PR jeszcze NIE wykonane.
+  P??niejsza ma?a paczka z2796, nie do aktywnych C/O ani zamro?onego WXY.
+- #2852 root techniczny ACCEPT O91:8/8actualLaravel/Chromium,4PDF A4,
+  30/30stron obejrzanych przez autora; root99/99artefakt?w,9sources i4arkusze.
+  16pt podpis,24chronione warto?ci nieobecne HTML/PDFtext/URI.
+  Receipt65acddff dodany tylko dokumentacyjnie doW; issueOPENdoOprodukcji,
+  comment5970925440. #2821/#2822 osobny agent ko?czyactual320/200/keyboard;
+  brak wyniku nie jest PASS. Manualpilot50+/prawa/telefon?w/paneli OPEN.
+- Repo delete_branch_on_merge=true; Owydanie ma osobn? ga???, trzy otwarte
+  PR2890?main oraz2891/2894?C. Przed merge ponowny fresh preflight;
+  nie usuwa? C ani cudzych ga??zi. Primarycheckout dirty zachowany.
 
 ## Historia koordynatora — 3.10.2026, 11:39 UTC
 
