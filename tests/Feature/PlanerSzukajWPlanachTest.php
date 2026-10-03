@@ -7,6 +7,9 @@ namespace Tests\Feature;
 use App\Models\MealPlanEntry;
 use App\Models\Recipe;
 use App\Models\User;
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -54,6 +57,14 @@ final class PlanerSzukajWPlanachTest extends TestCase
     private function szukaj(User $kto, string $fraza): string
     {
         return $this->actingAs($kto)->get(route('planer.show', ['szukaj_w_planach' => $fraza]))->assertOk()->getContent();
+    }
+
+    private function html(string $tresc): DOMXPath
+    {
+        $dokument = new DOMDocument;
+        @$dokument->loadHTML('<?xml encoding="utf-8" ?>'.$tresc);
+
+        return new DOMXPath($dokument);
     }
 
     public function test_gosc_idzie_do_logowania(): void
@@ -163,6 +174,50 @@ final class PlanerSzukajWPlanachTest extends TestCase
         $this->assertStringContainsString('Skróć tekst', $this->szukaj($user, str_repeat('a', 121)));
         $this->actingAs($user)->get(route('planer.show', ['szukaj_w_planach' => ['a', 'b']]))
             ->assertOk()->assertDontSee('Znalezione pozycje');
+    }
+
+    public function test_blad_frazy_jest_przy_polu_i_w_podsumowaniu_z_zywym_odnosnikiem(): void
+    {
+        $user = $this->user('osoba2846');
+
+        foreach (['o', str_repeat('a', 121)] as $fraza) {
+            $xpath = $this->html($this->szukaj($user, $fraza));
+            $link = $xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]//a[@href="#szukaj-w-planach"]')->item(0);
+            $pole = $xpath->query('//*[@id="szukaj-w-planach"]')->item(0);
+            $blad = $xpath->query('//*[@id="szukaj-w-planach-blad"]')->item(0);
+
+            $this->assertInstanceOf(DOMElement::class, $link, 'PLANER_2846_BLAD_W_PODSUMOWANIU');
+            $this->assertInstanceOf(DOMElement::class, $pole);
+            $this->assertInstanceOf(DOMElement::class, $blad);
+            $this->assertSame($fraza, $pole->getAttribute('value'));
+            $this->assertSame('true', $pole->getAttribute('aria-invalid'));
+            $this->assertSame('szukaj-w-planach-blad', $pole->getAttribute('aria-describedby'));
+            $this->assertSame($blad->textContent, $link->textContent);
+        }
+    }
+
+    public function test_blad_get_nie_zastepuje_bledu_sesyjnego_innego_formularza(): void
+    {
+        $user = $this->user('osoba2846sesja');
+        $this->actingAs($user)->from(route('planer.show'))
+            ->post(route('planer.store'), ['day' => '2026-09-30', 'label' => '   ', '_wiersz' => '2026-09-30'])
+            ->assertRedirect(route('planer.show'));
+        $html = $this->get(route('planer.show', ['szukaj_w_planach' => 'o']))->assertOk()->getContent();
+        $xpath = $this->html($html);
+
+        $this->assertSame(1, $xpath->query('//div[contains(@class, "error-summary")]//a[@href="#szukaj-w-planach"]')->length);
+        $this->assertSame(1, $xpath->query('//div[contains(@class, "error-summary")]//a[@href="#f-label-2026-09-30"]')->length);
+        $this->assertStringContainsString('Wpisz, co planujesz na ten dzień', $html);
+    }
+
+    public function test_poprawna_i_pusta_fraza_nie_tworza_pustego_podsumowania(): void
+    {
+        $user = $this->user('osoba2846dodatnie');
+
+        foreach (['', 'obiad'] as $fraza) {
+            $xpath = $this->html($this->szukaj($user, $fraza));
+            $this->assertSame(0, $xpath->query('//div[contains(@class, "error-summary")]')->length);
+        }
     }
 
     public function test_procent_i_podkreslnik_nie_sa_wzorcem(): void

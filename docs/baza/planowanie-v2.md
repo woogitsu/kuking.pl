@@ -24,6 +24,12 @@ zakupów tu nie ma i nie było w tej zmianie.
 innym: każda trasa (`/planer`) chodzi po pozycjach zalogowanego, a usunięcie
 przechodzi przez `MealPlanEntryPolicy`.
 
+Formularz GET „Szukaj w moich planach” (#2581) zachowuje wpisaną frazę po
+odmowie walidacji. Błąd ma własne podsumowanie z linkiem do widocznego pola
+`#szukaj-w-planach` oraz komunikat przy tym polu (#2846); nie zasłania błędów
+innych formularzy Planera zapisanych w sesji. Pusta i poprawna fraza nie
+tworzą podsumowania. Ta poprawka nie zmienia zapytań ani schematu bazy.
+
 Ograniczenia:
 
 - `meal_plan_entries_jedno_z_dwoch_check` — `recipe_id IS NULL OR label IS NULL`,

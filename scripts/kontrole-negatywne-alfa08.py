@@ -1355,6 +1355,11 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Planer pomija błąd frazy w podsumowaniu (#2846)", "resources/views/pages/planer/show.blade.php",
+     "test_blad_frazy_jest_przy_polu_i_w_podsumowaniu_z_zywym_odnosnikiem",
+     lambda s: replace_once(s,
+         "@if($bladWPlanach)\n                {{-- Błąd GET ma własny klucz i cel; nie zastępuje błędów innych formularzy z sesji. --}}",
+         "@if(false)\n                {{-- Błąd GET ma własny klucz i cel; nie zastępuje błędów innych formularzy z sesji. --}}")),
     ("Wygasła prośba nadal blokuje poprawę uwagi (#2820)", "app/Domain/Recipes/Gotowanie/PolaKorekty.php",
      "test_prosba_blokuje_przed_terminem_a_w_chwili_wygasniecia_odblokowuje_formularz_i_zapis",
      lambda s: replace_once(s,
