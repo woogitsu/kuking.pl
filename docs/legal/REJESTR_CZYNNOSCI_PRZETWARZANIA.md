@@ -974,8 +974,10 @@ trafi tam pierwszy rekord.
   odbiorcy, blokadzie między stronami (`ZerwijUdostepnieniaPrzepisow::miedzy()`),
   usunięciu przepisu przez autora albo wymazaniu konta którejkolwiek strony
   (`ZerwijUdostepnieniaPrzepisow::przyWymazaniu()`). Bez historii odebranych dostępów.
-- **Eksport:** `udostepnione_przepisy` (`udostepniam`, `udostepnione_mi` — tytuł
-  i autor, bez treści cudzego przepisu).
+- **Eksport:** `udostepnione_przepisy` (`udostepniam`, `udostepnione_mi` — data
+  własnej relacji; bieżący tytuł i autor cudzego przepisu tylko wtedy, gdy
+  w chwili tworzenia paczki odbiorca ma `readShared()`. Przy wstrzymanym
+  dostępie oba pola są `null`, a historia samego udostępnienia pozostaje).
 
 ### 3.29 Zapamiętana liczba porcji przy przepisie (V2, issue #2602)
 

@@ -1667,6 +1667,11 @@ checks = [
      "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",
      lambda s: replace_once(s, "                'bez_ilosci' => (bool) $item->no_amount,\n", "")),
     # #2639: własne wykonanie musi wskazać istniejący własny plik tej paczki.
+    ("Eksport pobiera tytuł przepisu bez aktualnego dostępu (#2785)", "app/Domain/Users/Exports/CollectUserExportData.php",
+     "test_nowy_eksport_zawieszonego_odbiorcy_nie_zawiera_pozniej_zmienionego_tytulu",
+     lambda s: replace_once(s,
+         "$czyta = $recipe !== null && $policy->readShared($user, $recipe);",
+         "$czyta = $recipe !== null;")),
     ("Eksport gubi relację wykonania z własnym przepisem (#2639)", "app/Domain/Users/Exports/CollectUserExportData.php",
      "test_dwa_wlasne_przepisy_o_tym_samym_tytule_maja_odrebne_prawdziwe_cele_w_paczce",
      lambda s: replace_once(s,
