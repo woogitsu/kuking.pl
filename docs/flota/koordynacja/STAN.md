@@ -1,6 +1,42 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
-## Aktualny odbiór koordynatora Codex — 3.10.2026, 14:35 UTC
+## Aktualny odbiór koordynatora Codex — 3.10.2026, 15:04 UTC
+
+- Oficjalny lokalny parallel4 zakończył oba zwykłe hooki porażką,
+  nie publikuje nowych headów: O91 — 14026 testów, 7 FAIL; Cc0 —
+  14029 testów, 10 FAIL. W obu siedem porażek dotyczy fixture środowiska
+  SES oraz przełącznika rejestracji; ścisłe powtórzenie obu klas w O91
+  bez parallel daje 35/90 PASS, zero ERROR/SKIP. Niezależny agent otrzymał
+  także 35 PASS → 7 tych samych FAIL w parallel4, bez zmian źródeł/.env.
+  Dokładna analiza adaptera środowiska jest w toku.
+- Trzy dodatkowe porażki C używały niezmigrowanej bazy głównej
+  (brak recipes.source_url i daily_picks); te testy nie mają RefreshDatabase.
+  Migration:refresh na końcu hooka przeszedł. Te same trzy metody w tej
+  własnej bazie mają później 3/17 PASS. Nie jest to pełna zieleń C.
+  Paginacja z timeoutem 57014 nie oblała tego przebiegu, lecz cały hook FAIL.
+- Po terminalnym zakończeniu starych procesów zachowano ich pełne logi,
+  skrypty i exit pod .parallel-4 oraz raw parallel-*-full-tests.log.
+  Bez zmian kodu, hooków lub testów wrócono do normalnego domyślnego
+  wykonania szeregowego. Nowe pełne pushe: Cc0 sesja14471,
+  O91 sesja80957; canonical transfer/push-ci-c-repair.exit/log oraz
+  transfer/push-release-o.exit/log. Headów nie zmieniać ani nie ponawiać
+  bez sprawdzenia właściwego procesu i canonical exit. PR naprawy C
+  dopiero po hook0; O2890 nadal wymaga nowych CI i CodeQL po pushem91.
+- W622 ma terminalne CI37127706259 24/24 SUCCESS. Niezależny merge-tree
+  W622+Cc0 jest bezkonfliktowy, drzewo e8b36a507cfdfda46c768835964257275d1f761d;
+  wszystkie22plikiW identyczne, C dodaje tylko5zaakceptowanych plików.
+  Nie scalać W przed odbiorem naprawy czerwonej C i świeżą pełną bramką.
+- Nowa rozłączna praca po Y: #2796, trzy nazwane DELETE zawężające dostęp
+  do wspólnego zeszytu zgodnie z D-302 pkt10. Agent ma własny WT/bazę,
+  najpierw odtwarza HTTP, potem wąska poprawka i kontrole fizyczne.
+  Wyjątki #2791/#2889 zachować. Triage pozostałych P0/P1 nie znalazł
+  wolnego bugfixu poza odebranymi paczkami i kryteriami właściciela.
+- #601 ma historyczne3RUNNING/3DONE ProcessUploadedImage na worker
+  14609aeb-87d1-4a3f-922b-f5f28b416414, SHA6f0bf661, 2.10 13:34:54–57 UTC,
+  bez FAIL w filtrze. To nie dowodzi ready/processed_at/trzech wariantów
+  ani CPU/RSS. Root dopisał dowód i braki w issue; pozostaje OPEN.
+
+## Historia odbioru koordynatora Codex — 3.10.2026, 14:35 UTC
 
 - Wydanie O #2890 na starym 30be ma terminalne CI 24/24 SUCCESS,
   lecz zagregowany CodeQL FAILURE z dwoma alertami high. Po zakończeniu
