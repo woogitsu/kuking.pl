@@ -31,7 +31,7 @@
         etykieta i tekst pomocy zostają bez zmian.
     --}}
     <form class="panel-formularza" method="GET" action="{{ route('search') }}" novalidate>
-        @include('components.error-summary', ['errors' => $searchErrors])
+        @include('components.error-summary', ['errors' => $formErrors, 'fieldIds' => ['bez_skladnika' => 'f-bez-skladnika']])
         <div class="field @if($searchErrors->has('q')) has-error @endif">
             <label for="f-q">Czego szukasz?</label>
             <span class="field-help" id="f-q-help">

@@ -108,6 +108,11 @@ Tak:
 
 Błąd przy polu + podsumowanie. Poprawne dane nie znikają.
 
+Na ekranie „Szukaj” błąd filtra „Pomiń przepisy ze składnikiem” także jest
+w podsumowaniu, z odnośnikiem do `#f-bez-skladnika`. Nie zatrzymuje to
+wyszukiwania poprawnej frazy: wyniki są pokazane bez błędnego filtra, a wpisana
+nazwa pozostaje w polu do poprawienia (#2842).
+
 ### Pięć kryteriów, które musi spełnić KAŻDY komunikat walidacji
 
 Zdanie „po polsku" to za mało. Sama treść komunikatu przechodzi, gdy spełnia

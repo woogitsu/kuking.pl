@@ -35,6 +35,8 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Błąd Bez składnika znika z podsumowania (#2842)': r'BEZ_SKLADNIKA_2842_PODSUMOWANIE',
+    'Podsumowanie Bez składnika prowadzi do nieistniejącego pola (#2842)': r'BEZ_SKLADNIKA_2842_CEL',
     'Limit przepisu gubi wybraną listę zakupów (#2818)': r'LISTY_2818_WRACA_NA_WYBRANA',
     'Anonimowy licznik omija sprzeciw wobec statystyk (#2837)': r'SPRZECIW_2837_ANI_ANONIMOWO',
     'Kopia odzyskania gubi ręczną kolejność (#2816)': r'ODZYSKANIE_2816_RECZNA_KOLEJNOSC',

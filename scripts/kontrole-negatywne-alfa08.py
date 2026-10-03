@@ -1355,6 +1355,16 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Błąd Bez składnika znika z podsumowania (#2842)", "resources/views/pages/search.blade.php",
+     "test_blad_skladnika_jest_rowniez_w_podsumowaniu_z_linkiem_do_pola",
+     lambda s: replace_once(s,
+         "@include('components.error-summary', ['errors' => $formErrors, 'fieldIds' => ['bez_skladnika' => 'f-bez-skladnika']])",
+         "@include('components.error-summary', ['errors' => $searchErrors, 'fieldIds' => ['bez_skladnika' => 'f-bez-skladnika']])")),
+    ("Podsumowanie Bez składnika prowadzi do nieistniejącego pola (#2842)", "resources/views/pages/search.blade.php",
+     "test_blad_skladnika_jest_rowniez_w_podsumowaniu_z_linkiem_do_pola",
+     lambda s: replace_once(s,
+         "'fieldIds' => ['bez_skladnika' => 'f-bez-skladnika']",
+         "'fieldIds' => []")),
     ("Limit przepisu gubi wybraną listę zakupów (#2818)", "app/Http/Controllers/ListaZakupowController.php",
      "test_odmowa_limitu_przepisu_wraca_na_wybrana_liste_z_droga_wyczyszczenia",
      lambda s: replace_once(s,

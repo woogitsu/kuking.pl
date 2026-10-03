@@ -8,6 +8,8 @@ use App\Domain\Search\SearchQuery;
 use App\Models\ProductSignal;
 use App\Models\Recipe;
 use App\Models\User;
+use DOMDocument;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -214,6 +216,46 @@ class WyszukiwarkaBezSkladnikaTest extends TestCase
             ->assertSee('Obiad z brokułem')
             ->assertSee('value="12"', false)
             ->assertDontSee('Pomijamy przepisy');
+    }
+
+    public function test_blad_skladnika_jest_rowniez_w_podsumowaniu_z_linkiem_do_pola(): void
+    {
+        $this->przepis('Obiad z brokułem', ['brokuł']);
+
+        $odpowiedz = $this->get(route('search', [
+            'q' => 'obiad',
+            'bez_skladnika' => str_repeat('ż', SearchQuery::MAX_SKLADNIK_DO_POMINIECIA + 1),
+        ]))->assertOk();
+
+        $html = (string) $odpowiedz->getContent();
+        $dom = new DOMDocument;
+        @$dom->loadHTML($html);
+        $xpath = new DOMXPath($dom);
+        $linki = $xpath->query('//form[contains(concat(" ", normalize-space(@class), " "), " panel-formularza ")]//div[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]//a');
+        $this->assertSame(1, $linki->length, 'BEZ_SKLADNIKA_2842_PODSUMOWANIE: błąd jest na górze formularza.');
+        $this->assertSame('#f-bez-skladnika', $linki->item(0)?->attributes?->getNamedItem('href')?->nodeValue, 'BEZ_SKLADNIKA_2842_CEL: link prowadzi do widocznego pola.');
+        $this->assertStringContainsString('za długa', (string) $linki->item(0)->textContent);
+        $this->assertSame(1, $xpath->query('//input[@id="f-bez-skladnika" and @aria-invalid="true"]')->length);
+        $odpowiedz->assertSee('Obiad z brokułem');
+    }
+
+    public function test_bledna_fraza_i_skladnik_maja_dwa_linki_a_poprawny_filtr_ich_nie_ma(): void
+    {
+        $fraza = str_repeat('a', SearchQuery::MAX_PHRASE_LENGTH + 1);
+        $html = (string) $this->get(route('search', ['q' => $fraza, 'bez_skladnika' => '12']))->assertOk()->getContent();
+        $dom = new DOMDocument;
+        @$dom->loadHTML($html);
+        $xpath = new DOMXPath($dom);
+        $linki = $xpath->query('//form[contains(concat(" ", normalize-space(@class), " "), " panel-formularza ")]//div[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]//a');
+        $cele = [];
+        foreach ($linki as $link) {
+            $cele[] = $link->attributes?->getNamedItem('href')?->nodeValue;
+        }
+        $this->assertSame(['#f-q', '#f-bez-skladnika'], $cele, 'BEZ_SKLADNIKA_2842_DWA_BLEDY: oba pola są w podsumowaniu.');
+        $this->assertSame(1, $xpath->query('//input[@id="f-bez-skladnika" and @value="12" and @aria-invalid="true"]')->length);
+
+        $poprawne = (string) $this->get(route('search', ['q' => 'obiad', 'bez_skladnika' => 'brokuł']))->assertOk()->getContent();
+        $this->assertStringNotContainsString('class="error-summary"', $poprawne);
     }
 
     public function test_pokaz_wiecej_niesie_filtr(): void
