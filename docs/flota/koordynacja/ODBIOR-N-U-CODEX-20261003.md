@@ -1,5 +1,45 @@
 # Odbiór kolejnych poprawek N–U — 3 października 2026
 
+## Aktualizacja bramki CI — 3.10.2026, 09:50 UTC
+
+Pełny przebieg `37109655500` starego heada `1bd18ae5a` zakończył się
+odmową. Nie scalono tego PR-a. Trzy rzeczywiste przyczyny naprawiono:
+
+- `96c9c779f`: dziecko `artisan test` w przyrządzie przeglądarkowym #2857
+  jawnie używa `APP_ENV=testing`. Na własnym PostgreSQL 18 odtworzono FAIL
+  przy odziedziczonym `local` i PASS 1/8 po zmianie tylko środowiska dziecka.
+  CSRF aplikacji i testów nie zmieniono.
+- `24320e388`: #2811 odczytuje dokładny JUnit swojej klasy i metody zamiast
+  szukać JSON w zwykłym podsumowaniu PHPUnita. Odrzuca skip/error/obcy test
+  i marker wyłącznie w logu. Mechanizm: 12 przypadków PASS i właściwa fizyczna
+  kontrola; rzeczywisty PostgreSQL 18: PASS 1/15 → FAIL własnego markera
+  `DOLACZENIE_2811_RYWAL_CZEKA_PRZED_MEDIA` → restore PASS 1/15.
+- `6c3a2b5bc`: wzorzec usunięcia kursora zna też oba nowe własne markery #2856.
+  Nadal odmawia obcej asercji, wyjątku i markera wyłącznie w logu. Przyrząd:
+  37 PASS → cofnięcie wzorca FAIL właściwego markera → restore 37 PASS.
+  Faktyczny mutant kontrolera oblał 4/8, mutant miary 1/8; oba dostały
+  `POTWIERDZONA`, a po odtworzeniu cała klasa 8 PASS.
+- `12235acfe`: filtr wyścigów obejmuje oba rzeczywiste importy przyrządu
+  #2811, `kontrola_przyczyny.py` i `zawezenie_testow.py`. Stary skrypt oblał
+  oba nowe przypadki tabeli; poprawiony zaliczył 45 przypadków i wszystkie
+  fizyczne kontrole wyjść, w tym osobne usunięcie każdego importu.
+
+Włączono zwykłym merge świeżą integrację C `0f5085e2` (zawiera małe P1 kont).
+Wspólna kopia Linux/PHP 8.4/PostgreSQL 18.6, własna baza
+`kuking_test_o_20261003`, host `127.0.0.1`, port `55488`, rola
+`kuking_pg18_owner`: 31/6467 Feature, 12+7+37 Python, oba mutanty kursora,
+pełna kontrola #2811 oraz pełny PHPStan zero. Źródła kontroli zachowane
+co do bajtów i czasu modyfikacji. Kontrola zakresu to osobny pomiar skryptu
+Bash, bez wykonywania kodu produktu.
+
+**Pozostałe bramki:** normalny pełny push nowego heada, pełne terminalne CI
+niedraftowego #2865 na aktualnej bazie, przegląd i scalenie do C, końcowy PR
+wydania z CodeQL, CI push main oraz trzy Railway SUCCESS dokładnego SHA
+zgodnego z `/wydanie` i `/health` 200. Naprawa środowiska dziecka sama nie
+jest dowodem całego nowego przebiegu Chromium. Zachować ręczne kryteria
+pilota 50+, prawa, kopii, R2/CDN i paneli.
+
+
 ## Zakres i kolejność
 
 Istniejący PR #2865 zbiera odebrane poprawki N–U. Dawne gałęzie P/Q/R/T/U
