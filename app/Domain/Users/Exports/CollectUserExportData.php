@@ -36,6 +36,7 @@ use App\Models\RecipeVersion;
 use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use App\Models\User;
+use App\Policies\RecipePolicy;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -906,9 +907,9 @@ final class CollectUserExportData
      *
      * `udostepniam`: moje przepisy i osoby, którym je pokazuję (nazwa
      * wyświetlana i publiczna nazwa konta, bez e-maila) — to moja decyzja.
-     * `udostepnione_mi`: TYTUŁ cudzego przepisu, jego autor i data — bez
-     * treści przepisu. Treść należy do autora; paczka mówi, CO mi pokazano,
-     * a nie kopiuje cudzego rodzinnego przepisu poza serwis.
+     * `udostepnione_mi`: data własnej relacji, a aktualny tytuł i autor
+     * tylko przy bieżącym `readShared()`. Przy utracie dostępu oba pola są
+     * null; eksport nadal potwierdza samo istnienie udostępnienia.
      *
      * @return array{udostepniam: list<array<string, mixed>>, udostepnione_mi: list<array<string, mixed>>}
      */
@@ -927,17 +928,23 @@ final class CollectUserExportData
                 'od' => $this->date($u->created_at),
             ])->values()->all();
 
+        $policy = app(RecipePolicy::class);
         $udostepnioneMi = RecipeShare::query()
             ->where('recipient_id', $user->getKey())
             ->with(['recipe' => fn ($q) => $q->withTrashed(), 'recipe.author'])
             ->orderBy('created_at')
             ->orderBy('id')
             ->get()
-            ->map(fn (RecipeShare $u): array => [
-                'przepis' => $u->recipe?->title,
-                'autor' => $u->recipe?->author?->displayName(),
-                'od' => $this->date($u->created_at),
-            ])->values()->all();
+            ->map(function (RecipeShare $u) use ($user, $policy): array {
+                $recipe = $u->recipe;
+                $czyta = $recipe !== null && $policy->readShared($user, $recipe);
+
+                return [
+                    'przepis' => $czyta ? $recipe->title : null,
+                    'autor' => $czyta ? $recipe->author?->displayName() : null,
+                    'od' => $this->date($u->created_at),
+                ];
+            })->values()->all();
 
         return ['udostepniam' => $udostepniam, 'udostepnione_mi' => $udostepnioneMi];
     }

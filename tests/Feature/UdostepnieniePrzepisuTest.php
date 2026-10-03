@@ -381,6 +381,7 @@ class UdostepnieniePrzepisuTest extends TestCase
         $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
         $this->actingAs($this->jurek)->get(route('recipes.show', $this->przepis))->assertForbidden();
         $this->actingAs($this->jurek)->get(route('recipes.shared.index'))->assertOk()->assertDontSee('Sernik babci Wandy');
+        $this->assertSame([], $this->paczka($this->jurek->fresh())['udostepnione_przepisy']['udostepnione_mi']);
     }
 
     public function test_odbiorca_moze_sam_zrezygnowac_a_obcy_nie_moze_za_niego(): void
@@ -427,6 +428,7 @@ class UdostepnieniePrzepisuTest extends TestCase
 
         $this->assertSame(0, RecipeShare::query()->count(), 'Blokada ma skasować udostępnienie, nie tylko je zasłonić.');
         $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
+        $this->assertSame([], $this->paczka($this->jurek->fresh())['udostepnione_przepisy']['udostepnione_mi']);
 
         app(UnblockUser::class)->handle($kto, $kogo);
         $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
@@ -450,10 +452,15 @@ class UdostepnieniePrzepisuTest extends TestCase
         $konto->suspend(now()->addDays(3));
         $this->assertFalse($this->jurek->fresh()->can('readShared', $this->przepis->fresh()));
         $this->actingAs($this->jurek->fresh())->get($this->strona())->assertForbidden();
+        $wKarze = $this->paczka($this->jurek->fresh())['udostepnione_przepisy']['udostepnione_mi'];
+        $this->assertCount(1, $wKarze);
+        $this->assertNull($wKarze[0]['przepis']);
+        $this->assertNull($wKarze[0]['autor']);
 
         // Kara minęła — wiersz został, dostęp wraca (bez czekania na `reinstate()`).
         $this->travel(4)->days();
         $this->assertTrue($this->jurek->fresh()->can('readShared', $this->przepis->fresh()));
+        $this->assertSame('Sernik babci Wandy', $this->paczka($this->jurek->fresh())['udostepnione_przepisy']['udostepnione_mi'][0]['przepis']);
     }
 
     public function test_zawieszona_autorka_odbiera_dostep_ale_nie_udostepnia_nowym(): void
@@ -474,6 +481,9 @@ class UdostepnieniePrzepisuTest extends TestCase
 
         $this->actingAs($this->jurek)->get($this->strona())->assertForbidden();
         $this->actingAs($this->jurek)->get(route('recipes.shared.index'))->assertOk()->assertDontSee('Sernik babci Wandy');
+        $ukryty = $this->paczka($this->jurek->fresh())['udostepnione_przepisy']['udostepnione_mi'][0];
+        $this->assertNull($ukryty['przepis']);
+        $this->assertNull($ukryty['autor']);
 
         // Przywrócenie przez moderację — autorka nie odebrała dostępu, więc wraca.
         $this->przepis->forceFill(['status' => Recipe::STATUS_PUBLISHED])->save();
@@ -559,6 +569,15 @@ class UdostepnieniePrzepisuTest extends TestCase
         app(EraseAccountData::class)->handle($konto->fresh());
 
         $this->assertSame(0, RecipeShare::query()->where('recipe_id', $this->przepis->getKey())->count());
+        $pozostale = $kto === 'odbiorca' ? $this->halina->fresh() : $this->jurek->fresh();
+        $sekcja = $kto === 'odbiorca' ? 'udostepniam' : 'udostepnione_mi';
+        $poWymazaniu = $this->paczka($pozostale)['udostepnione_przepisy'][$sekcja];
+        if ($kto === 'odbiorca') {
+            $this->assertSame([], $poWymazaniu);
+        } else {
+            $this->assertCount(1, $poWymazaniu, 'Zostać ma tylko inne udostępnienie od Basi.');
+            $this->assertSame('Basia', $poWymazaniu[0]['autor']);
+        }
         // Kontrola dodatnia: udostępnienie bez udziału wymazanej osoby zostaje
         // (przy wymazaniu odbiorcy znika i to — był jego odbiorcą).
         $this->assertSame($kto === 'odbiorca' ? 0 : 1, RecipeShare::query()->where('recipe_id', $inny->getKey())->count());

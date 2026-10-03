@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Recipes\Udostepnienia\UdostepnijPrzepis;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Exceptions\DataExportStorageFailure;
 use App\Jobs\GenerateUserExport;
@@ -105,6 +106,37 @@ class DataExportTest extends TestCase
 
         Storage::disk('local')->assertExists($export->object_key);
         $this->assertTrue($export->isDownloadable());
+    }
+
+    public function test_nowy_eksport_zawieszonego_odbiorcy_nie_zawiera_pozniej_zmienionego_tytulu(): void
+    {
+        $autor = $this->user('autor', ['display_name' => 'Autorka']);
+        $odbiorca = $this->user('odbiorca', ['display_name' => 'Odbiorca']);
+        $przepis = Recipe::factory()->for($autor, 'author')->create([
+            'visibility' => 'private',
+            'title' => 'Dawny tytuł',
+        ]);
+        app(UdostepnijPrzepis::class)->poNazwie($autor, $przepis, 'odbiorca');
+
+        $dostepny = $this->jsonFromArchive($this->runExportFor($odbiorca));
+        $this->assertSame('Dawny tytuł', $dostepny['udostepnione_przepisy']['udostepnione_mi'][0]['przepis']);
+        $this->assertSame('Autorka', $dostepny['udostepnione_przepisy']['udostepnione_mi'][0]['autor']);
+
+        $odbiorca->suspend(now()->addDays(3));
+        $przepis->forceFill(['title' => 'Nowy prywatny tytuł'])->save();
+
+        $eksport = $this->runExportFor($odbiorca->fresh());
+        $this->assertSame(DataExport::STATUS_READY, $eksport->status);
+        $dane = $this->jsonFromArchive($eksport);
+        $relacja = $dane['udostepnione_przepisy']['udostepnione_mi'][0];
+        $this->assertNull($relacja['przepis'], 'EKSPORT_2785_BIEZACY_TYTUL_BEZ_DOSTEPU');
+        $this->assertNull($relacja['autor']);
+        $this->assertNotNull($relacja['od'], 'Historyczna data własnej relacji musi zostać w paczce.');
+        $this->assertStringNotContainsString('Nowy prywatny tytuł', $this->readFromArchive($eksport, 'dane.json'));
+
+        $this->travel(4)->days();
+        $poKarze = $this->jsonFromArchive($this->runExportFor($odbiorca->fresh()));
+        $this->assertSame('Nowy prywatny tytuł', $poKarze['udostepnione_przepisy']['udostepnione_mi'][0]['przepis']);
     }
 
     public function test_paczka_zawiera_index_czytelny_html_zdjecia_i_dane_json(): void
