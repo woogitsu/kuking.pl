@@ -104,6 +104,10 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             exit 1
         fi
         # #2855: wizyta sprzed wyłączenia nie może wejść do nowego okresu zgody.
+        if ! python3 tests/skrypty/kontrola-negatywna-2855-cel.py; then
+            printf "${CZERWONY}Kontrola celu bazy dla #2855 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2855.py; then
             printf "${CZERWONY}Kontrola ujemna okresu zgody historii #2855 nie przeszła.${RESET}\n" >&2
             exit 1

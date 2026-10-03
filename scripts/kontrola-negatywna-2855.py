@@ -3,7 +3,9 @@
 
 import os
 from pathlib import Path
+import re
 import subprocess
+import sys
 import tempfile
 
 from kontrola_przyczyny import POTWIERDZONA, WynikTestu, czytaj_junit, werdykt
@@ -13,18 +15,37 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "app/Domain/Recipes/OstatnioOgladane.php"
 TEST_FILE = "tests/Dwa/OstatnioOgladanePoPonownymWlaczeniuTest.php"
 TEST = "test_stare_zadanie_po_wylaczeniu_i_ponownym_wlaczeniu_nie_odtwarza_historii"
-MARKER = r"HISTORIA_2855_NIE_WRACA_PO_WLACZENIU"
-OLD = b"AND u.ostatnio_ogladane_wlaczone_at = ?::timestamptz "
-NEW = b"AND ?::timestamptz IS NOT NULL AND u.ostatnio_ogladane_wlaczone_at IS NOT NULL "
+MUTANTS = (
+    (
+        "dawny warunek zapisu",
+        b"AND u.ostatnio_ogladane_wlaczone_at = ?::timestamptz ",
+        b"AND ?::timestamptz IS NOT NULL AND u.ostatnio_ogladane_wlaczone_at IS NOT NULL ",
+        r"HISTORIA_2855_NIE_WRACA_PO_WLACZENIU",
+    ),
+    (
+        "sekundowy znacznik zgody",
+        b"->update(['ostatnio_ogladane_wlaczone_at' => now()->format('Y-m-d H:i:s.uP')]);",
+        b"->update(['ostatnio_ogladane_wlaczone_at' => now()]);",
+        r"HISTORIA_2855_MIKROSEKUNDY_OKRESU",
+    ),
+)
 
-if os.environ.get("CI") != "true":
-    if os.environ.get("KUKING_KONTROLA_2855_LOKALNIE") != "1":
-        raise SystemExit("Kontrola #2855 wymaga jawnego lokalnego opt-in.")
-    if os.environ.get("DB_HOST") not in ("127.0.0.1", "localhost") or os.environ.get("DB_PORT") in (None, "", "5432"):
-        raise SystemExit("Kontrola #2855 wymaga izolowanego lokalnego PostgreSQL poza portem 5432.")
+def sprawdz_cel() -> None:
+    if os.environ.get("DB_URL"):
+        raise SystemExit("Kontrola #2855 odmawia DB_URL: może wskazać inną bazę niż DB_DATABASE.")
+    if os.environ.get("CI") != "true":
+        if os.environ.get("KUKING_KONTROLA_2855_LOKALNIE") != "1":
+            raise SystemExit("Kontrola #2855 wymaga jawnego lokalnego opt-in.")
+        if os.environ.get("DB_HOST") not in ("127.0.0.1", "localhost") or os.environ.get("DB_PORT") in (None, "", "5432"):
+            raise SystemExit("Kontrola #2855 wymaga izolowanego lokalnego PostgreSQL poza portem 5432.")
 
-if not os.environ.get("DB_DATABASE", "").startswith("kuking_race_"):
-    raise SystemExit("Kontrola #2855 wymaga osobnej bazy kuking_race_*.")
+    if re.fullmatch(r"kuking_race(?:_[A-Za-z0-9_]+)?", os.environ.get("DB_DATABASE", "")) is None:
+        raise SystemExit("Kontrola #2855 wymaga bazy kuking_race albo kuking_race_<sufiks>.")
+
+
+sprawdz_cel()
+if sys.argv[1:] == ["--sprawdz-cel"]:
+    raise SystemExit(0)
 
 
 def run_test() -> WynikTestu:
@@ -53,23 +74,22 @@ def positive() -> None:
 
 original = SOURCE.read_bytes()
 mtime_ns = SOURCE.stat().st_mtime_ns
-if original.count(OLD) != 1:
-    raise RuntimeError("Kotwica #2855 nie występuje dokładnie raz.")
-
-positive()
-try:
-    SOURCE.write_bytes(original.replace(OLD, NEW, 1))
-    result = run_test()
-    if result.junit is None or czytaj_junit(result.junit)[0] != 1:
-        raise RuntimeError("Mutant #2855 nie uruchomił dokładnie jednego testu.")
-    verdict = werdykt(TEST, MARKER, result)
-    if verdict.werdykt != POTWIERDZONA:
-        raise RuntimeError("Mutant #2855 oblał z niewłaściwej przyczyny: " + verdict.powod + "\n" + result.wyjscie)
-finally:
-    SOURCE.write_bytes(original)
-    os.utime(SOURCE, ns=(SOURCE.stat().st_atime_ns, mtime_ns))
-    if SOURCE.read_bytes() != original or SOURCE.stat().st_mtime_ns != mtime_ns:
-        raise RuntimeError("Nie przywrócono dokładnie źródła #2855.")
-
-positive()
-print("#2855: mutant oblał na własnym markerze, przywrócony przeplot przeszedł.", flush=True)
+for name, old, new, marker in MUTANTS:
+    if original.count(old) != 1:
+        raise RuntimeError(name + ": kotwica #2855 nie występuje dokładnie raz.")
+    positive()
+    try:
+        SOURCE.write_bytes(original.replace(old, new, 1))
+        result = run_test()
+        if result.junit is None or czytaj_junit(result.junit)[0] != 1:
+            raise RuntimeError(name + ": mutant #2855 nie uruchomił dokładnie jednego testu.")
+        verdict = werdykt(TEST, marker, result)
+        if verdict.werdykt != POTWIERDZONA:
+            raise RuntimeError(name + ": mutant #2855 oblał z niewłaściwej przyczyny: " + verdict.powod + "\n" + result.wyjscie)
+    finally:
+        SOURCE.write_bytes(original)
+        os.utime(SOURCE, ns=(SOURCE.stat().st_atime_ns, mtime_ns))
+        if SOURCE.read_bytes() != original or SOURCE.stat().st_mtime_ns != mtime_ns:
+            raise RuntimeError("Nie przywrócono dokładnie źródła #2855.")
+    positive()
+    print(name + ": mutant oblał na własnym markerze, przywrócony przeplot przeszedł.", flush=True)

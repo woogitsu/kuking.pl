@@ -7,6 +7,7 @@ namespace Tests\Dwa;
 use App\Domain\Recipes\OstatnioOgladane;
 use App\Models\RecentRecipeView;
 use App\Models\Recipe;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -21,8 +22,14 @@ final class OstatnioOgladanePoPonownymWlaczeniuTest extends TestDwochPolaczen
         $stary = Recipe::factory()->for($autor, 'author')->create();
         $nowy = Recipe::factory()->for($autor, 'author')->create();
         $historia = app(OstatnioOgladane::class);
-        $historia->wlacz($widz);
-        $historia->zapisz($widz, $stary);
+        $taSamaSekunda = now()->startOfSecond();
+        Carbon::setTestNow($taSamaSekunda->copy()->addMicroseconds(100000));
+        try {
+            $historia->wlacz($widz);
+            $historia->zapisz($widz, $stary);
+        } finally {
+            Carbon::setTestNow();
+        }
         $this->assertSame(1, RecentRecipeView::query()->where('user_id', $widz->getKey())->count());
 
         $bariera = $this->bariera('SELECT pg_advisory_xact_lock(2855, 1)', []);
@@ -38,11 +45,18 @@ final class OstatnioOgladanePoPonownymWlaczeniuTest extends TestDwochPolaczen
             $this->actingAs($widz)->post(route('settings.ogladane.wylacz'))
                 ->assertRedirect(route('settings.ogladane'));
             $this->assertSame(0, RecentRecipeView::query()->where('user_id', $widz->getKey())->count());
-            $this->actingAs($widz)->post(route('settings.ogladane.wlacz'))
-                ->assertRedirect(route('settings.ogladane'));
+            Carbon::setTestNow($taSamaSekunda->copy()->addMicroseconds(200000));
+            try {
+                $this->actingAs($widz)->post(route('settings.ogladane.wlacz'))
+                    ->assertRedirect(route('settings.ogladane'));
+            } finally {
+                Carbon::setTestNow();
+            }
             $widz->refresh();
             $this->assertNotNull($widz->ostatnio_ogladane_wlaczone_at);
-            $this->assertNotEquals($wlaczonePrzed, $widz->ostatnio_ogladane_wlaczone_at);
+            $this->assertNotNull($wlaczonePrzed);
+            $this->assertSame($wlaczonePrzed->format('Y-m-d H:i:s'), $widz->ostatnio_ogladane_wlaczone_at->format('Y-m-d H:i:s'));
+            $this->assertNotEquals($wlaczonePrzed, $widz->ostatnio_ogladane_wlaczone_at, 'HISTORIA_2855_MIKROSEKUNDY_OKRESU');
         } finally {
             $this->zwolnijBariere($bariera);
         }
