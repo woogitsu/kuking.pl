@@ -566,6 +566,7 @@ OCZEKUJ = {
     'Onboarding bez grupy z nazwą kroków (#2406)': r'nie ma grupy kroków z role="group"',
     'Odwołanie od blokady CSAM bez ochrony decyzji (#2427)': r'CSAM_BAN_APPEAL_MUST_STAY_OPEN',
     'Runbook odtworzenia stosuje rejestr usunięć po podpięciu bazy (#2708)': r'RUNBOOK_REJESTR_PO_PODPIECIU',
+    'Runbook podpina bazę przed drugim wymazaniem (#2708)': r'RUNBOOK_DRUGI_WYMAZ_PRZED_PODPIECIEM',
     'Awaria izolacji usług pozwala wymazać przed sprawdzeniem CSAM (#2708)': r'CSAM_AWARIA_NIE_POMIJA_SPRAWDZENIA',
     'Odtworzenie CSAM po pierwszym wymazaniu kont (#2708)': r'CSAM_PRZED_PIERWSZYM_WYMAZANIEM',
     'Odtworzenie nowych decyzji CSAM po ponownym wymazaniu (#2708)': r'CSAM_PRZED_PONOWNYM_WYMAZANIEM',
