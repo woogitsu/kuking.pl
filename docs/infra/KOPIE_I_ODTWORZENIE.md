@@ -576,9 +576,10 @@ uruchamiasz przed podpięciem `DB_URL` do serwisu, z `DB_URL` nowej bazy w
 poleceniu. Przy odtworzeniu W MIEJSCU (Volume Backup „Restore”, import do żywej
 bazy z 3(a)) wszystkie trzy usługi mogą czytać lub zmieniać dane, więc
 **zatrzymaj web, worker i scheduler przed odtworzeniem**, a uruchom je dopiero
-po weryfikacji §3.2 i wykonaniu tej komendy; jeśli nie dało się ich zatrzymać,
-uruchom komendę natychmiast i zapisz okno, w którym serwis mógł
-pokazywać wymazane konta, jako incydent do oceny przez właściciela:
+po weryfikacji §3.2 i wykonaniu tej komendy. Jeśli nie dało się ich zatrzymać,
+przerwij procedurę i przekaż sprawę właścicielowi. Bez sprawdzenia decyzji CSAM
+nie wykonuj wymazania. Zapisz okno możliwej ekspozycji danych jako incydent
+do oceny przez właściciela:
 
 ```bash
 # podgląd — lista kont do ponownego wymazania, nic nie zmienia

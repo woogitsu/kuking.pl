@@ -12,6 +12,15 @@ use PHPUnit\Framework\TestCase;
  */
 final class RunbookKopieCsamKolejnoscTest extends TestCase
 {
+    public function test_brak_zatrzymania_uslug_nie_pozwala_pominac_sprawdzenia_csam(): void
+    {
+        $dokument = file_get_contents(dirname(__DIR__, 2).'/docs/infra/KOPIE_I_ODTWORZENIE.md');
+        $this->assertNotFalse($dokument);
+        $this->assertStringNotContainsString('uruchom komendę natychmiast', $dokument, 'CSAM_AWARIA_NIE_POMIJA_SPRAWDZENIA: brak izolacji usług nie pozwala wymazać dowodu przed odtworzeniem decyzji.');
+        $this->assertStringContainsString('Bez sprawdzenia decyzji CSAM', $dokument);
+        $this->assertStringContainsString('nie wykonuj wymazania.', $dokument);
+    }
+
     public function test_obie_kontrole_csam_poprzedzaja_wymazanie_i_podpiecie_bazy(): void
     {
         $sciezka = dirname(__DIR__, 2).'/docs/infra/KOPIE_I_ODTWORZENIE.md';

@@ -2786,6 +2786,9 @@ checks = [
      "test_runbook_kaze_zastosowac_rejestr_usuniec_przed_podpieciem_bazy_do_serwisu",
      lambda s: replace_once(s, "# 5. Dopiero po potwierdzeniu kroku 4 zastosuj rejestr usunięć",
                             'railway variables --set "DB_URL=<nowy_DATABASE_URL>"\n# 5. Dopiero po potwierdzeniu kroku 4 zastosuj rejestr usunięć')),
+    ("Awaria izolacji usług pozwala wymazać przed sprawdzeniem CSAM (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_brak_zatrzymania_uslug_nie_pozwala_pominac_sprawdzenia_csam",
+     lambda s: replace_once(s, 'Bez sprawdzenia decyzji CSAM', 'uruchom komendę natychmiast. Bez sprawdzenia decyzji CSAM')),
     ("Odtworzenie CSAM po pierwszym wymazaniu kont (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
      "test_obie_kontrole_csam_poprzedzaja_wymazanie_i_podpiecie_bazy",
      lambda s: kopie_przestaw_krok_po_wymazaniu(
