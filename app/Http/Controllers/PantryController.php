@@ -279,11 +279,15 @@ class PantryController extends Controller
         $this->authorize('delete', $pantryItem);
 
         $nazwa = $pantryItem->name;
-        $wynik = $usun->handle($pantryItem, $this->tekst($request, 'widziane_drugie'));
+        $wynik = $usun->handle(
+            $pantryItem,
+            $this->tekst($request, 'widziane_pierwsze'),
+            $this->tekst($request, 'widziane_drugie'),
+        );
 
         if ($wynik === UsunProduktPoPotwierdzeniu::ZMIENILO_SIE) {
             return redirect()->route('pantry.index')->with(Komunikat::blad(
-                'Liczba opakowań tego produktu zmieniła się od otwarcia pytania. Niczego nie usunęliśmy. Otwórz aktualne pytanie „Usuń” i wybierz ponownie, co usunąć.',
+                'Opakowania tego produktu zmieniły się od otwarcia pytania. Niczego nie usunęliśmy. Otwórz aktualne pytanie „Usuń” i wybierz ponownie, co usunąć.',
             ));
         }
         if ($wynik === UsunProduktPoPotwierdzeniu::BRAK) {

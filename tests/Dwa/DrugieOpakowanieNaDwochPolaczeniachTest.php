@@ -39,6 +39,7 @@ final class DrugieOpakowanieNaDwochPolaczeniachTest extends TestDwochPolaczen
         $this->czekajNaZablokowane(1);
         $usuniecie = $this->wTle('usun-produkt-po-potwierdzeniu-pantry', [
             'produkt' => $id,
+            'widziane_pierwsze' => $id,
             'widziane_drugie' => 'brak',
         ]);
         $this->czekajNaZablokowane(2);
@@ -62,6 +63,7 @@ final class DrugieOpakowanieNaDwochPolaczeniachTest extends TestDwochPolaczen
         $bariera = $this->bariera('SELECT 1 FROM pantry_items WHERE id = ? FOR UPDATE', [$id]);
         $usuniecie = $this->wTle('usun-produkt-po-potwierdzeniu-pantry', [
             'produkt' => $id,
+            'widziane_pierwsze' => $id,
             'widziane_drugie' => 'brak',
         ]);
         $this->czekajNaZablokowane(1);
