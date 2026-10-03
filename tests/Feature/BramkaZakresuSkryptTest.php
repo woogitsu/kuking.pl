@@ -97,6 +97,62 @@ class BramkaZakresuSkryptTest extends TestCase
         }
     }
 
+    public function test_tymczasowa_baza_nie_zmienia_worktree_wolajacego_przy_odziedziczonym_git_dir(): void
+    {
+        $tmp = sys_get_temp_dir().'/kuking-zakres-caller-'.bin2hex(random_bytes(4));
+        $caller = $tmp.'/caller';
+        $linked = $tmp.'/linked';
+        $fixture = $tmp.'/fixture';
+        $bareFixture = $tmp.'/bare-fixture';
+        mkdir($caller, 0777, true);
+        mkdir($fixture, 0777, true);
+        mkdir($bareFixture, 0777, true);
+
+        try {
+            $this->uruchom($caller, ['git', 'init', '-q']);
+            file_put_contents($caller.'/README', "caller\n");
+            $this->uruchom($caller, ['git', 'add', 'README']);
+            $this->uruchom($caller, ['git', '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'caller']);
+            $this->uruchom($caller, ['git', 'config', 'extensions.worktreeConfig', 'true']);
+            $this->uruchom($caller, ['git', 'worktree', 'add', '-qb', 'test', $linked]);
+            $this->uruchom($linked, ['git', 'config', '--worktree', 'test.canary', 'zostaje']);
+            $gitDir = trim($this->uruchom($linked, ['git', 'rev-parse', '--absolute-git-dir']));
+            $hook = $gitDir.'/hooks/pre-push';
+            if (! is_dir(dirname($hook))) {
+                mkdir(dirname($hook), 0777, true);
+            }
+            file_put_contents($hook, "obcy hook\n");
+            $konfiguracja = $caller.'/.git/config';
+            $konfiguracjaWorktree = $gitDir.'/config.worktree';
+            $przed = [
+                'config' => file_get_contents($konfiguracja),
+                'worktree' => file_get_contents($konfiguracjaWorktree),
+                'hook' => file_get_contents($hook),
+                'head' => trim($this->uruchom($linked, ['git', 'rev-parse', 'HEAD'])),
+                'status' => $this->uruchom($linked, ['git', 'status', '--porcelain', '--untracked-files=all']),
+            ];
+
+            $odziedziczone = [
+                'GIT_DIR' => $gitDir,
+                'GIT_CONFIG_PARAMETERS' => "'test.fixture=true'",
+            ];
+            $this->uruchom($bareFixture, ['git', 'init', '-q', '--bare'], $odziedziczone);
+            $this->assertSame($przed['config'], file_get_contents($konfiguracja), 'ZAKRES_2871_WOLAJACY_CONFIG_ZMIENIONY');
+            $odziedziczone['GIT_WORK_TREE'] = $linked;
+            $this->uruchom($fixture, ['git', 'init', '-q'], $odziedziczone);
+            $this->assertSame('true', trim($this->uruchom($fixture, ['git', 'rev-parse', '--is-inside-work-tree'], $odziedziczone)));
+            $this->assertSame('false', trim($this->uruchom($fixture, ['git', 'rev-parse', '--is-bare-repository'], $odziedziczone)));
+
+            $this->assertSame($przed['config'], file_get_contents($konfiguracja), 'ZAKRES_2871_WOLAJACY_CONFIG_ZMIENIONY');
+            $this->assertSame($przed['worktree'], file_get_contents($konfiguracjaWorktree), 'ZAKRES_2871_WOLAJACY_WORKTREE_ZMIENIONY');
+            $this->assertSame($przed['hook'], file_get_contents($hook), 'ZAKRES_2871_WOLAJACY_HOOK_ZMIENIONY');
+            $this->assertSame($przed['head'], trim($this->uruchom($linked, ['git', 'rev-parse', 'HEAD'])), 'ZAKRES_2871_WOLAJACY_HEAD_ZMIENIONY');
+            $this->assertSame($przed['status'], $this->uruchom($linked, ['git', 'status', '--porcelain', '--untracked-files=all']), 'ZAKRES_2871_WOLAJACY_STATUS_ZMIENIONY');
+        } finally {
+            (new Process(['rm', '-rf', $tmp]))->run();
+        }
+    }
+
     public function test_krok_w_ci_woła_skrypt_i_daje_mu_baze_oraz_zdarzenie(): void
     {
         $ci = (string) file_get_contents(base_path('.github/workflows/ci.yml'));
@@ -120,10 +176,13 @@ class BramkaZakresuSkryptTest extends TestCase
         $this->assertMatchesRegularExpression('/^tests\/skrypty\/zakres\.sh\|/m', $powloka, 'Test bramki wypadł z listy testów powłoki.');
     }
 
-    /** @param list<string> $polecenie */
-    private function uruchom(string $katalog, array $polecenie): string
+    /**
+     * @param  list<string>  $polecenie
+     * @param  array<string, string>  $odziedziczone
+     */
+    private function uruchom(string $katalog, array $polecenie, array $odziedziczone = []): string
     {
-        $proces = new Process($polecenie, $katalog);
+        $proces = new Process($polecenie, $katalog, $this->bezOdziedziczonegoGita($odziedziczone));
         $proces->run();
         $this->assertSame(0, $proces->getExitCode(), implode(' ', $polecenie).': '.$proces->getErrorOutput());
 
@@ -136,7 +195,7 @@ class BramkaZakresuSkryptTest extends TestCase
         $wyjscie = tempnam(sys_get_temp_dir(), 'zakres-wyj');
         $this->assertIsString($wyjscie);
 
-        $proces = new Process(['bash', base_path(self::SKRYPT)], $repo, [
+        $proces = new Process(['bash', base_path(self::SKRYPT)], $repo, $this->bezOdziedziczonegoGita() + [
             'BAZA' => $baza,
             'ZDARZENIE' => $zdarzenie,
             'DRAFT' => $draft ?? false,
@@ -159,5 +218,28 @@ class BramkaZakresuSkryptTest extends TestCase
         $this->assertCount(7, $wynik, 'Skrypt ma wystawić dokładnie siedem wyjść.');
 
         return $wynik;
+    }
+
+    /**
+     * @param  array<string, string>  $dodatkowe
+     * @return array<string, string|false>
+     */
+    private function bezOdziedziczonegoGita(array $dodatkowe = []): array
+    {
+        // Pre-push ustawia GIT_DIR/GIT_WORK_TREE. Bez wyczyszczenia potomne
+        // `git init` może zmienić core.bare wywołującego worktree zamiast fixture.
+        $srodowisko = $dodatkowe;
+        foreach (getenv() as $nazwa => $_) {
+            if (str_starts_with($nazwa, 'GIT_')) {
+                $srodowisko[$nazwa] = false;
+            }
+        }
+        foreach ($dodatkowe as $nazwa => $_) {
+            if (str_starts_with($nazwa, 'GIT_')) {
+                $srodowisko[$nazwa] = false;
+            }
+        }
+
+        return $srodowisko;
     }
 }

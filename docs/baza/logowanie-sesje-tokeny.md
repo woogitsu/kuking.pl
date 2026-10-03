@@ -388,6 +388,16 @@ człowieka — bo nikt tej tabeli nie „dodawał", więc nikt nie przeszedł ś
 | `payload` | Zawartość sesji (`text`, base64 + `serialize`). Jedyna kolumna, którą obejmuje `SESSION_ENCRYPT` — patrz niżej. |
 | `last_activity` | Uniksowy znacznik czasu (`integer`, nie `timestamptz`), aktualizowany przy każdym zapisie sesji. Po nim liczy się retencja. |
 
+Zmiana hasła w ustawieniach oraz „Wyloguj inne urządzenia” sprawdzają hasło
+przed rozpoczęciem akcji, ale ten odczyt może wyprzedzić reset. Przed zapisem
+hasła lub unieważnieniem sesji obie akcje sprawdzają **ponownie** świeży skrót
+hasła i generację sesji tego żądania, pod `ZamekKonta` (#2851, #2854).
+Odmowa nie podnosi generacji i nie przypisuje jej odwołanej sesji; człowiek
+wraca do logowania. Reset linkiem nadal ma własne ponowne sprawdzenie tokenu
+pod tą samą blokadą (#2055). Nie ma zmiany schematu ani migracji; cofnięcie
+samej poprawki przywróciłoby okno wyścigu, więc rollback wydania wymaga
+pozostawienia tej bramki albo osobnej zweryfikowanej poprawki.
+
 ```sql
 CREATE TABLE sessions (
     id            varchar(255) PRIMARY KEY,

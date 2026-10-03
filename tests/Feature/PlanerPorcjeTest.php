@@ -152,7 +152,7 @@ final class PlanerPorcjeTest extends TestCase
             $this->assertSame(3.0, $wpis->refresh()->planned_servings, "Wartość „{$zla}” nie może zmienić zapisu.");
         }
 
-        $html = (string) $this->actingAs($ja)->withSession(['errors' => null])->get(route('planer.show'))->getContent();
+        $html = (string) $this->actingAs($ja)->get(route('planer.show'))->assertOk()->getContent();
         $this->assertStringContainsString('Planowane porcje: 3 porcje', $html);
     }
 

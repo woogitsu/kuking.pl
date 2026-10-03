@@ -1,4 +1,4 @@
-# Pułapki testów — dziesięć rzeczy, które w tym repozytorium naprawdę przeszły
+# Pułapki testów — rzeczy, które w tym repozytorium naprawdę przeszły
 
 Ten plik nie jest wykładem o testowaniu. To lista pomyłek, które **w tym
 projekcie** przeszły przez zielone CI i zostały wykryte dopiero przez
@@ -389,6 +389,16 @@ Ustalenie z przeglądu repozytorium przez sesję `codex-45`, 20.09.2026;
 sprawdzone niezależnie: jedyne `shell: bash` w tym pliku (linia 1246) grepuje
 plik, nie rurę. `tests/skrypty/kopia-bazy.sh:238` ma wrażliwą postać, ale
 kierunek prowadzi do czerwieni i wyjście jest krótkie — ryzyko uśpione.
+
+#### Tymczasowe repozytorium w teście nie może odziedziczyć celu Gita (#2871)
+
+Hook `pre-push` może przekazać procesom `GIT_DIR`, `GIT_WORK_TREE` i parametry
+konfiguracji. Wtedy nawet `git init` uruchomiony w katalogu testowej bazy może
+zmienić `core.bare` repozytorium wywołującego. Test bramki `zakres` usuwa
+odziedziczone zmienne `GIT_*` wyłącznie z procesów własnej tymczasowej bazy.
+Regresja uruchamia je przy symulowanym środowisku hooka i porównuje konfigurację,
+hook, HEAD oraz stan osobnego, tymczasowego worktree. Fizyczne cofnięcie ochrony
+ma oblać marker `ZAKRES_2871_WOLAJACY_CONFIG_ZMIENIONY`.
 
 ## 6. Test na jednym połączeniu nie dowodzi zachowania przy dwóch
 
@@ -1006,6 +1016,24 @@ a `RefreshDatabase` wyczyściłby przygotowane przez nie dane. Kontrole ujemne
 lokalnie (`KUKING_KONTROLE_LOKALNIE=1`) sprawdzają rodzinę na starcie, bo
 inaczej każdy test w pętli odmawiałby startu, a kontrola czytałaby to jako
 „mutacja złapana”.
+
+## 20. Test widzi własny kod na ekranie wyjątku albo tylko jedną nazwę assetu
+
+Przy `APP_DEBUG=true` ekran błędu 500 zawiera fragment źródła testu. Asercja
+na całym HTML-u znalazła w nim napis „Planowane porcje: 3 porcje”, choć
+formularz planera nie został wyrenderowany. Powód błędu był w samym teście:
+`withSession(['errors' => null])` wstawiło nieprawidłowy stan sesji. Przy
+`APP_DEBUG=false` fałszywa zieleń znikła. Test odpowiedzi HTTP najpierw
+sprawdza teraz kod 200, a błąd walidacji pozostawia w prawdziwym stanie flash.
+
+Drugi strażnik szukał tylko `livewire.js`. Livewire 4 przy `APP_DEBUG=false`
+podaje `livewire.min.js`; nie oznacza to braku skryptu. Kontrola dodatnia
+i ujemna rozpoznają oba warianty jako element `<script src="…">`, nadal
+odmawiając, gdy rzeczywiste automatyczne wstrzyknięcie zniknie lub przecieknie.
+
+**Co robić:** przed szukaniem tekstu w HTML-u sprawdzaj status odpowiedzi;
+uruchom celowany test zarówno z `APP_DEBUG=false`, jak i `APP_DEBUG=true`, gdy
+zachowanie widoku lub nazwa assetu może zależeć od trybu aplikacji.
 
 ## Skąd ta lista
 

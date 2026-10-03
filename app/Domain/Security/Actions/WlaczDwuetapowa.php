@@ -6,6 +6,7 @@ namespace App\Domain\Security\Actions;
 
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Security\WynikWlaczeniaDwuetapowej;
+use App\Domain\Users\Actions\PotwierdzSesjePrzedZmianaBezpieczenstwa;
 use App\Domain\Users\ZamekKonta;
 use App\Models\AuditLogEntry;
 use App\Models\User;
@@ -15,22 +16,27 @@ use Illuminate\Support\Facades\Hash;
  * Potwierdzenie i włączenie weryfikacji dwuetapowej — sprawdzenia, blokada
  * konta i wpis audytu jako nazwany przypadek użycia.
  *
- * Wyjęte z `Settings\TwoFactorSettingsController::confirm()` bez zmiany
- * zachowania (issue #970). Kolejność zostaje ta sama: brak sekretu, 2FA już
+ * Wyjęte z `Settings\TwoFactorSettingsController::confirm()` (issue #970).
+ * Kolejność sprawdzeń zostaje: brak sekretu, 2FA już
  * włączona, HASŁO, dopiero potem KOD (przy złym haśle kod nie jest ani
  * sprawdzany, ani zużywany — #1376, D-245), skróty kodów zapasowych PRZED
  * blokadą, zapis pod `ZamekKonta` na świeżym wierszu (#2061), wpis audytu
- * po zatwierdzeniu. Kontroler zostaje przy HTTP: walidacja pól, komunikaty
- * błędów, unieważnienie innych sesji, dowód 2FA w sesji i flash z kodami.
+ * po zatwierdzeniu. Od #2861 świeże hasło, generacja żądania, zapis 2FA
+ * i odwołanie innych sesji należą do jednej blokady konta. Kontroler
+ * zostaje przy HTTP: walidacja pól, komunikaty błędów, dowód 2FA w sesji
+ * i flash z kodami.
  *
  * `$user` po wywołaniu jest odświeżony ze stanu w bazie (jeśli doszło do
  * zapisu).
  */
 final class WlaczDwuetapowa
 {
-    public function __construct(private readonly TwoFactorAuthenticator $totp) {}
+    public function __construct(
+        private readonly TwoFactorAuthenticator $totp,
+        private readonly PotwierdzSesjePrzedZmianaBezpieczenstwa $potwierdzSesje,
+    ) {}
 
-    public function handle(User $user, string $haslo, string $kod, ?string $ip): WynikWlaczeniaDwuetapowej
+    public function handle(User $user, #[\SensitiveParameter] string $haslo, string $kod, ?string $ip, int $generacjaSesji, string $zachowajSesje): WynikWlaczeniaDwuetapowej
     {
         if ($user->two_factor_secret === null) {
             return new WynikWlaczeniaDwuetapowej(WynikWlaczeniaDwuetapowej::BRAK_SEKRETU);
@@ -66,12 +72,14 @@ final class WlaczDwuetapowa
         $kodyJawne = $this->totp->generateBackupCodes();
         $skroty = $this->totp->hashBackupCodes($kodyJawne);
 
-        $wlaczono = ZamekKonta::zablokuj($user, static function (?User $swiezy) use ($sekret, $skroty): bool {
+        $wlaczono = ZamekKonta::zablokuj($user, function (?User $swiezy) use ($sekret, $skroty, $haslo, $generacjaSesji, $zachowajSesje): bool {
             if ($swiezy === null || $swiezy->two_factor_secret !== $sekret || $swiezy->hasTwoFactorConfirmed()) {
                 return false;
             }
 
+            $this->potwierdzSesje->sprawdz($swiezy, $haslo, $generacjaSesji);
             $swiezy->confirmTwoFactor($skroty);
+            $swiezy->invalidateSessions($zachowajSesje);
 
             return true;
         });
