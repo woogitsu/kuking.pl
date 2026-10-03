@@ -78,6 +78,71 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
         return array_map(fn (RecipeIngredient $s): string => (string) $s->getKey(), $skladniki);
     }
 
+    public function test_stara_karta_po_wylaczeniu_i_ponownym_wlaczeniu_nie_cofa_porcji_ani_kroku_2860(): void
+    {
+        $osoba = $this->user();
+        [$recipe] = $this->przepis();
+        $krok = $recipe->steps()->firstOrFail();
+        $this->wlacz($osoba, $recipe, ['porcje' => '8']);
+        $stary = $this->postep($osoba, $recipe);
+        $this->assertSame(1, $stary->revision);
+        $this->actingAs($osoba)->get(route('cooking.show', [$recipe->slug, 'porcje' => '8']))
+            ->assertOk()
+            ->assertSee('name="id_postepu" value="'.$stary->getKey().'"', false);
+
+        // Druga karta odłącza konto; zaznaczenie w jej sesji staje się ziarnem
+        // nowego wiersza. Stara karta wciąż pokazuje osiem porcji i rewizję 1.
+        $this->flushSession();
+        $this->actingAs($osoba)->post(route('cooking.sync.wylacz', $recipe->slug), ['krok' => 1])->assertRedirect();
+        $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), [
+            'krok' => 1, 'krok_id' => $krok->getKey(), 'zrobiono' => '1',
+        ])->assertRedirect();
+        $this->wlacz($osoba, $recipe, ['porcje' => '6'])->assertRedirect();
+        $nowy = $this->postep($osoba, $recipe);
+        $this->assertNotSame($stary->getKey(), $nowy->getKey());
+        $this->assertSame(1, $nowy->revision);
+        $this->assertSame([$krok->getKey()], $nowy->done_step_ids);
+        $this->assertEquals(6.0, (float) $nowy->servings);
+
+        $this->actingAs($osoba)->getJson(route('cooking.sync.postep', $recipe->slug))
+            ->assertOk()->assertExactJson(['aktywna' => true, 'rewizja' => 1, 'id_postepu' => $nowy->getKey()]);
+        $odpowiedzStarej = $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), [
+            'krok' => 1, 'krok_id' => $krok->getKey(), 'zrobiono' => '0',
+            'porcje' => '8', 'rewizja' => 1, 'id_postepu' => $stary->getKey(),
+        ]);
+        $poOdmowie = $this->postep($osoba, $recipe);
+        $this->assertSame([$krok->getKey()], $poOdmowie->done_step_ids, 'POSTEP_2860_STARA_KARTA_NIE_COFA_KROKU');
+        $this->assertEquals(6.0, (float) $poOdmowie->servings, 'POSTEP_2860_STARA_KARTA_NIE_COFA_PORCJI');
+        $this->assertSame(1, $poOdmowie->revision);
+        $odpowiedzStarej->assertRedirect(route('cooking.show', [$recipe->slug, 'krok' => 1]))
+            ->assertSessionHas('status_rodzaj', 'blad')
+            ->assertSessionHas('status', fn (string $tekst): bool => str_contains($tekst, 'Nic z tej karty nie zapisano'));
+
+        // Świeża karta B po aktualnym GET może normalnie cofnąć ten sam krok.
+        $this->actingAs($osoba)->get(route('cooking.show', $recipe->slug))->assertOk()
+            ->assertSee('name="id_postepu" value="'.$nowy->getKey().'"', false);
+        $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), [
+            'krok' => 1, 'krok_id' => $krok->getKey(), 'zrobiono' => '0',
+            'porcje' => '6', 'rewizja' => 1, 'id_postepu' => $nowy->getKey(),
+        ])->assertRedirect()->assertSessionMissing('status');
+        $this->assertSame([], $this->postep($osoba, $recipe)->done_step_ids);
+        $this->assertEquals(6.0, (float) $this->postep($osoba, $recipe)->servings);
+    }
+
+    public function test_formularz_bez_tozsamosci_nie_zapisuje_aktywnego_postepu_2860(): void
+    {
+        $osoba = $this->user();
+        [$recipe] = $this->przepis();
+        $krok = $recipe->steps()->firstOrFail();
+        $this->wlacz($osoba, $recipe, ['porcje' => '6']);
+
+        $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), [
+            'krok' => 1, 'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'porcje' => '8', 'rewizja' => 1,
+        ])->assertSessionHas('status_rodzaj', 'blad');
+        $this->assertSame([], $this->postep($osoba, $recipe)->done_step_ids, 'POSTEP_2860_BRAK_ID_ODMOWA');
+        $this->assertEquals(6.0, (float) $this->postep($osoba, $recipe)->servings);
+    }
+
     // --- Domyślnie nic nie trafia na konto ---------------------------------
 
     public function test_bez_wlaczonej_synchronizacji_skladniki_i_porcje_nie_trafiaja_do_bazy(): void
@@ -143,7 +208,7 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
         // Urządzenie A i B widziały pustą listę (`bylo` puste); A zapisuje pierwsze.
         $krok = $recipe->steps()->firstOrFail();
         $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), [
-            'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'krok' => 1,
+            'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'krok' => 1, 'id_postepu' => $this->postep($osoba, $recipe)->getKey(),
         ])->assertRedirect();
         $this->assertGreaterThan(1, $this->postep($osoba, $recipe)->revision);
         $this->zapiszSkladniki($osoba, $recipe, [$s[0]], [], ['rewizja' => 1]);
@@ -243,7 +308,7 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
         $this->zapiszSkladniki($osoba, $recipe, [$s[0], $s[1]]);
 
         $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), [
-            'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'krok' => 1,
+            'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'krok' => 1, 'id_postepu' => $this->postep($osoba, $recipe)->getKey(),
         ])->assertRedirect();
         $this->assertEqualsCanonicalizing($this->ids([$s[0], $s[1]]), $this->postep($osoba, $recipe)->prepared_ingredient_ids);
 
@@ -389,7 +454,7 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
         $widzianaRewizjaPorcji = $this->postep($osoba, $recipe)->servings_revision;
 
         $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), [
-            'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'krok' => 1, 'porcje' => '8',
+            'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'krok' => 1, 'porcje' => '8', 'id_postepu' => $this->postep($osoba, $recipe)->getKey(),
         ])->assertRedirect();
 
         $postep = $this->postep($osoba, $recipe);
@@ -450,7 +515,7 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
         $this->assertEquals(6.0, (float) $this->postep($osoba, $recipe)->servings);
 
         $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), [
-            'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'porcje' => '8',
+            'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'porcje' => '8', 'id_postepu' => $this->postep($osoba, $recipe)->getKey(),
         ])->assertRedirect();
         $this->assertEquals(8.0, (float) $this->postep($osoba, $recipe)->servings);
     }
@@ -473,7 +538,7 @@ class SynchronizacjaSkladnikowIPorcjiGotowaniaTest extends TestCase
 
         // Pierwsze urządzenie odhacza krok ze strony, która pokazywała 6 porcji.
         $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), [
-            'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'porcje' => '6', 'krok' => 1, 'rewizja' => $widzianaRewizja,
+            'krok_id' => $krok->getKey(), 'zrobiono' => '1', 'porcje' => '6', 'krok' => 1, 'rewizja' => $widzianaRewizja, 'id_postepu' => $this->postep($osoba, $recipe)->getKey(),
         ])->assertRedirect(route('cooking.show', ['recipe' => $recipe->slug, 'krok' => 1]))
             ->assertSessionHas('status_rodzaj', 'informacja');
 

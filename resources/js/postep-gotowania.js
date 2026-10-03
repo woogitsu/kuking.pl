@@ -3,9 +3,9 @@
  * (issue #2016).
  *
  * CO TO ROBI. Gdy osoba włączyła zapamiętywanie postępu na koncie, strona
- * niesie numer rewizji, którą widziała. Ten moduł co jakiś czas pyta serwer
- * o aktualną rewizję (`GET .../gotuj/postep`, sam numer, bez listy kroków)
- * i — jeśli jest inna albo zapamiętywanie zniknęło — odkrywa pas z odnośnikiem
+ * niesie numer rewizji i UUID wiersza, które widziała. Ten moduł co jakiś czas
+ * pyta serwer o oba znaczniki (`GET .../gotuj/postep`, bez listy kroków)
+ * i — jeśli któryś jest inny albo zapamiętywanie zniknęło — odkrywa pas z odnośnikiem
  * „Pokaż aktualny postęp”. Niczego nie zapisuje: odhaczenia idą zwykłym
  * formularzem POST, więc działają bez skryptu i od razu trafiają na konto.
  *
@@ -28,18 +28,21 @@ export const INTERWAL_MS = 30_000;
  * @param {unknown} odpowiedz surowy JSON z serwera
  * @param {number} widzianaRewizja rewizja zapisana w stronie
  * @param {{zmiana?: string, koniec?: string}} [teksty] własne zdania (wspólne gotowanie, #2385)
+ * @param {string|null} [widzianyPostepId] UUID zapamiętywania z tej karty
  * @returns {string|null}
  */
-export function komunikatOZmianie(odpowiedz, widzianaRewizja, teksty = {}) {
+export function komunikatOZmianie(odpowiedz, widzianaRewizja, teksty = {}, widzianyPostepId = null) {
     if (odpowiedz === null || typeof odpowiedz !== 'object') return null;
 
-    const {aktywna, rewizja} = /** @type {{aktywna?: unknown, rewizja?: unknown}} */ (odpowiedz);
+    const {aktywna, rewizja, id_postepu: idPostepu} = /** @type {{aktywna?: unknown, rewizja?: unknown, id_postepu?: unknown}} */ (odpowiedz);
 
     if (aktywna === false) {
         return teksty.koniec ?? 'Zapamiętywanie postępu na koncie wygasło albo zostało wyłączone na innym urządzeniu.';
     }
 
-    if (aktywna === true && Number.isInteger(rewizja) && rewizja !== widzianaRewizja) {
+    if (aktywna === true && Number.isInteger(rewizja) && (
+        rewizja !== widzianaRewizja || (widzianyPostepId !== null && typeof idPostepu === 'string' && idPostepu !== widzianyPostepId)
+    )) {
         return teksty.zmiana ?? 'Postęp tego przepisu zmienił się na innym urządzeniu.';
     }
 
@@ -72,6 +75,7 @@ export function podlaczSprawdzanie(pas, srodowisko) {
     if (pas.dataset.postepGotowe) return;
 
     const rewizja = Number.parseInt(pas.dataset.postepRewizja ?? '', 10);
+    const idPostepu = pas.dataset.postepId ?? null;
     const adres = pas.dataset.postepAdres ?? '';
 
     if (!Number.isInteger(rewizja) || adres === '') return;
@@ -101,7 +105,7 @@ export function podlaczSprawdzanie(pas, srodowisko) {
             };
 
             const komunikat = odp.ok
-                ? komunikatOZmianie(await odp.json(), rewizja, teksty)
+                ? komunikatOZmianie(await odp.json(), rewizja, teksty, idPostepu)
                 : komunikatOStatusie(odp.status, teksty);
 
             if (komunikat !== null) {

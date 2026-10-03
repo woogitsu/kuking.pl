@@ -1737,7 +1737,9 @@ checks = [
     ("Powrót porcji ABA przywraca stare odmierzenie (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_stary_formularz_po_powrocie_do_tej_samej_liczby_porcji_nie_przywraca_odmierzenia",
      lambda s: replace_once(s, "$wiersz->servings_revision !== $widzianaRewizjaPorcji", "false")),
     ("Stary formularz po ponownym włączeniu postępu (#2502)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_formularz_sprzed_wylaczenia_i_ponownego_wlaczenia_nie_potwierdza_dawnych_skladnikow",
-     lambda s: replace_once(s, "$wiersz->getKey() !== $widzianyPostepId", "false")),
+     lambda s: replace_once(s, "if ($wiersz->getKey() !== $widzianyPostepId || $this->porcje($wiersz) !== $porcjeZKontaNaStronie || $wiersz->servings_revision !== $widzianaRewizjaPorcji) {", "if (false) {")),
+    ("Stara karta zmienia nowy postęp (#2860)", "app/Domain/Recipes/Gotowanie/PostepGotowania.php", "test_stara_karta_po_wylaczeniu_i_ponownym_wlaczeniu_nie_cofa_porcji_ani_kroku_2860",
+     lambda s: replace_once(s, "if ($widzianyPostepId !== null && $wiersz->getKey() !== $widzianyPostepId) {", "if (false) {")),
     ("Moje wpisy: stara strona udaje pusty dorobek (#2473)", "app/Http/Controllers/MojeWpisyController.php", "test_stara_druga_strona_po_usunieciu_wraca_do_istniejacych_wpisow",
      lambda s: replace_once(s, "if ($wpisy->currentPage() > $wpisy->lastPage())", "if (false)")),
     ("Moje wpisy: pusta porcja traci kontener (#2473)", "resources/views/pages/collections/moje-wpisy.blade.php", "test_pusta_lista_ma_prawdziwy_pusty_stan_i_kontener_bez_petli",
@@ -1831,7 +1833,1291 @@ checks = [
      lambda s: replace_once(s,
          "$czyta = $recipe !== null && $policy->readShared($user, $recipe);",
          "$czyta = $recipe !== null;")),
+    ("Eksport zdradza nową nazwę prywatnego zeszytu byłemu członkowi (#2869)", "app/Domain/Users/Exports/CollectUserExportData.php",
+     "test_nowy_eksport_zachowuje_historie_zaproszenia_bez_nowej_nazwy_prywatnego_zeszytu",
+     lambda s: replace_once(s, "$policy->view($user, $z->collection)", "true")),
     ("Limit listy odzyskania przed filtrem moderacji (#2868)", "app/Domain/Recipes/OdzyskajUsunietyPrzepis.php",
      "test_piecdziesiat_chronionych_nowszych_nie_zaslania_starszego_czystego_przepisu",
      lambda s: replace_once(s, "        $skan = $po;\n",
          "        return ['przepisy' => $this->kandydaci($autor)->limit(50)->get()->reject(fn (Recipe $przepis): bool => $this->wSprawieModeracyjnej($przepis))->values(), 'nastepny' => null, 'dalsza' => false];\n\n        $skan = $po;\n")),
+    ("Eksport gubi relację wykonania z własnym przepisem (#2639)", "app/Domain/Users/Exports/CollectUserExportData.php",
+     "test_dwa_wlasne_przepisy_o_tym_samym_tytule_maja_odrebne_prawdziwe_cele_w_paczce",
+     lambda s: replace_once(s,
+         "            'plik_wlasnego_przepisu' => $this->granica->widzi($event->recipe)\n"
+         "                ? ($this->plikiWlasnychPrzepisow[(string) $event->recipe_id] ?? null)\n"
+         "                : null,\n", "")),
+    ("Eksport planu zdjęć ładuje autora przepisu (#2639)", "app/Domain/Users/Exports/ExportPhotoPlan.php",
+     "test_dwa_wlasne_przepisy_o_tym_samym_tytule_maja_odrebne_prawdziwe_cele_w_paczce",
+     lambda s: replace_once(s, "->with(['media', 'recipe.author'])->get()", "->with(['media', 'recipe'])->get()")),
+    # #2479: wrócenie do nazywania hidden szkicem ma oblać na rzeczywistym ZIP-ie.
+    ("Ukryty przepis nazwany szkicem w eksporcie (#2479)", "app/Domain/Users/Exports/RecipeArchiveStatus.php",
+     "test_ukryty_po_publikacji_nie_jest_szkicem_w_karcie_ani_spisie",
+     lambda s: replace_once(s,
+         "Recipe::STATUS_HIDDEN => ['full' => 'Przepis ukryty', 'short' => 'ukryty'],",
+         "Recipe::STATUS_HIDDEN => ['full' => 'To był szkic — nigdy nie został opublikowany', 'short' => 'szkic'],")),
+    # #2478: rok jako jedyne źródło ma naprawdę otworzyć sekcję w pliku ZIP.
+    ("Sam rok rodzinny znika z HTML eksportu (#2478)", "resources/views/exports/recipe.blade.php",
+     "test_sam_rok_rodzinny_jest_w_html_i_json_bez_pustej_sekcji_dla_innego_przepisu",
+     lambda s: replace_once(s,
+         "@if($recipe->source_note || $recipe->source_person || $recipe->source_url || $recipe->family_since_year)",
+         "@if($recipe->source_note || $recipe->source_person || $recipe->source_url)")),
+    # #2455: bez gałęzi liczby grupowanej parser zostawia ilość bez zmiany.
+    # Data provider wymaga prawidłowego wyniku także dla NBSP i zakresów.
+    ("Grupowanie tysięcy rozbite na fragmenty (#2455)", "app/Domain/Recipes/Porcje/PrzeliczSkladnik.php", "test_grupowanie_tysiecy_przelicza_cala_ilosc",
+     lambda s: replace_once(s, "|'.self::GRUPOWANA.'|", "|")),
+    # #2343, decyzje właściciela z 2.10.2026: „Pasteryzować” jest poza
+    # słownikiem do przeglądu ze źródłem i datą (#2434); rdzenie nie łapią
+    # oparzenia ani przetworów; karmel z cukru i cebula to dwa hasła.
+    ("Pasteryzacja wraca do słownika bez przeglądu (#2434)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_krok_z_pasteryzacja_nie_pokazuje_objasnienia_do_czasu_przegladu",
+     lambda s: replace_once(s, "        [\n            'haslo' => 'Podpiec',", "        [\n            'haslo' => 'Pasteryzować',\n            'rdzenie' => ['pasteryz', 'spasteryz'],\n            'wyjasnienie' => 'Ogrzewać przetwory, by ograniczyć drobnoustroje.',\n        ],\n        [\n            'haslo' => 'Podpiec',")),
+    ("Uwaga słownika gwarantuje parametry autora (#2434)", "resources/views/components/terminy-kroku.blade.php", "test_uwaga_pod_objasnieniami_nie_obiecuje_oceny_bezpieczenstwa_ani_parametrow_autora",
+     lambda s: replace_once(s, "To objaśnienie słowa, nie ocena bezpieczeństwa przepisu. Przy przetworach korzystaj z przebadanych zaleceń dla konkretnego produktu.", "To ogólne wyjaśnienie, nie część przepisu — w razie wątpliwości trzymaj się tego, co napisał autor.")),
+    ("Sparzyć znów łapie oparzenie (#2343)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_rdzenie_nie_lapia_oparzenia_ani_przetworow",
+     lambda s: replace_once(s, "'sparz* pomidor', ", "'sparz', ")),
+    ("Zaprawić zupę znów łapie przetwory (#2343)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_rdzenie_nie_lapia_oparzenia_ani_przetworow",
+     lambda s: replace_once(s, "'zapraw* zup', ", "'zaprawi', ")),
+    ("Karmelizowana cebula trafia w karmel z cukru (#2343)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_karmel_z_cukru_i_cebula_karmelizowana_to_osobne_hasla",
+     lambda s: replace_once(s, "'karmeliz* cuk', 'skarmeliz* cuk', ", "'karmeliz', ")),
+    ("Marynowanie bez lodówki (#2343)", "app/Domain/Recipes/Gotowanie/SlownikTerminow.php", "test_objasnienia_maja_ostrzezenia_z_decyzji_wlasciciela",
+     lambda s: replace_once(s, "na noc, mięso i rybę w lodówce.", "na noc.")),
+    # #2421: w oknie <= 16rem przy tekście 125/140% pasek górny odpina się,
+    # bo kolumnowy znak robi go wyższym niż rezerwa nad nim (WCAG 2.4.11).
+    ("Pasek przy kolumnowym znaku znowu przypięty", "resources/css/marka-rama.css", "PasekPrzyKolumnowymZnakuTest",
+     lambda s: replace_once(s, 'html:is([data-text-scale="125"], [data-text-scale="140"]) [data-marka] .marka-topbar { position: relative; top: 0; }', "")),
+    # #2343, recenzja paczki V: uwaga pod słownikiem terminów wróciłaby do
+    # .meta, czyli 16 px zamiast tekstu czytanego.
+    ("Uwaga słownika terminów wraca do .meta", "resources/views/components/terminy-kroku.blade.php", "test_uwaga_pod_slownikiem_ma_rozmiar_tekstu_czytanego_nie_meta",
+     lambda s: replace_once(s, '<p class="cook-terminy-uwaga">', '<p class="meta">')),
+    # Droga do bety: bez referencji ctx.shared zamknięcie rejestracji
+    # ustawione w panelu znika przy pierwszym `apply`.
+    ("Przełącznik rejestracji bez Shared Variable", ".railway/railway.ts", "ZamkniecieRejestracjiPrzezyjeApplyTest",
+     lambda s: replace_once(s, "KUKING_REGISTRATION_OPEN: ctx.shared.KUKING_REGISTRATION_OPEN,", "KUKING_REGISTRATION_OPEN: 'true',")),
+    # #988: komunikat po akcji ma jawny rodzaj. Goły `->with('status', …)`
+    # wróciłby do zielonej plakietki także dla odmowy.
+    ("Goły ->with('status') wraca do kontrolera", "app/Http/Controllers/SmakowicieController.php", "test_w_app_nie_ma_golego_zapisu_statusu_bez_rodzaju",
+     lambda s: replace_once(s, "->with(Komunikat::sukces('Cofnięte.'))", "->with('status', 'Cofnięte.')")),
+    ("Odmowa nazwana sukcesem", "app/Http/Controllers/SmakowicieController.php", "test_sukces_nie_niesie_tekstu_odmowy",
+     lambda s: replace_once(s, "Komunikat::sukces('Cofnięte.')", "Komunikat::sukces('Nie udało się cofnąć.')")),
+    # #2027: rejestracja Google/Facebook wiąże zapamiętany cel z nowym
+    # kontem. Bez tej linijki onboarding kończy się na stronie domyślnej.
+    ("Nowe konto Google gubi powrót do rozmowy", POWROT_KOMENTARZA_GOOGLE, POWROT_KOMENTARZA_GOOGLE_TEST,
+     lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
+    ("Nowe konto Facebook gubi powrót do rozmowy", POWROT_KOMENTARZA_FACEBOOK, POWROT_KOMENTARZA_FACEBOOK_TEST,
+     lambda s: replace_once(s, "        $rozmowa->przypiszKonto($request);\n", "")),
+    # #2420: każdy z trzech sposobów zakładania konta musi przejąć
+    # zaproszenie z sesji. Znacznik asercji wskazuje dokładnie ten powrót.
+    ("Rejestracja hasłem gubi zaproszenie do zeszytu (#2420)", "app/Http/Controllers/Auth/RegisterController.php", "test_gosc_po_rejestracji_i_pominieciu_wraca_na_podglad_a_dolacza_dopiero_po_kliknieciu",
+     lambda s: replace_once(s, "        $dolaczenie->przypiszKonto($request);\n", "")),
+    ("Nowe konto Google gubi zaproszenie do zeszytu (#2420)", POWROT_KOMENTARZA_GOOGLE, "test_nowe_konto_google_wraca_do_podgladu_zaproszenia_do_zeszytu",
+     lambda s: replace_once(s, "        $dolaczenie->przypiszKonto($request);\n", "")),
+    ("Nowe konto Facebook gubi zaproszenie do zeszytu (#2420)", POWROT_KOMENTARZA_FACEBOOK, "test_nowe_konto_facebook_wraca_do_podgladu_zaproszenia_do_zeszytu",
+     lambda s: replace_once(s, "        $dolaczenie->przypiszKonto($request);\n", "")),
+    # #1868: instalacja bez wskazania migawki wróciłaby do ruchomego mirrora.
+    ("APT install bez migawki", OBRAZ_KOPII, APT_MIGAWKA_TEST,
+     lambda s: replace_once(s,
+         "apt-get -o Dir::Etc::sourcelist=/tmp/apt-snapshot/snapshot.list -o Dir::Etc::sourceparts=/tmp/apt-snapshot/puste install",
+         "apt-get install")),
+    # D-088: usunięcie odmowy rollbacku nie może przejść niezauważone, nawet
+    # gdy osobny przypadek z wygasłym ukryciem poprawnie cofa migrację.
+    ("Rollback aktywnych ukryć przestaje odmawiać", "database/migrations/2026_09_26_100000_create_hides_table.php", "CofniecieMigracjiUkrycNieOdslaniaTest",
+     lambda s: replace_once(s, 'if ($aktywne > 0) {', 'if (false) {')),
+    ("Composer błędnie deklaruje MIT", "composer.json", "DeklaracjaLicencjiJestSpojnaTest",
+     lambda s: replace_once(s, '"license": "proprietary"', '"license": "MIT"')),
+    ("LICENSE traci zastrzeżenie praw", "LICENSE", "DeklaracjaLicencjiJestSpojnaTest",
+     lambda s: replace_once(s, 'Wszelkie prawa zastrzeżone.', 'Prawa nie są zastrzeżone.')),
+    ("Obraz błędnie deklaruje MIT", "Dockerfile", "DeklaracjaLicencjiJestSpojnaTest",
+     lambda s: replace_once(s, 'org.opencontainers.image.licenses="proprietary"', 'org.opencontainers.image.licenses="MIT"')),
+    ("Format UUID", WYBOR_ZESZYTU, COLLECTION_TEST,
+     lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
+    # Paginacja panelu moderacji (audyt B1, zn. 1): powrót do `links()`, czyli
+    # widoku Tailwinda niewidocznego na komputerze, ma zapalić test.
+    ("Kolejka zgłoszeń wraca do links()", "resources/views/pages/admin/reports.blade.php", "PaginacjaPaneluModeracjiTest",
+     lambda s: replace_once(s, '<x-paginacja-panelu :paginator="$reports" />', "{{ $reports->links() }}")),
+    ("Własność zeszytu", WYBOR_ZESZYTU, COLLECTION_TEST,
+     lambda s: replace_once(s, "Rule::exists('collections', 'id')->where(fn ($q) => $q->whereIn('id', Collection::query()->dostepneDoZapisuDla($osoba)->select('collections.id')))", "Rule::exists('collections', 'id')")),
+    ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
+    ("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help),
+    # Obwódka list w panelu „Aa · Wygląd” (audyt B1, zn. 3): powrót do
+    # `--color-border` (1,3:1 na tle panelu) ma zapalić test kontrastu.
+    ("Obwódka listy wyglądu poniżej 3:1", "resources/css/szybki-wyglad.css", "KontrolkiPaneluWygladuMajaWidocznaObwodkeTest",
+     lambda s: replace_once(s, "select { border: 2px solid var(--color-border-strong);", "select { border: 2px solid var(--color-border);")),
+    # D-262 (AGENTS.md §5): piąty selektor nie może powołać się na wyjątek
+    # panelu moderacji bez zmiany zamkniętej listy.
+    ("Piąty selektor powołuje się na D-262", CSS, "WyjatekD262ZamknietaListaTest",
+     lambda s: replace_once(s, "\n  .badge-cichy {\n", "\n  /* wyjątek D-262 */\n  .badge-cichy {\n")),
+    ("Akcja GitHuba na ruchomym tagu", AKCJA_PHP, AKCJE_SHA_TEST, akcja_php_na_ruchomym_tagu),
+    ("Test skryptu Pythona bez kroku w CI", CI_WORKFLOW, TESTY_PYTHONA_W_CI_TEST,
+     lambda s: replace_once(s, "discover -s scripts -p test_podzial_kontroli.py -v", "discover -s scripts -p test_podzial_kontroli_x.py -v")),
+    ("Test przyrządu obciążenia bez kroku w CI", CI_WORKFLOW, TESTY_PYTHONA_W_CI_TEST,
+     lambda s: replace_once(s, "discover -s docs/obciazenie -p test_connection.py -v", "discover -s docs/obciazenie -p test_connection_x.py -v")),
+    ("Licznik w widocznym menu konta", LAYOUT, "test_wejscie_do_panelu_pokazuje_sume_kolejek",
+     lambda s: replace_once(s, """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji <x-licznik-kolejki :ile="$czekaWPanelu" /></a></li>""", """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji</a></li>""")),
+    ("Strażnik tekstu bez własnego wpisu", STRAZNIK_SAM_SKRYPT, STRAZNIK_TEKSTU_TEST,
+     bez_wpisu_dla_straznika),
+    ("Odstępstwo bez znacznika", STRAZNIK_PLIK_ODSTEPSTWA, STRAZNIK_TEKSTU_TEST,
+     bez_znacznika_odstepstwa),
+    ("Plik z node --test nieskopiowany do etapu assets", OBRAZ_ASSETOW, OBRAZ_ASSETOW_TEST,
+     bez_kopii_testu_assetow),
+    ("Zdjęcie CHECK-a 2FA przed strażnikiem cofnięcia", MIGRACJA_2FA, MIGRACJA_2FA_TEST,
+     zdjecie_checku_przed_straznikiem_2fa),
+    ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
+     mniejsze_pismo_na_pierwszym_ekranie),
+    ("Strażnik sekretów osłabiony do samego https", STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST,
+     bez_sprawdzenia_hosta),
+    ("Strażnik sekretów bez sprawdzenia ścieżki", STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST,
+     bez_sprawdzenia_sciezki),
+    ("Komunikat bazy z wartościami w logu serwera", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "return $this->komunikatBazy($e);", "return $e->getMessage();")),
+    ("Błąd PCRE w filtrze logu po cichu zeruje treść", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "return $czysty ?? self::BLAD_FILTRA.' (długość: '.strlen($tekst).' B)';",
+                            "return (string) $czysty;")),
+    ("Filtr logu na loggerze zabiera webhookowi obiekt wyjątku", "app/Logging/FiltrDanychOsobowych.php", LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "if ($handler instanceof ProcessableHandlerInterface) {", "if (false) {")),
+    ("Surowy komunikat wyjątku w logu kasowania zdjęcia", LOG_OPERACYJNY, LOG_OPERACYJNY_TEST,
+     lambda s: replace_once(s, "'error' => BezpiecznyBlad::kontekst($e),", "'error' => $e->getMessage(),")),
+    ("Wzorzec e-maila z katastrofalnym nawracaniem", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, r"'/(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]++@(?=[A-Za-z0-9\-.]*?\.[A-Za-z]{2})[A-Za-z0-9\-]++(?:\.[A-Za-z0-9\-]++)*+/'",
+                            r"'/[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}/'")),
+    ("Klucz tablicy z adresem przechodzi do logu", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "$klucz = $this->oczyscTekst($klucz);", "$klucz = (string) $klucz;")),
+    ("Obiekt w kontekście logu idzie do formatera w całości", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "return $this->obiekt($wartosc, $glebokosc);", "return $wartosc;")),
+    ("Za głęboka tablica przechodzi surowa", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "return self::ZA_GLEBOKO;", "return $wartosc;")),
+    ("Połknięty wyjątek bez miejsca przyczyny", "app/Logging/BezpiecznyBlad.php", LOG_OPERACYJNY_TEST,
+     lambda s: replace_once(s, "$miejscaPrzyczyn[] = self::miejsceWApp($p);", "$miejscaPrzyczyn[] = null;")),
+    ("Komunikat wyjątku w kontekście budowanym przez metodę pomocniczą", "app/Turnstile/KlientTurnstile.php", LOG_OPERACYJNY_TEST,
+     lambda s: replace_once(s, "'Cloudflare nie odpowiedział na weryfikację Turnstile.', [\n                'error' => BezpiecznyBlad::kontekst($e),",
+                            "'Cloudflare nie odpowiedział na weryfikację Turnstile.', [\n                'komunikat' => $e->getMessage(),")),
+    ("Komunikat transportu przez BezpiecznyKomunikat w logu listu o paczce", "app/Jobs/NotifyUserExportReady.php", LOG_OPERACYJNY_TEST,
+     lambda s: replace_once(s, "'error' => BezpiecznyBlad::kontekst($e),", "'error' => \\App\\Poczta\\BezpiecznyKomunikat::z($e->getMessage()),")),
+    ("Komunikat bazy przez BezpiecznyKomunikat w logu śladu listu", "app/Poczta/ZapiszNieudanyList.php", LOG_OPERACYJNY_TEST,
+     lambda s: replace_once(s, "'error' => BezpiecznyBlad::kontekst($e),", "'error' => BezpiecznyKomunikat::z($e->getMessage()),")),
+    ("Skaner logów ślepy na report()", "tests/Feature/LogOperacyjnyBezKomunikatuWyjatkuTest.php", LOG_OPERACYJNY_TEST,
+     lambda s: replace_once(s, "(?:logger|report)", "(?:logger)")),
+    # Audyt B1, zn. 9: nieistniejąca zmienna koloru ma zapalić strażnika.
+    ("Kolor z niezdefiniowanej zmiennej", "resources/css/tagi-w-opisie.css", "UzyteZmienneKolorowIstniejaTest",
+     lambda s: replace_once(s, "color: var(--color-ink);", "color: var(--color-text);")),
+    # #492: ciemne powierzchnie ramy marki biorą tokeny, nie gołe kolory.
+    ("Rama marki z zaszytym kolorem", "resources/css/marka-rama.css", "RamaMarkiNieZaszywaKolorowTest",
+     lambda s: replace_once(s, ".composer-help { color: var(--marka-ciemny-tekst-cichy); }", ".composer-help { color: #CBD0C6; }")),
+    # Audyt B1, zn. 8: sztywny rem zamiast tokenu ignoruje skalę tekstu.
+    ("Bramka R2 każe sprawdzać Sentry (#2382)", "docs/infra/BRAMKA_R2.md", "BramkaR2NieKierujeDoSentryTest",
+     lambda s: replace_once(s, "nie jest wdrożony", "jest wdrożony")),
+    ("Linki sąsiednich wpisów bez skali tekstu", "resources/css/wpis-nawigacja-sasiedzi.css", "TekstyZAudytuB9MowiaPrawdeTest",
+     lambda s: replace_once(s, "font-size: var(--text-body);", "font-size: 1.125rem;")),
+    ("Cofnięcie CHECK-a kontaktu bez odmowy przy sierotach", KONTAKT_MIGRACJA, KONTAKT_MIGRACJA_TEST,
+     lambda s: replace_once(s, "        if ($istniejaSieroty) {\n", "        if (false && $istniejaSieroty) {\n")),
+    ("Cofnięcie znaczników odpowiedzi bez odmowy", KONTAKT_ZNACZNIKI, KONTAKT_ZNACZNIKI_TEST,
+     lambda s: replace_once(s, "        if (DB::table('contact_message_replies')->whereNotNull('reply_key')->exists()) {\n", "        if (false) {\n")),
+    ("Jedna sprawa RODO w toku bez odmowy przy duplikatach", RODO_W_TOKU_MIGRACJA, RODO_W_TOKU_MIGRACJA_TEST,
+     lambda s: replace_once(s, "        if ($ileKont > 0) {\n", "        if (false) {\n")),
+    ("Lokalne akcje poza filtrem widoku", BRAMKA_SKRYPT, BRAMKA_AKCJE_TEST,
+     akcje_poza_filtrem_widoku),
+    ("Dockerfile poza wzorcem builda obrazu", BRAMKA_SKRYPT, BRAMKA_WEJSCIA_TEST,
+     dockerfile_poza_wzorcem_obrazu),
+    ("Pliki grupy wyścigów poza wzorcem joba", BRAMKA_SKRYPT, BRAMKA_WEJSCIA_TEST,
+     grupa_wyscigow_poza_wzorcem),
+    ("Ciężkie joby zawężane także poza PR-em", BRAMKA_SKRYPT, BRAMKA_POZA_PR_TEST,
+     zawezanie_takze_poza_pr),
+    ("Wzorzec przyrządu #605 łapie każdą zmianę", BRAMKA_SKRYPT, BRAMKA_OBOK_TEST,
+     wzorzec_przyrzadu_lapie_wszystko),
+    ("Filtr widoku zawężany także poza PR-em", BRAMKA_SKRYPT, WIDOK_POZA_PR_TEST,
+     widok_zawezany_poza_pr),
+    ("Podział wierszy przez \\R bez u", PODZIAL_WIERSZY, PODZIAL_WIERSZY_TEST,
+     lambda s: replace_once(s, r"preg_split('/\r\n|\n|\r/', $tresc)", r"preg_split('/\R/', $tresc)")),
+    ("Test dymny przepuszcza każde przekierowanie", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+     stara_sonda_https),
+    ("Test dymny bez sondy wydania przed sprawdzeniami", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+     test_dymny_bez_sondy_wydania),
+    ("Końcowa sonda wydania z jedną próbą", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+     koncowa_sonda_jedna_proba),
+    ("Akcja rollback, która nic nie cofa", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+     akcja_rollback_wraca),
+    ("Preview gotowe po samym adresie", PREVIEW_WORKFLOW, PREVIEW_IAC_TEST,
+     lambda s: replace_once(s, 'if ! czekaj_na_preview "$REPO" "$SHA"; then', 'if false; then')),
+    ("Preview bez sondy wydania przed sprawdzeniami", PREVIEW_WORKFLOW, PREVIEW_IAC_TEST,
+     lambda s: replace_once(s, 'if ! sonda_wydanie "$BASE_URL" "$OCZEKIWANY_SHA"; then', 'if false; then')),
+    ("Job smoke znów dostaje prawo zapisu do PR-ów (#1941)", PREVIEW_WORKFLOW, PREVIEW_IAC_TEST,
+     lambda s: replace_once(
+         s,
+         "    permissions:\n      contents: read\n      deployments: read\n",
+         "    permissions:\n      contents: read\n      deployments: read\n      pull-requests: write\n",
+     )),
+    ("Apply IaC bez przekazanej bramki CI", IAC_WORKFLOW, PREVIEW_IAC_TEST,
+     apply_bez_bramki_ci),
+    ("Brak KUKING_WAIT_FOR_CI jako wyłączenie", IAC_RAILWAY_TS, PREVIEW_IAC_TEST,
+     lambda s: replace_once(s, 'if (bramkaCI !== "true" && bramkaCI !== "false") {', 'if (false) {')),
+    ("/wydanie z sesją i ciasteczkami", WYDANIE_TRASY, WYDANIE_TEST,
+     lambda s: replace_once(s, "Route::get('/wydanie', WydanieController::class)->name('wydanie');", "Route::middleware('web')->get('/wydanie', WydanieController::class)->name('wydanie');")),
+    ("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
+     bez_digestu_obrazu_kopii),
+    ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
+     lambda s: replace_once(s, "$wynik = self::usunXmp(self::usunGpsZExif($bajty));", "$wynik = self::usunGpsZExif($bajty);")),
+    ("Sekret OAuth w workerze", RAILWAY_IAC, ZMIENNE_ROL_TEST,
+     lambda s: replace_once(s, 'env: { ...workerEnv, APP_ROLE: "worker" },', 'env: { ...workerEnv, GOOGLE_CLIENT_SECRET: ctx.shared.GOOGLE_CLIENT_SECRET, APP_ROLE: "worker" },')),
+    ("Worker bez klucza moderacji modelem", RAILWAY_IAC, ZMIENNE_ROL_TEST,
+     lambda s: replace_once(s, "    ...modelEnv,\n", "")),
+    ("Scheduler bez adresu alarmów moderacji", RAILWAY_IAC, ZMIENNE_ROL_TEST,
+     lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv, ", "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...kopieOdczytEnv, ")),
+    # Filtr na samą metodę strażnika, nie całą klasę: ta sama mutacja zapala
+    # też macierz, a kontrola ma dowieść, że parser `routes/console.php`
+    # i komend WIDZI digest wołający `Mail::` z procesu schedulera.
+    # Web czyta adres synchronicznie w `AlarmujOPilnymZgloszeniu` (D-236).
+    ("Web bez adresu alarmów moderacji", RAILWAY_IAC, ZMIENNE_ROL_TEST,
+     lambda s: replace_once(s, "...czyszczenieCdnEnv, ...alarmModeratoraEnv, ...pushPublicznyEnv, ...importEnv };", "...czyszczenieCdnEnv, ...pushPublicznyEnv, ...importEnv };")),
+    ("Klucz modelu bez warunku produkcji", RAILWAY_IAC, TYLKO_PRODUKCJA_TEST,
+     lambda s: replace_once(s, 'OPENAI_MODERATION_KEY: isProduction ? ctx.shared.OPENAI_MODERATION_KEY : "",', "OPENAI_MODERATION_KEY: ctx.shared.OPENAI_MODERATION_KEY,")),
+    ("Adres alarmu bez warunku produkcji", RAILWAY_IAC, TYLKO_PRODUKCJA_TEST,
+     lambda s: replace_once(s, 'KUKING_MODEL_ALARM_EMAIL: isProduction ? ctx.shared.KUKING_MODEL_ALARM_EMAIL : "",', "KUKING_MODEL_ALARM_EMAIL: ctx.shared.KUKING_MODEL_ALARM_EMAIL,")),
+    ("Scheduler bez kluczy poczty przy digeście", RAILWAY_IAC, HARMONOGRAM_POCZTA_TEST,
+     lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ", "const schedulerEnv = { ...appEnv, ")),
+    ("Kopia bazy ze spreadem zestawu aplikacji", RAILWAY_IAC, KOPIA_BEZ_SPREADU_TEST,
+     lambda s: replace_once(s, KOPIA_DB_URL, "      ...schedulerEnv,\n" + KOPIA_DB_URL)),
+    ("Polityka znowu obiecuje pełną kopię", POLITYKA, POLITYKA_KOPIA_TEST,
+     lambda s: replace_once(s, "pobrać stamtąd **paczkę z Twoimi danymi**", "pobrać stamtąd pełną kopię swoich danych")),
+    ("Polityka przestaje wymieniać obserwowane tagi", POLITYKA, POLITYKA_PACZKA_TEST,
+     lambda s: replace_once(s, "jakie tagi obserwujesz", "kogo obserwujesz")),
+    ("Polityka gubi prywatność listy „Co mam w domu”", POLITYKA, POLITYKA_PACZKA_TEST,
+     lambda s: replace_once(s, "widzisz ją tylko Ty", "widzą ją Twoi obserwujący")),
+    ("Godzina w widoku z pominięciem Czas", WIDOK_POTWIERDZENIA, STREFA_STRAZNIK_TEST,
+     lambda s: replace_once(s, "{{ \\App\\Support\\Czas::lokalnie($nieudanaWysylka->failed_at)->format('H:i') }}", "{{ $nieudanaWysylka->failed_at->format('H:i') }}")),
+    ("Nieudane wgranie bez kompensacji plików", KOMPENSACJA_UPLOADU, KOMPENSACJA_UPLOADU_TEST,
+     lambda s: replace_once(s, "            $this->posprzatajPoNieudanymZapisie($disk, $objectKey, $dyskWariantow);\n", "")),
+    ("Decyzja moderacyjna tworzona poza listą", POWIADOM_O_DECYZJI, DECYZJA_Z_CZLOWIEKIEM_TEST,
+     lambda s: replace_once(s, "final class NotifyModerationDecision\n{\n", "final class NotifyModerationDecision\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n")),
+    ("Polityka bez nazwy ciasteczka motywu", POLITYKA, POLITYKA_CIASTECZKA_TEST,
+     lambda s: replace_once(s, "ciemnego motywu (`motyw`)", "ciemnego motywu")),
+    ("Polityka wiąże dziennik z instancją", POLITYKA, POLITYKA_DZIENNIK_TEST,
+     lambda s: replace_once(s, POLITYKA_DZIENNIK_ZDANIE, "Dzienniki serwera żyją tyle, ile działająca instancja serwisu.")),
+    ("Polityka bez liczby dni dziennika", POLITYKA, POLITYKA_DZIENNIK_TEST,
+     lambda s: replace_once(s, POLITYKA_DZIENNIK_DNI, "")),
+    ("Manifest Vite z rocznym cache assetów", CADDYFILE, CACHE_MANIFESTU_TEST,
+     lambda s: replace_once(s, "@viteAssets path /build/assets/*", "@viteAssets path /build/*")),
+    ("Trasa ze zdjęciem pod progiem 2 MB w Caddy", CADDYFILE, CADDY_LIMIT_TEST,
+     lambda s: replace_once(s, CADDY_LIMIT_WYJATKI, CADDY_LIMIT_WYJATKI.replace("/ustawienia/zdjecie ", ""))),
+    ("Rejestr wyjątków z nieistniejącą klasą", REJESTR_WYJATKOW, REJESTR_WYJATKOW_TEST,
+     lambda s: replace_once(s, "'PublishComment składa", "'AddComment składa")),
+    ("Rejestr wyjątków z nieistniejącą stałą", REJESTR_WYJATKOW, REJESTR_WYJATKOW_TEST,
+     lambda s: replace_once(s, "dostaje STATUS_OPEN na sztywno", "dostaje STATUS_NEW na sztywno")),
+    ("Zlecenie zdjęcia poza transakcją wiersza", STORE_UPLOADED_IMAGE, ZLECENIE_ZDJECIA_TEST,
+     dispatch_zdjecia_poza_transakcja),
+    ("Referrer-Policy w Caddy nadpisuje decyzję aplikacji", CADDYFILE, REFERRER_CADDY_TEST,
+     lambda s: replace_once(s, '\t?Referrer-Policy "', '\tReferrer-Policy "')),
+    ("Strażnik R2 bez segmentu eu", STRAZNIK_R2, STRAZNIK_R2_TEST,
+     lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
+    ("Strażnik R2 bez kotwicy końca", STRAZNIK_R2, STRAZNIK_R2_TEST,
+     lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace("$/", "/"))),
+    ("Ostrzeżenie o zmianie adresu czyta adres przy wysyłce", OSTRZEZENIE_888, OSTRZEZENIE_888_TEST,
+     lambda s: replace_once(s, "Notification::route('mail', $oldAddress)->notify(new ZgloszonaZmianaAdresu(", "$user->notify(new ZgloszonaZmianaAdresu(")),
+    ("Awans roli bez odwołania sesji", ZMIANA_ROLI, AWANS_ROLI_TEST,
+     lambda s: replace_once(s, "            $fresh->invalidateSessions();\n", "")),
+    ("Wybór kolażu bez kaskady przy odpięciu zdjęcia", MIGRACJA_HERO_PICKS, HERO_PICKS_TEST,
+     lambda s: replace_once(s, "\n            .'ON DELETE CASCADE',", "")),
+    ("Landing: podgląd prowadzi do trasy auth", LANDING, LANDING_PODGLAD_TEST,
+     lambda s: replace_once(s, "{{ route('help') }}#kto-widzi", "{{ route('posts.create') }}")),
+    ("Autozapis kreatora #892 bez kroku CI", CI_WORKFLOW, AUTOZAPIS_892_TEST,
+     lambda s: replace_once(s, "          node scripts/kreator-zachowanie.mjs autosave\n", "")),
+    ("Pomiar #713 paska bez kroku CI", CI_WORKFLOW, POMIARY_713_TEST,
+     lambda s: replace_once(s, "        run: node scripts/pasek-uklady.mjs\n", "        run: 'true'\n")),
+    ("Stały token wydania Livewire", LIVEWIRE_KONFIG, LIVEWIRE_TOKEN_TEST,
+     lambda s: replace_once(s, "'release_token' => strtolower(trim((string) env('RAILWAY_GIT_COMMIT_SHA'))) ?: 'lokalnie',", "'release_token' => 'a',")),
+    ("Kreator obiecuje szkic przed zapisem", KREATOR_WIDOK, KREATOR_ZAPIS_TEST,
+     lambda s: replace_once(s, KREATOR_ZAPIS, "$juzOpublikowany ? 'opublikowany' : 'szkic'")),
+    ("Kreator pozwala klientowi podmienić recipeId", KREATOR_WIDOK, KREATOR_AUTORYZACJA_TEST,
+     lambda s: replace_once(s, "    #[Locked]\n    public ?string $recipeId = null;", "    public ?string $recipeId = null;")),
+    # #1387, krok 9: strona nieaktualna. Rewizja treści z bazy jedzie do
+    # `PublishRecipe`; mutacja gubi ją i druga karta nadpisuje pierwszą.
+    ("Kreator nie wysyła oczekiwanej rewizji treści", KREATOR_REWIZJA, KREATOR_STRONA_NIEAKTUALNA_TEST,
+     lambda s: replace_once(s, "return $recipeId === null ? null : $rewizjaTresci;", "return null;")),
+    # #1387, krok 9: walidacja SUROWYCH pól przed zapisem szkicu.
+    ("Autozapis kreatora zapisuje bez walidacji pól", KREATOR_WIDOK, KREATOR_WALIDACJA_PRZED_ZAPISEM_TEST,
+     lambda s: replace_once(s, "if (! $aboutValid || ! $rowsValid) {", "if (false) {")),
+    # #1387, krok 9: błąd „przepis zniknął” stoi na podglądzie; mutacja
+    # przywraca stałe „krok 3” z `publish()`.
+    ("Publikacja cofa z podglądu przy błędzie przepisu", KREATOR_WIDOK, KREATOR_BLAD_PRZEPISU_TEST,
+     lambda s: replace_once(
+         s,
+         "$this->step = NawigacjaKreatora::krokPierwszegoBledu($this->getErrorBag()->keys());\n\n            return;\n        }\n\n        if (! $this->storePendingPhotos()) {",
+         "$this->step = 3;\n\n            return;\n        }\n\n        if (! $this->storePendingPhotos()) {",
+     )),
+    ("Polityka obiecuje UE przy strażniku bez eu", STRAZNIK_R2, POLITYKA_R2_TEST,
+     lambda s: replace_once(s, WZOR_R2, WZOR_R2.replace(r"\.eu\.", r"(\.[a-z]+)?\."))),
+    # #619: zapis weryfikacji w dokumencie infrastruktury z inną datą niż
+    # „sprawdzone <data>” w wierszu R2 polityki ma zapalić test.
+    ("Zapis weryfikacji R2 z inną datą niż polityka", R2_ZAPIS_WERYFIKACJI, R2_ZAPIS_WERYFIKACJI_TEST,
+     lambda s: replace_once(s, "- **2026-09-25** — właściciel potwierdził", "- **2026-09-26** — właściciel potwierdził")),
+    ("Kontroler znów zleca analizę awatara", KONTROLER_AWATARA, DOKUMENTACJA_AWATARA_TEST,
+     lambda s: replace_once(s, AWATAR_KOMENTARZ, AWATAR_KOMENTARZ
+                            + "        \\App\\Jobs\\PrzeanalizujAwatar::dispatch((string) $zdjecie->getKey());\n")),
+    ("DATABASE.md znów mówi, że model ocenia awatar", DATABASE_DOC, DOKUMENTACJA_AWATARA_TEST,
+     lambda s: replace_once(s, AWATAR_DATABASE, "Dziś trafia tu wyłącznie\nzdjęcie profilowe: model ocenia je po "
+                            "przetworzeniu (`PrzeanalizujAwatar`),\na oznaczenie wskazuje `media.id`.")),
+    ("Indeks bazy gubi plik obszaru", "docs/DATABASE.md", INDEKS_BAZY_TEST,
+     lambda s: replace_once(s, "(baza/kontakt.md)", "(baza/kontakt-stary.md)")),
+    ("Link względny w docs/baza/ bez poprawki po przeniesieniu", "docs/baza/budzet-polaczen.md", INDEKS_BAZY_TEST,
+     lambda s: replace_once(s, "(../infra/MONITORING_ODBIOR_2026_09_20.md)", "(infra/MONITORING_ODBIOR_2026_09_20.md)")),
+    ("Wyjęcie przepisu ze wszystkich zeszytów bez transakcji", WYJECIE_PRZEPISU, WYJECIE_ATOMOWE_TEST,
+     lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $recipe, $collection));",
+                            "return $this->zdejmij($user, $recipe, $collection);")),
+    ("Wyjęcie wpisu ze wszystkich zeszytów bez transakcji", WYJECIE_WPISU, WYJECIE_ATOMOWE_TEST,
+     lambda s: replace_once(s, "return DB::transaction(fn (): array => $this->zdejmij($user, $post, $collection));",
+                            "return $this->zdejmij($user, $post, $collection);")),
+    ("Odwołanie autora bez wspólnej transakcji z zawiadomieniami", ODWOLANIE_AUTORA, ODWOLANIE_AUTORA_TEST,
+     odwolanie_bez_transakcji("$osoba, $decyzja, $tresc")),
+    ("Odwołanie zgłaszającego bez wspólnej transakcji z zawiadomieniami", ODWOLANIE_ZGLASZAJACEGO,
+     ODWOLANIE_ZGLASZAJACEGO_TEST, odwolanie_bez_transakcji("$zgloszenie, $decyzja, $tresc")),
+    ("Reguła zdjęć Cloudflare bez warunku ciasteczka", REGULY_CF, REGULY_CF_TEST,
+     lambda s: replace_once(s, REGULA_ZDJEC_CIASTKO, REGULA_ZDJEC_CIASTKO.replace(' and http.cookie eq \\"\\"', ""))),
+    ("Timeout blokady funkcji nie oddaje miejsca wspólnej puli", BUDZET_POCZTY, BUDZET_POCZTY_TEST,
+     lambda s: replace_once(s, "            $zajete = false;\n", "            return false;\n")),
+    ("Zapis przepisu do cudzego zeszytu", ZAPIS_PRZEPISU, ZAPIS_CUDZY_ZESZYT_TEST,
+     lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Zapis wpisu do cudzego zeszytu", ZAPIS_WPISU, ZAPIS_CUDZY_ZESZYT_TEST,
+     lambda s: replace_once(s, AUTORYZACJA_ZESZYTU, "")),
+    ("Podział testów gubi plik", PODZIAL_TESTOW, PODZIAL_TESTOW_TEST, podzial_gubi_plik),
+    ("Macierz testów krótsza niż podział", BRAMKA_CI, PODZIAL_TESTOW_TEST, macierz_krotsza_niz_podzial),
+    # #2299: części kontroli przestają uruchamiać regresje zawężenia `--filter`.
+    ("Kontrole bez regresji zawężenia filtra (#2299)", CI_WORKFLOW, PODZIAL_TESTOW_TEST,
+     lambda s: replace_once(s, "-p 'test_zawezenie_testow.py'", "-p 'test_kontrola_wyjscia_testu.py'")),
+    # #2299, etap 2: panel marki w częściach, sam Vite w jobach przeglądarkowych,
+    # cache `vendor/` i przeglądarki bez starych wyników.
+    ("Macierz panelu krótsza niż podział (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
+     lambda s: replace_once(s, "        # rozjazd wyłapuje `PanelMarkiDzieliSieBezUtratyPomiaruTest`.\n        czesc: [1, 2]\n",
+                            "        # rozjazd wyłapuje `PanelMarkiDzieliSieBezUtratyPomiaruTest`.\n        czesc: [1]\n")),
+    ("Panel marki bez numeru części (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
+     lambda s: replace_once(s, "      PANEL_CZESC: ${{ matrix.czesc }}\n", "")),
+    ("Pomiar panelu tylko w części 2 (#2446)", CI_WORKFLOW,
+     "PanelMarkiDzieliSieBezUtratyPomiaruTest::test_kazda_czesc_uruchamia_pomiar_i_regresje_podzialu",
+     lambda s: replace_once(s,
+         "      - name: Panel — logowanie z TOTP, faza pusta i pełna\n        run: node scripts/panel-marki-run.mjs\n",
+         "      - name: Panel — logowanie z TOTP, faza pusta i pełna\n        if: matrix.czesc == 2\n        run: node scripts/panel-marki-run.mjs\n")),
+    ("Job zbiorczy panelu pomijany po czerwonej części (#2299)", CI_WORKFLOW, "PanelMarkiDzieliSieBezUtratyPomiaruTest",
+     lambda s: replace_once(s, "    needs: [zakres, port_panelu]\n    if: ${{ !cancelled() }}\n", "    needs: [zakres, port_panelu]\n")),
+    ("Testy JS nie biegną nigdzie, bo assets też buduje sam Vite (#2299)", CI_WORKFLOW, "TestyJsBiegnaWJobieAssetowTest",
+     lambda s: replace_once(s, "      - name: Build\n        run: npm run build\n", "      - name: Build\n        run: npm run build:assets\n")),
+    ("Cache przeglądarki odtwarza inną wersję (#2299)", CI_WORKFLOW, "CacheMiedzyJobamiNieDajeStarychWynikowTest",
+     lambda s: pierwsze_z_wielu(s, "          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}\n",
+                                "          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.wersja }}\n"
+                                "          restore-keys: playwright-${{ runner.os }}-\n", 6)),
+    ("Pomiar portu zależny od rodzaju runnera (#2299)", CI_WORKFLOW, "test_job_przegladarkowy_nie_moze_byc_zielony_bez_pomiaru",
+     lambda s: pierwsze_z_wielu(s, "      - name: Port projektu — układ i kontrola ujemna\n",
+                                "      - name: Port projektu — układ i kontrola ujemna\n        if: runner.environment == 'github-hosted'\n", 2)),
+    ("Cache przeglądarki na własnym runnerze (#2299)", CI_WORKFLOW, "CacheMiedzyJobamiNieDajeStarychWynikowTest",
+     lambda s: pierwsze_z_wielu(s, "        if: runner.environment == 'github-hosted'\n", "", 6)),
+    ("Wyścigi dwóch połączeń znów nie blokują CI", CI_WORKFLOW, WYSCIGI_BLOKUJA_TEST,
+     lambda s: replace_once(s, "    name: Wyścigi na dwóch połączeniach\n", "    name: Wyścigi na dwóch połączeniach\n    continue-on-error: true\n")),
+    # #2215: audyt zależności blokuje; flaga wracająca na job albo skrypt bramki
+    # zastąpiony pustym poleceniem zostawiłyby „zielony CI" mimo high/critical.
+    ("Audyt zależności znów nie blokuje CI", CI_WORKFLOW, AUDYT_BLOKUJE_TEST,
+     lambda s: replace_once(s, "    name: Audyt zależności (blokuje high i critical)\n", "    name: Audyt zależności (blokuje high i critical)\n    continue-on-error: true\n")),
+    ("Audyt zależności bez skryptu bramki", CI_WORKFLOW, AUDYT_BLOKUJE_TEST,
+     lambda s: replace_once(s, "python3 scripts/audyt-zaleznosci.py", "true scripts/audyt-zaleznosci.py")),
+    ("Nowe continue-on-error w jobie testów", CI_WORKFLOW, AUDYT_BLOKUJE_TEST,
+     lambda s: replace_once(s, "  testy:\n    name: Testy (PostgreSQL 18)\n", "  testy:\n    name: Testy (PostgreSQL 18)\n    continue-on-error: true\n")),
+    # #2299: `czesc: [1, 2]` ma też macierz panelu marki — kotwica z komentarzem portu.
+    ("Macierz portu krótsza niż podział grup", CI_WORKFLOW, ROZSZERZENIA_CZESCI_TEST,
+     lambda s: replace_once(s, "        # `PortMarkiMaWlasnaBramkeCiTest`.\n        czesc: [1, 2]\n",
+                            "        # `PortMarkiMaWlasnaBramkeCiTest`.\n        czesc: [1]\n")),
+    ("Minutnik poza macierzą portu", CI_WORKFLOW, ROZSZERZENIA_CZESCI_TEST,
+     lambda s: replace_once(s, "Minutnik — opóźnione wywołania i dostępny czas\n        if: matrix.czesc == 2\n", "Minutnik — opóźnione wywołania i dostępny czas\n        if: matrix.czesc == 3\n")),
+    ("Runbook znów instaluje Sentry", RUNBOOK, RUNBOOK_USLUGI_TEST,
+     lambda s: replace_once(s, RUNBOOK_KROK_4, RUNBOOK_KROK_4 + "\n```bash\ncomposer require sentry/sentry-laravel\n```\n")),
+    ("Runbook znów wymaga klucza PostHog", RUNBOOK, RUNBOOK_USLUGI_TEST,
+     lambda s: replace_once(s, RUNBOOK_WIERSZ_WEBHOOKA, "| `POSTHOG_KEY` | z kroku 5 | nie | Project API Key PostHog |\n" + RUNBOOK_WIERSZ_WEBHOOKA)),
+    ("Jeden worker ze ścisłym priorytetem kolejek", ENTRYPOINT, KOLEJKI_BEZ_GLODZENIA_TEST,
+     lambda s: replace_once(s, 'local osobne="high default media low"', 'local osobne="high,default,media,low"')),
+    ("Rola all z procesem na kolejkę (OOM w 1024 MB)", ENTRYPOINT, UMOWA_KOLEJKI_TEST,
+     lambda s: replace_once(s, 'local wspolnyKontener="high,default media,low"', 'local wspolnyKontener="high default media low"')),
+    ("Tryb ścisły Eloquent niewłączony", TRYB_SCISLY, TRYB_SCISLY_TEST,
+     lambda s: replace_once(s, "        Model::shouldBeStrict($this->app->environment('local', 'testing') || $staging);\n", "")),
+    ("Awaria eksportu bez przekazania wyjątku kolejce", EKSPORT_JOB, EKSPORT_PORAZKA_TEST,
+     lambda s: replace_once(s, EKSPORT_RETHROW, EKSPORT_BEZ_RETHROW)),
+    # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
+    ("Klucz eksportu z rodzajem", EKSPORT_DANE, EKSPORT_KLUCZE_TEST,
+     lambda s: replace_once(s, "'na_czym_sie_znam' =>", "'w_czym_jestem_dobra' =>")),
+    ("Eksport gubi wybór widoczności wartości odżywczych", "app/Domain/Users/Exports/PrzepisDoPaczki.php", EKSPORT_WIDOCZNOSC_TEST,
+     lambda s: replace_once(s, EKSPORT_WIDOCZNOSC_POLE, "")),
+    # #1752 (D-332): rollback formy zwracania się bez strażnika D-088
+    # i anonimizacja konta, która zostawia wybraną formę.
+    ("Cofnięcie formy zwracania się bez odmowy", FORMA_MIGRACJA, FORMA_TEST,
+     lambda s: replace_once(s, "        if ($zWyborem > 0) {\n", "        if (false) {\n")),
+    ("Anonimizacja zostawia formę zwracania się", FORMA_WYMAZANIE, FORMA_TEST,
+     lambda s: replace_once(s, "                    'form_of_address' => null,\n", "")),
+    # #1753 (D-332): helper ignoruje formę żeńską; wariant neutralny z rodzajem;
+    # goły rodzaj OBOK helpera w tej samej linii (wycinamy tylko argumenty).
+    ("Helper formy ignoruje formę żeńską", FORMA_HELPER, FORMA_TEKSTY_TEST,
+     lambda s: replace_once(s, "Profile::FORM_FEMININE => $zenska,", "Profile::FORM_FEMININE => $neutralna,")),
+    ("Wariant neutralny helpera z rodzajem", FORMA_KONIEC_ONBOARDINGU, FORMA_TEKSTY_TEST,
+     lambda s: replace_once(s, "'ugotowałaś', 'ugotowałeś', 'gotujesz') }} —", "'ugotowałaś', 'ugotowałeś', 'ugotowałeś') }} —")),
+    ("Goły rodzaj obok wywołania helpera", FORMA_ODKRYWANIE, TEKSTY_BEZ_PLCI_TEST,
+     lambda s: replace_once(s, "}}. Nie musi być ładne", "}} ugotowałaś. Nie musi być ładne")),
+
+    # „jesteś zalogowany” wraca na ekran łączenia konta Google — wzorzec
+    # `jestem_przymiotnik` w `WzorceRodzaju` ma to złapać.
+    ("Rodzaj po „jesteś” na ekranie Google", GOOGLE_LINK_WIDOK, GOOGLE_LINK_TEST,
+     lambda s: replace_once(s, "jakie konto Google jest zalogowane", "jakim kontem Google jesteś zalogowany")),
+    ("Entrypoint bez klucza preview", ENTRYPOINT, KLUCZ_PREVIEW_TEST,
+     lambda s: replace_once(s, '[[ -z "${APP_KEY:-}" ]] && kuking_klucz_preview; then', '[[ -z "${APP_KEY:-}" ]] && false; then')),
+    ("Dalsze okno wyszukiwania bez kursora rankingu", SZUKAJ_KONTROLER, STABILNE_OKNA_TEST,
+     bez_kursora_wyszukiwania),
+    ("Kursor z miarą nieczytelną dla PostgreSQL real (#2856)", KURSOR_REAL, STABILNE_OKNA_TEST,
+     lambda s: replace_once(s, 'return (int) (DB::selectOne("SELECT CASE WHEN pg_input_is_valid(?, \'real\') THEN 1 ELSE 0 END AS poprawna", [$wartosc])->poprawna ?? 0) === 1;', 'return true;')),
+    ("Nieudany dzwonek kupuje ciszę epizodu", EPIZOD_ALARMU, EPIZOD_ALARMU_TEST,
+     lambda s: replace_once(s, CISZA_TYLKO_PO_PRZYJECIU, CISZA_BEZ_WARUNKU)),
+    ("Podzbiór fontu bez „ą\"", FONTY_CSS, FONTY_TEST,
+     lambda s: replace_once(s, "unicode-range: U+0100-017F;", "unicode-range: U+0100-0103, U+0106-017F;")),
+    ("Wygenerowany font bez glifu „ą\"", FONTY_RAPORT, FONTY_TEST,
+     lambda s: replace_once(s, '"glify": "U+0100-0130,', '"glify": "U+0106-0130,')),
+    ("Viewport bez viewport-fit=cover", LAYOUT, BEZPIECZNY_OBSZAR_TEST,
+     lambda s: replace_once(s, ", viewport-fit=cover", "")),
+    ("Dolna belka bez lewego insetu", MARKA_RAMA_CSS, BEZPIECZNY_OBSZAR_TEST,
+     lambda s: replace_once(s, "left: calc(8px + var(--safe-left));", "left: 8px;")),
+    ("Podpowiedź wyglądu bez dolnego insetu", SZYBKI_WYGLAD_CSS, BEZPIECZNY_OBSZAR_TEST,
+     lambda s: replace_once(s, "+ var(--safe-bottom) + 76px)", "+ 76px)")),
+    ("Edycja domyślnego zeszytu bez skutku dla przyszłych zapisów", EDYCJA_ZESZYTU, DOMYSLNY_ZESZYT_TEST,
+     lambda s: replace_once(s, " i wszystko, co zapiszesz tu później", "")),
+    ("Wydruk przepisu z pismem poniżej 12 pt", WYDRUK_CSS, WYDRUK_TEST,
+     lambda s: replace_once(s, "font-size: calc(13pt * var(--druk-skala));", "font-size: calc(10pt * var(--druk-skala));")),
+    ("Główny link wydruku gubi wybrane porcje (#2474)", DRUK_PORCJE_WIDOK, DRUK_PORCJE_TEST,
+     lambda s: replace_once(s, 'href="{{ $adresDruku(false) }}" rel="nofollow" data-drukuj-przepis',
+                            'href="{{ route(\'recipes.show\', [\'recipe\' => $recipe->slug, \'druk\' => 1]) }}#jak-wydrukowac" rel="nofollow" data-drukuj-przepis')),
+    ("Strona przepisu gubi czas kroku (#2484)", DRUK_PORCJE_WIDOK, CZAS_KROKU_STRONA_TEST,
+     lambda s: replace_once(s, '                                        @if($step->timerLabel())\n                                            <p class="m-0">Czas kroku: {{ $step->timerLabel() }}</p>\n                                        @endif\n', '')),
+    ("Wydruk zeszytu gubi czas kroku (#2484)", CZAS_KROKU_WIDOK_ZESZYTU, CZAS_KROKU_ZESZYT_TEST,
+     lambda s: replace_once(s, '                                    @if($krok->timerLabel())\n                                        <p class="m-0">Czas kroku: {{ $krok->timerLabel() }}</p>\n                                    @endif\n', '')),
+    ("Ściągawka do wydruku z pismem poniżej 16 pt (F4)", WYDRUK_CSS, SCIAGAWKA_TEST,
+     lambda s: replace_once(s, "body:has(.sciagawka) .sciagawka * {\n    font-size: max(calc(16pt * var(--druk-skala)), 1em);", "body:has(.sciagawka) .sciagawka * {\n    font-size: max(calc(11pt * var(--druk-skala)), 1em);")),
+    ("Wydruk dla pomocnika z pismem poniżej 16 pt (#2345)", WYDRUK_CSS, POMOCNIK_TEST,
+     lambda s: replace_once(s, "body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika * {\n    font-size: max(calc(16pt * var(--druk-skala)), 1em);", "body:has(.dla-pomocnika) .przepis-uklad.dla-pomocnika * {\n    font-size: max(calc(11pt * var(--druk-skala)), 1em);")),
+    ("Wydruk z widocznym objaśnieniem Zgłoś dla gościa (#2345)", WYDRUK_CSS, ZGLOS_GOSCIA_TEST,
+     lambda s: replace_once(s, ".druk-podpowiedz, .zglos-goscia,", ".druk-podpowiedz,")),
+    ("Wydruk dla pomocnika z kodem QR mniejszym niż 3 cm (#2345)", WYDRUK_CSS, POMOCNIK_TEST,
+     lambda s: replace_once(s, ".druk-pomocnik-qr-kod {\n    width: 4cm;", ".druk-pomocnik-qr-kod {\n    width: 2cm;")),
+    ("Karta QR z kodem mniejszym niż 9 cm (#2349)", WYDRUK_CSS, KARTA_QR_TEST,
+     lambda s: replace_once(s, "    width: 9cm;\n    margin: 12pt 0;", "    width: 4cm;\n    margin: 12pt 0;")),
+    ("Ściągawka bez wspólnej ramy druku (F4)", WYDRUK_CSS, SCIAGAWKA_TEST,
+     lambda s: replace_once(s, "body:has(.przepis-uklad, .sciagawka, .zeszyt-druk) main :is(.btn, button, form)", "body:has(.przepis-uklad) main :is(.btn, button, form)")),
+    ("Offline: „Spróbuj ponownie” znów prowadzi na /home (#749)", OFFLINE_HTML, OFFLINE_PONOWIENIE_TEST,
+     lambda s: replace_once(s, '<a href="">Spróbuj ponownie</a>', '<a href="/home">Spróbuj ponownie</a>')),
+    ("Kontrakt karty bez zdjęcia przepisu", KONTRAKT_KARTY, KONTRAKT_KARTY_TEST,
+     lambda s: replace_once(s, "        'recipe.heroMedia',\n    ];", "    ];")),
+    ("Kontrakt karty bez tematów", KONTRAKT_KARTY, KONTRAKT_KARTY_TEST,
+     lambda s: replace_once(s, "        'tags:id,slug,name,status',\n    ];", "    ];")),
+    ("Zamknięcie grupy sygnałów bez porównania liczby", GRUPA_SYGNALOW, GRUPA_LICZBA_TEST,
+     lambda s: replace_once(s, " || $oznaczenia->count() > $stanIle) {", ") {")),
+    ("Zamknięcie grupy sygnałów bez porównania kolejności", GRUPA_SYGNALOW, GRUPA_KOLEJNOSC_TEST,
+     lambda s: replace_once(s, "return $oznaczenia->contains(", "return false && $oznaczenia->contains(")),
+    ("Migracja pierwszych kroków bez backfillu", MIGRACJA_ONBOARDINGU, MIGRACJA_ONBOARDINGU_TEST,
+     lambda s: replace_once(s, "        DB::table('users')->update(['onboarding_zakonczony_at' => DB::raw('created_at')]);\n", "")),
+    ("Koniec pierwszych kroków zapisywany w GET", ONBOARDING_KONTROLER, ONBOARDING_WZNOWIENIE_TEST,
+     lambda s: replace_once(s, "        $request->session()->forget('onboarding.selection');\n\n        // „Ugotowałem” PRZED obserwowaniem", "        $request->session()->forget('onboarding.selection');\n        $this->oznaczZakonczony($request);\n\n        // „Ugotowałem” PRZED obserwowaniem")),
+    ("Turnstile bez porównania hosta", KLIENT_TURNSTILE, TURNSTILE_HOST_TEST,
+     lambda s: replace_once(s, "! in_array(strtolower($host), $dozwolone, true) => 'host_spoza_listy',\n", "")),
+    ("Turnstile bez porównania akcji", KLIENT_TURNSTILE, TURNSTILE_AKCJA_TEST,
+     lambda s: replace_once(s, "! hash_equals($akcja, $akcjaZOdpowiedzi) => 'inna_akcja',\n", "")),
+    ("Kolaż hero z lazy na pierwszym kaflu", LANDING, KOLAZ_LCP_TEST,
+     lambda s: replace_once(s, KOLAZ_PRIORYTET, '                                         loading="lazy"\n')),
+    ("Kolaż hero bez podpisu autora przy zdjęciu (#2708)", LANDING, "KolazPowitalnyPodpisAutoraPrzyKazdymZdjeciuTest",
+     lambda s: replace_once(s, '<span class="hero-kolaz-autor">Zdjęcie: {{ $kafel[\'autor\']->displayName() }}</span>\n', '')),
+    ("Polityka z innym terminem usunięcia treści niż konfiguracja", POLITYKA, TWARDE_USUNIECIE_TEST,
+     lambda s: replace_once(s, "najpóźniej **30 dni** po usunięciu", "najpóźniej **60 dni** po usunięciu")),
+    ("Users znowu importuje Social", ZALOZ_KONTO, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Domain\\Users\\ObserwowanieGospodarza;\n", "use App\\Domain\\Social\\Actions\\FollowUser;\nuse App\\Domain\\Users\\ObserwowanieGospodarza;\n")),
+    ("Analytics znowu importuje Compliance", PRZEDAWNIONE_SYGNALY, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Support\\UsuwanieWPartiach;\n", "use App\\Domain\\Compliance\\UsuwanieWPartiach;\n")),
+    ("Media znowu importuje Moderation", DOSTEP_DO_ZDJECIA, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Models\\CookedEvent;\n", "use App\\Domain\\Moderation\\ModeratedContent;\nuse App\\Models\\CookedEvent;\n")),
+    ("Compliance znowu importuje Moderation", PRZEDAWNIONE_SPRAWY, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Logging\\BezpiecznyBlad;\n", "use App\\Domain\\Moderation\\KolejkiPanelu;\nuse App\\Logging\\BezpiecznyBlad;\n")),
+    ("Moderation znowu importuje Security", ALARMUJ_MODERATORA, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "use App\\Domain\\Moderation\\Sygnaly\\Sygnal;\n", "use App\\Domain\\Moderation\\Sygnaly\\Sygnal;\nuse App\\Domain\\Security\\DziennyBudzetListow as BudzetZSecurity;\n")),
+    ("Nowy cykl: Users importuje Moderation (Moderation → Users już jest)", ERASE_ACCOUNT_DATA, GRAF_MODULOW_TEST,
+     lambda s: replace_once(s, "namespace App\\Domain\\Users\\Actions;\n", "namespace App\\Domain\\Users\\Actions;\n\nuse App\\Domain\\Moderation\\ModeratedContent;\n")),
+    ("Domena importuje Illuminate\\Http\\Request", ZESZYTY_AKCJA_NOTATKI, ZESZYTY_HTTP_TEST,
+     lambda s: replace_once(s, "use Illuminate\\Support\\Facades\\DB;\n", "use Illuminate\\Http\\Request;\nuse Illuminate\\Support\\Facades\\DB;\n")),
+    ("Formularz zeszytu sprawdza pola przed Policy", ZAPIS_ZESZYTU_REQUEST, ZESZYTY_FORMULARZ_TEST,
+     lambda s: replace_once(s, "            Gate::inspect('update', $zeszyt)->authorize();\n", "")),
+    ("DemoSeeder wypisuje hasło z KUKING_DEMO_HASLO", DEMO_SEEDER, DEMO_SEEDER_HASLO_TEST,
+     lambda s: replace_once(s, WARUNEK_HASLA_Z_OTOCZENIA, "        if (false) {")),
+    ("Polityka z okresem sesji innym niż życie sesji na produkcji", POLITYKA, POLITYKA_SESJE_TEST,
+     lambda s: replace_once(s, "Do **30 dni** od ostatniej aktywności", "Do **7 dni** od ostatniej aktywności")),
+    ("Sprzątanie audytu zostawia skrót IP we wpisach dowodowych", PRZEDAWNIONE_WPISY_AUDYTU, POLITYKA_SESJE_TEST,
+     lambda s: replace_once(s, "$zeSkrotem->update(['ip_hash' => null])", "0")),
+    ("Kontroler Google z własną kopią wejścia na konto", KONTROLER_GOOGLE, ADAPTERY_DOSTAWCOW_TEST,
+     lambda s: replace_once(s, WPUSC_GOOGLE, "        \\Illuminate\\Support\\Facades\\Auth::login($user, remember: true);\n\n" + WPUSC_GOOGLE)),
+    ("Instalacja Railway CLI bez sprawdzenia sumy kontrolnej", RAILWAY_CLI_WORKFLOW, RAILWAY_CLI_TEST,
+     railway_cli_bez_przypietej_wersji),
+    ("Operacja na produkcji bierze token staginu, gdy brak sekretu produkcji", WDROZENIE_WORKFLOW, TOKEN_RAILWAY_TEST,
+     lambda s: replace_once(s, TOKEN_RAILWAY_NOWY, TOKEN_RAILWAY_STARY)),
+    ("Bramka tokenu krawędzi przepuszcza żądanie bez tokenu", BRAMKA_KRAWEDZI, BRAMKA_KRAWEDZI_TEST,
+     lambda s: replace_once(s, BRAMKA_KRAWEDZI_WARUNEK, BRAMKA_KRAWEDZI_WARUNEK.replace("if ($egzekwowanie) {", "if (false) {"))),
+    ("Caddy czyta X-Forwarded-For od lewej", CADDYFILE, CADDY_ZAUFANIE_TEST,
+     lambda s: replace_once(s, "\t\ttrusted_proxies_strict\n", "")),
+    ("Caddy ufa każdemu peerowi", CADDYFILE, CADDY_ZAUFANIE_TEST,
+     lambda s: replace_once(s, "trusted_proxies static private_ranges", "trusted_proxies static 0.0.0.0/0 ::/0")),
+    ("Produkcja dostaje domenę dostawcy obok kuking.pl", DOMENY_ORIGINU_IAC, DOMENY_ORIGINU_TEST,
+     lambda s: replace_once(s, DOMENY_ORIGINU_WPIS, '  { domain: "www.kuking.pl", port: APP_PORT },\n  { domain: "kuking-prod.up.railway.app", port: APP_PORT },\n];')),
+    # Audyt B10-03: start kontenera nie czyści tabeli `cache` (RateLimiter,
+    # sufit listów D-076). Mutacja przywraca stare `cache:clear`.
+    ("Entrypoint czyści cache aplikacji", "docker/entrypoint.sh", "StartKonteneraNieCzysciCacheTest",
+     lambda s: replace_once(s, "php /app/artisan event:clear  --no-interaction >/dev/null\n", "php /app/artisan event:clear  --no-interaction >/dev/null\nphp /app/artisan cache:clear --no-interaction >/dev/null 2>&1 || true\n")),
+    # Issue #1932 (audyt 28.09.2026): numer wdrożenia zapisuje nowy kontener
+    # PO gotowości, nie pre-deploy przed seedem i healthcheckiem.
+    ("Rejestracja wdrożenia wraca do preDeployCommand", ".railway/railway.ts", "RejestracjaWdrozeniaPoGotowosciTest",
+     lambda s: replace_once(s, '        "php artisan db:seed --force --no-interaction",\n', '        "php artisan kuking:zarejestruj-wdrozenie --no-interaction",\n        "php artisan db:seed --force --no-interaction",\n')),
+    ("Entrypoint rejestruje wdrożenie bez czekania na /health", "docker/entrypoint.sh", "RejestracjaWdrozeniaPoGotowosciTest",
+     lambda s: replace_once(s, "kuking:zarejestruj-wdrozenie --po-gotowosci --no-interaction", "kuking:zarejestruj-wdrozenie --no-interaction")),
+    # Audyt B8-02: list z rezerwacją niesie znacznik, a rejestr klas jest
+    # zamknięty w obie strony. Zgubiony znacznik = list policzony dwa razy.
+    ("Alarm automatu bez znacznika rezerwacji", "app/Notifications/PilnyAlarmModeracyjny.php", "KazdyListLiczySieWPuliTest",
+     lambda s: replace_once(s, "ListZarezerwowany::oznacz(new MailMessage)", "(new MailMessage)")),
+    ("Życzenia urodzinowe bez znacznika rezerwacji", "app/Mail/ZyczeniaUrodzinowe.php", "KazdyListLiczySieWPuliTest",
+     lambda s: replace_once(s, "            ...ListZarezerwowany::naglowekTekstowy(),\n", "")),
+    ("List alarmowy bez znacznika rezerwacji", "app/Mail/AlarmOperacyjny.php", "KazdyListLiczySieWPuliTest",
+     lambda s: replace_once(s, "new Headers(text: ListZarezerwowany::naglowekTekstowy())", "new Headers")),
+    # #599: poczta jako drugi kanał alarmowy obok Discorda.
+    ("Poczta wypada z kanałów alarmowych", "app/Logging/KanalyAlarmowe.php", "KanalAlarmowyMailemTest",
+     lambda s: replace_once(s, "        self::POCZTA => 'logging.channels.blad_email.adres',\n", "")),
+    ("Awaria poczty przewraca raport i zabiera Discord", "app/Logging/EmailBleduHandler.php", "KanalAlarmowyMailemTest",
+     lambda s: replace_once(s, "            $this->zapiszNiedodzwonienie($e::class);\n", "            $this->zapiszNiedodzwonienie($e::class);\n\n            throw $e;\n")),
+    ("List alarmowy bez dobowego sufitu", "app/Logging/EmailBleduHandler.php", "KanalAlarmowyMailemTest",
+     lambda s: replace_once(s, "            if (! $budzet->sprobujZarezerwowac()) {", "            if (! $budzet->sprobujZarezerwowac() && false) {")),
+    ("List alarmowy niesie komunikat wyjątku", "app/Logging/EmailBleduHandler.php", "KanalAlarmowyMailemTest",
+     lambda s: replace_once(s, "            $tresc = WebhookBleduHandler::tresc($record);", "            $tresc = WebhookBleduHandler::tresc($record).(($record->context['exception'] ?? null) instanceof Throwable ? $record->context['exception']->getMessage() : '');")),
+    ("Trasa API bez wiersza w dokumentacji", DOKUMENTACJA_API, DOKUMENTACJA_API_TEST,
+     lambda s: replace_once(s, WIERSZ_FEEDU, "")),
+    ("Powiadomienie o wykonaniu kucharza w karencji usunięcia", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
+     lambda s: replace_once(s, KUCHARZ_W_KARENCJI, "")),
+    ("Powiadomienie o komentarzu pod zapowiedzią ukrytego przepisu", WIDOCZNOSC_TRESCI_SQL, POWIADOMIENIA_ZGODNE_Z_POLICY_TEST,
+     lambda s: replace_once(s, BRAMKA_ZAPOWIEDZI, "")),
+    ("Tygodniowy list układa wpisy po liczbie „Ugotowałem”", DIGEST_DOBOR, DIGEST_DOBOR_TEST,
+     lambda s: replace_once(s, "            ->orderByDesc('published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
+    ("Mój stół układa przepisy po liczbie „Ugotowałem”", MOJ_STOL, DIGEST_DOBOR_TEST,
+     lambda s: replace_once(s, "            ->orderByDesc('posts.published_at')\n", "            ->orderByDesc('cooked_events_count')\n")),
+    ("Mój stół układa „kuKINGi na dziś” po liczbie „Ugotowałem”", MOJ_STOL, DIGEST_DOBOR_TEST,
+     lambda s: replace_once(s, "            ->orderBy('daily_picks.position')\n", "            ->orderByDesc('cooked_events_count')\n")),
+    ("Moderacja czyta prywatne ukrycia widzów", UKRYCIA_BEZ_AGREGACJI, UKRYCIA_BEZ_AGREGACJI_TEST,
+     lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\Hide;\n")),
+    ("Metryki doboru czytają reakcje „Smakowicie wygląda”", METRYKI_BEZ_REAKCJI, METRYKI_BEZ_REAKCJI_TEST,
+     lambda s: replace_once(s, "use App\\Models\\Comment;\n", "use App\\Models\\Comment;\nuse App\\Models\\PostReaction;\n")),
+    ("Strona doboru opisuje rotację, której kod nie robi", DOBOR_ROTACJA, DOBOR_STRONA_TEST,
+     lambda s: replace_once(s, "PARTITION BY posts.author_id ORDER BY posts.published_at DESC", "PARTITION BY posts.author_id ORDER BY posts.id DESC, posts.published_at DESC")),
+    ("Rollback paska polityki bez odmowy", POLITYKA_PASEK_MIGRACJA, POLITYKA_PASEK_TEST,
+     lambda s: replace_once(s, "if ($ile > 0) {", "if (false) {")),
+    # Decyzja właściciela z 29.09.2026 (wieczór): wersja 2026-09-30 jest drobna.
+    # Wpis „Co się zmieniło” ma mówić o wejściu w życie to samo co konfiguracja.
+    ("Polityka z terminem wejścia niezgodnym z konfiguracją", POLITYKA_TEKST, POLITYKA_PASEK_TEST,
+     lambda s: replace_once(s, "umowy. Ta poprawka obowiązuje od dnia publikacji.",
+                            "umowy. To zmiana istotna: nowa wersja obowiązuje od 14 października 2026. "
+                            "Do tego dnia obowiązuje poprzednia wersja z 29 września 2026.")),
+    ("Pasek polityki przy drobnej zmianie", POLITYKA_PASEK_KLASA, POLITYKA_PASEK_TEST,
+     lambda s: replace_once(s, "        if (! $this->dokument()->istotna) {\n            return false;\n        }\n\n", "")),
+    # Mechanizm na przyszłe zmiany istotne: test ustawia istotną w konfiguracji.
+    ("Wybór formy widoczny w okresie przejściowym polityki", FORMA_HELPER, FORMA_TEST,
+     lambda s: replace_once(s, "return ! WersjaDokumentu::polityka()->wOkresiePrzejsciowym();", "return true;")),
+    ("Wybór formy czeka na dzień wersji przy drobnej zmianie", FORMA_HELPER, "test_przy_drobnej_zmianie_polityki_wybor_jest_od_razu",
+     lambda s: replace_once(s, "return ! WersjaDokumentu::polityka()->wOkresiePrzejsciowym();",
+                            "return now()->greaterThanOrEqualTo(WersjaDokumentu::polityka()->obowiazujeOd());")),
+    # #2000, decyzja właściciela z 29.09.2026: wspólny zeszyt „wszyscy” ma przycisk.
+    ("Wspólny publiczny zeszyt bez „Podziel się”", UDOSTEPNIANIE, PODZIEL_SIE_ZESZYT_WSPOLNY_TEST,
+     lambda s: replace_once(s, "return ! $tresc->is_default;", "return ! $tresc->is_default && ! $tresc->members()->exists();")),
+    ("Wersja regulaminu podbita bez nagłówka dokumentu", REGULAMIN_WERSJA, REGULAMIN_WERSJA_TEST,
+     lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-30'", "'wersja_regulaminu' => '2026-10-01'")),
+    # #2220: regulamin §13/§14 podaje liczby z konfiguracji — mutacja zmienia
+    # konfigurację, dokument zostaje, strażnik ma oblać.
+    ("Termin odpowiedzi na reklamację inny niż w regulaminie", REGULAMIN_WERSJA, REGULAMIN_WYMAGANIA_TEST,
+     lambda s: replace_once(s, "'termin_odpowiedzi_dni' => 14,", "'termin_odpowiedzi_dni' => 7,")),
+    ("Limit zdjęć we wpisie inny niż w regulaminie", REGULAMIN_WERSJA, REGULAMIN_WYMAGANIA_TEST,
+     lambda s: replace_once(s, "'max_per_post' => 6,", "'max_per_post' => 5,")),
+    ("Regulamin poprawiony bez kopii w archiwum", REGULAMIN_TEKST, REGULAMIN_ARCHIWUM_TEST,
+     lambda s: replace_once(s, "## W skrócie\n", "## W skrócie (poprawione)\n")),
+    ("Nowa data regulaminu bez pliku w archiwum", REGULAMIN_WERSJA, REGULAMIN_ARCHIWUM_TEST,
+     lambda s: replace_once(s, "'wersja_regulaminu' => '2026-09-30'", "'wersja_regulaminu' => '2026-10-02'")),
+    ("Plik archiwum regulaminu z inną datą w nagłówku", REGULAMIN_ARCHIWUM_NAJSTARSZA, REGULAMIN_ARCHIWUM_NAGLOWEK_TEST,
+     lambda s: replace_once(s, "stan serwisu na 7 września 2026", "stan serwisu na 8 września 2026")),
+    ("Polityka poprawiona bez kopii w archiwum", POLITYKA_TEKST, POLITYKA_ARCHIWUM_TEST,
+     lambda s: replace_once(s, "## W skrócie\n", "## W skrócie (poprawione)\n")),
+    ("Nowa data polityki bez pliku w archiwum", REGULAMIN_WERSJA, POLITYKA_ARCHIWUM_TEST,
+     lambda s: replace_once(s, "'wersja_polityki' => '2026-09-30'", "'wersja_polityki' => '2026-10-02'")),
+    ("Plik archiwum polityki z inną datą w nagłówku", POLITYKA_ARCHIWUM_NAJSTARSZA, POLITYKA_ARCHIWUM_NAGLOWEK_TEST,
+     lambda s: replace_once(s, "stan serwisu na 25 września 2026", "stan serwisu na 26 września 2026")),
+    ("Starsza wersja polityki bez strony o wydaniu na prośbę", POLITYKA_ARCHIWUM_KLASA, POLITYKA_ARCHIWUM_PROSBA_TEST,
+     lambda s: replace_once(s, "        return $this->starszeNaProsbe\n", "        return false\n            && $this->starszeNaProsbe\n")),
+    ("Zmiana istotna bez okresu przejściowego", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
+     lambda s: replace_once(s, "        return ($chwila ?? now())->lessThan($this->obowiazujeOd());\n", "        return false;\n")),
+    ("Zmiana istotna wchodzi w dniu publikacji zamiast po 14 dniach", WERSJA_DOKUMENTU, WERSJA_DOKUMENTU_TEST,
+     lambda s: replace_once(s, "$najwczesniej = $publikacja->addDays(self::okresIstotnejZmianyDni());", "$najwczesniej = $publikacja;")),
+    ("Zgoda zapisuje wersję opublikowaną zamiast obowiązującej", WERSJA_DOKUMENTU_ZGODA, WERSJA_DOKUMENTU_TEST,
+     lambda s: replace_once(s, "WersjaDokumentu::polityka()->obowiazujaca()", "WersjaDokumentu::polityka()->opublikowana")),
+    # #1324: nagłówek polityki z inną datą niż `kuking.zgody.wersja_polityki`
+    # ma zapalić strażnika zgodności (mutacja niezależna od bieżącej daty).
+    ("Nagłówek polityki z inną datą niż dziennik zgód", POLITYKA, "WersjaPolitykiZgadzaSieZNaglowkiemTest",
+     lambda s: replace_once(s, "stan serwisu na ", "stan serwisu na 1 stycznia 2000, a nie ")),
+    ("IaC: plan produkcji bez filtra gałęzi docelowej", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
+     lambda s: replace_once(s, "    branches: [main]\n", "")),
+    ("IaC: plan produkcji bez base.ref == main", IAC_PRODUKCJA, IAC_PRODUKCJA_TEST,
+     lambda s: replace_once(s, IAC_GALAZ_W_WARUNKU, "")),
+    # Mediana reakcji w panelu gospodarza rozdzielona na dania i pytania (#372).
+    # Pierwsza mutacja zdejmuje warunek rodzaju — pytania wracają do mediany
+    # „Wpisów”. Druga liczy pytaniom dopiski pod cudzym komentarzem jako odpowiedź.
+    ("Mediana wpisów bez warunku rodzaju", UNANSWERED_CONTENT, "test_mediana_wpisow_liczy_tylko_dania_a_pytania_maja_wlasna",
+     lambda s: replace_once(s, "            ->where('posts.kind', $kind)\n", "")),
+    ("Mediana pytań liczy dopiski jako odpowiedź", UNANSWERED_CONTENT, "test_mediana_pytan_liczy_tylko_glowne_odpowiedzi",
+     lambda s: replace_once(s, "Post::KIND_QUESTION, $this->answers()", "Post::KIND_QUESTION, $this->responses('post_id', 'posts', 'author_id')")),
+    # Indeks częściowy licznika „Czeka na odpowiedź” (#372). Test pyta planistę
+    # o zapytanie z prawdziwego QuestionList; predykat na daniach ma go zgasić.
+    ("Indeks pytań z predykatem na daniach", "database/migrations/2026_09_28_233800_add_questions_published_index_to_posts.php",
+     "test_licznik_goscia_i_zalogowanego_moze_uzyc_indeksu_pytan",
+     lambda s: replace_once(s, "WHERE kind = 'question' AND deleted_at IS NULL", "WHERE kind = 'dish' AND deleted_at IS NULL")),
+    # Licznik „Czeka na odpowiedź” w tle (#372, decyzja 25.09.2026): poprawka
+    # widza na blokady, wspólna definicja odpowiedzi i odświeżenie po odpowiedzi.
+    ("Licznik widza bez poprawki na blokady", "app/Domain/Questions/PytaniaBezOdpowiedzi.php",
+     "test_blokada_zmniejsza_licznik_widza_ale_nie_goscia",
+     lambda s: replace_once(s, "        if ($wBlokadzie !== []) {\n", "        if (false) {\n")),
+    # #2553: prywatna lista ostatnio oglądanych służy tylko do powrotu do przepisu.
+    # Dotknięcie jej z kodu analityki ma zapalić strażnika zamkniętej listy plików,
+    # pominięcie ponownej kontroli widoczności — ujawnić tytuł niedostępnego przepisu,
+    # a zgubienie właściciela wiersza — pokazać listę jednego konta drugiemu.
+    ("Lista ostatnio oglądanych sięga do analityki (#2553)", "app/Domain/Analytics/ZanotujOstatniaWizyte.php",
+     "OstatnioOgladaneNieWyciekajaPozaListeTest::test_lista_jest_uzywana_tylko_przez_dozwolone_pliki",
+     lambda s: replace_once(s, "final class ZanotujOstatniaWizyte\n{\n", "final class ZanotujOstatniaWizyte\n{\n    private const SLAD = \\App\\Models\\RecentRecipeView::class;\n\n")),
+    ("Lista ostatnio oglądanych pokazuje przepis konta zbanowanego (#2553)", "app/Domain/Recipes/OstatnioOgladane.php",
+     "OstatnioOgladanePrywatnaListaTest::test_przepis_ktory_przestal_byc_widoczny_znika_z_listy_razem_z_tytulem",
+     lambda s: replace_once(s, "if ($przepis === null || ! $gate->allows('view', $przepis)) {", "if ($przepis === null) {")),
+    ("Lista ostatnio oglądanych miesza konta (#2553)", "app/Domain/Recipes/OstatnioOgladane.php",
+     "OstatnioOgladanePrywatnaListaTest::test_dwa_konta_nie_widza_nawzajem_swoich_list",
+     lambda s: replace_once(s, "RecentRecipeView::query()\n            ->where('user_id', $osoba->getKey())\n            ->where('viewed_at', '>', $this->granicaCzasu())", "RecentRecipeView::query()\n            ->where('viewed_at', '>', $this->granicaCzasu())")),
+    ("Dopisek autora liczony jako odpowiedź", "app/Domain/Questions/OdpowiedzNaPytanie.php",
+     "test_komentarz_autora_pod_wlasnym_pytaniem_nie_jest_odpowiedzia",
+     lambda s: replace_once(s, "\n            ->whereColumn($tabela.'.author_id', '!=', $autorPytania);", ";")),
+    ("Odpowiedź nie odświeża licznika pytań", "app/Providers/AppServiceProvider.php",
+     "test_nowa_odpowiedz_odswieza_licznik_bez_recznego_przeliczenia",
+     lambda s: replace_once(s, "        Comment::saved($komentarz);\n", "")),
+    # V2 import/OCR (D-298): zadanie odczytu zapisujące szkic jako publikację
+    # ma wywrócić architektoniczny test „import nigdy nie publikuje”.
+    ("Odczyt kartki publikuje przepis", "app/Jobs/OdczytajPrzepis.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
+     lambda s: replace_once(s, "publish: false,", "publish: true,")),
+    # #2520: osobne okna przed płatnym żądaniem, po odpowiedzi modelu pod
+    # blokadą szkicu oraz przy ponawianiu. Każde mierzy prawdziwy zapis autora.
+    ("OCR ignoruje ręczną edycję przed modelem (#2520)", "app/Jobs/OdczytajPrzepis.php",
+     "test_reczna_zmiana_samego_pola_przed_startem_ocr_nie_jest_nadpisywana_ani_wysylana_do_modelu",
+     lambda s: replace_once(s, "        if (! $this->szkicNietkniety($szkic)) {", "        if (false) {")),
+    ("OCR nadpisuje ręczną edycję po odpowiedzi (#2520)", "app/Jobs/OdczytajPrzepis.php",
+     "test_reczna_zmiana_podczas_odczytu_modelu_wygrywa_z_jego_pozniejsza_odpowiedzia",
+     lambda s: replace_once(s, "            if (! $this->szkicNietkniety($swiezy)) {", "            if (false) {")),
+    ("OCR ponawia odczyt zmienionego szkicu (#2520)", "app/Domain/Import/ZlecImportPrzepisu.php",
+     "test_ponowienie_po_samej_recznej_zmianie_pola_nie_rezerwuje_nowego_odczytu",
+     lambda s: replace_once(s, " || $szkic->content_revision !== 0 ||", " ||")),
+    # #28: import z adresu chodzi w zadaniu — także ono podlega zakazowi publikacji.
+    ("Import z adresu publikuje przepis", "app/Jobs/ImportujPrzepisZAdresu.php", "test_import_nigdy_nie_publikuje_sprawdzone_w_kodzie",
+     lambda s: replace_once(s, "use Throwable;\n", "use Throwable;\n\n// publish: true\n")),
+    ("Wspólny limit ignoruje nowe próby importu", "app/Domain/Import/LimitImportowOsoby.php", "WspolnyLimitImportuTest",
+     lambda s: replace_once(s, "return $proby + $odczytyBezProby;", "return $odczytyBezProby;")),
+    # D-298 „maszyna stanów płatnego wywołania” (#1973, #1974, #1977, #1980).
+    # Każda mutacja przywraca dokładnie okno opisane w zgłoszeniu.
+    # #1973: rezerwacja poza transakcją z licznikiem prób I `failed()` bez
+    # domykania księgi — obie warstwy naraz, bo każda z osobna zamyka okno.
+    ("Odczyt: rezerwacja bez śladu po awarii zapisu", "app/Jobs/OdczytajPrzepis.php", "MaszynaStanowOdczytuTest::test_1973_awaria_po_rezerwacji",
+     lambda s: replace_once(replace_once(replace_once(s,
+        "        $rezerwacja = DB::transaction(function () use ($budzet, $zlecenie, $proba): Rezerwacja|string {",
+        "        $rezerwacja = (function () use ($budzet, $zlecenie, $proba): Rezerwacja|string {"),
+        "            return $wynik;\n        });",
+        "            return $wynik;\n        })();"),
+        "    {\n        app(RozliczenieOdczytu::class)->zamknijPorzucone($this->importId);\n",
+        "    {\n")),
+    ("Odczyt: porzucona rezerwacja nie wygasa", "app/Domain/Import/OdzyskanieImportow.php", "MaszynaStanowOdczytuTest::test_1973_rezerwacja_osierocona",
+     lambda s: replace_once(s, "            $this->rozliczenie->zamknijPorzucone($importId, $granicaRezerwacji);\n", "")),
+    ("Odczyt: rozliczenie bez strażnika stanu", "app/Domain/Import/BudzetAi.php", "MaszynaStanowOdczytuTest::test_1974",
+     lambda s: replace_once(s, "            if ($zamknieta !== 1) {\n                return null;\n            }\n", "")),
+    # #1977: `afterCommit()` przenosi zapis zadania za commit — czyli
+    # odtwarza okno, zamiast je zamknąć (tak jak w `ZamowEksportDanych`).
+    ("Odczyt: zadanie za commitem zlecenia", "app/Domain/Import/ZlecImportPrzepisu.php", "MaszynaStanowOdczytuTest::test_1977_awaria_kolejki",
+     lambda s: replace_once(s, "OdczytajPrzepis::dispatch((string) $zlecenie->getKey());", "OdczytajPrzepis::dispatch((string) $zlecenie->getKey())->afterCommit();")),
+    ("Odczyt: ponowienie woła model mimo zapisanej odpowiedzi", "app/Jobs/OdczytajPrzepis.php", "MaszynaStanowOdczytuTest::test_1980_ponowienie",
+     lambda s: replace_once(s, "        if (is_array($zlecenie->odpowiedz_modelu)) {", "        if (false && is_array($zlecenie->odpowiedz_modelu)) {")),
+    ("OCR przepuszcza niepewną nazwę grupy (#2853)", "app/Domain/Import/BramkaPublikacjiOdczytu.php",
+     "test_niepewna_grupa_z_odczytu_blokuje_bezposrednia_publikacje_az_do_poprawy",
+     lambda s: replace_once(s,
+         "            array_map(static fn (array $wiersz): string => (string) ($wiersz['group_name'] ?? ''), $skladniki),",
+         "            [],")),
+    # #2213: job nie wskrzesza zlecenia domkniętego przez odzyskiwanie.
+    ("Odczyt: bezwarunkowy zapis w_toku wskrzesza zlecenie", "app/Jobs/OdczytajPrzepis.php", "MaszynaStanowOdczytuTest::test_2213",
+     lambda s: replace_once(s, "        if (! $this->rozpocznij($zlecenie)) {\n            return;\n        }\n",
+        "        $zlecenie->forceFill(['status' => ImportPrzepisu::STATUS_W_TOKU, 'rozpoczeto_at' => $zlecenie->rozpoczeto_at ?? now()])->save();\n")),
+    # D-299: wartości odżywcze tylko przy pokryciu >= 90% masy. Obniżony próg
+    # ma zapalić test przepisu z 85% pokrycia.
+    ("Wartości odżywcze liczone poniżej 90% pokrycia", "app/Domain/Recipes/Odzywcze/WynikWartosci.php", "KalkulatorWartosciOdzywczychTest",
+     lambda s: replace_once(s, "public const PROG_POKRYCIA = 0.9;", "public const PROG_POKRYCIA = 0.8;")),
+    # D-299: licencja CIQUAL (Etalab) wymaga wskazania źródła i wersji.
+    ("Źródła wartości odżywczych bez identyfikatora wersji CIQUAL", "database/data/odzywcze/ZRODLA.md", "WartosciOdzywczeImportTest",
+     lambda s: replace_once(s, "DOI **10.57745/RDMHWY**", "DOI (brak)")),
+    ("Job plan IaC bez bramki produkcji", PLAN_IAC_WORKFLOW, PLAN_IAC_TEST,
+     plan_iac_bez_bramki_produkcji),
+    ("unserialize ładunku kolejki bez allowed_classes", POLECENIE_ZADANIA, UNSERIALIZE_TEST,
+     lambda s: replace_once(s, UNSERIALIZE_LISTA, "")),
+    ("Ślad listu odtwarza obcą klasę z failed_jobs", POLECENIE_ZADANIA, OBCE_KLASY_TEST,
+     lambda s: replace_once(s, UNSERIALIZE_LISTA, "")),
+    # #27 (D-310): planer pokazuje przepis, którego właściciel planu już nie
+    # widzi — zawężony, usunięty albo odcięty blokadą. Plan nie jest furtką
+    # do treści.
+    ("Planer bez filtra widoczności przepisu", PLANER_TYGODNIA, PLANER_TEST,
+     lambda s: replace_once(s, "        return Recipe::query()\n            ->widoczneDla($user)",
+                            "        return Recipe::query()->when(false, fn ($q) => $q\n            ->widoczneDla($user))")),
+    # Ten sam plan bez dziennego limitu pozycji — pętla dopisuje wiersze bez końca.
+    ("Planer bez dziennego limitu pozycji", PLANER_DODAJ, PLANER_TEST,
+     lambda s: replace_once(s, "if ($ile >= PlanerTygodnia::wpisowNaDzien()) {", "if (false) {")),
+    # Wymazanie konta zostawia prywatny plan tygodnia w bazie.
+    ("Wymazanie konta nie kasuje planu tygodnia", WYMAZANIE_KONTA, PLANER_TEST,
+     lambda s: replace_once(s, "            $fresh->mealPlanEntries()->delete();\n", "")),
+    # #27 etap 2 (D-333): lista zakupów pokazuje tytuł przepisu, którego
+    # właściciel listy już nie widzi. Lista nie jest furtką do treści.
+    ("Lista zakupów bez filtra widoczności przepisu", ZAKUPY_LISTA, ZAKUPY_WIDOCZNOSC_TEST,
+     lambda s: replace_once(s, "$this->planer->widocznePrzepisy($user)->whereIn('recipes.id', $idPrzepisow)",
+                            "Recipe::query()->whereIn('recipes.id', $idPrzepisow)")),
+    # Ponowne dodanie tego samego przepisu dopisuje bez ostrzeżenia.
+    ("Lista zakupów bez ostrzeżenia przy ponownym dodaniu przepisu", ZAKUPY_LISTA, ZAKUPY_OSTRZEZENIE_TEST,
+     lambda s: replace_once(s, "if ($wczesniej !== null && ! $potwierdzone) {", "if (false) {")),
+    # Pętla dopisuje pozycje bez końca.
+    ("Lista zakupów bez limitu pozycji", ZAKUPY_LISTA, ZAKUPY_LIMIT_TEST,
+     lambda s: replace_once(s, "if ($jest + $ile > self::maksPozycji()) {", "if (false) {")),
+    # Cudzą pozycję da się usunąć znając jej UUID.
+    ("Lista zakupów: usunięcie pozycji bez Policy", ZAKUPY_KONTROLER, ZAKUPY_POLICY_TEST,
+     lambda s: replace_once(s, "        $this->authorize('delete', $pozycja);\n", "")),
+    ("Lista zakupów: pojedyncze usunięcie bez pytania (#2466)", ZAKUPY_POZYCJA, ZAKUPY_POTWIERDZENIE_TEST,
+     zakupy_usun_bez_pytania),
+    # Wymazanie konta zostawia prywatną listę zakupów w bazie.
+    ("Wymazanie konta nie kasuje listy zakupów", WYMAZANIE_KONTA, ZAKUPY_WYMAZANIE_TEST,
+     lambda s: replace_once(s, "            $fresh->shoppingListItems()->delete();\n", "")),
+    # Rollback kasuje listy ludzi bez pytania.
+    ("Rollback listy zakupów nie odmawia przy danych", ZAKUPY_MIGRACJA, ZAKUPY_ROLLBACK_TEST,
+     lambda s: replace_once(s, "        if ($ile === 0) {", "        if (true) {")),
+    # #2593: „Zrobione” w Planerze — własność, kopia tygodnia i rollback.
+    ("Zrobione w Planerze: policy wpuszcza cudzą osobę (#2593)", "app/Policies/MealPlanEntryPolicy.php", "PlanerZrobioneTest",
+     lambda s: replace_once(s, "    public function markDone(User $user, MealPlanEntry $entry): bool\n    {\n        return $user->getKey() === $entry->user_id;", "    public function markDone(User $user, MealPlanEntry $entry): bool\n    {\n        return true;")),
+    ("Zrobione w Planerze: domena nie sprawdza własności (#2593)", "app/Domain/Planer/Actions/OznaczPozycjePlanu.php", "PlanerZrobioneTest",
+     lambda s: replace_once(s, "                ->where('user_id', $swiezy->getKey())\n", "")),
+    ("Zrobione w Planerze: kopia tygodnia przenosi oznaczenie (#2593)", "app/Domain/Planer/Actions/SkopiujPoprzedniTydzien.php", "PlanerZrobioneTest",
+     lambda s: replace_once(s, "                    'label' => $pozycja['wpis']->label,\n", "                    'label' => $pozycja['wpis']->label,\n                    'done_at' => $pozycja['wpis']->done_at,\n")),
+    ("Zrobione w Planerze: rollback nie odmawia przy oznaczeniach (#2593)", "database/migrations/2026_10_02_190200_add_done_at_to_meal_plan_entries.php", "PlanerZrobioneTest",
+     lambda s: replace_once(s, "        if ($oznaczone > 0) {", "        if (false) {")),
+    # #2549: dopisek przy przepisie w Planerze — własność, konflikt kart, kopia tygodnia, rollback i polityka.
+    ("Dopisek w Planerze: policy wpuszcza cudzą osobę (#2549)", "app/Policies/MealPlanEntryPolicy.php", "test_cudza_pozycja_nie_zmienia_sie_i_nie_ujawnia_dopisku",
+     lambda s: replace_once(s, "    public function editNote(User $user, MealPlanEntry $entry): bool\n    {\n        return $user->getKey() === $entry->user_id;", "    public function editNote(User $user, MealPlanEntry $entry): bool\n    {\n        return true;")),
+    ("Dopisek w Planerze: domena nie sprawdza własności (#2549)", "app/Domain/Planer/Actions/ZapiszDopisekPlanu.php", "test_cudza_pozycja_nie_zmienia_sie_i_nie_ujawnia_dopisku",
+     lambda s: replace_once(s, "                ->where('user_id', $swiezy->getKey())\n", "")),
+    ("Dopisek w Planerze: stara karta nadpisuje nowszy dopisek (#2549)", "app/Domain/Planer/Actions/ZapiszDopisekPlanu.php", "test_stary_znacznik_nie_wyczysci_nowszego_dopisku",
+     lambda s: replace_once(s, "            if (self::znacznik($wpis) !== ($widzianyZnacznik ?? '')) {", "            if (false) {")),
+    ("Dopisek w Planerze: kopia tygodnia gubi dopisek (#2549)", "app/Domain/Planer/Actions/SkopiujPoprzedniTydzien.php", "test_kopia_tygodnia_przenosi_dopisek_i_nie_nadpisuje_istniejacego",
+     lambda s: replace_once(s, "                    'note' => $pozycja['wpis']->note,\n", "")),
+    ("Dopisek w Planerze: rollback nie odmawia przy dopiskach (#2549)", "database/migrations/2026_10_03_130000_add_note_to_meal_plan_entries.php", "test_cofniecie_migracji_odmawia_przy_dopiskach_i_przechodzi_bez_nich",
+     lambda s: replace_once(s, "        if ($zDopiskiem > 0) {", "        if (false) {")),
+    ("Dopisek w Planerze: polityka bez wiersza o dopisku (#2549)", POLITYKA_TEKST, "test_dopisek_w_planie_ma_wiersz_w_polityce_z_limitem_z_kodu",
+     lambda s: replace_once(s, "| Dopisek przy przepisie w planie |", "| Notatka przy planie |")),
+    # #2550: „Odłóż na później” szkicu — własność, bieżąca lista, publikacja i rollback.
+    ("Odłożenie szkicu: policy wpuszcza cudzą osobę (#2550)", "app/Policies/RecipePolicy.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "        return $user->getKey() === $recipe->author_id\n            && $recipe->status === Recipe::STATUS_DRAFT", "        return true\n            && $recipe->status === Recipe::STATUS_DRAFT")),
+    ("Odłożenie szkicu: domena nie sprawdza autorstwa (#2550)", "app/Domain/Recipes/Actions/OdlozSzkicPrzepisu.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "                ->where('author_id', $swiezy->getKey())\n", "")),
+    ("Odłożenie szkicu: bieżąca lista pokazuje też odłożone (#2550)", "app/Http/Controllers/RecipeController.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "($odlozone ? $zapytanie->whereNotNull('odlozony_at') : $zapytanie->whereNull('odlozony_at'))", "$zapytanie")),
+    ("Odłożenie szkicu: publikacja nie zdejmuje oznaczenia (#2550)", "app/Domain/Recipes/Actions/PublishRecipe.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "                        $recipe->forceFill(['odlozony_at' => null]);\n", "")),
+    ("Odłożenie szkicu: rollback nie odmawia przy odłożonych (#2550)", "database/migrations/2026_10_03_150000_add_odlozony_at_to_recipes.php", "OdlozenieSzkicuPrzepisuTest",
+     lambda s: replace_once(s, "        if ($odlozone > 0) {", "        if (false) {")),
+    # #2443: poprawianie pozycji listy zakupów — rollback nie może po cichu
+    # zatrzeć informacji, że tekst nie jest już dosłowną linią z przepisu, a
+    # stara karta nie może nadpisać nowszej korekty.
+    ("Poprawka zakupów: rollback nie odmawia przy poprawionych pozycjach (#2443)", "database/migrations/2026_10_05_143127_add_edited_at_to_shopping_list_items.php", "ListaZakupowPoprawkaTest",
+     lambda s: replace_once(s, "        if ($poprawione > 0) {", "        if (false) {")),
+    ("Poprawka zakupów: stara karta nadpisuje nowszą korektę (#2443)", ZAKUPY_LISTA, "ListaZakupowPoprawkaTest",
+     lambda s: replace_once(s, "if (! hash_equals(self::znacznikTekstu($pozycja), $widzianyZnacznik)) {", "if (false) {")),
+    # #2438 (decyzja właściciela z 2.10.2026, D-333): wydruk zeszytu jest
+    # DOMYŚLNIE bez notatek; powrót do „notatki, chyba że bez-notatek” musi
+    # wywrócić test domyślnego wydruku.
+    ("Wydruk zeszytu znowu domyślnie z notatkami (#2438)", "app/Http/Controllers/CollectionPrintController.php", "WydrukZeszytuBezNotatekTest::test_domyslnie_wydruk_jest_bez_notatek_a_uwagi_autora_zostaja",
+     lambda s: replace_once(s, "$zNotatkami = $dostepDoNotatek && $request->boolean('z-notatkami');", "$zNotatkami = $dostepDoNotatek && ! $request->boolean('bez-notatek');")),
+    # #2038: wpis dziennika dopisany PRZED nieudanym commitem wymazania musi
+    # zostać wycofany — inaczej `wymaz-ponownie` wymaże konto przed końcem karencji.
+    ("Wymazanie nie wycofuje wpisu dziennika po nieudanym commicie", WYMAZANIE_KONTA, DZIENNIK_WYCOFANIE_TEST,
+     lambda s: replace_once(s, "                if ($stan->wpisDopisany) {", "                if (false) {")),
+    # #2038: wpis, który PRZEŻYŁ odtworzenie kopii (`ISTNIEJE`), nie jest nasz —
+    # nieudany commit ponownego wymazania nie wolno go skasować.
+    ("Wymazanie kasuje cudzy wpis dziennika (ISTNIEJE)", WYMAZANIE_KONTA, DZIENNIK_ISTNIEJE_TEST,
+     lambda s: replace_once(s, "$stan->wpisDopisany = $wpis === DziennikWymazan::DOPISANO;", "$stan->wpisDopisany = true;")),
+    # #2038: ponawianie zapisu dziennika czeka POZA transakcją z blokadą konta.
+    # Bez `proby: 1` `Sleep` wraca do środka transakcji.
+    ("Zapis dziennika czeka wewnątrz transakcji z blokadą konta", WYMAZANIE_KONTA, DZIENNIK_SLEEP_TEST,
+     lambda s: replace_once(s, "now(), proby: 1);", "now());")),
+    # #2038 etap 3: alarm po N nocach z porażką dziennika — licznik, reset, jedna noc na dzień.
+    ("Egzekutor nie liczy porażek dziennika wymazań", WYMAZANIE_PURGE, ALARM_DZIENNIKA_TEST,
+     lambda s: replace_once(s, "$nieudaneDziennik++;", "")),
+    ("Alarm dziennika wymazań bez zerowania licznika", ALARM_DZIENNIKA, ALARM_DZIENNIKA_RESET_TEST,
+     lambda s: replace_once(s, "$this->pamiec->forget(self::KLUCZ_LICZNIKA);", "")),
+    ("Alarm dziennika wymazań liczy każdy przebieg dnia jako noc", ALARM_DZIENNIKA, ALARM_DZIENNIKA_DZIEN_TEST,
+     lambda s: replace_once(s, "if (! is_array($zapis) || ($zapis['dzien'] ?? null) !== $dzis) {", "if (true) {")),
+    # #1992: pierwszy worker zarezerwował slot i czeka na transport. Liczenie
+    # wyłącznie potwierdzonych wysyłek musi zapalić test dwóch połączeń.
+    ("Limit push nie liczy rezerwacji w transporcie", PUSH_JOB, PUSH_DWA_POLACZENIA_TEST,
+     lambda s: replace_once(s, "            ->where($wlicz)\n            ->distinct()",
+                            "            ->whereNotNull('push_wyslano_at')\n            ->distinct()")),
+    ("Recover alarmu pomija potwierdzona odmowe", ALARM_RECOVERY, ALARM_RECOVERY_TEST,
+     lambda s: replace_once(s, "$poprzednia->state !== HumanUrgentAlarmAttempt::REJECTED", "false")),
+    ("Preview wkleja ręczny pr_number w run:", PREVIEW_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
+     lambda s: replace_once(s, '          env_name="pr-${PR_NUMBER}"\n          echo "Tworzę', '          env_name="pr-${{ github.event.inputs.pr_number }}"\n          echo "Tworzę')),
+    ("IaC wkleja inputs.* w podsumowanie", IAC_WORKFLOW, WKLEJANIE_DO_RUN_TEST,
+     lambda s: replace_once(s, 'echo "| Zmiany destrukcyjne | ${DESTRUKCYJNE} |"', 'echo "| Zmiany destrukcyjne | ${{ inputs.zmiany_destrukcyjne }} |"')),
+    # #1740: topologia w docs/DEPLOYMENT.md nazywa czwarty proces tak jak IaC
+    # (`scheduler`, długo działający `schedule:work`), nie `cron`.
+    ("DEPLOYMENT.md nazywa scheduler „cron”", "docs/DEPLOYMENT.md", "DeploymentSchedulerNieNazywaSieCronTest",
+     lambda s: replace_once(s, "├── scheduler\n", "├── cron\n")),
+    # D-300: etap runtime obrazu bez poppler-utils — import PDF padałby
+    # dopiero na produkcji; strażnik obrazu ma to złapać.
+    ("Obraz runtime bez poppler-utils", OBRAZ_ASSETOW, OBRAZ_PDF_TEST,
+     lambda s: replace_once(s, "      poppler-utils \\\n", "")),
+    # D-088/D-300: down() migracji importu bez odmowy przy niesprawdzonym
+    # szkicu — test cofnięcia ma oblać.
+    ("Cofnięcie importu bez odmowy przy niesprawdzonym szkicu", MIGRACJA_IMPORTU, MIGRACJA_IMPORTU_TEST,
+     lambda s: replace_once(s, "            if ($ile > 0) {", "            if ($ile > 0 && false) {")),
+    # #1741: `.env.example` zna obie zmienne czyszczenia CDN, które czyta
+    # `config/kuking.php` — bez nich wdrożenie z szablonu ma czyszczenie wyłączone.
+    ("Szablon .env bez tokenu czyszczenia CDN", ".env.example", "EnvExampleMaZmienneCzyszczeniaCdnTest",
+     lambda s: replace_once(s, "CLOUDFLARE_PURGE_TOKEN=\n", "")),
+    # Audyt A13: README wraca do zdania z blueprintu, że GitHub Actions nie
+    # działają — strażnik README ma to złapać, choć ci.yml mówi co innego.
+    ("README: „Dopóki ich nie ma” wraca", README, README_SECURITY_TEST,
+     lambda s: s + "\nDopóki ich nie ma, testy uruchamiasz lokalnie.\n"),
+    ("CHANGELOG z tym samym wpisem dwa razy", CHANGELOG, CHANGELOG_DUPLIKATY_TEST,
+     lambda s: replace_once(s, CHANGELOG_NAGLOWEK, CHANGELOG_NAGLOWEK
+                            + "- Wpis zdublowany przez kontrolę dodatnią.\n" * 2)),
+    # Archiwum changelogu czytane razem z plikiem głównym: ten sam wpis
+    # dwa razy w samym archiwum nadal ma zapalić test duplikatów.
+    ("Archiwum CHANGELOG z tym samym wpisem dwa razy", CHANGELOG_ARCHIWUM, CHANGELOG_DUPLIKATY_TEST,
+     lambda s: s + "\n- Wpis zdublowany w archiwum.\n- Wpis zdublowany w archiwum.\n"),
+    # Plik archiwum bez odnośnika w CHANGELOG.md wypadłby po cichu z testów.
+    ("CHANGELOG bez odnośnika do pliku archiwum", CHANGELOG, CHANGELOG_NUMERACJA_TEST,
+     lambda s: replace_once(s, CHANGELOG_ARCHIWUM_LINK, "")),
+    # Strona „Co nowego” (issue #1909): nowa funkcja w sekcji
+    # „Nieopublikowane” musi mieć akapit w „Najnowszych zmianach”. Dodajemy
+    # osierocony wpis, zamiast zdejmować znacznik ze starego wydania: po
+    # nadaniu numeru wydania obie bieżące sekcje mogą być puste (0 = 0).
+    ("Nowa funkcja bez akapitu na stronie Co nowego", CHANGELOG_NOWOSCI, STRAZNIK_NOWOSCI_TEST,
+     lambda s: replace_once(s, "## Nieopublikowane\n",
+                            "## Nieopublikowane\n\n- Kontrola ujemna bez opisu. [nowa funkcja]\n")),
+    # Dziennik wdrożeń (#1932, D-318, D-088): zdjęcie warunku odmowy z down()
+    # ma zapalić strażnika cofnięcia — bez niego migracja ciągnie DROP TABLE
+    # nawet na wypełnionym dzienniku.
+    ("Dziennik wdrożeń: down() bez warunku odmowy", MIGRACJA_DZIENNIK_WDROZEN, DZIENNIK_WDROZEN_TEST,
+     lambda s: replace_once(s, "if ($wierszyWdrozen > 0 || $wierszyFunkcji > 0) {", "if (false) {")),
+    # #1932 (D-318): „Co nowego” przestaje czytać mapę nagłówek → numer
+    # wdrożenia — dopisek „od Alfa …” znika, test strony ma oblać.
+    ("Co nowego bez dopisku „od numeru”", NOWOSCI_KONTROLER, NOWOSCI_OD_NUMERU_TEST,
+     lambda s: replace_once(s, "$dopisek = $mapa[$slug] ?? null;", "$dopisek = null;")),
+    ("Co nowego: brak nagłówka w fixture integracyjnej", NOWOSCI_OD_NUMERU_FIXTURE,
+     "test_strona_pokazuje_od_numeru_dla_znanego_naglowka_w_najnowszych_zmianach",
+     lambda s: replace_once(s, r'### {$naglowek}\n\nOpis funkcji.', r'Bez nagłówka {$naglowek}\n\nOpis funkcji.')),
+    # D-088 (#44): down() migracji no_amount bez odmowy przy składnikach
+    # oznaczonych „bez wymiernej ilości” — test cofnięcia ma oblać.
+    ("Cofnięcie no_amount bez odmowy przy oznaczonych składnikach", MIGRACJA_NO_AMOUNT, MIGRACJA_NO_AMOUNT_TEST,
+     lambda s: replace_once(s,
+                            "            && DB::table('recipe_ingredients')->where('no_amount', true)->exists()) {",
+                            "            && false && DB::table('recipe_ingredients')->where('no_amount', true)->exists()) {")),
+    # #35 (D-088): down() migracji Web Push bez odmowy, choć ludzie wybrali
+    # własną ciszę nocną — test wycofania ma oblać.
+    ("Wycofanie Web Push bez odmowy przy wybranej ciszy nocnej", MIGRACJA_PUSH, MIGRACJA_PUSH_TEST,
+     lambda s: replace_once(s, "        if (Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n", "        if (false && Schema::hasTable('ustawienia_powiadomien_zewnetrznych')\n")),
+    # #2154: dziennik decyzji nie może znowu przyjąć numeru roboczego ani
+    # odwołania do decyzji bez nagłówka (martwa „reguła" o numerze 235). Trzy wady dopisane do
+    # prawdziwych plików i dwa wzorce strażnika wyłączone w jego własnym kodzie —
+    # każde ma dać czerwony test, bo tylko wtedy wiadomo, że strażnik widzi.
+    ("Martwe odwołanie D-NNN w AGENTS.md", "AGENTS.md", DZIENNIK_ODWOLANIA_TEST,
+     lambda s: s + DZIENNIK_MARTWE_ODWOLANIE),
+    ("Roboczy identyfikator w AGENTS.md", "AGENTS.md", DZIENNIK_ODWOLANIA_TEST,
+     lambda s: s + DZIENNIK_ROBOCZY_NUMER),
+    ("Roboczy nagłówek w dzienniku decyzji", "docs/decyzje/D-001-modularny-monolit-laravel-bez-mikroserwisow.md", DZIENNIK_ODWOLANIA_TEST,
+     lambda s: s + DZIENNIK_ROBOCZY_NAGLOWEK),
+    ("Strażnik dziennika ślepy na dopisek ROBOCZA", DZIENNIK_ODWOLANIA_PLIK_TESTU, DZIENNIK_ODWOLANIA_TEST,
+     lambda s: replace_once(s, r"'/\bD-\d+-(?:ROBOCZ\w*|TYMCZAS\w*|TMP|DRAFT|WIP|TODO)\b/iu'", "'/(*FAIL)/'")),
+    ("Strażnik dziennika ślepy na identyfikator czterocyfrowy", DZIENNIK_ODWOLANIA_PLIK_TESTU, DZIENNIK_ODWOLANIA_TEST,
+     lambda s: replace_once(s, r"'/\bD-\d{4,}\b/'", "'/(*FAIL)/'")),
+    ("Runbook: railway config apply bez KUKING_WAIT_FOR_CI", RUNBOOK, KOMENDY_IAC_TEST,
+     lambda s: replace_once(s, RUNBOOK_APPLY_Z_BRAMKA, "\nrailway config apply\n")),
+    # #1957: job, który uruchamia kod repozytorium, traci
+    # `persist-credentials: false` — token zapisu mógłby wrócić do jego
+    # konfiguracji gita bez zabezpieczenia; strażnik workflow ma oblać.
+    ("Workflow cen: checkout z kodem bez persist-credentials: false", CENY_WARZYW_WORKFLOW, CENY_WARZYW_TEST,
+     lambda s: replace_once(s, "          persist-credentials: false\n", "")),
+    # #1851: krok „Ustal adres środowiska" wraca do wklejania danych zdarzenia
+    # w treść skryptu — strażnik ma to złapać, zanim nazwa środowiska stanie
+    # się poleceniem na runnerze.
+    ("Deploy: dane zdarzenia wklejone do Basha", WDROZENIE_WORKFLOW, DEPLOY_WSTRZYKNIECIE_TEST,
+     lambda s: replace_once(s, 'env_name="${ZDARZENIE_SRODOWISKO:-}"', "env_name='${{ github.event.deployment.environment }}'")),
+    ("Strażnik migracji ślepy na FK dodany przez Blueprint", STRAZNIK_MIGRACJI, STRAZNIK_MIGRACJI_TEST,
+     lambda s: replace_once(s, "if (preg_match('/->\\s*(constrained|foreign)\\s*\\(/', $body)) {",
+                            "if (false && preg_match('/->\\s*(constrained|foreign)\\s*\\(/', $body)) {")),
+    ("Strażnik migracji ślepy na indeks bez CONCURRENTLY", STRAZNIK_MIGRACJI, STRAZNIK_MIGRACJI_TEST,
+     lambda s: replace_once(s, "if (! $maCONCURRENTLY) {", "if (false) {")),
+    ("Strażnik migracji ślepy na CHECK/FK bez NOT VALID", STRAZNIK_MIGRACJI, STRAZNIK_MIGRACJI_TEST,
+     lambda s: replace_once(s, "if (stripos($instrukcja, 'NOT VALID') === false) {\n                    $rodzaj",
+                            "if (false) {\n                    $rodzaj")),
+    # Audyt A4 5.1: job `lint` wraca do samego `kopia-bazy.sh` zamiast
+    # wspólnego `scripts/kontrole-powloki.sh` — rozjazd CI i check.sh.
+    ("Job lint bez wspólnych kontroli powłoki", ".github/workflows/ci.yml", "KontrolePowlokiLokalnieIWCiTest",
+     lambda s: replace_once(s, "        run: bash scripts/kontrole-powloki.sh\n", "        run: bash tests/skrypty/kopia-bazy.sh\n")),
+    # Ten sam audyt: test powłoki wypada z listy wspólnego skryptu — bez
+    # strażnika `tests/skrypty/*.sh` zostałby pominięty w check.sh i w CI.
+    ("Test powłoki wypada z listy wspólnego skryptu", "scripts/kontrole-powloki.sh", "KontrolePowlokiLokalnieIWCiTest",
+     lambda s: replace_once(s, "tests/skrypty/bramka-migracji.sh|Bramka migracji workera i schedulera oblewa\n", "")),
+    # #1985: sufit danych paczki importu trzyma się limitu pamięci PHP (256M,
+    # json_decode ~8×). Powrót do 32 MB kończył się fatalem 500 bez komunikatu.
+    ("Sufit paczki importu wraca do 32 MB", "app/Domain/Users/Import/PodgladPaczkiEksportu.php", "test_sufit_danych_pozostaje_bezpieczny_dla_limitu_pamieci_php",
+     lambda s: replace_once(s, "MAX_DANE_BAJTOW = 12 * 1024 * 1024;", "MAX_DANE_BAJTOW = 32 * 1024 * 1024;")),
+    # #2224: stary numer KRS wraca do audytu ADR — strażnik danych rejestrowych
+    # w dokumentach ma go wyłapać (dokument historyczny nie ma wyjątku).
+    ("Audyt ADR: stary KRS operatora", "docs/legal/AUDYT_ADR_WARSTWA_MERYTORYCZNA.md", "test_zadne_dane_rejestrowe_w_dokumentach_nie_odbiegaja_od_konfiguracji",
+     lambda s: replace_once(s, "(KRS 0000901262, NIP", "(KRS 0000854321, NIP")),
+    # #2223 (D-333): tinker wraca do `require` — obraz --no-dev znów niesie PsySH.
+    ("Tinker wraca do require", "composer.json", "test_tinker_jest_tylko_w_require_dev",
+     lambda s: replace_once(s, '"laravel/sanctum": "^4.0",\n', '"laravel/sanctum": "^4.0",\n        "laravel/tinker": "^3.0",\n')),
+    # Ten sam issue: runbook wraca do tinkera zamiast komendy kuking:*.
+    ("Runbook znów każe użyć tinkera", "docs/infra/MONITORING_BLEDOW.md", "test_runbooki_produkcyjne_nie_kaza_uzywac_tinkera",
+     lambda s: replace_once(s, "php artisan kuking:sprawdz-alarm --przez-wyjatek\n",
+                            "php artisan tinker --execute=\"report(new RuntimeException('x'));\"\n")),
+    # #2293 (IN-01): proc_open wraca na listę wyłączonych dla kolejki — odczyt
+    # PDF-a w podprocesie z produkcyjnym php.ini znów pada.
+    ("Kolejka traci proc_open (#2293)", "docker/entrypoint.sh", "KolejkaCzytaPdfZProdukcyjnymPhpIniTest",
+     lambda s: replace_once(s, 'FUNKCJE_ZABRONIONE_KOLEJKI="exec,passthru,shell_exec,system,popen"',
+                            'FUNKCJE_ZABRONIONE_KOLEJKI="exec,passthru,shell_exec,system,proc_open,popen"')),
+    # Ten sam issue: queue:work przestaje dostawać flagę -d disable_functions.
+    ("queue:work bez listy funkcji kolejki (#2293)", "docker/entrypoint.sh", "KolejkaCzytaPdfZProdukcyjnymPhpIniTest",
+     lambda s: replace_once(s, '    -d "disable_functions=${FUNKCJE_ZABRONIONE_KOLEJKI}" \\\n', '')),
+    # #2298 (IN-06): job z pull_request bez straży forka w runs-on.
+    ("Job PR-a bez straży forka (#2298)", ".github/workflows/railway-iac.yml", "WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest",
+     lambda s: s.replace("fromJSON((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '\"ubuntu-latest\"') || vars", "fromJSON(vars")),
+    # Ten sam issue: bramka deployu z workflow_run bez warunku repozytorium źródłowego.
+    ("Bramka deployu bez warunku repozytorium (#2298)", ".github/workflows/railway-ci-gated-deploy.yml", "WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest",
+     lambda s: replace_once(s, "      github.event.workflow_run.head_repository.full_name == github.repository", "      true")),
+    # #2302 (IN-10): nagłówek workflowu znów mówi o repozytorium prywatnym.
+    ("Nagłówek deploy.yml znów o repo prywatnym (#2302)", ".github/workflows/deploy.yml", "WorkflowyNieWpuszczajaForkowNaWlasneRunneryTest",
+     lambda s: replace_once(s, "#  Repozytorium jest PUBLICZNE (decyzja", "#  Repozytorium jest prywatne (decyzja")),
+    # #2296 (IN-04): runbook #595 przestaje wymieniać wyłącznik włączany przez apply.
+    ("Runbook #595 bez wyłącznika życzeń (#2296)", "docs/infra/PRZELACZENIE_NA_3_SERWISY_595.md", "RunbookApplyNazywaWlaczniki595Test",
+     lambda s: replace_once(s, "| dodanie `KUKING_URODZINY_MAIL_WLACZONY=true`", "| dodanie wyłącznika życzeń")),
+    # #2301 (IN-09): composer.json bez jawnej platformy PHP dla Dependabota.
+    ("Composer bez config.platform.php (#2301)", "composer.json", "ComposerRozwiazujeSieDlaDependabotaTest",
+     lambda s: replace_once(s, '"php": "8.4.1"', '"php": "8.4.0"')),
+    # #2302 (IN-15): nowa migracja dołącza do historycznej grupy znacznika.
+    ("Nowa migracja w starej grupie znacznika (#2302)", "tests/Feature/MigracjeMajaUnikalnyZnacznikCzasuTest.php", "test_kazda_nowa_migracja_ma_wlasny_znacznik_czasu",
+     lambda s: replace_once(s, "'2026_09_26_100000' => 8,", "'2026_09_26_100000' => 7,")),
+    # #2309: krok CI znów sam dodaje klucz PGDG, z pominięciem sprawdzenia odcisku.
+    ("Krok CI dodaje klucz PGDG z pominięciem odcisku", CI_WORKFLOW, LANCUCH_CI_TEST,
+     lambda s: pierwsze_z_wielu(s, KLIENT_PG18_KROK, KLIENT_PG18_DAWNY_KROK, 2)),
+    # #2309: skrypt klienta ufa pobranemu kluczowi bez sprawdzenia odcisku.
+    ("Klient PostgreSQL 18 bez sprawdzenia odcisku klucza PGDG", KLIENT_PG18, LANCUCH_CI_TEST,
+     lambda s: replace_once(s, 'sprawdz_klucz_pgdg "$tymczasowy" || exit 1', 'true')),
+    # #2310: pip wraca do samego numeru wersji, bez hasha.
+    ("openpyxl bez --require-hashes", CENY_WORKFLOW, LANCUCH_CI_TEST,
+     lambda s: replace_once(s, "pip install --disable-pip-version-check --require-hashes --only-binary :all: -r scripts/ceny-warzyw-requirements.txt",
+                            "pip install --disable-pip-version-check openpyxl==3.1.5")),
+    ("Zależność openpyxl bez hasha w pliku wymagań", CENY_WYMAGANIA, LANCUCH_CI_TEST,
+     lambda s: replace_once(s, "et-xmlfile==2.0.0 \\\n    --hash=sha256:7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa",
+                            "et-xmlfile==2.0.0")),
+    # #2263: usługa PostgreSQL z ruchomego tagu i digest rozjechany z Dependabotem.
+    ("Usługa PostgreSQL w CI z ruchomego tagu", CI_WORKFLOW, LANCUCH_CI_TEST,
+     lambda s: pierwsze_z_wielu(s, "image: " + PG_CI_DIGEST + "\n", "image: postgres:18-alpine\n", 7)),
+    ("Digest usługi PostgreSQL inny niż w Dockerfile Dependabota", PG_CI_DOCKERFILE, LANCUCH_CI_TEST,
+     lambda s: replace_once(s, "FROM " + PG_CI_DIGEST, "FROM postgres:18-alpine@sha256:" + "0" * 64)),
+    # #2233: checkout bramki bez `ref` i skrypt bez porównania HEAD.
+    ("Bramka Railway checkoutuje bieżący main zamiast SHA z CI", BRAMKA_RAILWAY_WORKFLOW, BRAMKA_CHECKOUT_TEST,
+     lambda s: replace_once(s, "          ref: ${{ github.event.workflow_run.head_sha }}\n", "")),
+    ("Skrypt bramki Railway nie porównuje HEAD z SHA z CI", BRAMKA_RAILWAY_SKRYPT, BRAMKA_CHECKOUT_TEST,
+     lambda s: replace_once(s, "    verify_checkout(sha, local_head())\n", "")),
+    # #2025: bramka przepuszcza każdy zakończony przebieg CI, nie tylko sukces
+    # (anulowany, pominięty i nieudany też by wdrażały produkcję).
+    ("Bramka Railway wdraża po CI bez sukcesu (#2025)", BRAMKA_RAILWAY_WORKFLOW, BRAMKA_WARUNKI_TEST,
+     lambda s: replace_once(s, "      github.event.workflow_run.conclusion == 'success' &&\n",
+                            "      github.event.workflow_run.conclusion != 'cancelled' &&\n")),
+    # #2025: zmiana nazwy joba zbiorczego CI — bramka szuka go po nazwie.
+    ("Job zbiorczy CI zmienia nazwę, bramka go nie znajdzie (#2025)", CI_WORKFLOW, BRAMKA_JOB_ZBIORCZY_TEST,
+     lambda s: replace_once(s, "  testy:\n    name: Testy (PostgreSQL 18)\n", "  testy:\n    name: Testy PG18\n")),
+    # #2025: alarm po wdrożeniu traci odczyt przebiegów CI.
+    ("Alarm audit_ci bez odczytu przebiegów (#2025)", WDROZENIE_WORKFLOW, BRAMKA_ALARM_TEST,
+     lambda s: replace_once(s, "      actions: read # #2025:", "      checks: read # #2025:")),
+    # #2230: wydanie Sentry wraca do github.sha.
+    ("Wydanie Sentry z github.sha zamiast SHA wdrożenia", WDROZENIE_WORKFLOW, SENTRY_SHA_TEST,
+     lambda s: replace_once(s, "version: ${{ github.event.deployment.sha }}", "version: ${{ github.sha }}")),
+    # #2248: nieznany stan w historii wdrożenia znów pomijany po cichu.
+    ("Nieznany stan w historii wdrożenia pominięty", "scripts/ci/stan-wdrozenia.sh", STAN_WDROZENIA_TEST,
+     lambda s: replace_once(s, '    *)\n      echo "::error title=Nieznany stan w historii wdrożenia::',
+                            '    *) continue\n      echo "::error title=Nieznany stan w historii wdrożenia::')),
+    # Audyt prywatności 30.09 Z2 (#2278): polityka nazywa ciasteczko
+    # „zapamiętaj mnie”, jego termin z bramki logowania i klucze localStorage.
+    ("Polityka bez nazwy ciasteczka zapamiętaj mnie", POLITYKA_TEKST, "PolitykaNazywaPamiecPrzegladarkiTest",
+     lambda s: replace_once(s, "(`remember_web_…`, dalszy", "(`remember_…`, dalszy")),
+    ("Polityka z terminem zapamiętaj mnie innym niż bramka", POLITYKA_TEKST, "PolitykaNazywaPamiecPrzegladarkiTest",
+     lambda s: replace_once(s, "ważne **400 dni** od zalogowania: gdy sesja", "ważne **30 dni** od zalogowania: gdy sesja")),
+    ("Klucz localStorage bez opisu w polityce", "resources/js/szybki-wyglad.js", "PolitykaNazywaPamiecPrzegladarkiTest",
+     lambda s: replace_once(s, "localStorage.setItem('kuking-wyglad-poznany', '1')", "localStorage.setItem('kuking-wyglad-nowy', '1')")),
+    # Z5 (#2281): każda sekcja paczki ma opis w polityce, terminy z konfiguracji.
+    ("Planer bez wiersza w polityce", POLITYKA_TEKST, "PolitykaOpisujeKazdaSekcjePaczkiTest",
+     lambda s: replace_once(s, "| Plan na tydzień |", "| Planowanie posiłków |")),
+    ("Nowa sekcja paczki bez opisu w polityce", "app/Domain/Users/Exports/InwentarzDanychKonta.php", "PolitykaOpisujeKazdaSekcjePaczkiTest",
+     lambda s: replace_once(s, "'meal_plan_entries.user_id' => [self::EKSPORT, 'planer'],", "'meal_plan_entries.user_id' => [self::EKSPORT, 'planer_nowy'],")),
+    ("Polityka bez górnego terminu usunięcia wspólnego gotowania (#2708)", POLITYKA_TEKST, "test_polityka_podaje_gorny_termin_usuniecia_zgodny_z_terminem_i_dobowym_sprzataniem",
+     lambda s: replace_once(s, "najpóźniej po około 48 godzinach od założenia.", "najpóźniej po około 72 godzinach od założenia.")),
+    ("Wspólne gotowanie nie jest kasowane na granicy terminu (#2708)", "app/Domain/Recipes/Gotowanie/Wspolne/SprzatanieWspolnegoGotowania.php", "test_wspolne_gotowanie_jest_niedostepne_na_granicy_terminu_i_znika_przy_nastepnym_przebiegu",
+     lambda s: replace_once(s, "->where('expires_at', '<=', now());", "->where('expires_at', '<', now());")),
+    ("Postęp gotowania z terminem niezgodnym z konfiguracją", POLITYKA_TEKST, "test_terminy_nowych_wierszy_zgadzaja_sie_z_konfiguracja",
+     lambda s: replace_once(s, "**24 godziny** od ostatniej zmiany — potem postęp", "**48 godzin** od ostatniej zmiany — potem postęp")),
+    # Z6 (#2282): Cloudflare jako pośrednik całego ruchu ma własny wiersz.
+    ("Cloudflare jako pośrednik bez wiersza w polityce", POLITYKA_TEKST, "kazda_usluga_uzywana_przez_kod_jest_wymieniona_w_polityce",
+     lambda s: replace_once(s, "| Cloudflare (sieć, CDN i ochrona przed atakami) |", "| Cloudflare |")),
+    # #2267: kolor paska przeglądarki idzie za motywem, manifest ma jasny.
+    ("Pasek przeglądarki znów zawsze ciemny", LAYOUT, "test_gosc_bez_wyboru_i_z_jasnym_wyborem_dostaje_jasny_pasek",
+     lambda s: replace_once(s, "content=\"{{ $theme === 'dark' ? '#151714' : '#F3F4F1' }}\"", 'content="#151714"')),
+    ("Manifest wraca do ciemnego theme_color", "public/manifest.webmanifest", "test_kolory_to_tlo_strony_z_tokenow_a_manifest_ma_jasny",
+     lambda s: replace_once(s, '"theme_color": "#F3F4F1"', '"theme_color": "#151714"')),
+    # UX-02 (#2287): samodzielne zdanie pomocnicze wraca do 16 px.
+    ("Pusty dzień planera znów w 16 px", "resources/views/pages/planer/show.blade.php", "test_instrukcje_i_puste_stany_niosa_klase_tekstu_podstawowego",
+     lambda s: replace_once(s, '<p class="meta meta-samodzielne">Nic jeszcze nie zaplanowane.</p>', '<p class="meta">Nic jeszcze nie zaplanowane.</p>')),
+    ("Samodzielne zdanie pomocnicze w arkuszu na 16 px", CSS, "test_klasa_w_arkuszu_daje_tekst_podstawowy_18_px",
+     lambda s: replace_once(s, "  .meta-samodzielne {\n    font-size: var(--text-body);", "  .meta-samodzielne {\n    font-size: var(--text-help);")),
+    # D-333 „novalidate wszędzie” (30.09.2026): formularz z natywną walidacją
+    # bez `novalidate` zatrzymuje dymek przeglądarki przed polskim podsumowaniem.
+    # Pierwsza mutacja zapala oba spojrzenia (HTML ekranu i szablon), druga —
+    # formularz w komponencie, rozwijany przez skaner szablonów.
+    ("Logowanie bez novalidate", "resources/views/auth/login.blade.php", "FormularzeZWalidacjaMajaNovalidateTest",
+     lambda s: replace_once(s, "action=\"{{ route('login') }}\" novalidate>", "action=\"{{ route('login') }}\">")),
+    ("Wybór zeszytu bez novalidate", "resources/views/components/wybor-zeszytu.blade.php", "test_kazdy_formularz_w_szablonach_z_natywna_walidacja_ma_novalidate",
+     lambda s: replace_once(s, '<form method="POST" action="{{ $action }}" novalidate>', '<form method="POST" action="{{ $action }}">')),
+    # #2308: lista kursorowa bez `KursorListy` wraca do HTTP 500 na zmyślonym `?cursor=`.
+    ("Strona tagu stronicuje gołym cursorPaginate", "app/Http/Controllers/TagController.php", "test_w_app_cursor_paginate_wola_tylko_kursor_listy",
+     lambda s: replace_once(s,
+         "KursorListy::strona($zapytanie, (int) config('kuking.feed.page_size'), ['published_at' => KursorListy::CZAS, 'id' => KursorListy::UUID])",
+         "$zapytanie->cursorPaginate((int) config('kuking.feed.page_size'))")),
+    # Z8, Z10, Z11 (#2283): polityka mówi o śladzie nieudanej wysyłki tyle dni,
+    # ile queue:prune-failed w harmonogramie; §9 bez obietnicy e-maila;
+    # zakres `profile` przy Google obejmuje zdjęcie.
+    ("Retencja failed_jobs inna niż w polityce", "routes/console.php", "PolitykaMowiPrawdeOPoczcieGoogleIZmianachTest",
+     lambda s: replace_once(s, "Harmonogram::artisan('queue:prune-failed', ['--hours' => 720])",
+                            "Harmonogram::artisan('queue:prune-failed', ['--hours' => 168])")),
+    ("Polityka znów obiecuje e-mail o zmianie", POLITYKA_TEKST, "PolitykaMowiPrawdeOPoczcieGoogleIZmianachTest",
+     lambda s: replace_once(s, "O zmianie polityki nie piszemy do Ciebie e-mailem", "O zmianie polityki napiszemy także e-mailem")),
+    ("Polityka pomija zdjęcie z zakresu Google", POLITYKA_TEKST, "PolitykaMowiPrawdeOPoczcieGoogleIZmianachTest",
+     lambda s: replace_once(s, "Google opisuje je na swoim ekranie zgody jako imię i **zdjęcie profilowe** — nie ma osobnej prośby o samo imię.",
+                            "Google podaje nam imię.")),
+    # Z9 (#2283): regulamin §2 wymienia usługi, których adresy istnieją.
+    ("Regulamin §2 bez „Poradźcie”", "resources/legal/regulamin.md", "RegulaminWymieniaUslugiSerwisuTest",
+     lambda s: replace_once(s, " („Poradźcie”),", ",")),
+    # #2480: sam skan musi otwierać sekcję źródła bez dopisywania historii.
+    ("Sam skan bez notatki znika ze strony przepisu", "resources/views/pages/recipes/show.blade.php", "test_wlasciciel_widzi_sam_skan_na_zwyklej_stronie_prywatnego_przepisu",
+     lambda s: replace_once(s,
+         "@if(($recipe->source_note || $recipe->source_person || $recipe->sourceScan) && ! $dlaPomocnika)",
+         "@if(($recipe->source_note || $recipe->source_person) && ! $dlaPomocnika)")),
+    # #2807: HTTP 200 z pustą dalszą porcją ma nadal zawierać id listy.
+    ("Pusta dalsza porcja powiadomień bez listy (#2807)", "resources/views/pages/notifications.blade.php",
+     "test_pusta_dalsza_strona_po_odczycie_w_drugiej_karcie_ma_droge_do_pierwszej",
+     lambda s: replace_once(s, '<ul id="lista-powiadomien" hidden></ul>', '')),
+    ("Wiersze przepisu sklejone w kopii HTML (#2839)", "resources/views/exports/styles.blade.php",
+     "test_kopia_html_zachowuje_wiersze_krokow_i_historii_bez_surowego_html",
+     lambda s: replace_once(s, '.tekst-z-wierszami { white-space: pre-line; overflow-wrap: anywhere; }',
+                            '.tekst-z-wierszami { white-space: normal; overflow-wrap: anywhere; }')),
+    # #2405 (UX-001): błąd wyboru formy ma być powiązany z radiami.
+    ("Błąd wyboru formy bez stabilnego id (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, '<span class="field-error" id="f-form_of_address-error">', '<span class="field-error">')),
+    ("Radia formy nie wskazują błędu w aria-describedby (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, "'forma-zwracania-pomoc f-form_of_address-error'", "'forma-zwracania-pomoc'")),
+    ("Radia formy bez aria-invalid (#2405)", WYBOR_FORMY_WIDOK, DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_wszystkie(s, '@if($maBlad) aria-invalid="true" @endif', '', 3)),
+    # #2406 (UX-002): onboarding oznacza bieżący krok.
+    ("Onboarding bez aria-current na bieżącym kroku (#2406)", "resources/views/pages/onboarding/interests.blade.php", DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, '<span class="wizard-steps-current" aria-current="step">', '<span class="wizard-steps-current">')),
+    ("Onboarding bez grupy z nazwą kroków (#2406)", "resources/views/pages/onboarding/people.blade.php", DOSTEPNOSC_FORMY_TEST,
+     lambda s: replace_once(s, ' role="group" aria-label="Postęp zakładania konta"', '')),
+    ("Odwołanie od blokady CSAM bez ochrony decyzji (#2427)", "app/Domain/Moderation/Actions/ResolveAppeal.php", "OdwolanieOdBlokadyCsamTest",
+     lambda s: replace_once(s, "&& $this->blokadaZDowodem($decyzja)", "&& false")),
+    ("Zabezpieczony awatar znów ma wariant do pokazania (#2708)", "app/Models/Media.php",
+     "test_nieszkodliwy_awatar_przechodzi_istniejaca_akcje_i_nie_wycieka_po_zabezpieczeniu",
+     lambda s: replace_once(s,
+         "return ! in_array($this->status, [self::STATUS_DELETED, self::STATUS_SECURED], true)",
+         "return ! in_array($this->status, [self::STATUS_DELETED], true)")),
+    ("Fixture wspomnienia znika po północy w Polsce", "scripts/fixtures/rocznice-wykonania-s.php",
+     "test_fixture_pomiaru_pokazuje_wspomnienie_po_polnocy_w_polsce",
+     lambda s: replace_once(s, "$dzis->copy()->addDay()->subYear()", "$dzis->copy()->subYear()")),
+    ("Szyna zeszytu ponownie czyta całą historię (#2030)", "app/Http/Controllers/CollectionController.php",
+     "test_szyna_sprawdza_widocznosc_tylko_malej_partii_kandydatow",
+     lambda s: replace_once(s, "        $partia = 20;\n", "        $partia = 1000;\n")),
+    ("Przeterminowany use_by wraca do doboru (#2453)", "app/Domain/Pantry/PriorytetZuzycia.php",
+     "test_po_terminie_nalezy_zuzyc_do_nie_jest_skladnikiem_w_zadnym_trybie_ale_inne_terminy_pozostaja",
+     lambda s: replace_once(s,
+         'public const DOSTEPNY_SQL = "(p.expiry_kind IS DISTINCT FROM \'use_by\' OR p.expires_on >= ? OR p.frozen)";',
+         'public const DOSTEPNY_SQL = "(true OR p.expires_on >= ? OR p.frozen)";')),
+    ("Przeterminowany use_by wybiera odbiorcę listu (#2453)", "app/Console/Commands/WyslijPrzypomnieniaOProduktach.php",
+     "test_produkt_po_terminie_nalezy_zuzyc_do_nie_wywoluje_listu",
+     lambda s: replace_once(s,
+         "                    ->where('p.frozen', false)\n                    ->whereRaw(PriorytetZuzycia::DOSTEPNY_SQL, [$dzis]);",
+         "                    ->where('p.frozen', false);")),
+    # 2.10.2026 (D-333): CI na draft PR-ach skrócone. Ciężki job bez warunku
+    # `pelny`, kontrole negatywne na drafcie, bramka skracająca push i agregat
+    # panelu zielony z pominiętych części na pełnym przebiegu.
+    ("Build obrazu biegnie na drafcie (D-333, 2.10.2026)", CI_WORKFLOW, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, "needs.zakres.outputs.obraz == 'true' && needs.zakres.outputs.pelny == 'true'\n",
+                            "needs.zakres.outputs.obraz == 'true'\n")),
+    ("Kontrole negatywne na drafcie (D-333, 2.10.2026)", CI_WORKFLOW, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, "\"kontrole_czesc\":3}]' || '[]') }}",
+                            "\"kontrole_czesc\":3}]' || '[{\"czesc\":\"kontrole\",\"kontrole_czesc\":1}]') }}")),
+    ("Agregat panelu zielony bez części na pełnym przebiegu (D-333, 2.10.2026)", CI_WORKFLOW, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, '            && [ "${PELNY}" = "false" ]; then\n', '            ; then\n')),
+    ("Bramka skraca także push z DRAFT=true (D-333, 2.10.2026)", BRAMKA_SKRYPT, "test_na_drafcie_biegna_dokladnie_lint_larastan_i_testy_1_4_a_na_pelnym_wszystko",
+     lambda s: replace_once(s, 'if [ "${ZDARZENIE:-}" = "pull_request" ] && [ "${DRAFT:-}" = "true" ]; then',
+                            'if [ "${DRAFT:-}" = "true" ]; then')),
+    # #2708 (pyt. 8): runbook odtworzenia kazał wymazać konta DOPIERO po podpięciu
+    # odtworzonej bazy do serwisu — okno, w którym serwis pokazuje wymazane osoby.
+    ("Runbook odtworzenia stosuje rejestr usunięć po podpięciu bazy (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_runbook_kaze_zastosowac_rejestr_usuniec_przed_podpieciem_bazy_do_serwisu",
+     lambda s: replace_once(s, "# 5. Dopiero po potwierdzeniu kroku 4 zastosuj rejestr usunięć",
+                            'railway variables --set "DB_URL=<nowy_DATABASE_URL>"\n# 5. Dopiero po potwierdzeniu kroku 4 zastosuj rejestr usunięć')),
+    ("Runbook podpina bazę przed drugim wymazaniem (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_runbook_kaze_zastosowac_rejestr_usuniec_przed_podpieciem_bazy_do_serwisu",
+     lambda s: replace_once(s, "# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie",
+                            'railway variables --set "DB_URL=<nowy_DATABASE_URL>"\n# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie')),
+    ("Awaria izolacji usług pozwala wymazać przed sprawdzeniem CSAM (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_brak_zatrzymania_uslug_nie_pozwala_pominac_sprawdzenia_csam",
+     lambda s: replace_once(s, 'Bez sprawdzenia decyzji CSAM', 'uruchom komendę natychmiast. Bez sprawdzenia decyzji CSAM')),
+    ("Odtworzenie CSAM po pierwszym wymazaniu kont (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_obie_kontrole_csam_poprzedzaja_wymazanie_i_podpiecie_bazy",
+     lambda s: kopie_przestaw_krok_po_wymazaniu(
+         s, '# 4. NAJPIERW odtwórz i zweryfikuj decyzje CSAM',
+         '# 5. Dopiero po potwierdzeniu kroku 4',
+         '# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie')),
+    ("Odtworzenie nowych decyzji CSAM po ponownym wymazaniu (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_obie_kontrole_csam_poprzedzaja_wymazanie_i_podpiecie_bazy",
+     lambda s: kopie_przestaw_krok_po_wymazaniu(
+         s, '# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie',
+         'railway run --service kuking.pl --environment production \\\n  env DB_URL="$DB_URL_NOWEJ_BAZY" \\\n  php artisan kuking:wymaz-ponownie --od="<chwila kopii>" --na-sucho',
+         '# 7. Dopiero teraz podepnij nowy DB_URL')),
+    # Paczka L: komunikat Planera trafił do C w kodowaniu UTF-8 odczytanym jako
+    # Latin-1 („juÅ¼… OdÅ›wieÅ¼”). Strażnik ma znaleźć taki napis w kodzie.
+    ("Zepsute kodowanie polskich liter w komunikacie Planera (paczka L)", "app/Http/Controllers/PlanerController.php",
+     "test_kod_i_widoki_nie_zawieraja_polskich_liter_w_zepsutym_kodowaniu",
+     lambda s: replace_once(s,
+         "            default => redirect()->route('planer.show')\n                ->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),\n        };\n    }\n\n    /**\n     * Ekran „Zmień tekst”",
+         "            default => redirect()->route('planer.show')\n                ->with(Komunikat::blad('Tej pozycji ju\u00c5\u00bc nie ma w planie. Od\u00c5\u203awie\u00c5\u00bc stron\u00c4\u2122.')),\n        };\n    }\n\n    /**\n     * Ekran „Zmień tekst”")),
+    # #2808: ścisła wersja została ukryta po kontroli formularza. Nie może
+    # wrócić do zwykłego zapytania, które celowo zachowuje starą semantykę.
+    ("Ścisłe gotowanie przyjmuje ukrytą wersję (#2808)", "app/Domain/Recipes/Actions/RecordCookedEvent.php",
+     "test_ukrycie_wersji_po_wstepnej_kontroli_odmawia_scislego_zapisu_bez_zdjecia_i_powiadomienia",
+     lambda s: replace_once(s,
+         "? HistoriaWersji::zapytanie($recipe, HistoriaWersji::widziUkryte($cook, $recipe))",
+         "? HistoriaWersji::zapytanie($recipe, true)")),
+]
+
+# CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej
+# kontrolę zaliczał każdy niezerowy kod ze słowem `FAILED` w wyjściu, więc błąd
+# składni, awaria bazy albo niezależna asercja z tej samej klasy dawały ten sam
+# „dowód" co asercja, którą mutacja miała zapalić. Teraz wynik czytamy z raportu
+# JUnit, a wzorzec oczekiwanej porażki stoi w `OCZEKUJ` (osobny plik, klucz to
+# nazwa kontroli z `checks`). Kontrola bez wzorca przechodzi tylko jako
+# BEZ_WZORCA i raport wymienia ją z nazwy — nie jest pełnym dowodem.
+# Wszystkie wpisy `checks` mają wzorzec, więc `WYMAGAJ_WZORCA = True`: nowy wpis
+# bez wzorca jest odrzucany w PREFLIGHCIE (niżej), przed pierwszym testem, z
+# nazwą wpisu. Jak zebrać komunikat do wzorca: uruchom sam wpis na własnym
+# klastrze — `--tylko "<etykieta>"` (ten tryb nie wymaga wzorca) — a werdykt
+# BEZ_WZORCA poda komunikaty porażki. Strażnik: tests/skrypty/kontrole-negatywne-przyczyna.py.
+WYMAGAJ_WZORCA = True
+WYMAGAJ_TERAZ = WYMAGAJ_WZORCA and not TYLKO
+
+# PREFLIGHT KOTWIC: każda mutacja próbna W PAMIĘCI, zanim ruszy jakikolwiek test.
+# Po PR #1721 kotwica eksportu przestała pasować, a krok padał dopiero po kilku
+# minutach, anonimowym „nie znalazła dokładnie jednego miejsca” — bez nazwy
+# kontroli. Czytanie w logu ~500 linii oczekiwanych porażek (np. „Format UUID”
+# celowo daje 500 w WyborZeszytuMaWalidacjeTest) wyglądało jak regresja w kodzie.
+# Tu nic nie jest zapisywane na dysk; błąd mówi, KTÓRA kontrola i w jakim pliku.
+for label, filename, _test, mutate in checks:
+    try:
+        source = (ROOT / filename).read_text()
+        if mutate(source) == source:
+            raise RuntimeError("Mutacja nie zmieniła źródła.")
+    except Exception as error:
+        raise RuntimeError(f"Kontrola „{label}” ({filename}) nie pasuje do kodu: {error}") from error
+
+# Wzorce oczekiwanej przyczyny (#1011) sprawdzamy w tym samym preflighcie, PRZED
+# jakimkolwiek testem: literówka w nazwie kontroli albo zły regex wywraca krok
+# w sekundę, z nazwą kontroli, a nie po kilkunastu minutach.
+KONTROLE_MECHANIZMU = kontrole_mechanizmu(
+    STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST, bez_sprawdzenia_sciezki, replace_once,
+)
+sprawdz_wzorce(checks, OCZEKUJ, wymagaj=WYMAGAJ_TERAZ)
+for label, filename, _test, mutate, _oczekuj in KONTROLE_MECHANIZMU:
+    try:
+        source = (ROOT / filename).read_text()
+        if mutate(source) == source:
+            raise RuntimeError("Mutacja nie zmieniła źródła.")
+    except Exception as error:
+        raise RuntimeError(f"Kontrola mechanizmu „{label}” ({filename}) nie pasuje do kodu: {error}") from error
+
+# KONTROLE DODATNIE PRZED MUTACJAMI wynikają z `checks`, nie z ręcznej listy.
+# Do tej pory stała tu ręczna lista ponad 90 wywołań `run_test(..., True)`,
+# osobna od `checks`. Rozjechała się z nią: audyt po fali 25.09 znalazł testy
+# z `checks` bez kontroli dodatniej PRZED mutacją (m.in.
+# KontrolkiPaneluWygladuMajaWidocznaObwodkeTest, StartKonteneraNieCzysciCacheTest,
+# PlanerTygodniaTest), a każdy nowy wpis wymagał dopisania nazwy w dwóch miejscach.
+# Test czerwony jeszcze przed mutacją wyglądał wtedy w logu jak „mutacja wykryta”.
+# Teraz każdy test z `checks` idzie na zielono przed pierwszą mutacją, raz,
+# w kolejności z `checks` — nowy wpis nie ma czego zapomnieć.
+# Podział na części CI: wpis o indeksie i należy do części i % M + 1. PREFLIGHT
+# wyżej sprawdził WSZYSTKIE kotwice w każdej części (jest tani), a poniżej idą
+# tylko wpisy wybranej części — każdy wpis w dokładnie jednej.
+if TYLKO:
+    if CZESC is not None:
+        raise SystemExit("--tylko i --czesc wykluczają się: podaj jedno z nich.")
+    wybrane = [checks[i] for i in indeksy_po_etykietach([nazwa for nazwa, *_ in checks], TYLKO)]
+    poza_petla = False
+    print(f"--tylko: {len(wybrane)} z {len(checks)} wpisów `checks`, bez elementów spoza pętli.", flush=True)
+else:
+    wybrane = [checks[i] for i in wybierz_indeksy(len(checks), CZESC)]
+    poza_petla = poza_petla_w_tej_czesci(CZESC)
+if CZESC is not None:
+    print(f"Część {CZESC[0]}/{CZESC[1]}: {len(wybrane)} z {len(checks)} wpisów `checks`"
+          f"{' oraz elementy spoza pętli' if poza_petla else ''}.", flush=True)
+kontrole_dodatnie = list(dict.fromkeys(test for _label, _filename, test, _mutate in wybrane))
+if not kontrole_dodatnie:
+    raise RuntimeError("Wybrana część `checks` jest pusta — nie ma czego sprawdzać.")
+# #2299: każdy `artisan test --filter` dostaje w argumencie pliki, w których filtr
+# coś wybiera (scripts/zawezenie_testow.py) — bez tego PHPUnit budował cały zestaw
+# przy każdym z ok. 270 wywołań na część. Zanim cokolwiek zmutujemy: próba na
+# dwóch pierwszych testach części, że zawężony przebieg wykonuje te same testy.
+sprawdz_zgodnosc(kontrole_dodatnie[:2])
+# JEDYNY test bez własnej mutacji, który ma iść na zielono przed pętlą: klasa
+# obejmująca oba testy metod z wpisów #1059 (GRUPA_LICZBA_TEST i
+# GRUPA_KOLEJNOSC_TEST). Nie jest to druga lista kontroli dodatnich — dopisuj
+# tu tylko test, którego nie da się wskazać wpisem w `checks`.
+KONTROLE_DODATNIE_BEZ_MUTACJI = [GRUPA_SYGNALOW_TEST] if poza_petla else []
+for test in dict.fromkeys(kontrole_dodatnie + KONTROLE_DODATNIE_BEZ_MUTACJI):
+    run_test(test, True)
+# Podział na części: pętlę mutacji dostaje tylko `wybrane`, a wzorce są sprawdzane
+# względem CAŁEGO `checks` (`wszystkie`). Kontrole mechanizmu (osobne od `checks`)
+# należą do elementów spoza pętli, czyli do części `poza_petla`.
+potwierdzone, bez_wzorca = przebieg(
+    [],  # kontrole dodatnie poszły wyżej, `run_test` z własnym komunikatem błędu
+    wybrane, OCZEKUJ, KONTROLE_MECHANIZMU if poza_petla else (),
+    wymagaj_wzorca=WYMAGAJ_TERAZ, wszystkie=checks,
+)
+# #2167: usunięcie wymaganego CSV ma zakończyć test porażką, nie skipem.
+# Robimy to osobno, bo kontrola usuwa plik zamiast podmieniać jego treść.
+# Element spoza pętli: w części CI tylko w części 3 (`poza_petla`).
+if poza_petla:
+    miary = ROOT / "database/data/odzywcze/miary.csv"
+    oryginal_miar = miary.read_bytes()
+    try:
+        miary.unlink()
+        ocena_miar = werdykt("masa_kotleta_zgadza_sie_z_miarami_domowymi", OCZEKUJ_MIARY,
+                             uruchom_test("masa_kotleta_zgadza_sie_z_miarami_domowymi"))
+        print(f"WERDYKT brak miary.csv: {ocena_miar.werdykt} — {ocena_miar.powod}", flush=True)
+        if ocena_miar.werdykt != POTWIERDZONA:
+            raise RuntimeError("Brak miary.csv nie oblał testu z oczekiwanej przyczyny: " + ocena_miar.powod)
+    finally:
+        miary.write_bytes(oryginal_miar)
+    run_test("masa_kotleta_zgadza_sie_z_miarami_domowymi", True)
+# Podsumowanie (potwierdzone i lista BEZ WZORCA) wypisał `przebieg` — liczebniki
+# z `len(checks)`, nie z tekstu (dawniej stało tu wpisane słowo „Pięć”).

@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Moderation\DziennikWgladu;
 use App\Domain\Recipes\Gotowanie\JakWyszlo;
 use App\Domain\Recipes\Gotowanie\NieaktualnePorcjeSkladnikow;
+use App\Domain\Recipes\Gotowanie\NieaktualnyPostepGotowania;
 use App\Domain\Recipes\Gotowanie\NotatkiZZeszytowDoGotowania;
 use App\Domain\Recipes\Gotowanie\PostepGotowania;
 use App\Domain\Recipes\Gotowanie\RoboczyDopisek;
@@ -267,6 +268,7 @@ class CookingModeController extends Controller
             // Rewizja zapamiętanego postępu, którą widziała strona (#2016);
             // brak (sesja, stara strona) nie jest błędem.
             'rewizja' => ['nullable', 'integer', 'min:1'],
+            'id_postepu' => ['nullable', 'uuid'],
         ], [
             'krok.integer' => 'Numer kroku jest nieprawidłowy — odśwież stronę przepisu i spróbuj jeszcze raz.',
         ]);
@@ -300,6 +302,11 @@ class CookingModeController extends Controller
 
         $postepKonta = $this->postepKonta($request->user(), $model);
         if ($postepKonta !== null) {
+            if (! isset($data['id_postepu'])) {
+                return redirect()->route('cooking.show', ['recipe' => $model->slug, 'krok' => $krok])
+                    ->with(Komunikat::blad('Nie można potwierdzić zapamiętanego postępu z tej karty. Otwórz gotowanie ponownie i sprawdź aktualne porcje oraz kroki.'));
+            }
+
             $idKrokow = $steps->pluck('id')->map(fn ($id): string => (string) $id)->all();
             $widzianaRewizja = isset($data['rewizja']) ? (int) $data['rewizja'] : null;
 
@@ -315,12 +322,18 @@ class CookingModeController extends Controller
             $powtorzenie = $widzianaRewizja !== null && $widzianaRewizja + 1 === $postepKonta->revision && $juzWZadanymStanie;
             $rozbieznaRewizja = $widzianaRewizja !== null && $widzianaRewizja !== $postepKonta->revision && ! $powtorzenie;
 
-            $po = $this->postep->ustaw(
-                $postepKonta,
-                $aktualny->getKey(),
-                $zrobiono,
-                $idKrokow,
-            );
+            try {
+                $po = $this->postep->ustaw(
+                    $postepKonta,
+                    $aktualny->getKey(),
+                    $zrobiono,
+                    $idKrokow,
+                    (string) $data['id_postepu'],
+                );
+            } catch (NieaktualnyPostepGotowania) {
+                return redirect()->route('cooking.show', ['recipe' => $model->slug, 'krok' => $krok])
+                    ->with(Komunikat::blad('Zapamiętywanie tego przepisu zostało włączone ponownie na innym urządzeniu. Nic z tej karty nie zapisano. Otwórz gotowanie ponownie i sprawdź aktualne porcje oraz kroki.'));
+            }
 
             // Rozbieżna rewizja: formularz niesie liczbę porcji z chwili
             // wyświetlenia strony, a inne urządzenie mogło ją od tamtej pory
@@ -328,18 +341,18 @@ class CookingModeController extends Controller
             // aktualizacja), a zostawienie jej w adresie przeczyłoby
             // komunikatowi „widzisz aktualny stan” — więc ani jednego, ani
             // drugiego: obowiązuje liczba z konta.
-            if (! $rozbieznaRewizja) {
+            if ($po !== null && ! $rozbieznaRewizja) {
                 $this->zapamietajPorcjeZFormularza($request, $model, $postepKonta);
             }
 
             $przekierowanie = redirect()->route('cooking.show', array_filter([
                 'recipe' => $model->slug, 'krok' => $krok,
-                'porcje' => $rozbieznaRewizja && $po !== null ? null : $this->parametrPorcji($model, $request->input('porcje')),
+                'porcje' => $rozbieznaRewizja || $po === null ? null : $this->parametrPorcji($model, $request->input('porcje')),
             ], fn ($wartosc) => $wartosc !== null));
 
             if ($po === null) {
-                // Zapamiętywanie wygasło między wyświetleniem strony a kliknięciem.
-                return $przekierowanie->with(Komunikat::blad('Zapamiętywanie postępu na koncie wygasło, więc to kliknięcie nie zostało zapisane. Włącz zapamiętywanie jeszcze raz albo oznacz krok ponownie.'));
+                // Wiersz wygasł lub został wyłączony po odczycie kontrolera.
+                return $przekierowanie->with(Komunikat::blad('Zapamiętywanie postępu na koncie wygasło albo zostało wyłączone, więc nic z tej karty nie zapisano. Otwórz gotowanie ponownie i sprawdź aktualne porcje oraz kroki.'));
             }
 
             return $rozbieznaRewizja
@@ -545,7 +558,7 @@ class CookingModeController extends Controller
 
     /**
      * Krótki odczyt dla skryptu, który pyta, czy inne urządzenie zmieniło
-     * postęp (#2016). Tylko numer rewizji — bez listy kroków i bez niczego,
+     * postęp (#2016). Rewizja i UUID wiersza — bez listy kroków i bez niczego,
      * co pokazałoby czyjś postęp komuś innemu: wiersz wybiera para „ta osoba +
      * ten przepis”, więc obca osoba dostaje po prostu `aktywna: false`.
      */
@@ -557,7 +570,7 @@ class CookingModeController extends Controller
         $postepKonta = $this->postepKonta($request->user(), $model);
 
         return response()
-            ->json(['aktywna' => $postepKonta !== null, 'rewizja' => $postepKonta?->revision])
+            ->json(['aktywna' => $postepKonta !== null, 'rewizja' => $postepKonta?->revision, 'id_postepu' => $postepKonta?->getKey()])
             ->header('Cache-Control', 'no-store, private');
     }
 

@@ -52,11 +52,16 @@ class SynchronizacjaPostepuGotowaniaTest extends TestCase
 
     private function odhacz(User $osoba, Recipe $recipe, RecipeStep $krok, bool $zrobiono = true, array $dodatkowe = [])
     {
-        return $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), [
+        $formularz = [
             'krok' => $krok->position + 1,
             'krok_id' => $krok->getKey(),
             'zrobiono' => $zrobiono ? '1' : '0',
-        ] + $dodatkowe);
+        ];
+        if ($idPostepu = $this->postep($osoba, $recipe)?->getKey()) {
+            $formularz['id_postepu'] = $idPostepu;
+        }
+
+        return $this->actingAs($osoba)->post(route('cooking.zaznacz', $recipe->slug), array_merge($formularz, $dodatkowe));
     }
 
     private function wlacz(User $osoba, Recipe $recipe)
@@ -137,6 +142,8 @@ class SynchronizacjaPostepuGotowaniaTest extends TestCase
         // Odkrywa go wyłącznie skrypt; bez niego żaden martwy przycisk (D-053).
         $this->assertMatchesRegularExpression('/<div class="cook-sync-zmiana[^>]*\bhidden\b[^>]*data-postep-synchronizacja/s', $html);
         $this->assertStringContainsString('data-postep-rewizja="1"', $html);
+        $this->assertStringContainsString('data-postep-id="'.$this->postep($osoba, $recipe)->getKey().'"', $html);
+        $this->assertStringContainsString('name="id_postepu" value="'.$this->postep($osoba, $recipe)->getKey().'"', $html);
     }
 
     public function test_kazda_zmiana_podbija_rewizje_a_drugie_urzadzenie_z_ta_sama_rewizja_dostaje_komunikat(): void
@@ -171,20 +178,20 @@ class SynchronizacjaPostepuGotowaniaTest extends TestCase
         $this->assertSame([], $this->postep($osoba, $recipe)->done_step_ids);
     }
 
-    public function test_pytanie_skryptu_o_rewizje_zwraca_tylko_numer(): void
+    public function test_pytanie_skryptu_zwraca_rewizje_i_id_wlasnego_postepu_bez_listy_krokow(): void
     {
         $osoba = $this->user();
         [$recipe, $kroki] = $this->przepis();
 
         $this->actingAs($osoba)->getJson(route('cooking.sync.postep', $recipe->slug))
-            ->assertOk()->assertExactJson(['aktywna' => false, 'rewizja' => null]);
+            ->assertOk()->assertExactJson(['aktywna' => false, 'rewizja' => null, 'id_postepu' => null]);
 
         $this->wlacz($osoba, $recipe);
         $this->odhacz($osoba, $recipe, $kroki[0]);
 
         $this->actingAs($osoba)->getJson(route('cooking.sync.postep', $recipe->slug))
             ->assertOk()
-            ->assertExactJson(['aktywna' => true, 'rewizja' => 2])
+            ->assertExactJson(['aktywna' => true, 'rewizja' => 2, 'id_postepu' => $this->postep($osoba, $recipe)->getKey()])
             ->assertHeader('Cache-Control', 'no-store, private');
     }
 
@@ -237,7 +244,7 @@ class SynchronizacjaPostepuGotowaniaTest extends TestCase
             ->assertSee('Oznacz krok jako zrobiony')
             ->assertSee('Zapamiętuj postęp na moim koncie');
         $this->actingAs($osoba)->getJson(route('cooking.sync.postep', $recipe->slug))
-            ->assertExactJson(['aktywna' => false, 'rewizja' => null]);
+            ->assertExactJson(['aktywna' => false, 'rewizja' => null, 'id_postepu' => null]);
 
         $this->artisan('kuking:sprzataj-postep-gotowania', ['--na-sucho' => true])
             ->expectsOutputToContain('Do skasowania: 1 ')->assertSuccessful();
@@ -319,7 +326,7 @@ class SynchronizacjaPostepuGotowaniaTest extends TestCase
             ->assertDontSee('Zrobione ✓')
             ->assertDontSee('data-postep-synchronizacja', false);
         $this->actingAs($obca)->getJson(route('cooking.sync.postep', $recipe->slug))
-            ->assertExactJson(['aktywna' => false, 'rewizja' => null]);
+            ->assertExactJson(['aktywna' => false, 'rewizja' => null, 'id_postepu' => null]);
 
         // Zapis, wyłączenie i „od początku” obcej osoby dotyczą jej własnej sesji, nie cudzego wiersza.
         $this->odhacz($obca, $recipe, $kroki[1]);
