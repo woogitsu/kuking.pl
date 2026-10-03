@@ -6,4 +6,6 @@ Test `KopiaJednegoPrzepisuTest::test_kopia_html_zachowuje_wiersze_krokow_i_histo
 
 Test automatyczny sprawdza osadzoną regułę i strukturę rzeczywistego pliku, lecz nie zastępuje oglądu wydruku na fizycznej drukarce ani pomiaru w każdej przeglądarce.
 
+libxml może zamienić CRLF na LF podczas tworzenia DOM. Porównanie tekstu DOM ujednolica wyłącznie końce wierszy, nadal wymagając ich liczby i położenia, w tym pustej linii. Osobno JSON musi zachować oryginalny tekst. Zmiana ta nie normalizuje ani nie usuwa danych przepisu.
+
 Zmiana nie dotyka schematu ani danych. Wycofanie polega na cofnięciu klasy w dwóch polach i jednej reguły CSS; przywróci to jednak sklejanie wierszy w czytelnej kopii.

@@ -184,7 +184,10 @@ class KopiaJednegoPrzepisuTest extends TestCase
         $this->assertNotNull($krok, 'KOPIA_2839_WIERSZE: pierwszy krok ma osobny tekst.');
         $this->assertNotNull($zrodlo, 'KOPIA_2839_WIERSZE: historia ma osobny tekst.');
         $this->assertSame($instrukcja, $krok->textContent, 'KOPIA_2839_WIERSZE: LF i pusty wiersz kroku przetrwały eksport.');
-        $this->assertSame($historia, $zrodlo->textContent, 'KOPIA_2839_WIERSZE: CRLF i pusty wiersz historii przetrwały eksport.');
+        // Wersje libxml różnie zachowują CRLF w DOM; liczba i pozycja wierszy
+        // muszą pozostać takie same. JSON niżej zachowuje oryginalne bajty.
+        $wiersze = static fn (string $tekst): string => str_replace(["\r\n", "\r"], "\n", $tekst);
+        $this->assertSame($wiersze($historia), $wiersze($zrodlo->textContent), 'KOPIA_2839_WIERSZE: CRLF i pusty wiersz historii przetrwały eksport.');
         $this->assertSame(0, $xpath->query('//script')->length, 'KOPIA_2839_WIERSZE: treść autora nie może stać się znacznikiem.');
         $this->assertStringContainsString('&lt;script&gt;', $html);
         $this->assertStringContainsString('&lt;b&gt;bez HTML&lt;/b&gt;', $html);
