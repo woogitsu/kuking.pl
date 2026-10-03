@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $name
  * @property string|null $description
  * @property CarbonImmutable $collection_created_at
- * @property list<array{recipe_id: string|null, post_id: string|null, note: string|null, created_at: string}> $items
+ * @property list<array{recipe_id: string|null, post_id: string|null, note: string|null, created_at: string, position?: int|null}> $items
  * @property int $items_count
  * @property CarbonImmutable $deleted_at
  */

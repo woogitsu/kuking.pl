@@ -708,7 +708,7 @@ niczego filtrować.
 | `name` | `varchar(120) NOT NULL` | `CHECK` 1–120 znaków (`deleted_collections_name_check`) |
 | `description` | `varchar(500) NULL` | |
 | `collection_created_at` | `timestamptz NOT NULL` | data założenia zeszytu (wraca bez zmian) |
-| `items` | `jsonb NOT NULL DEFAULT '[]'` | pozycje: `{recipe_id, post_id, note, created_at}` — TYLKO identyfikatory, własny dopisek i data zapisania; żadnych tytułów ani tekstów cudzych treści |
+| `items` | `jsonb NOT NULL DEFAULT '[]'` | pozycje: `{recipe_id, post_id, note, created_at, position}` — TYLKO identyfikatory, własny dopisek, data zapisania i opcjonalna ręczna pozycja przepisu; żadnych tytułów ani tekstów cudzych treści |
 | `items_count` | `integer NOT NULL` | `CHECK jsonb_typeof(items) = 'array' AND jsonb_array_length(items) = items_count` (`deleted_collections_items_check`) |
 | `deleted_at` | `timestamptz NOT NULL DEFAULT now()` | początek okna odzyskania |
 
@@ -729,11 +729,20 @@ Odzyskanie (`OdzyskajUsunietyZeszyt`, `FOR NO KEY UPDATE` na koncie, potem
 moderacyjnej, nazwa niezajęta przez inny zeszyt osoby
 (`collections_owner_name_lower_unique`; kopia zostaje, gdy nazwa jest zajęta).
 Zeszyt wraca jako prywatny, niewspółdzielony, z oryginalną datą założenia;
-pozycje wracają z własnym dopiskiem i datą zapisania, o ile ich przepis albo
+pozycje wracają z własnym dopiskiem, datą zapisania i ręczną kolejnością przepisów, o ile ich przepis albo
 wpis nadal istnieje i nie jest usunięty (skasowany przepis nie jest
 wskrzeszany, a liczba zapisów, które nie wróciły, trafia do komunikatu).
 `added_by_id` = właściciel. Powiadomień nie ma. Skrót w „Moje” nie wraca sam.
 Kopia jest kasowana w tej samej transakcji.
+
+Od #2816 opcjonalne `position` zachowuje liczbę dodatnią tylko przy przepisie;
+wpis i zeszyt bez ręcznego układu mają `null`. Po pominięciu usuniętego
+przepisu pozostałe numery mogą mieć dziury. Starsze kopie bez klucza
+`position` nadal się odzyskują, ale dawnego układu nie można z nich odtworzyć
+ani zgadywać na podstawie dat. Paczka danych usuniętego zeszytu zawiera
+`reczna_pozycja` tylko jako dane właściciela. Nie ma zmiany schematu ani
+rollbacku migracji; cofnięcie kodu przed odzyskaniem ponownie zgubiłoby tę
+informację, więc najpierw trzeba zachować kopię `deleted_collections.items`.
 
 Sprzątanie: `PrzedawnioneUsunieteZeszyty`, wołane przez
 `kuking:sprzataj-usuniete-tresci` (to samo okno), czyta wiersz jeszcze raz pod

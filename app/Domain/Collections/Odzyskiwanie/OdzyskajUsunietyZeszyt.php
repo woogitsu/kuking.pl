@@ -200,7 +200,7 @@ final class OdzyskajUsunietyZeszyt
             'updated_at' => now()->format('Y-m-d H:i:s.uP'),
         ]);
 
-        /** @var list<array{recipe_id: string|null, post_id: string|null, note: string|null, created_at: string}> $pozycje */
+        /** @var list<array{recipe_id: string|null, post_id: string|null, note: string|null, created_at: string, position?: int|null}> $pozycje */
         $pozycje = $kopia->items;
 
         // Cel nadal istnieje i nie jest usunięty. `FOR KEY SHARE` w stałej
@@ -222,6 +222,8 @@ final class OdzyskajUsunietyZeszyt
                         'recipe_id' => $kolumna === 'recipe_id' ? $cel : null,
                         'post_id' => $kolumna === 'post_id' ? $cel : null,
                         'note' => $pozycja['note'],
+                        // Stare kopie nie mają tego klucza; nie zgadujemy układu.
+                        'position' => $kolumna === 'recipe_id' ? ($pozycja['position'] ?? null) : null,
                         'created_at' => $pozycja['created_at'],
                         // Zeszyt jest prywatny i niewspółdzielony: dodał go właściciel.
                         'added_by_id' => $konto->getKey(),

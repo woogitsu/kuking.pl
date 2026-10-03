@@ -35,6 +35,8 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Kopia odzyskania gubi ręczną kolejność (#2816)': r'ODZYSKANIE_2816_RECZNA_KOLEJNOSC',
+    'Odtworzenie zeszytu gubi ręczną kolejność (#2816)': r'ODZYSKANIE_2816_RECZNA_KOLEJNOSC',
     'Ponowienie zaproszenia ujawnia nazwę po odebraniu dostępu (#2825)': r'ZESZYT_2825_PONOWIENIE_BEZ_DOSTEPU',
     'Moje rozmowy przepuszczają niemożliwą datę kursora (#2803)': r'ROZMOWY_2803_NIEMOZLIWY_CZAS',
     'Ponowienie przeniesienia ujawnia niedostępny tytuł (#2809)': r'PRZENIESIENIE_2809_TYTUL_POD_POLICY',
