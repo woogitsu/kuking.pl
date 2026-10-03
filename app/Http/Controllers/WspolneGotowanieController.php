@@ -290,7 +290,13 @@ class WspolneGotowanieController extends Controller
         // Komplet pomocników: link nie ma już dokąd wpuścić, więc nie kusimy przyciskiem.
         $maxPomocnikow = max(1, (int) config('kuking.wspolne_gotowanie.max_pomocnikow', 3));
 
-        if (! $moze || $sesja->pomocnicy()->count() >= $maxPomocnikow) {
+        if ($moze) {
+            $pomocnicy = $sesja->pomocnicy()->get();
+            $moze = $pomocnicy->count() < $maxPomocnikow
+                && ! $this->zaproszenia->maBlokadeZPomocnikiem($osoba, $pomocnicy);
+        }
+
+        if (! $moze) {
             return response()->view('pages.wspolne-gotowanie.link-nieaktualny', [], 410)
                 ->header('Referrer-Policy', 'no-referrer');
         }

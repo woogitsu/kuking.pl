@@ -213,10 +213,8 @@ final class ZaproszenieDoGotowania
             // więc nie zdradza, kogo osoba zablokowała ani kto ją.
             $obecni = $sesja->pomocnicy()->get();
 
-            foreach ($obecni as $obecny) {
-                if ($swiezaOsoba->hasBlockRelationWith($obecny)) {
-                    throw new BladDlaCzlowieka(self::NIEAKTUALNE);
-                }
+            if ($this->maBlokadeZPomocnikiem($swiezaOsoba, $obecni)) {
+                throw new BladDlaCzlowieka(self::NIEAKTUALNE);
             }
 
             // LIMIT pod blokadą wiersza sesji, na świeżym odczycie.
@@ -238,6 +236,23 @@ final class ZaproszenieDoGotowania
 
             return $sesja;
         });
+    }
+
+    /**
+     * Ta sama reguła dla podglądu linku i zapisu. Przy zapisie wywołanie
+     * następuje na świeżych uczestnikach odczytanych pod blokadą sesji.
+     *
+     * @param  iterable<User>  $pomocnicy
+     */
+    public function maBlokadeZPomocnikiem(User $osoba, iterable $pomocnicy): bool
+    {
+        foreach ($pomocnicy as $pomocnik) {
+            if ($osoba->hasBlockRelationWith($pomocnik)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function zablokujSesje(CookingSession $sesja): CookingSession
