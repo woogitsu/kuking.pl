@@ -4981,6 +4981,27 @@
     max-width: 32rem;
 }
 
+/* Pytanie o usunięcie nazwanej listy musi wypełniać szerokość karty także
+   przy czcionce przeglądarki 200%; inline-block liczył ją od długiego
+   napisu przycisku i wypychał stronę poza 320 px. */
+.confirm.zakupy-potwierdzenie { display: block; }
+.confirm.zakupy-potwierdzenie .confirm-body {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+@media (max-width: 414px) {
+    #ta-lista { padding-inline: 12px; }
+    .confirm.zakupy-potwierdzenie .confirm-body { padding-inline: 12px; }
+    .confirm.zakupy-potwierdzenie .confirm-body .btn {
+        width: 100%;
+        padding-inline: 12px;
+        overflow-wrap: normal;
+    }
+}
+
 .confirm-question {
     margin: 0 0 var(--spacing-3);
     font-weight: 600;

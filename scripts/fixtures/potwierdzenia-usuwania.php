@@ -5,6 +5,7 @@ declare(strict_types=1);
 // Dane tylko dla osobnej, jednorazowej bazy testu przeglądarkowego.
 use App\Models\MealPlanEntry;
 use App\Models\PantryItem;
+use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
@@ -41,6 +42,15 @@ if ($akcja === 'przygotuj') {
     $zakup->source = ShoppingListItem::SOURCE_MANUAL;
     $zakup->position = 0;
     $zakup->save();
+    $listaNazwana = new ShoppingList(['name' => 'Święta-zakupy-bardzo-długa-nazwa-rodzinna-2026']);
+    $listaNazwana->user_id = $konto->getKey();
+    $listaNazwana->save();
+    $zakupNazwany = new ShoppingListItem(['text' => 'Karp']);
+    $zakupNazwany->user_id = $konto->getKey();
+    $zakupNazwany->list_id = $listaNazwana->getKey();
+    $zakupNazwany->source = ShoppingListItem::SOURCE_MANUAL;
+    $zakupNazwany->position = 0;
+    $zakupNazwany->save();
     $produkt = $konto->pantryItems()->create(['name' => 'Śmietanka', 'quantity_note' => 'pół kartonu']);
     $produkt->forceFill([
         'expires_on' => now('Europe/Warsaw')->addDays(8)->toDateString(),
@@ -53,6 +63,7 @@ if ($akcja === 'przygotuj') {
     $stan = [
         'user' => $konto->getKey(), 'email' => $konto->email, 'password' => $haslo,
         'zakupy' => $zakup->getKey(), 'spizarnia' => $produkt->getKey(), 'planer' => $plan->getKey(),
+        'lista_nazwana' => $listaNazwana->getKey(), 'zakup_nazwany' => $zakupNazwany->getKey(),
         'paths' => [
             'zakupy' => '/lista-zakupow',
             'spizarnia' => '/co-mam-w-domu',
@@ -72,6 +83,7 @@ $stan = json_decode(file_get_contents($stanPath), true, flags: JSON_THROW_ON_ERR
 if ($akcja === 'sprawdz') {
     echo json_encode([
         'zakupy' => ShoppingListItem::find($stan['zakupy'])?->only(['text', 'source', 'position']),
+        'zakup_nazwany' => ShoppingListItem::find($stan['zakup_nazwany'])?->only(['text', 'source', 'position', 'list_id']),
         'spizarnia' => PantryItem::find($stan['spizarnia'])?->only(['name', 'quantity_note', 'expires_on', 'expiry_kind', 'frozen']),
         'planer' => MealPlanEntry::find($stan['planer'])?->only(['day', 'label']),
     ], JSON_THROW_ON_ERROR);
@@ -79,6 +91,8 @@ if ($akcja === 'sprawdz') {
 }
 if ($akcja === 'posprzataj') {
     ShoppingListItem::whereKey($stan['zakupy'])->delete();
+    ShoppingListItem::whereKey($stan['zakup_nazwany'])->delete();
+    ShoppingList::whereKey($stan['lista_nazwana'])->delete();
     PantryItem::whereKey($stan['spizarnia'])->delete();
     MealPlanEntry::whereKey($stan['planer'])->delete();
     DB::table('sessions')->where('user_id', $stan['user'])->delete();

@@ -173,7 +173,7 @@
                 </form>
             </details>
 
-            <details class="confirm" @if($blad_potwierdzenia) open @endif>
+            <details class="confirm zakupy-potwierdzenie" @if($blad_potwierdzenia) open @endif>
                 <summary class="btn btn-secondary confirm-summary" id="f-potwierdzam" @if($blad_potwierdzenia) aria-describedby="blad-potwierdzam" @endif>Usuń tę listę<span class="visually-hidden">: {{ $wybrana->name }}</span></summary>
                 <div class="confirm-body">
                     @if($blad_potwierdzenia)
