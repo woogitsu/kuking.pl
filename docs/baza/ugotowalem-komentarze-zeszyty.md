@@ -549,6 +549,14 @@ osoba, której konto zostało usunięte (`ZerwijWspoldzielenie::przyWymazaniu()`
 i odwołuje oczekujące zaproszenia (`BlockUser` → `ZerwijWspoldzielenie::miedzy()`,
 pod zamkiem pary kont). **Usunięcie konta** — patrz D-302.
 
+Ponowienie już przyjętego zaproszenia zachowuje idempotencję tylko wtedy, gdy
+osoba nadal jest członkiem i ma aktualne prawo odczytu zeszytu. Pod zamkami
+obu kont, zaproszenia i zeszytu sprawdzamy świeże członkostwo oraz
+`CollectionPolicy::view()`, zanim kontroler użyje bieżącej nazwy w komunikacie.
+Po odebraniu dostępu, odejściu, blokadzie lub zamknięciu konta właściciela
+odpowiedź jest neutralna; sam publiczny widok zeszytu nie zastępuje
+członkostwa ani prawa do dopisywania.
+
 **Rollback.**
 
 - `2026_09_29_100100_add_added_by_to_collection_items` — `down()` **odmawia**,

@@ -1355,6 +1355,9 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Ponowienie zaproszenia ujawnia nazwę po odebraniu dostępu (#2825)", "app/Domain/Collections/Wspoldzielenie/OdpowiedzNaZaproszenie.php",
+     "test_ponowienie_przyjetego_zaproszenia_bez_aktualnego_dostepu_nie_zdradza_nowej_nazwy",
+     lambda s: replace_once(s, "if ($zeszyt->owner_id !== $swiezyWlasciciel->getKey()\n                    || ! $zeszyt->maCzlonka($swiezaOsoba)\n                    || ! (new CollectionPolicy)->view($swiezaOsoba, $zeszyt)) {", "if (false) {")),
     ("Moje rozmowy przepuszczają niemożliwą datę kursora (#2803)", "app/Domain/Comments/MojeRozmowy.php",
      "MojeRozmowyTest::test_parser_odrzuca_semantycznie_nieprawidlowy_czas_kursora",
      lambda s: replace_once(s, "if (! KursorListy::czasPasuje($m[1])) {", "if (false) {")),

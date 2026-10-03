@@ -11,6 +11,7 @@ use App\Models\Collection;
 use App\Models\CollectionInvitation;
 use App\Models\Notification;
 use App\Models\User;
+use App\Policies\CollectionPolicy;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -29,7 +30,9 @@ use Illuminate\Support\Facades\DB;
  * Nigdy nie zostaje członkostwo obok blokady.
  *
  * Drugie przyjęcie tego samego zaproszenia przez tę samą osobę to sukces bez
- * skutku. Link przyjęty przez kogoś innego — odmowa (link jest jednorazowy).
+ * skutku wyłącznie przy nadal ważnym członkostwie. Po odebraniu dostępu nie
+ * wolno zwracać świeżej nazwy prywatnego zeszytu. Link przyjęty przez kogoś
+ * innego — odmowa (link jest jednorazowy).
  */
 final class OdpowiedzNaZaproszenie
 {
@@ -54,11 +57,20 @@ final class OdpowiedzNaZaproszenie
             $swieze = CollectionInvitation::query()->whereKey($zaproszenie->getKey())->lockForUpdate()->first()
                 ?? throw new BladDlaCzlowieka(self::NIEAKTUALNE);
 
-            // Już przyjęte przez TĘ osobę — drugie kliknięcie, nic nie robimy.
+            // Już przyjęte przez TĘ osobę: ponowienie jest sukcesem tylko wtedy,
+            // gdy członkostwo i prawo odczytu nadal istnieją. Zamek zeszytu
+            // szereguje ten odczyt z odebraniem dostępu i zmianą nazwy.
             if ($swieze->status === CollectionInvitation::STATUS_ACCEPTED
                 && $swieze->invitee_id === $swiezaOsoba->getKey()) {
-                $zeszyt = Collection::query()->whereKey($swieze->collection_id)->first()
+                $zeszyt = Collection::query()->whereKey($swieze->collection_id)->lock('FOR NO KEY UPDATE')->first()
                     ?? throw new BladDlaCzlowieka(self::NIEAKTUALNE);
+                $zeszyt->setRelation('owner', $swiezyWlasciciel);
+
+                if ($zeszyt->owner_id !== $swiezyWlasciciel->getKey()
+                    || ! $zeszyt->maCzlonka($swiezaOsoba)
+                    || ! (new CollectionPolicy)->view($swiezaOsoba, $zeszyt)) {
+                    throw new BladDlaCzlowieka(self::NIEAKTUALNE);
+                }
 
                 return [$zeszyt, false];
             }
