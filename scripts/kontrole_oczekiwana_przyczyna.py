@@ -36,6 +36,7 @@ OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cyk
 
 OCZEKUJ = {
     'Ponowienie zaproszenia ujawnia nazwę po odebraniu dostępu (#2825)': r'ZESZYT_2825_PONOWIENIE_BEZ_DOSTEPU',
+    'Zawieszona autorka nie może cofnąć udostępnienia (#2791)': r'UDOSTEPNIENIE_2791_COFNIECIE_MIMO_KARY',
     'Moje rozmowy przepuszczają niemożliwą datę kursora (#2803)': r'ROZMOWY_2803_NIEMOZLIWY_CZAS',
     'Ponowienie przeniesienia ujawnia niedostępny tytuł (#2809)': r'PRZENIESIENIE_2809_TYTUL_POD_POLICY',
     'Moje rozmowy pomijają Policy wpisu (#2432)': r'ROZMOWY_2432_POLICY_TRESCI',
