@@ -230,7 +230,23 @@ Indeksy: `recipe_id` (UNIQUE), `taken_at` (nocne sprzątanie), `user_id`.
 
 Przywrócenie idzie przez `PublishRecipe` (zapis szkicu, `publish: false`), z
 kontrolą rewizji treści i znacznika kopii z podglądu. Odmawia, gdy musiałoby
-odpiąć obecne zdjęcie kroku. Sprzątanie: `PrzedawnionePunktyOdzyskaniaSzkicu`
+odpiąć obecne zdjęcie kroku. Zapis przywróconego tekstu i zachowanie tekstu
+zastąpionego są jedną transakcją (#2810): błąd zapisu punktu cofa także
+przepis, składniki, kroki i rewizję. Kolejność blokad pozostaje
+zdjęcia → konto → przepis → punkt. Po `PublishRecipe` przywrócenie pobiera
+punkt ponownie pod blokadą i sprawdza jego tożsamość, przepis, właściciela,
+znacznik, zawartość i termin oraz świeży stan przepisu. Zmiana albo brak
+punktu rzuca odmowę wewnątrz transakcji; dopiero po rollbacku kontroler
+może pokazać błąd. Stary formularz nie wykonuje drugiej zamiany.
+
+Regresja: `tests/Feature/OdzyskanieTekstuSzkicuAtomowaZamianaTest.php` —
+rzeczywisty błąd PostgreSQL drugiego zapisu, pełne wiersze po rollbacku,
+zamiana/cofnięcie, zmiany punktu i świeże prawo, a także wynik POST.
+Fizyczne mutacje są w istniejącym rejestrze
+`scripts/kontrole-negatywne-alfa08.py`; odbiór:
+`docs/flota/koordynacja/ODBIOR-2810-ATOMOWA-ZAMIANA-CODEX-20261003.md`.
+
+Sprzątanie: `PrzedawnionePunktyOdzyskaniaSzkicu`
 (wołane przez `kuking:sprzataj-usuniete-tresci`) kasuje punkty starsze niż okno
 oraz punkty szkiców opublikowanych/usuniętych miękko. Wymazanie konta kasuje
 punkty jawnie (`EraseAccountData`). Paczka danych: sekcja `kopie_tekstu_szkicow`;
