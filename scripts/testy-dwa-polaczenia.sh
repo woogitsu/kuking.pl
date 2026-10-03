@@ -194,6 +194,11 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna uzupełnienia 2FA #2861 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        # S4: literalne A/B w nowych procesach; podmienione cookie nie przejdzie.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-s4-cookies.py; then
+            printf "${CZERWONY}Kontrola ujemna literalnych cookies S4 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
     fi
     printf "${ZIELONY}Przebiegów zielonych: %s z %s.${RESET}\n" "$PRZESZLO" "$PRZEBIEGI"
     exit 0

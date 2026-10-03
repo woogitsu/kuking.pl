@@ -503,6 +503,9 @@ jobs:
       - name: Werdykt uzupełnienia 2FA (#2861)
         run: python3 tests/skrypty/kontrola-negatywna-2861-uzupelnienie-wynik.py
 
+      - name: Werdykt literalnych cookies S4 (#2851, #2854, #2862)
+        run: python3 tests/skrypty/kontrola-negatywna-s4-cookies-wynik.py
+
       - name: Kontrole ujemne budżetu pominiętych testów
         run: python3 -m unittest discover -s scripts -p test_sprawdz_pominiete_testy.py -v
 
