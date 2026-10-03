@@ -155,6 +155,14 @@ else
     zle "Kontrola #2861 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-2861-uzupelnienie-wynik.py"
 fi
 
+# S4: podmiana cookie A na B musi oblać dziewięć właściwych przypadków.
+krok "Werdykt literalnych cookies S4 (#2851, #2854, #2862)"
+if python3 tests/skrypty/kontrola-negatywna-s4-cookies-wynik.py >/dev/null 2>&1; then
+    ok "Kontrola S4 wymaga dziewięciu rzeczywistych odczytów i właściwego markera"
+else
+    zle "Kontrola cookies S4 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-s4-cookies-wynik.py"
+fi
+
 # --- 3b''. Dziennik decyzji: pliki w docs/decyzje/ zgodne z indeksem -------
 # Jedna decyzja = jeden plik; docs/DECISIONS.md jest indeksem generowanym
 # z plików. To samo pilnuje DziennikDecyzjiZgodnyZIndeksemTest.
