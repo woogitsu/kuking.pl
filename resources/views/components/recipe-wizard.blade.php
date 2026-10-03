@@ -1070,6 +1070,11 @@ new class extends Component
         }
 
         foreach ($this->ingredients as $index => $row) {
+            if (str_contains((string) ($row['group_name'] ?? ''), BramkaPublikacjiOdczytu::ZNACZNIK)) {
+                $this->addError('ingredients.'.$index.'.group_name', 'Sprawdź słowo oznaczone [?] w nazwie grupy przy '.($index + 1).'. składniku i usuń znaczniki [? ?].');
+                $ok = false;
+            }
+
             if (str_contains((string) ($row['text'] ?? ''), BramkaPublikacjiOdczytu::ZNACZNIK)) {
                 $this->addError('ingredients.'.$index.'.text', 'Sprawdź słowo oznaczone [?] w '.($index + 1).'. składniku i usuń znaczniki [? ?].');
                 $ok = false;
@@ -1104,6 +1109,7 @@ new class extends Component
             $this->form->title,
             $this->form->summary,
             ...array_map(fn (array $r): string => (string) ($r['text'] ?? ''), $this->ingredients),
+            ...array_map(fn (array $r): string => (string) ($r['group_name'] ?? ''), $this->ingredients),
             ...array_map(fn (array $r): string => (string) ($r['instruction'] ?? ''), $this->steps),
         );
     }
