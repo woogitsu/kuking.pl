@@ -741,6 +741,7 @@ try {
             $wynik = app(OdzyskajUsunietyZeszyt::class)->handle(
                 User::query()->whereKey($argumenty['konto'])->firstOrFail(),
                 $argumenty['zeszyt'],
+                $argumenty['kopia'],
             );
 
             return ['juz' => $wynik->juzOdzyskany];

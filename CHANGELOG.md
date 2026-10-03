@@ -6,6 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2867): stary przycisk „Odzyskaj zeszyt” nie odtworzy już nowszej kopii tego samego zeszytu. Otwórz ponownie „Usunięte zeszyty”, aby wybrać aktualną kopię.
 - Podgląd ostatniego kroku ze spisu pozostaje podglądem także po zapisie lub błędzie prywatnego dopisku; nie wywołuje omyłkowego pytania „Jak wyszło?” (#2858).
 - Poprawione (#2852): wydruk zeszytu pokazuje przy „Mojej wersji” podpis oryginału. Gdy oryginał nie jest dostępny, podpis zostaje bez jego tytułu i autora.
 - Poprawione (#2864): stara karta ustawień urodzin nie przywróci widoczności dla obserwujących wyłączonej później w drugiej karcie. Przy konflikcie pokaże, jak otworzyć aktualne ustawienia.

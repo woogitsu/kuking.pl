@@ -361,6 +361,15 @@ wskrzeszany, a liczba zapisów, które nie wróciły, trafia do komunikatu).
 `added_by_id` = właściciel. Powiadomień nie ma. Skrót w „Moje” nie wraca sam.
 Kopia jest kasowana w tej samej transakcji.
 
+Przycisk odzyskania wysyła identyfikator **pokazanej kopii** (`deleted_collections.id`)
+obok dawnego identyfikatora zeszytu. Pod blokadą akcji identyfikator musi nadal
+wskazywać tę samą kopię. Po odzyskaniu, zmianie i ponownym usunięciu zeszytu
+stary formularz nie może odzyskać nowej kopii: odmawia i prowadzi do świeżej
+listy. Formularz sprzed tej poprawki, bez identyfikatora kopii, także odmawia;
+ponowienie odzyskania już zużytej kopii pozostaje idempotentne. To zmiana kodu
+bez migracji i bez zmiany retencji; cofnięcie samego kodu przywróciłoby błąd
+starego przycisku, więc rollback wymaga wyłączenia tej akcji do czasu naprawy.
+
 Od #2816 opcjonalne `position` zachowuje liczbę dodatnią tylko przy przepisie;
 wpis i zeszyt bez ręcznego układu mają `null`. Po pominięciu usuniętego
 przepisu pozostałe numery mogą mieć dziury. Starsze kopie bez klucza
