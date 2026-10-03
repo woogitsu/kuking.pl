@@ -46,6 +46,7 @@ OCZEKUJ = {
     'Import nie zapisuje ostrzeżeń parsera przy szkicu (#2548)': r'IMPORT_2548_OSTRZEZENIE_TRWA',
     'Importowany szkic traci bramkę odczytu w kopii (#2800)': r'KOPIA_2800_IMPORT_OMINIETY',
     'Spiżarnia: jedyne opakowanie bez odcisku (#2783)': r'ODCISK_2783_FORMULARZ',
+    'Notatka z dalszej porcji wraca na pierwszą stronę (#2829)': r'NOTATKA_2829_DRUGA_STRONA',
     'Spiżarnia: identyczne B bez kontroli tożsamości (#2783)': r'ODCISK_2783_TOZSAMOSC',
     'Niezmieniona kopia szkicu wychodzi do ludzi (#2507)': r'KOPIA_2507_PUBLIKACJA',
     'Kopia szkicu gubi podpis Mojej wersji (#2507)': r'KOPIA_2507_ATRYBUCJA',

@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2829): gdy notatka przy zapisie z dalszej porcji zeszytu ma błąd albo została zmieniona w innej karcie, formularz wraca przy właściwym przepisie lub wpisie z zachowanym tekstem. Pozostałe notatki nie przejmują tego tekstu.
+
 - Poprawione (#2816): odzyskanie własnego usuniętego zeszytu zachowuje ręczną kolejność przepisów. Starsza kopia bez informacji o kolejności wraca bez zgadywania układu; usunięty przepis nadal nie wraca.
 
 - Poprawione (#2835): zaproszenie do wspólnego zeszytu rozpoczęte przed zawieszeniem właściciela nie zapisuje się po zatwierdzeniu kary. Wcześniejsze zaproszenia pozostają, a zawieszony właściciel nadal może sprawdzić dostęp i go odebrać.
