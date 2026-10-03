@@ -75,3 +75,12 @@ końcowy PR wydania z CodeQL, terminalny pełny push main, SUCCESS wszystkich
 trzech usług Railway oraz produkcyjne `/wydanie` dokładnego SHA i `/health`
 200. Dopiero potem ocena zamknięcia issues według całych ich kryteriów.
 Zachować otwarte piloty 50+, prawo i kroki panelowe właściciela.
+
+## Świeże zależności po odbiorze lokalnym
+
+3.10.2026 włączono zwykłym merge V `4d3f5d3ba01b32482ef54da2f8390af174e7f414`
+oraz C `30be87d7d6c140275cce12d05f8a253b29452951` po terminalnym źródłowym CI N–U.
+Konflikt filtra wyścigów rozstrzygnięty sumą: wariant W zachowuje wszystkie
+wpisy V i dodaje #2880. Aplikacja, widoki oraz testy Dwa są bitowo bez zmian
+względem odebranego W `19b565455c73df8fe32565d725680081992957d1`.
+Nowy zwykły pełny push i przyszłe pełne CI świeżej bazy są nadal wymagane.
