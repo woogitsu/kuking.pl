@@ -28,6 +28,36 @@ Nie jest jeszcze wypchnięta, wydana ani uznana za pełną zieleń CI.
   niepełny wzorzec przyczyny; followup dopuszcza tylko dwa konkretne markery
   tej samej reguły i został zmierzony rzeczywistym narzędziem kontroli.
   Niezależny reviewer nie znalazł blokera produktu.
+- **#2858**, `63a47cf3f`: dopisek zachowuje jawny podgląd ze spisu kroków.
+  Rzeczywista droga HTTP od linku przez POST, błąd i powrót nie wyświetla
+  fałszywego pytania „Jak wyszło”; zwykły ostatni krok nadal je wyświetla.
+  Akceptowana jest tylko lokalna, nazwana trasa powrotu. Własny PG18:
+  **43 / 292 PASS**, dwie fizyczne kontrole ujemne z właściwym markerem,
+  dokładne przywrócenie. Niezależny przegląd i odczyt koordynatora: ACCEPT.
+- **#2852**, `7039a8503`: wydruk całego zeszytu i wybranych pozycji podaje
+  podpis oryginału „Mojej wersji”. Oryginały są pobierane zbiorczo z pełną
+  kontrolą widoczności i dostępności autora; brak dostępu daje neutralny
+  tekst bez tytułu, adresu i danych autora. Własny PG18: **57 / 418 PASS**,
+  w tym liczba zapytań dla jedenastu różnych oryginałów i granice dostępu.
+  Fizyczny mutant: właściwy `PODPIS_2852_WIDOCZNY`, dokładny restore.
+  To jest odbiór HTML i zapytań; nie wykonano oglądu PDF ani przeglądarki.
+- **#2864**, `a0e96bbad`: stara karta ustawień urodzin nie może przywrócić
+  wyłączonej widoczności. Świeży stan jest porównany pod blokadą konta
+  przed całym zapisem; konflikt zachowuje wpisane pola i prowadzi do
+  aktualnych ustawień. Rzeczywiste dwa formularze HTTP oraz przypomnienia:
+  **39 / 170 PASS** na własnym PG18. Fizyczny mutant oblał z właściwym
+  `URODZINY_2864_NOWSZA_DECYZJA`, dokładny restore przeszedł. Niezależny
+  przegląd: ACCEPT. Świadome ponowne włączenie na świeżej karcie działa.
+
+Koordynator zmierzył trzy pierwsze poprawki na osobnej instancji Linux,
+PG18 na porcie 55488: **66 / 2152 PASS**, wyścig retencji **1 / 18 PASS**,
+fizyczny DELETE po ID oblał z właściwą przyczyną, a dokładny restore przeszedł.
+Pełna analiza typów: zero błędów. Baza wyścigów należy do tego worktree
+(`kuking_race_repo_q`). Pełny komplet sześciu poprawek zmierzony
+na wspólnej bazie: **139 / 2609 PASS**. Cztery fizyczne mutacje podpisu
+oryginału, formularza i powrotu z dopisku oraz ustawień urodzin oblały
+z właściwymi markerami; **4/4 POTWIERDZONE**, dokładny restore i zieleń.
+Pełny PHPStan po złożeniu: zero błędów.
 
 Konflikty CHANGELOG rozwiązano sumą wpisów. Q nie dodaje migracji,
 zależności ani płatnych wywołań. Wcześniejsze migracje N zachowują własne
@@ -36,9 +66,12 @@ retencji i klasę dwóch połączeń.
 
 ## Pozostałe bramki
 
-Root przygotowuje własną kopię Linux z dokładnym lockiem i osobną bazą PG18.
-Pomiar całych zmienionych klas, Dwa i pełna analiza typów poprzedzają
-zwykły push z niezmienionym hakiem. Następnie pełne CI dokładnego heada,
+Dołożono odebraną poprawkę przyrządów CI z #2865: ścisły cel
+`kuking_race` lub izolowany sufiks oraz właściwy marker kotwicy dokumentacji.
+Dane o 139 testach dotyczą sześciu poprawek produktu przed tą korektą
+narzędzia. Koordynator sprawdza jeszcze przyczynę dwóch porażek starszej
+bazy P; nie uznaje zielonych testów celowanych za pełną bramkę Q.
+Następnie zwykły push z niezmienionym hakiem, pełne CI dokładnego heada,
 przegląd końcowego PR i merge z expectedHeadSha do integracji.
 
 Przed zamknięciem issues: zielone wydanie do main wraz z CodeQL, terminalne

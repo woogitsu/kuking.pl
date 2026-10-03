@@ -16,22 +16,28 @@ use Illuminate\Validation\ValidationException;
  * blokadą.
  *
  * STAN Z CHWILI OTWARCIA FORMULARZA (jak w ustawieniach prywatności, #879).
- * Formularz niesie zgodę, więc otwarty wczoraj nie może dziś po cichu zapisać
- * człowieka z powrotem na mail, z którego wypisał się odnośnikiem w liście.
+ * Formularz niesie zgodę i widoczność dla obserwujących, więc stara karta
+ * nie może odwrócić nowszej decyzji o mailu ani o prywatności.
  * Przy rozjeździe nie zapisujemy NICZEGO.
  */
 final class ZapiszWyboryUrodzin
 {
     public function __construct(private readonly PrzestawZgodeNaZyczeniaMailem $zgoda) {}
 
-    public function handle(User $user, bool $zyczenia, bool $mail, bool $mailPrzyOtwarciu, bool $obserwujacym = false): void
+    public function handle(User $user, bool $zyczenia, bool $mail, bool $mailPrzyOtwarciu, bool $widocznoscPrzyOtwarciu, bool $obserwujacym = false): void
     {
-        DB::transaction(function () use ($user, $zyczenia, $mail, $mailPrzyOtwarciu, $obserwujacym): void {
+        DB::transaction(function () use ($user, $zyczenia, $mail, $mailPrzyOtwarciu, $widocznoscPrzyOtwarciu, $obserwujacym): void {
             $current = User::query()->lockForUpdate()->findOrFail($user->getKey());
 
             if ((bool) $current->wants_birthday_email !== $mailPrzyOtwarciu) {
                 throw ValidationException::withMessages([
                     'wants_birthday_email' => 'Zgoda na e-mail z życzeniami zmieniła się od otwarcia formularza. Otwórz aktualne ustawienia i wybierz ponownie.',
+                ]);
+            }
+
+            if ((bool) $current->birthday_visible_to_followers !== $widocznoscPrzyOtwarciu) {
+                throw ValidationException::withMessages([
+                    'birthday_visible_to_followers' => 'Widoczność urodzin zmieniła się od otwarcia formularza. Otwórz aktualne ustawienia i wybierz ponownie.',
                 ]);
             }
 

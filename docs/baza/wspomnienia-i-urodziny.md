@@ -203,5 +203,9 @@ przechodzi. Test: `tests/Feature/CofniecieMigracjiUrodzinTest.php`.
   `kuking.notifications.zewnetrzne.cisza_*`). **Nie jest to wpis w feedzie.**
   „Usuń datę” i wymazanie konta ustawiają `false`. Eksport:
   `konto.pokazuj_urodziny_obserwujacym`.
+- Stary formularz ustawień nie może ponownie włączyć widoczności po jej
+  wyłączeniu w innej karcie (#2864). Stan widoczności z chwili otwarcia
+  formularza jest sprawdzany pod tą samą blokadą co zgoda na mail;
+  rozbieżność odmawia całego zapisu i prosi o otwarcie aktualnych ustawień.
 - **Rollback:** `down()` odmawia, gdy choć jedno konto ma `true` (D-088:
   decyzja o widoczności). Test: `tests/Feature/PrzypomnienieOUrodzinachTest.php`.
