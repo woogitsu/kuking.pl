@@ -127,7 +127,10 @@ final class PrzeniesPozycjeMiedzyZeszytami
                 }
             }
 
-            $tytul = $tresc instanceof Recipe ? $tresc->title : 'Wpis';
+            // Ponowienie też jest odczytem: zapis w zeszycie nie daje prawa
+            // do późniejszego prywatnego tytułu autora (#2809).
+            $widoczna = Gate::forUser($aktor)->allows('view', $tresc);
+            $tytul = $widoczna ? ($tresc instanceof Recipe ? $tresc->title : 'Wpis') : null;
 
             $wZrodle = DB::table('collection_items')
                 ->where('collection_id', $zrodlo->getKey())->where($kolumna, $pozycjaId)
@@ -156,7 +159,7 @@ final class PrzeniesPozycjeMiedzyZeszytami
             // Treść musi być NADAL widoczna dla osoby (ponowna kontrola
             // uprawnień na świeżym stanie), inaczej przenoszenie byłoby drogą
             // do obchodzenia ukrycia.
-            if (! Gate::forUser($aktor)->allows('view', $tresc)) {
+            if (! $widoczna) {
                 throw new BladDlaCzlowieka(ZamekZapisuDoZeszytu::NIEDOSTEPNE);
             }
 
