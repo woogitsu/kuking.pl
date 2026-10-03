@@ -390,6 +390,16 @@ sprawdzone niezależnie: jedyne `shell: bash` w tym pliku (linia 1246) grepuje
 plik, nie rurę. `tests/skrypty/kopia-bazy.sh:238` ma wrażliwą postać, ale
 kierunek prowadzi do czerwieni i wyjście jest krótkie — ryzyko uśpione.
 
+#### Tymczasowe repozytorium w teście nie może odziedziczyć celu Gita (#2871)
+
+Hook `pre-push` może przekazać procesom `GIT_DIR`, `GIT_WORK_TREE` i parametry
+konfiguracji. Wtedy nawet `git init` uruchomiony w katalogu testowej bazy może
+zmienić `core.bare` repozytorium wywołującego. Test bramki `zakres` usuwa
+odziedziczone zmienne `GIT_*` wyłącznie z procesów własnej tymczasowej bazy.
+Regresja uruchamia je przy symulowanym środowisku hooka i porównuje konfigurację,
+hook, HEAD oraz stan osobnego, tymczasowego worktree. Fizyczne cofnięcie ochrony
+ma oblać marker `ZAKRES_2871_WOLAJACY_CONFIG_ZMIENIONY`.
+
 ## 6. Test na jednym połączeniu nie dowodzi zachowania przy dwóch
 
 **Dotyczy: wszystkich ośmiu P1 współbieżnościowych z audytu.**
