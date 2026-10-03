@@ -900,6 +900,16 @@ def replace_once(source, old, new):
     return source.replace(old, new, 1)
 
 
+def kopie_przestaw_krok_po_wymazaniu(source, poczatek, srodek, koniec):
+    """#2708: fizycznie przenieś instrukcję CSAM za komendy wymazania."""
+    if any(source.count(marker) != 1 for marker in (poczatek, srodek, koniec)):
+        raise RuntimeError("Kontrola nie znalazła dokładnie jednego kroku odtworzenia CSAM.")
+    od = source.index(poczatek)
+    sro = source.index(srodek, od)
+    do = source.index(koniec, sro)
+    return source[:od] + source[sro:do] + source[od:sro] + source[do:]
+
+
 def zakupy_usun_bez_pytania(source):
     """#2466: przywróć bezpośredni formularz DELETE sprzed potwierdzenia."""
     poczatek = '        <details class="confirm planer-usuwanie">'
@@ -1369,6 +1379,9 @@ checks = [
     ("Niezmieniona kopia szkicu wychodzi do ludzi (#2507)", "app/Domain/Recipes/Actions/PublishRecipe.php",
      "test_publikacja_niezmienionej_kopii_przez_formularz_jest_odrzucona",
      lambda s: replace_once(s, "                MojaWersja::pilnujRoznicyKopii($recipe);\n", "")),
+    ("Importowany szkic traci bramkę odczytu w kopii (#2800)", "app/Domain/Recipes/Actions/ZrobKopieSzkicu.php",
+     "test_szkic_z_url_i_pdf_nie_dostaje_kopii_przez_domene_ani_http",
+     lambda s: replace_once(s, "if (self::jestPowiazanyZImportem($swiezeZrodlo)) {", "if (false && self::jestPowiazanyZImportem($swiezeZrodlo)) {")),
     ("Kopia szkicu gubi podpis Mojej wersji (#2507)", "app/Domain/Recipes/Actions/ZrobKopieSzkicu.php",
      "test_kopia_adaptacji_zachowuje_podpis_oryginalu_takze_gdy_oryginal_zniknal",
      lambda s: replace_once(s, "'forked_from_id' => $swiezeZrodlo->forked_from_id,", "'forked_from_id' => null,")),
@@ -2743,8 +2756,27 @@ checks = [
     # odtworzonej bazy do serwisu — okno, w którym serwis pokazuje wymazane osoby.
     ("Runbook odtworzenia stosuje rejestr usunięć po podpięciu bazy (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
      "test_runbook_kaze_zastosowac_rejestr_usuniec_przed_podpieciem_bazy_do_serwisu",
-     lambda s: replace_once(s, "# 4. NAJPIERW rejestr usunięć",
-                            'railway variables --set "DB_URL=<nowy_DATABASE_URL>"\n# 4. NAJPIERW rejestr usunięć')),
+     lambda s: replace_once(s, "# 5. Dopiero po potwierdzeniu kroku 4 zastosuj rejestr usunięć",
+                            'railway variables --set "DB_URL=<nowy_DATABASE_URL>"\n# 5. Dopiero po potwierdzeniu kroku 4 zastosuj rejestr usunięć')),
+    ("Runbook podpina bazę przed drugim wymazaniem (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_runbook_kaze_zastosowac_rejestr_usuniec_przed_podpieciem_bazy_do_serwisu",
+     lambda s: replace_once(s, "# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie",
+                            'railway variables --set "DB_URL=<nowy_DATABASE_URL>"\n# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie')),
+    ("Awaria izolacji usług pozwala wymazać przed sprawdzeniem CSAM (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_brak_zatrzymania_uslug_nie_pozwala_pominac_sprawdzenia_csam",
+     lambda s: replace_once(s, 'Bez sprawdzenia decyzji CSAM', 'uruchom komendę natychmiast. Bez sprawdzenia decyzji CSAM')),
+    ("Odtworzenie CSAM po pierwszym wymazaniu kont (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_obie_kontrole_csam_poprzedzaja_wymazanie_i_podpiecie_bazy",
+     lambda s: kopie_przestaw_krok_po_wymazaniu(
+         s, '# 4. NAJPIERW odtwórz i zweryfikuj decyzje CSAM',
+         '# 5. Dopiero po potwierdzeniu kroku 4',
+         '# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie')),
+    ("Odtworzenie nowych decyzji CSAM po ponownym wymazaniu (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_obie_kontrole_csam_poprzedzaja_wymazanie_i_podpiecie_bazy",
+     lambda s: kopie_przestaw_krok_po_wymazaniu(
+         s, '# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie',
+         'railway run --service kuking.pl --environment production \\\n  env DB_URL="$DB_URL_NOWEJ_BAZY" \\\n  php artisan kuking:wymaz-ponownie --od="<chwila kopii>" --na-sucho',
+         '# 7. Dopiero teraz podepnij nowy DB_URL')),
     # Paczka L: komunikat Planera trafił do C w kodowaniu UTF-8 odczytanym jako
     # Latin-1 („juÅ¼… OdÅ›wieÅ¼”). Strażnik ma znaleźć taki napis w kodzie.
     ("Zepsute kodowanie polskich liter w komunikacie Planera (paczka L)", "app/Http/Controllers/PlanerController.php",
@@ -2752,6 +2784,13 @@ checks = [
      lambda s: replace_once(s,
          "            default => redirect()->route('planer.show')\n                ->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),\n        };\n    }\n\n    /**\n     * Ekran „Zmień tekst”",
          "            default => redirect()->route('planer.show')\n                ->with(Komunikat::blad('Tej pozycji ju\u00c5\u00bc nie ma w planie. Od\u00c5\u203awie\u00c5\u00bc stron\u00c4\u2122.')),\n        };\n    }\n\n    /**\n     * Ekran „Zmień tekst”")),
+    # #2808: ścisła wersja została ukryta po kontroli formularza. Nie może
+    # wrócić do zwykłego zapytania, które celowo zachowuje starą semantykę.
+    ("Ścisłe gotowanie przyjmuje ukrytą wersję (#2808)", "app/Domain/Recipes/Actions/RecordCookedEvent.php",
+     "test_ukrycie_wersji_po_wstepnej_kontroli_odmawia_scislego_zapisu_bez_zdjecia_i_powiadomienia",
+     lambda s: replace_once(s,
+         "? HistoriaWersji::zapytanie($recipe, HistoriaWersji::widziUkryte($cook, $recipe))",
+         "? HistoriaWersji::zapytanie($recipe, true)")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

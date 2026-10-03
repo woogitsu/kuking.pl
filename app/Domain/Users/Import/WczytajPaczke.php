@@ -113,9 +113,12 @@ final class WczytajPaczke
     {
         // Serializuje wczytania jednej osoby: dwa żądania naraz ustawiają się w
         // kolejce, a drugie widzi ślad pierwszego. `UNIQUE` zostaje siatką pod spodem.
-        User::query()->whereKey($user->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
+        $swiezy = User::query()->whereKey($user->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
+        if (! Gate::forUser($swiezy)->allows('create', WczytanaZPaczki::class)) {
+            throw new BladDlaCzlowieka('Konto nie może teraz dodawać treści. Sprawdź stan konta przed ponowieniem wczytania.');
+        }
 
-        if ($this->maZywySlad($user, $pozycja->odcisk)) {
+        if ($this->maZywySlad($swiezy, $pozycja->odcisk)) {
             return false;
         }
 
@@ -127,9 +130,9 @@ final class WczytajPaczke
         $wczytana = new WczytanaZPaczki;
 
         match ($pozycja->rodzaj) {
-            'przepis' => $wczytana->recipe_id = (string) $this->utworzPrzepis($user, $pozycja->dane)->getKey(),
-            'wpis' => $wczytana->post_id = (string) $this->utworzWpis($user, $pozycja->dane)->getKey(),
-            default => $wczytana->collection_id = (string) $this->utworzZeszyt($user, $pozycja->dane)->getKey(),
+            'przepis' => $wczytana->recipe_id = (string) $this->utworzPrzepis($swiezy, $pozycja->dane)->getKey(),
+            'wpis' => $wczytana->post_id = (string) $this->utworzWpis($swiezy, $pozycja->dane)->getKey(),
+            default => $wczytana->collection_id = (string) $this->utworzZeszyt($swiezy, $pozycja->dane)->getKey(),
         };
 
         $wczytana->user_id = (string) $user->getKey();

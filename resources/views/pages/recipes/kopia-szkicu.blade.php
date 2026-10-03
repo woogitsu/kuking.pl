@@ -7,6 +7,10 @@
     <p><a class="btn btn-quiet" href="{{ route('recipes.drafts') }}">Wróć do szkiców</a></p>
 
     <h1>Zrób kopię szkicu</h1>
+    @if($pochodziZImportu)
+        <p class="notice">{{ \App\Domain\Recipes\Actions\ZrobKopieSzkicu::KOMUNIKAT_IMPORT }}</p>
+        <p><a class="btn btn-primary" href="{{ route('recipes.create', ['szkic' => $szkic->getKey()]) }}">Wróć do szkicu</a></p>
+    @else
     <p>Szkic: <strong>{{ $szkic->title }}</strong>. Powstanie <strong>osobny, prywatny szkic</strong> do pracy nad drugim wariantem. Ten szkic zostaje dokładnie taki, jaki jest.</p>
 
     <x-error-summary />
@@ -39,4 +43,5 @@
             <a class="btn btn-secondary" href="{{ route('recipes.drafts') }}">Nie rób kopii</a>
         </div>
     </form>
+    @endif
 </x-layout>

@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\TestCase;
 use ZipArchive;
@@ -302,6 +303,63 @@ class WczytajPaczkeTest extends TestCase
         $this->assertSame(0, Recipe::query()->count());
         $this->assertSame(0, Post::query()->count());
         $this->assertSame(0, WczytanaZPaczki::query()->count());
+    }
+
+    /** @return array<string, array{string}> */
+    public static function noweKary(): array
+    {
+        return [
+            'zawieszenie' => ['suspend'],
+            'ban' => ['ban'],
+            'oczekiwanie na wymazanie' => ['markForDeletion'],
+        ];
+    }
+
+    #[DataProvider('noweKary')]
+    public function test_stary_aktywny_model_nie_obchodzi_swiezego_stanu_przed_zapisem(string $kara): void
+    {
+        $zenek = $this->user('zenek');
+        $staryModel = clone $zenek;
+        $podglad = $this->podglad($zenek, $this->paczka());
+
+        $zenek->{$kara}();
+        $this->assertTrue($staryModel->isActive(), 'Model z początku żądania ma pozostać przestarzały.');
+        $wynik = app(WczytajPaczke::class)->handle($staryModel, $podglad, $this->odciski($podglad));
+
+        $this->assertSame(0, $wynik->razem(), 'IMPORT_2815_SWIEZY_STAN_PRZED_SLADAMI');
+        $this->assertSame(0, $wynik->juzByly);
+        $this->assertCount(3, $wynik->niewczytane);
+        $this->assertStringContainsString('Sprawdź stan konta', $wynik->niewczytane[0]);
+        $this->assertSame(0, Recipe::query()->where('author_id', $zenek->getKey())->count());
+        $this->assertSame(0, Post::query()->where('author_id', $zenek->getKey())->count());
+        $this->assertSame(0, Collection::query()->where('owner_id', $zenek->getKey())->count());
+        $this->assertSame(0, WczytanaZPaczki::query()->where('user_id', $zenek->getKey())->count());
+
+        $log = AuditLogEntry::query()->where('action', 'data.import_completed')->sole();
+        $this->assertSame(0, $log->metadata['przepisy']);
+        $this->assertSame(0, $log->metadata['wpisy']);
+        $this->assertSame(0, $log->metadata['zeszyty']);
+        $this->assertSame(3, $log->metadata['niewczytane']);
+        $this->assertStringNotContainsString('Obiad u Basi', (string) json_encode($log->getAttributes()));
+    }
+
+    public function test_po_przywroceniu_czynnego_konta_pozycje_mozna_wczytac(): void
+    {
+        $zenek = $this->user('zenek');
+        $podglad = $this->podglad($zenek, $this->paczka());
+        $zenek->suspend(now()->subMinute());
+
+        try {
+            app(WczytajPaczke::class)->handle($zenek->fresh(), $podglad, $this->odciski($podglad));
+            $this->fail('Wygasła kara nadal zapisana jako suspended nie może ominąć Policy.');
+        } catch (AuthorizationException) {
+            $this->assertSame(0, WczytanaZPaczki::query()->where('user_id', $zenek->getKey())->count());
+        }
+
+        $zenek->reinstate();
+        $wynik = app(WczytajPaczke::class)->handle($zenek->fresh(), $podglad, $this->odciski($podglad));
+        $this->assertSame(3, $wynik->razem());
+        $this->assertSame(3, WczytanaZPaczki::query()->where('user_id', $zenek->getKey())->count());
     }
 
     public function test_pozycja_ktorej_nie_da_sie_utworzyc_nie_zatrzymuje_reszty_i_nie_zostawia_sladu(): void
