@@ -1324,6 +1324,12 @@ try {
                 ->first(fn ($item): bool => $item->getName() === config('session.cookie'));
             Auth::forgetGuards();
             app('session')->forgetDrivers();
+            $stareCookie = Request::create(route('settings.security'), 'GET', [], [
+                (string) config('session.cookie') => $dodatnieCookie?->getValue() ?? '',
+            ]);
+            $staraOdpowiedz = app(HttpKernel::class)->handle($stareCookie);
+            Auth::forgetGuards();
+            app('session')->forgetDrivers();
             $kolejne = Request::create(route('settings.security'), 'GET', [], [
                 (string) config('session.cookie') => $cookieA?->getValue() ?? '',
             ]);
@@ -1337,6 +1343,8 @@ try {
                 'status' => $odpowiedz->getStatusCode(),
                 'redirect' => $odpowiedz->headers->get('Location'),
                 'old' => $stareDane,
+                'stare_cookie_status' => $staraOdpowiedz->getStatusCode(),
+                'stare_cookie_dokad' => $staraOdpowiedz->headers->get('Location'),
                 'kolejne_status' => $kolejnaOdpowiedz->getStatusCode(),
                 'kolejne_dokad' => $kolejnaOdpowiedz->headers->get('Location'),
                 'listy' => count(Notification::sentNotifications()),

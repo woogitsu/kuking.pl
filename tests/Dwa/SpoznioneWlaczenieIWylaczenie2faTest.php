@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PragmaRX\Google2FA\Google2FA;
@@ -68,6 +69,7 @@ final class SpoznioneWlaczenieIWylaczenie2faTest extends TestDwochPolaczen
         $this->assertTrue($wynik['ok'], $wynik['komunikat']);
         $this->assertSame(200, $wynik['wartosc']['dodatni_status'] ?? null);
         $this->assertSame(302, $wynik['wartosc']['status'] ?? null);
+        $this->assertSame(200, $wynik['wartosc']['stare_cookie_status'] ?? null, 'AKTUALNE_CIASTKO_2861_2862_ZOSTAJE');
         $this->assertSame(200, $wynik['wartosc']['kolejne_status'] ?? null, 'AKTUALNA_SESJA_2861_2862_ZOSTAJE');
         $this->assertSame($droga === 'wlacz', $konto->fresh()?->hasTwoFactorConfirmed());
         $this->assertSame(1, AuditLogEntry::query()->where('subject_id', $konto->getKey())
@@ -120,6 +122,17 @@ final class SpoznioneWlaczenieIWylaczenie2faTest extends TestDwochPolaczen
             $this->assertTrue(Hash::check($argumentyB['haslo'], (string) $poB->password));
             $audytPoB = AuditLogEntry::query()->where('subject_id', $konto->getKey())->count();
             $tokenyPoB = DB::table('password_reset_tokens')->where('email', $adres)->count();
+            // Sesja zalogowana już po zmianie hasła ma pozostać nietknięta
+            // przez spóźnione A; modelujemy jej faktyczny wiersz `sessions`.
+            $sesjaB = Str::random(40);
+            DB::table('sessions')->insert([
+                'id' => $sesjaB,
+                'user_id' => $konto->getKey(),
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'sesja-b-po-zmianie-2861',
+                'payload' => '',
+                'last_activity' => time(),
+            ]);
         } finally {
             $this->zwolnijBariere($bariera);
         }
@@ -136,6 +149,7 @@ final class SpoznioneWlaczenieIWylaczenie2faTest extends TestDwochPolaczen
         $this->assertSame($poB->two_factor_backup_codes, $poA->two_factor_backup_codes, 'DWA_2861_2862_KODY_BEZ_ZMIANY');
         $this->assertSame($audytPoB, AuditLogEntry::query()->where('subject_id', $konto->getKey())->count());
         $this->assertSame($tokenyPoB, DB::table('password_reset_tokens')->where('email', $adres)->count());
+        $this->assertSame(1, DB::table('sessions')->where('id', $sesjaB)->where('user_id', $konto->getKey())->count(), 'SESJA_B_2861_2862_ZOSTAJE');
         $this->assertSame(0, $wynikA['wartosc']['listy'] ?? null);
         $this->assertSame(route('login'), $wynikA['wartosc']['redirect'] ?? null);
         $this->assertSame([], $wynikA['wartosc']['old'] ?? null);
@@ -143,6 +157,8 @@ final class SpoznioneWlaczenieIWylaczenie2faTest extends TestDwochPolaczen
         $this->assertSame(200, $wynikA['wartosc']['dodatni_status'] ?? null);
         $this->assertTrue($wynikA['wartosc']['cookie_przed'] ?? false);
         $this->assertTrue($wynikA['wartosc']['cookie_a'] ?? false);
+        $this->assertSame(302, $wynikA['wartosc']['stare_cookie_status'] ?? null, 'HTTP_2861_2862_DAWNE_CIASTKO_ODMOWA');
+        $this->assertSame(route('login'), $wynikA['wartosc']['stare_cookie_dokad'] ?? null);
         $this->assertSame(302, $wynikA['wartosc']['kolejne_status'] ?? null);
         $this->assertSame(route('login'), $wynikA['wartosc']['kolejne_dokad'] ?? null, 'HTTP_2861_2862_STARE_CIASTKO_ODMOWA');
     }
