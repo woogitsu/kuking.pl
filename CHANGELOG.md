@@ -6,6 +6,7 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2889): podczas zawieszenia konta pomocnik może wyjść ze wspólnego gotowania, a gospodarz zakończyć własną sesję. Wyjście zachowuje odhaczone kroki pozostałych osób; zmiana postępu i zaproszenia nadal są niedostępne.
 - Poprawione (#2877): zastosowanie dawnej wersji przepisu przywraca także zapisane „nie podano” liczby porcji. Brak pola w starszej wersji nadal pozostawia dzisiejszą liczbę, a pusta nazwa nie zastępuje obecnej.
 - Poprawione (#2817): „Moje próby tego przepisu” oceniają wersję i rzeczywisty czas osobno. Brak czasu albo przypiętej wersji nie oznacza już zgodności obu pól; znane różnice i brak danych są opisane także przy przejściu na kolejną stronę prób.
 - Poprawione (#2836): „Skopiuj ten dzień” zachowuje wybrane porcje i prywatny dopisek. Ich zmiana po podglądzie wymaga nowego podglądu; istniejące pozycje celu pozostają bez zmian, a nowe kopie nie dziedziczą „Zrobione”.
