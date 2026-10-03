@@ -57,7 +57,7 @@ class PantryController extends Controller
             // Bez konta, bez nazw produktów i dat. RAZ NA SESJĘ: odświeżenie
             // strony nie nabija licznika (mierzymy osoby, nie wejścia).
             $request->session()->put(self::SESJA_PRIORYTET_WIDZIANY, true);
-            $sygnaly->handle(null, ZapiszSygnal::PANTRY_PRIORITY_VIEWED);
+            $sygnaly->handleAnonimowo($user, ZapiszSygnal::PANTRY_PRIORITY_VIEWED);
         }
 
         return view('pages.pantry.index', [
@@ -175,7 +175,9 @@ class PantryController extends Controller
         // samej ilości czy „mrożone” z tym samym terminem niczego nie mierzy.
         if ($po?->expires_on !== null
             && [$po->expires_on->toDateString(), $po->expiry_kind] !== $terminPrzed) {
-            $sygnaly->handle(null, ZapiszSygnal::PANTRY_EXPIRY_SET);
+            /** @var User $user */
+            $user = $request->user();
+            $sygnaly->handleAnonimowo($user, ZapiszSygnal::PANTRY_EXPIRY_SET);
         }
 
         $komunikat = $po?->expires_on !== null
@@ -350,7 +352,7 @@ class PantryController extends Controller
             // RAZ NA SESJĘ, jak `pantry_priority_viewed`: odświeżenie strony
             // nie nabija licznika (mierzymy osoby, nie wejścia).
             $request->session()->put(self::SESJA_DOBOR_PRIORYTET_WIDZIANY, true);
-            $sygnaly->handle(null, ZapiszSygnal::PANTRY_COOK_PRIORITY_VIEWED);
+            $sygnaly->handleAnonimowo($user, ZapiszSygnal::PANTRY_COOK_PRIORITY_VIEWED);
         }
 
         return view('pages.pantry.co-ugotuje', [

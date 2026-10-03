@@ -581,6 +581,11 @@ bety”.
   sprzeciwie się nie pokazuje — polityka §2 to mówi. Kolumna
   `users.sprzeciw_statystyk_at` jest w paczce (`konto`); rollback migracji
   odmawia przy choć jednym sprzeciwie (D-088). Test: `SprzeciwWobecStatystykTest`.
+  Siedem typów anonimowych liczników gotowania i spiżarni (#2837) nie zapisuje
+  `user_id`, lecz przed zapisem sprawdza świeży sprzeciw znanej osoby pod tą
+  samą blokadą `FOR SHARE`. Sprzeciw zatrzymuje również te liczniki; bez
+  sprzeciwu ich dotychczasowa anonimowość zostaje. Test:
+  `AnonimoweSygnalySzanujaSprzeciwTest`.
 
 ### 3.17 Obsługa praw osób — eksport i usunięcie konta
 

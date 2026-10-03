@@ -92,7 +92,7 @@ final class JakWyszlo
         ];
 
         $this->zapisz($sesja, $wpisy);
-        $this->sygnal->handle(null, ZapiszSygnal::COOKING_LAST_STEP_REACHED);
+        $this->sygnal->handleAnonimowo($osoba, ZapiszSygnal::COOKING_LAST_STEP_REACHED);
     }
 
     /**
@@ -125,7 +125,7 @@ final class JakWyszlo
             if ($this->ugotowanoOd($osoba, $przepis, $wpis['od'])) {
                 $wpisy[$id]['stan'] = self::UGOTOWANE;
                 $zmiana = true;
-                $this->sygnal->handle(null, ZapiszSygnal::COOKING_LAST_STEP_COOKED, ['po_pytaniu' => false]);
+                $this->sygnal->handleAnonimowo($osoba, ZapiszSygnal::COOKING_LAST_STEP_COOKED, ['po_pytaniu' => false]);
 
                 continue;
             }
@@ -133,7 +133,7 @@ final class JakWyszlo
             if (! $wpis['pokazane']) {
                 $wpisy[$id]['pokazane'] = true;
                 $zmiana = true;
-                $this->sygnal->handle(null, ZapiszSygnal::COOKING_FOLLOWUP_SHOWN);
+                $this->sygnal->handleAnonimowo($osoba, ZapiszSygnal::COOKING_FOLLOWUP_SHOWN);
             }
 
             $wynik = $przepis;
@@ -158,7 +158,7 @@ final class JakWyszlo
     public function zamknij(Session $sesja, User $osoba, Recipe $przepis): void
     {
         if ($this->zmienOtwarte($sesja, $osoba, $przepis, self::ZAMKNIETE)) {
-            $this->sygnal->handle(null, ZapiszSygnal::COOKING_FOLLOWUP_DISMISSED);
+            $this->sygnal->handleAnonimowo($osoba, ZapiszSygnal::COOKING_FOLLOWUP_DISMISSED);
         }
     }
 
@@ -174,7 +174,7 @@ final class JakWyszlo
 
         $wpisy[$przepis->getKey()]['stan'] = self::UGOTOWANE;
         $this->zapisz($sesja, $wpisy);
-        $this->sygnal->handle(null, ZapiszSygnal::COOKING_LAST_STEP_COOKED, ['po_pytaniu' => $wpis['stan'] === self::KLIK]);
+        $this->sygnal->handleAnonimowo($osoba, ZapiszSygnal::COOKING_LAST_STEP_COOKED, ['po_pytaniu' => $wpis['stan'] === self::KLIK]);
     }
 
     private function zmienOtwarte(Session $sesja, User $osoba, Recipe $przepis, string $stan): bool
