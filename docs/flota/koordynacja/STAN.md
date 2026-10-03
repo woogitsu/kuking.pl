@@ -1,6 +1,34 @@
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
-## Aktualny odbiór koordynatora Codex — 3.10.2026, 15:04 UTC
+## Aktualny odbiór koordynatora Codex — 3.10.2026, 15:32 UTC
+
+- SSH normalhp chwilowo odmawiał połączenia około 15:16–15:26 UTC.
+  Po powrocie root odczytał canonical log/exit i właściwe procesy.
+  Cc0 sesja14471 oraz O91 sesja80957 nadal pracują w normalnej pełnej
+  baterii szeregowej; heady czyste i zgodne, exit jeszcze nie istnieje.
+  Nie ponowiono żadnego pushu ani testu. Nadal nie zmieniać tych headów.
+- Świeży odczyt 15:29 UTC: main09f8, CI24/24 SUCCESS, trzy usługi Railway
+  SUCCESS na tym SHA, /wydanie exact09f8 i /health200. C nadal e625;
+  #2890 nadal zdalny30be i wymaga nowego CI oraz zagregowanego CodeQL
+  po pushu91; #2891 nadal W622, czeka na naprawę C i świeżą bramkę.
+- #2796 ma końcowe HTTP32/444 PASS i wcześniejsze wspólne99/800 PASS.
+  Finalny test SHAee8e40a5 rozszerza rzeczywisty odczyt i cudzy UUID;
+  stare kontrole fizyczne dotyczą SHA8658b458 i nie zastępują końcowych.
+  Po sprawdzeniu serwera autor wrócił tylko do własnego WT i bazy,
+  aby wykonać trzy właściwe kontrole, strażniki oraz pełny PHPStan.
+  Peer czeka na stabilny commit i surowe końcowe dowody; bez ACCEPT/pushu.
+- Utworzono #2893 P2/bug po deduplikacji: fixture SES/rejestracji nie
+  ustanawia wartości w oficjalnym parallel4. Niezależnie35/90 PASS →
+  28PASS+7FAIL/71 →35/90 PASS, zero ERROR/SKIP, exit0→1→0.
+  Root sprawdził30/30 surowych artefaktów i manifest SHA256c04c0b63.
+  Parent bootstrap dziedziczy zmienne do workera jako zewnętrzne;
+  immutable Env odmawia clear/set. AWS_ACCESS_KEY_ID był pusty,
+  KUKING_REGISTRATION_OPEN niepusty; wynik taki sam bez TEST_TOKEN.
+  Zielony dataset null również nie ustanowił fixture. Trzeci agent
+  pracuje osobno nad przyrządem z prawdziwym config i zachowaniem35
+  przypadków, ochrony Env oraz głównej baterii. O/C pozostają nietknięte.
+
+## Historia odbioru koordynatora Codex — 3.10.2026, 15:04 UTC
 
 - Oficjalny lokalny parallel4 zakończył oba zwykłe hooki porażką,
   nie publikuje nowych headów: O91 — 14026 testów, 7 FAIL; Cc0 —
@@ -21,7 +49,7 @@
   O91 sesja80957; canonical transfer/push-ci-c-repair.exit/log oraz
   transfer/push-release-o.exit/log. Headów nie zmieniać ani nie ponawiać
   bez sprawdzenia właściwego procesu i canonical exit. PR naprawy C
-  dopiero po hook0; O2890 nadal wymaga nowych CI i CodeQL po pushem91.
+  dopiero po hook0; O2890 nadal wymaga nowych CI i CodeQL po pushu91.
 - W622 ma terminalne CI37127706259 24/24 SUCCESS. Niezależny merge-tree
   W622+Cc0 jest bezkonfliktowy, drzewo e8b36a507cfdfda46c768835964257275d1f761d;
   wszystkie22plikiW identyczne, C dodaje tylko5zaakceptowanych plików.
