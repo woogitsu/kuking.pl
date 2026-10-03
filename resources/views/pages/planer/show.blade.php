@@ -64,6 +64,7 @@
         <a class="btn btn-secondary" href="{{ route('shopping.index') }}">Lista zakupów</a>
         {{-- Kartka papierowa wybranego tygodnia (#2498): zachowuje `tydzien`. --}}
         <a class="btn btn-secondary" href="{{ route('planer.print', ['tydzien' => $poniedzialek->toDateString()]) }}" data-rola="wydrukuj-tydzien">Wydrukuj ten tydzień</a>
+        <a class="btn btn-secondary" href="{{ route('planer.calendar', ['tydzien' => $poniedzialek->toDateString()]) }}">Plan do kalendarza (plik)</a>
     </nav>
 
     {{-- Wybór tygodnia po dacie (#2513): zwykły GET bez skryptu. Zły albo pusty
@@ -213,6 +214,7 @@
                                         <form method="POST" action="{{ route('shopping.recipe.store', $pozycja['przepis']->slug) }}">
                                             @csrf
                                             <input type="hidden" name="z_planera" value="1">
+                                            <x-zakupy-wybor-listy :wiersz="'plan-'.$wpis->getKey()" />
                                             <button class="btn btn-secondary" type="submit">Dodaj składniki<span class="visually-hidden"> do listy zakupów: {{ $nazwa }}</span></button>
                                         </form>
                                         {{-- Tylko wybrane linie (#2462). --}}

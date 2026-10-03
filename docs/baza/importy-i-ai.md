@@ -283,6 +283,15 @@ paczki jeszcze raz (stary ślad jest wtedy zastępowany).
 Widoczność i status są wpisane w `WczytajPaczke`, nie brane z paczki. Zdjęć
 z paczki nie wczytujemy.
 
+**Zmiana stanu konta podczas wczytywania (#2815).** Każda pozycja ma własną
+transakcję. Przed odczytem śladu idempotencji i przed zapisem treści akcja
+blokuje wiersz konta, ponownie czyta jego stan i sprawdza prawo do tworzenia.
+Sankcja zatwierdzona wcześniej odmawia bieżącej i dalszych pozycji bez nowego
+śladu. Pozycje zatwierdzone przed sankcją pozostają; wynik pokazuje liczbę
+niewczytanych pozycji. Odwrotna kolejność kończy rozpoczętą transakcję przed
+zatwierdzeniem sankcji. Dwa przeploty mierzy
+`ImportPaczkiPoSankcjiKontaTest` na osobnych połączeniach PostgreSQL.
+
 **Eksport:** wiersz jest `NIE_DOTYCZY` w `InwentarzDanychKonta` (znacznik techniczny;
 treść jest w sekcjach `przepisy`, `wpisy`, `kolekcje`). **Wymazanie konta:**
 `EraseAccountData` usuwa ślady jawnie po `user_id` i kasuje czekający w prywatnym

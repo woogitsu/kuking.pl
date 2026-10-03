@@ -604,6 +604,8 @@ final class PublishRecipe
              */
             if ($recipe->isPublished()) {
                 MojaWersja::pilnujRoznicy($recipe);
+                // Kopia własnego szkicu (#2507) bez żadnej zmiany też nie wychodzi do ludzi.
+                MojaWersja::pilnujRoznicyKopii($recipe);
             }
 
             /*

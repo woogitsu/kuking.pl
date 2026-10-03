@@ -407,7 +407,7 @@ ust. 3 RODO.**
 | Cloudflare R2 | zdjęcia i warianty | `config/filesystems.php:124–132` | deklarowane UE — patrz **R-07** |
 | Cloudflare Turnstile | IP i cechy przeglądarki przy 7 formularzach | `config/kuking.php:938`, `:1045` | USA (DPF + SCC) |
 | Cloudflare Web Analytics | adres strony, odnośnik, przeglądarka, czas | `app/Support/AnalitykaCloudflare.php` | USA (DPF + SCC) |
-| OpenAI, L.L.C. | treść wpisu i zdjęcie | `app/Moderacja/KlientOpenAI.php` | USA (DPF + SCC) — patrz **R-03** |
+| OpenAI (dla EOG co do zasady OpenAI Ireland Ltd; do potwierdzenia) | treść wpisu i zdjęcie | `app/Moderacja/KlientOpenAI.php` | USA (DPF + SCC) — patrz **R-03** |
 | EmailLabs (Vercom S.A.) | adres e-mail i treść listu | `config/mail.php` | Polska — patrz **R-16** |
 | Google | przy logowaniu: tożsamość, e-mail, imię | `app/Http/Controllers/SocialController.php` | osobny administrator |
 | Meta Platforms Ireland | przy logowaniu | `app/Http/Controllers/SocialController.php` | osobny administrator |
@@ -657,6 +657,16 @@ umownych i prawie konsumenckim.
 ---
 
 ### R-16 · Dostawca poczty dokłada obrazek liczący otwarcia — do każdego listu, także transakcyjnego
+
+> **ZAMKNIĘTE 2.10.2026 (#2708, D-333).** Właściciel wyłączył Open Tracking w
+> panelu EmailLabs, a EmailLabs usunął historyczne dane o otwarciach
+> (potwierdzenie właściciela). Opis niżej zostaje jako historia stanu sprzed
+> zamknięcia. **Nie zamknięty pozostaje dowód odbioru:** analiza z 2.10.2026
+> (pyt. 16, bramka P0-03) każe sprawdzić dostarczony MIME listów (reset
+> hasła, potwierdzenie adresu, tygodniowy list) pod kątem braku piksela i
+> przekierowań liczących kliknięcia, we wszystkich kontach i subkontach.
+> Wyłączenie nie jest naruszeniem z art. 33 RODO i nie jest powodem, by
+> przepisywać historię tak, jakby piksela nigdy nie było.
 
 **Co obiecujemy** — `polityka:35`, `:77` i `:79`. Polityka mówi o tym uczciwie
 i w trzech miejscach, m.in.:
@@ -960,8 +970,9 @@ Dokument, który udaje kompletny, jest gorszy niż krótki i uczciwy.
   odnotowana także w `docs/legal/COMPLIANCE.md:381`.
 - **Czy umowy powierzenia istnieją** (**R-06**). Widać to wyłącznie w panelach
   dostawców i w szafie z umowami.
-- **Czy śledzenie otwarć listów zostało wyłączone w panelu EmailLabs**
-  (**R-16**).
+- ~~**Czy śledzenie otwarć listów zostało wyłączone w panelu EmailLabs**
+  (**R-16**).~~ **Zamknięte 2.10.2026** (D-333): wyłączone, dane historyczne
+  usunięte. Zostaje dowód z dostarczonego MIME (P0-03).
 
 **Kod i testy:**
 - **Nie uruchamialiśmy testów.** Wszystkie odwołania do testów to odczyt ich

@@ -92,7 +92,7 @@ przez właściciela produktu.
 #### 1. Co dokument twierdzi?
 - **Dane podmiotu:** Operatorem serwisu jest spółka SAMSUFI sp. z o.o. z siedzibą w Knyszynie, ul. Jagiellońska 4A, 19-120 Knyszyn (KRS 0000901262, NIP 5423435334, REGON 388971059) `[sprostowano 29.09.2026, #2224: pierwotnie podano tu nieaktualne dane rejestrowe i siedzibę; kapitału zakładowego konfiguracja nie przechowuje]`.
 - **Punkty kontaktowe:** `kontakt@kuking.pl` oraz punkt DSA pod adresem `dsa@kuking.pl`.
-- **Status DSA:** Spółka kwalifikuje się jako mikroprzedsiębiorstwo i korzysta ze zwolnienia z art. 19–24 Aktu o Usługach Cyfrowych (DSA).
+- **Status DSA:** Spółka kwalifikuje się jako mikroprzedsiębiorstwo i korzysta ze zwolnienia z art. 19–24 Aktu o Usługach Cyfrowych (DSA). `[objaśnienie 2.10.2026, #2708: dokładniej art. 19 zwalnia mikro i małe platformy z całej Sekcji 3 (art. 19–28) z wyjątkiem art. 24 ust. 3; art. 11–18 obowiązują; art. 15 ma osobne zwolnienie w ust. 2; status to oświadczenie właściciela z 2.10.2026 (D-333), pisemna notatka do zrobienia]`
 - **Lista podprocesorów:** Wymienia Railway, Cloudflare, dostawcę poczty, a także historycznie Sentry i PostHog.
 
 #### 2. Co z tego jest prawdą w kodzie? (potwierdzone `plik:linia`)

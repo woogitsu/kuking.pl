@@ -29,6 +29,7 @@ use App\Models\RecipeHint;
 use App\Models\RecipeStep;
 use App\Models\RecipeVersion;
 use App\Models\Report;
+use App\Models\ShoppingList;
 use App\Models\ShoppingListItem;
 use App\Models\Tag;
 use App\Models\TagHighlight;
@@ -133,6 +134,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         'zaproszenie.pokaz' => 'Parametr {token} to jednorazowy token zaproszenia do rejestracji.',
         'settings.data.import.preview' => 'Parametr {paczka} to losowy token pliku ZIP czekającego w prywatnym katalogu ZALOGOWANEJ osoby (`MagazynPaczek`), nie identyfikator obiektu w bazie: cudzy token nie wskazuje niczego (WczytanieDanychEkranTest::test_czyjs_token_nic_nie_znaczy_dla_innej_osoby), a wejście idzie przez `WczytanaZPaczkiPolicy::create` (#1985).',
         'settings.data.import.store' => 'Jak `settings.data.import.preview`: {paczka} to token pliku z katalogu zalogowanej osoby; zapis tworzy wyłącznie treści tej osoby, po `WczytanaZPaczkiPolicy::create` (#1985).',
+        'recipes.import.pdf.wybor' => 'Parametr {token} to losowy token pliku PDF czekającego w prywatnej poczekalni ZALOGOWANEJ osoby (`PoczekalniaPdf`, #2535), nie identyfikator obiektu w bazie: ścieżkę składamy z identyfikatora zalogowanej osoby, więc cudzy token nie wskazuje niczego (WyborStronPdfTest::test_cudze_konto_nie_wybierze_ani_nie_zatwierdzi_cudzego_pliku).',
+        'recipes.import.pdf.miniatura' => 'Jak `recipes.import.pdf.wybor`: {token} to token z katalogu zalogowanej osoby, a {numer} to numer strony tego pliku; cudze konto dostaje 404 (WyborStronPdfTest::test_miniatury_widzi_tylko_wlasciciel_i_nie_sa_cache_owane).',
+        'recipes.import.pdf.wybor.store' => 'Jak `recipes.import.pdf.wybor`: zatwierdzenie szuka pliku w katalogu zalogowanej osoby, numery stron sprawdza serwerowo względem tego pliku, a odczyt tworzy wyłącznie treści tej osoby (WyborStronPdfTest).',
+        'recipes.import.pdf.wybor.destroy' => 'Jak `recipes.import.pdf.wybor`: usuwa wyłącznie pozycję z katalogu zalogowanej osoby; cudzy token nic nie kasuje (WyborStronPdfTest::test_cudze_konto_nie_wybierze_ani_nie_zatwierdzi_cudzego_pliku).',
         'collections.link.show' => 'Parametr {token} to jednorazowy token linku-zaproszenia do wspólnego zeszytu (#1743); w bazie leży jego SHA-256, a przyjęcie odmawia przy blokadzie między stronami.',
         'collections.link.accept' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
         'collections.link.decline' => 'Jak collections.link.show: {token} to jednorazowe poświadczenie linku-zaproszenia, nie identyfikator obiektu.',
@@ -637,6 +642,22 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $wpisDoWspomnien = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $wpisBezOdpowiedzi = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
 
+        // Przywrócony jako szkic (#2461): dwa osobne wpisy, bo udany POST
+        // publikuje wpis i zmieniłby wynik GET na tym samym zasobie.
+        $szkicDoPodgladu = Post::factory()->draft()->create(['author_id' => $wlasciciel->getKey(), 'published_at' => now()->subYear()]);
+        $szkicDoPublikacji = Post::factory()->draft()->create(['author_id' => $wlasciciel->getKey(), 'published_at' => now()->subYear()]);
+        foreach ([$szkicDoPodgladu, $szkicDoPublikacji] as $szkic) {
+            ModerationAction::create([
+                'moderator_id' => $moderator->getKey(),
+                'report_id' => null,
+                'target_type' => 'post',
+                'target_id' => $szkic->getKey(),
+                'action' => ModerationAction::ACTION_UNHIDE,
+                'reason_code' => 'autor_poprawil',
+                'previous_status' => Post::STATUS_HIDDEN,
+            ]);
+        }
+
         // Osobny wpis dla „Zdejmij z urzędu” (G31) — udany POST go zdejmuje.
         $wpisZUrzedu = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
         // „CSAM — natychmiast ukryj i zabezpiecz” (D-333): udany POST ukrywa
@@ -1090,6 +1111,10 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('posts.edit', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.update', 'zapis wpisu', 'put',
             route('posts.update', $wpis), ['body' => 'Nowa treść wpisu.'], [$W, $O, $O, $O, $O]);
+        $dodaj('posts.restored.confirm', 'ekran ponownej publikacji przywróconego wpisu', 'get',
+            route('posts.restored.confirm', $szkicDoPodgladu), [], [$W, $O, $O, $O, $O]);
+        $dodaj('posts.restored.publish', 'ponowna publikacja przywróconego wpisu', 'post',
+            route('posts.restored.publish', $szkicDoPublikacji), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.comment', 'komentarz pod prywatnym wpisem', 'post',
             route('posts.comment', $wpis), ['body' => 'Komentarz do wpisu.'], [$W, $O, $O, $O, $O]);
         // „Dopisz przepis” (#1334): formularz pokazuje zdjęcie PRYWATNEGO
@@ -1155,6 +1180,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('recipes.history.restore', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.history.restore.store', 'przywrócenie wersji prywatnego przepisu', 'post',
             route('recipes.history.restore.store', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
+        // #2525: „Zastosuj jako nową poprawkę” — podgląd i zapis wyłącznie autor
+        // (`RecipePolicy::applyVersion`); moderator i obca osoba dostają odmowę.
+        $dodaj('recipes.history.apply', 'podgląd zastosowania wersji prywatnego przepisu jako poprawki', 'get',
+            route('recipes.history.apply', [$przepisPrywatny, 1]), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.history.apply.store', 'zastosowanie wersji prywatnego przepisu jako poprawki', 'post',
+            route('recipes.history.apply.store', [$przepisPrywatny, 1]), ['sekcje' => ['dane'], 'rewizja' => '0'], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.edit', 'edycja przepisu', 'get',
             route('recipes.edit', $przepis), [], [$W, $O, $O, $O, $O]);
         // Zlecenie odczytu zdjęcia kartki (V2, D-298) — prywatny szkic ze
@@ -1292,14 +1323,32 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // ŚWIADOMY WYJĄTEK — jak przy `collections.unsave-post` wyżej.
         $dodaj('collections.unsave', 'wyjęcie przepisu z własnego zeszytu', 'delete',
             route('collections.unsave', $przepisPrywatny), [], [$W, $W, $W, $W, $O]);
+        // Przenośna kopia jednego przepisu (#2531): tylko autor (`RecipePolicy::exportCopy`);
+        // moderator też dostaje odmowę — to wydanie własnych danych autora.
+        $dodaj('recipes.copy.show', 'ekran kopii przenośnej własnego przepisu', 'get',
+            route('recipes.copy.show', $przepisPrywatny->slug), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.copy.download', 'pobranie kopii przenośnej własnego przepisu', 'post',
+            route('recipes.copy.download', $przepisPrywatny->slug), [], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.destroy', 'usunięcie przepisu', 'delete',
             route('recipes.destroy', $przepisDoKasacji), [], [$W, $O, $O, $O, $O]);
         // „Odłóż na później” własnego szkicu (#2550): tylko autor; szkic jest
         // wyłącznie jego, więc moderator też dostaje odmowę (`RecipePolicy::postpone`).
         $dodaj('recipes.drafts.postpone', 'odłożenie własnego szkicu na później', 'post',
             route('recipes.drafts.postpone', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
+        // „Zrób kopię” własnego szkicu (#2507): ekran i zapis tylko dla autora szkicu
+        // (`RecipePolicy::copyDraft`); moderator i obca osoba dostają odmowę.
+        $dodaj('recipes.drafts.copy', 'ekran kopiowania własnego szkicu', 'get',
+            route('recipes.drafts.copy', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.drafts.copy.store', 'kopia własnego szkicu', 'post',
+            route('recipes.drafts.copy.store', $szkicDoOdlozenia->getKey()), ['klucz_kopii' => '0192f1a0-0000-7000-8000-0000000000aa'], [$W, $O, $O, $O, $O]);
         $dodaj('recipes.drafts.resume', 'powrót do pracy nad odłożonym szkicem', 'delete',
             route('recipes.drafts.resume', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
+        // Odzyskanie wcześniejszego tekstu własnego szkicu (#2512): tylko autor
+        // (`RecipePolicy::restoreDraftText`); moderator też dostaje odmowę.
+        $dodaj('recipes.drafts.restore.show', 'podgląd wcześniejszego tekstu własnego szkicu', 'get',
+            route('recipes.drafts.restore.show', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
+        $dodaj('recipes.drafts.restore', 'przywrócenie wcześniejszego tekstu własnego szkicu', 'post',
+            route('recipes.drafts.restore', $szkicDoOdlozenia->getKey()), [], [$W, $O, $O, $O, $O]);
         // Odzyskanie własnego, usuniętego przepisu (#2620): TYLKO autor z aktywnym
         // kontem. Moderator nie ma tu furtki — cudzy „kosz” jest prywatny.
         $dodaj('collections.deleted-recipes.recover', 'odzyskanie usuniętego przepisu', 'post',
@@ -1318,6 +1367,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // (`CookedEventPolicy::viewVersion`) — nawet autor przepisu dostaje odmowę.
         $dodaj('cooked.version', 'wersja przepisu przypięta do wykonania', 'get',
             route('cooked.version', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        // #2491: „Gotuj z tej wersji” — tryb, postęp i zakończenie tylko dla kucharza.
+        $dodaj('cooked.version.cook', 'krokowy tryb gotowania z wersji własnej próby', 'get',
+            route('cooked.version.cook', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooked.version.cook.mark', 'oznaczenie kroku wersji historycznej', 'post',
+            route('cooked.version.cook.mark', $wykonanie), ['krok' => '1', 'zrobiono' => '1'], [$W, $O, $O, $O, $O]);
+        $dodaj('cooked.version.cook.restart', 'restart postępu wersji historycznej', 'post',
+            route('cooked.version.cook.restart', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooked.version.finish', 'zakończenie gotowania z wersji historycznej', 'get',
+            route('cooked.version.finish', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.thank', 'podziękowanie za wykonanie', 'post',
             route('cooked.thank', $wykonanie), ['body' => 'Dziękuję za ugotowanie.'], [$W, $O, $O, $O, $O]);
         // F6: wspomnienie z wykonania chowa wyłącznie kucharz
@@ -1337,6 +1395,12 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooked.edit', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.update', 'zapis korekty wykonania', 'put',
             route('cooked.update', $wykonanie), ['note' => 'Poprawiona uwaga.'], [$W, $O, $O, $O, $O]);
+        // #2500: zdjęcie dołączone do zapisanego wykonania — wyłącznie kucharz
+        // (`CookedEventPolicy::addPhotos`); autor przepisu i moderator dostają odmowę.
+        $dodaj('cooked.photos.create', 'ekran dołączania zdjęcia do wykonania', 'get',
+            route('cooked.photos.create', $wykonanie), [], [$W, $O, $O, $O, $O]);
+        $dodaj('cooked.photos.store', 'dołączenie zdjęcia do wykonania', 'post',
+            route('cooked.photos.store', $wykonanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.destroy', 'usunięcie wykonania', 'delete',
             route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $O, $O]);
         // Wskazówki od gotujących (#2352): prosi wyłącznie autor przepisu
@@ -1628,6 +1692,18 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('shopping.update', $pozycjaZakupow), ['text' => '2 mleka', 'stan' => hash('sha256', 'mleko')], [$W, $O, $O, $O, $O]);
         $dodaj('shopping.destroy', 'usunięcie pozycji listy zakupów', 'delete',
             route('shopping.destroy', $pozycjaZakupowDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // Nazwane listy (#2528): zmienia nazwę i usuwa wyłącznie właściciel
+        // (`ShoppingListPolicy`), bez wyjątku dla moderatora.
+        $listaZakupowDoNazwy = new ShoppingList(['name' => 'Święta']);
+        $listaZakupowDoNazwy->user_id = $wlasciciel->getKey();
+        $listaZakupowDoNazwy->save();
+        $listaZakupowDoKasacji = new ShoppingList(['name' => 'Przyjęcie']);
+        $listaZakupowDoKasacji->user_id = $wlasciciel->getKey();
+        $listaZakupowDoKasacji->save();
+        $dodaj('shopping.lists.rename', 'zmiana nazwy listy zakupów', 'patch',
+            route('shopping.lists.rename', $listaZakupowDoNazwy), ['nowa_nazwa' => 'Wigilia'], [$W, $O, $O, $O, $O]);
+        $dodaj('shopping.lists.destroy', 'usunięcie listy zakupów', 'delete',
+            route('shopping.lists.destroy', $listaZakupowDoKasacji), ['potwierdzam' => '1', 'widziana_liczba' => '0'], [$W, $O, $O, $O, $O]);
         $dodaj('shopping.recipe.store', 'dodanie składników prywatnego przepisu do listy zakupów', 'post',
             route('shopping.recipe.store', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         // Wybór składników (#2462): ekran i zapis prywatnego przepisu — tylko autor.

@@ -75,6 +75,10 @@ use App\Domain\Users\Actions\ChangeUserRole;
 use App\Domain\Users\Actions\ConfirmEmailChange;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Actions\RequestAccountDeletion;
+use App\Domain\Users\Exports\WersjaFormatuPaczki;
+use App\Domain\Users\Import\PodgladPaczki;
+use App\Domain\Users\Import\PozycjaPodgladu;
+use App\Domain\Users\Import\WczytajPaczke;
 use App\Domain\Wskazowki\AnulujProsbeOWskazowke;
 use App\Domain\Wskazowki\OdrzucWskazowke;
 use App\Domain\Wskazowki\PrzyjmijWskazowke;
@@ -293,6 +297,63 @@ try {
             });
 
             return (string) $konto->fresh()?->status;
+        })(),
+
+        // #2815: prawdziwa akcja importu z modelem załadowanym przed karą.
+        // Przyrząd zatrzymuje się przed zapytaniem o świeży wiersz albo po
+        // jego zablokowaniu; żadna bariera nie trafia do kodu produkcyjnego.
+        'wczytaj-paczke-2815' => (function () use ($argumenty): array {
+            $konto = User::query()->whereKey($argumenty['konto'])->firstOrFail();
+            if (! $konto->isActive()) {
+                throw new RuntimeException('Przyrząd nie odczytał aktywnego konta przed przeplotem.');
+            }
+
+            $tryb = $argumenty['tryb'] ?? 'przed';
+            $kolejnyZamek = 0;
+            $zatrzymany = false;
+            $czyZamek = static fn (string $sql): bool => str_contains(strtolower($sql), 'from "users"')
+                && str_contains(strtolower($sql), 'for no key update');
+            if ($tryb === 'przed' || $tryb === 'druga_pozycja') {
+                DB::connection()->beforeExecuting(static function (string $sql, array $bindings, $connection) use (&$kolejnyZamek, $czyZamek, $argumenty, $tryb): void {
+                    if (! $czyZamek($sql) || ++$kolejnyZamek !== ($tryb === 'druga_pozycja' ? 2 : 1)) {
+                        return;
+                    }
+                    $connection->getPdo()->query('SELECT pg_advisory_xact_lock(2815, '.(int) $argumenty['bariera'].')');
+                });
+            } elseif ($tryb === 'po_blokadzie') {
+                DB::listen(static function (QueryExecuted $query) use (&$zatrzymany, $czyZamek, $argumenty): void {
+                    if ($zatrzymany || ! $czyZamek($query->sql)) {
+                        return;
+                    }
+                    $zatrzymany = true;
+                    DB::connection()->getPdo()->query('SELECT pg_advisory_xact_lock(2815, '.(int) $argumenty['bariera'].')');
+                });
+            }
+
+            $znacznik = $argumenty['znacznik'];
+            $przepis = new PozycjaPodgladu('przepis', 'Przepis '.$znacznik, PozycjaPodgladu::NOWA, null, [], hash('sha256', 'przepis'.$znacznik), [
+                'tytul' => 'Przepis '.$znacznik,
+                'opis' => 'Własny szkic.',
+                'skladniki' => [['text' => '1 cebula']],
+                'kroki' => [['instruction' => 'Ugotuj.']],
+            ]);
+            $wpis = new PozycjaPodgladu('wpis', 'Wpis '.$znacznik, PozycjaPodgladu::NOWA, null, [], hash('sha256', 'wpis'.$znacznik), ['tresc' => 'Wpis '.$znacznik]);
+            $zeszyt = new PozycjaPodgladu('zeszyt', 'Zeszyt '.$znacznik, PozycjaPodgladu::NOWA, null, [], hash('sha256', 'zeszyt'.$znacznik), ['nazwa' => 'Zeszyt '.$znacznik, 'opis' => null]);
+            $rodzaj = $argumenty['rodzaj'] ?? 'wpis';
+            $pozycje = match ($rodzaj) {
+                'przepis' => [$przepis], 'wpis' => [$wpis], 'zeszyt' => [$zeszyt], 'partia' => [$wpis, $zeszyt],
+                default => throw new LogicException('Nieznany rodzaj importu w teście.'),
+            };
+            $podglad = new PodgladPaczki(
+                WersjaFormatuPaczki::AKTUALNA, null,
+                $rodzaj === 'przepis' ? [$przepis] : [],
+                in_array($rodzaj, ['wpis', 'partia'], true) ? [$wpis] : [],
+                in_array($rodzaj, ['zeszyt', 'partia'], true) ? [$zeszyt] : [],
+                [],
+            );
+            $wynik = app(WczytajPaczke::class)->handle($konto, $podglad, array_map(static fn (PozycjaPodgladu $p): string => $p->odcisk, $pozycje));
+
+            return ['utworzone' => $wynik->utworzone, 'niewczytane' => $wynik->niewczytane, 'juz_byly' => $wynik->juzByly];
         })(),
 
         'opublikuj-wpis-2088' => (function () use ($argumenty): string {

@@ -40,18 +40,22 @@
         Nie zmieniamy czasu, temperatury ani wielkości naczynia.
     </p>
 
+    {{--
+        Jeden formularz z wyborem listy docelowej (#2528) dla obu przycisków —
+        jedno pytanie „Na którą listę zakupów?” zamiast dwóch. „Dodaj ilości
+        autora” wysyła `ilosci=autora`: serwer pomija wtedy liczbę porcji.
+    --}}
+    <x-error-summary :field-ids="['lista' => 'f-lista-zakupow-porcje']" />
+
     <form class="panel-formularza" method="POST" action="{{ route('shopping.recipe.store', $recipe->slug) }}" novalidate>
         @csrf
         <input type="hidden" name="porcje" value="{{ $porcje }}">
         <input type="hidden" name="odcisk" value="{{ $odcisk }}">
+        <x-zakupy-wybor-listy wiersz="porcje" :wybrana="$wybranaLista" :blad="true" />
         <div class="form-actions">
-            <button class="btn btn-primary" type="submit">Dodaj składniki na {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wybor->wybrane) }}</button>
+            <button class="btn btn-primary" type="submit" name="ilosci" value="przeliczone">Dodaj składniki na {{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wybor->wybrane) }}</button>
+            <button class="btn btn-secondary" type="submit" name="ilosci" value="autora">Dodaj ilości autora ({{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wybor->zPrzepisu) }})</button>
+            <a class="btn btn-quiet" href="{{ route('recipes.show', ['recipe' => $recipe->slug, 'porcje' => $porcje]) }}">Wróć do przepisu bez dodawania</a>
         </div>
-    </form>
-
-    <form method="POST" action="{{ route('shopping.recipe.store', $recipe->slug) }}" novalidate>
-        @csrf
-        <button class="btn btn-secondary" type="submit">Dodaj ilości autora ({{ \App\Domain\Recipes\Porcje\WyborPorcji::etykieta($wybor->zPrzepisu) }})</button>
-        <a class="btn btn-quiet" href="{{ route('recipes.show', ['recipe' => $recipe->slug, 'porcje' => $porcje]) }}">Wróć do przepisu bez dodawania</a>
     </form>
 </x-layout>

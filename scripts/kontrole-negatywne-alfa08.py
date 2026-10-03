@@ -900,6 +900,16 @@ def replace_once(source, old, new):
     return source.replace(old, new, 1)
 
 
+def kopie_przestaw_krok_po_wymazaniu(source, poczatek, srodek, koniec):
+    """#2708: fizycznie przenieś instrukcję CSAM za komendy wymazania."""
+    if any(source.count(marker) != 1 for marker in (poczatek, srodek, koniec)):
+        raise RuntimeError("Kontrola nie znalazła dokładnie jednego kroku odtworzenia CSAM.")
+    od = source.index(poczatek)
+    sro = source.index(srodek, od)
+    do = source.index(koniec, sro)
+    return source[:od] + source[sro:do] + source[od:sro] + source[do:]
+
+
 def zakupy_usun_bez_pytania(source):
     """#2466: przywróć bezpośredni formularz DELETE sprzed potwierdzenia."""
     poczatek = '        <details class="confirm planer-usuwanie">'
@@ -1345,6 +1355,45 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Listy zakupów mieszają pozycje (#2528)", "app/Domain/Zakupy/ListaZakupow.php",
+     "test_dotychczasowe_pozycje_sa_na_liscie_domyslnej_a_nazwana_ich_nie_miesza",
+     lambda s: replace_once(s, ": $zapytanie->where('list_id', $lista->getKey());", ": $zapytanie;").replace("? $zapytanie->whereNull('list_id')", "? $zapytanie")),
+    ("Cudza lista zakupów otwiera ekran i przyjmuje zapis (#2528)", "app/Domain/Zakupy/ListaZakupow.php",
+     "test_cudza_lista_nie_otwiera_sie_i_nie_przyjmuje_zapisow",
+     lambda s: replace_once(s, "if (! (new ShoppingListPolicy)->view($user, $lista)) {", "if (false) {")),
+    ("Usunięcie listy ignoruje zmienioną liczbę pozycji (#2528)", "app/Domain/Zakupy/ListaZakupow.php",
+     "test_usuniecie_listy_z_pozycjami_wymaga_potwierdzenia_z_liczba_i_nie_rusza_innych_list",
+     lambda s: replace_once(s, "if ($ile > 0 && $widzianaLiczba !== $ile) {", "if (false) {")),
+    ("Dołączenie zdjęcia: podmiana UUID kucharza (#2500)", "app/Policies/CookedEventPolicy.php",
+     "test_obcy_autor_przepisu_i_moderator_nie_dolacza_zdjec",
+     lambda s: replace_once(s, "if ($user->getKey() !== $event->user_id || ! $user->isActive()) {", "if (! $user->isActive()) {")),
+    ("Dołączenie zdjęcia liczy limit bez przypiętych (#2500)", "app/Domain/Recipes/Actions/DolaczZdjeciaDoWykonania.php",
+     "test_limit_liczy_zdjecia_juz_przypiete_i_nowe_razem",
+     lambda s: replace_once(s, "if (count($przypiete) + count($nowe) > LimityZdjec::maksZdjecNaWysylke()) {", "if (count($nowe) > LimityZdjec::maksZdjecNaWysylke()) {")),
+    ("Dołączenie zdjęcia ignoruje świeży stan pod blokadą (#2500)", "app/Domain/Recipes/Actions/DolaczZdjeciaDoWykonania.php",
+     "test_sankcja_albo_utrata_przepisu_miedzy_otwarciem_a_zapisem_blokuje_zapis_pod_blokada",
+     lambda s: replace_once(s, "if (! (new CookedEventPolicy)->addPhotos($swiezyKucharz, $swiezeWykonanie)) {", "if (false) {")),
+    ("Dołączenie zdjęcia przejmuje cudze albo cudzo-przypięte (#2500)", "app/Domain/Recipes/Actions/DolaczZdjeciaDoWykonania.php",
+     "test_cudze_zabezpieczone_i_przypiete_gdzie_indziej_zdjecia_nie_zostaja_przejete",
+     lambda s: replace_once(s, "&& ! in_array($id, $gdzieIndziej, true),", ",")),
+    ("Niezmieniona kopia szkicu wychodzi do ludzi (#2507)", "app/Domain/Recipes/Actions/PublishRecipe.php",
+     "test_publikacja_niezmienionej_kopii_przez_formularz_jest_odrzucona",
+     lambda s: replace_once(s, "                MojaWersja::pilnujRoznicyKopii($recipe);\n", "")),
+    ("Importowany szkic traci bramkę odczytu w kopii (#2800)", "app/Domain/Recipes/Actions/ZrobKopieSzkicu.php",
+     "test_szkic_z_url_i_pdf_nie_dostaje_kopii_przez_domene_ani_http",
+     lambda s: replace_once(s, "if (self::jestPowiazanyZImportem($swiezeZrodlo)) {", "if (false && self::jestPowiazanyZImportem($swiezeZrodlo)) {")),
+    ("Kopia szkicu gubi podpis Mojej wersji (#2507)", "app/Domain/Recipes/Actions/ZrobKopieSzkicu.php",
+     "test_kopia_adaptacji_zachowuje_podpis_oryginalu_takze_gdy_oryginal_zniknal",
+     lambda s: replace_once(s, "'forked_from_id' => $swiezeZrodlo->forked_from_id,", "'forked_from_id' => null,")),
+    ("Kopia szkicu przejmuje zdjęcia kroków (#2507)", "app/Domain/Recipes/Actions/ZrobKopieSzkicu.php",
+     "test_kopia_to_niezalezny_prywatny_szkic_ze_skopiowana_trescia_i_bez_mediow",
+     lambda s: replace_once(s, "'media_id' => null,\n                    'timer_seconds'", "'media_id' => $krok->media_id,\n                    'timer_seconds'")),
+    ("Kopia szkicu ocenia prawo na starym stanie (#2507)", "app/Domain/Recipes/Actions/ZrobKopieSzkicu.php",
+     "test_stan_i_prawo_sa_sprawdzane_od_nowa_pod_blokada",
+     lambda s: replace_once(s, "Gate::forUser($swiezyUser)->authorize('copyDraft', $swiezeZrodlo);", "")),
+    ("Kopię cudzego szkicu zrobi każdy (#2507)", "app/Policies/RecipePolicy.php",
+     "test_tylko_wlasciciel_aktywny_wlasnego_szkicu",
+     lambda s: replace_once(s, "public function copyDraft(User $user, Recipe $recipe): bool\n    {\n        return $user->getKey() === $recipe->author_id\n            && $user->isActive()", "public function copyDraft(User $user, Recipe $recipe): bool\n    {\n        return $user->isActive()")),
     ("Dyktowanie odbiera mikrofon zalogowanemu (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
      lambda s: replace_once(s, "return $request->user() !== null", "return false")),
     ("Dyktowanie daje mikrofon gościowi (#2377 etap 2)", "app/Http/Middleware/ApplySecurityHeaders.php", "test_ekran_dluzszego_pola_odblokowuje_mikrofon_tylko_zalogowanemu",
@@ -1588,7 +1637,9 @@ checks = [
      lambda s: replace_once(s, "kasza gryczana|kaszy gryczanej|kasze gryczana,,",
                             "kasza gryczana|kaszy gryczanej|kasze gryczana|gryczana|gryczanej,,")),
     # #2476: dwa bieżące składniki z identycznym tekstem/ile=null są różne.
-    ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/CollectUserExportData.php",
+    # #2531: mapowanie pól przepisu przeszło do `PrzepisDoPaczki` (wspólne dla
+    # pełnej paczki i kopii jednego przepisu).
+    ("Bieżący eksport pomija wybór Bez ilości (#2476)", "app/Domain/Users/Exports/PrzepisDoPaczki.php",
      "test_biezacy_szkic_zachowuje_dwa_rozne_wybory_bez_ilosci_w_json",
      lambda s: replace_once(s, "                'bez_ilosci' => (bool) $item->no_amount,\n", "")),
     # #2639: własne wykonanie musi wskazać istniejący własny plik tej paczki.
@@ -1988,7 +2039,7 @@ checks = [
     # #1750: klucz paczki RODO wraca do formy żeńskiej sprzed poprawki.
     ("Klucz eksportu z rodzajem", EKSPORT_DANE, EKSPORT_KLUCZE_TEST,
      lambda s: replace_once(s, "'na_czym_sie_znam' =>", "'w_czym_jestem_dobra' =>")),
-    ("Eksport gubi wybór widoczności wartości odżywczych", EKSPORT_DANE, EKSPORT_WIDOCZNOSC_TEST,
+    ("Eksport gubi wybór widoczności wartości odżywczych", "app/Domain/Users/Exports/PrzepisDoPaczki.php", EKSPORT_WIDOCZNOSC_TEST,
      lambda s: replace_once(s, EKSPORT_WIDOCZNOSC_POLE, "")),
     # #1752 (D-332): rollback formy zwracania się bez strażnika D-088
     # i anonimizacja konta, która zostawia wybraną formę.
@@ -2705,8 +2756,27 @@ checks = [
     # odtworzonej bazy do serwisu — okno, w którym serwis pokazuje wymazane osoby.
     ("Runbook odtworzenia stosuje rejestr usunięć po podpięciu bazy (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
      "test_runbook_kaze_zastosowac_rejestr_usuniec_przed_podpieciem_bazy_do_serwisu",
-     lambda s: replace_once(s, "# 4. NAJPIERW rejestr usunięć",
-                            'railway variables --set "DB_URL=<nowy_DATABASE_URL>"\n# 4. NAJPIERW rejestr usunięć')),
+     lambda s: replace_once(s, "# 5. Dopiero po potwierdzeniu kroku 4 zastosuj rejestr usunięć",
+                            'railway variables --set "DB_URL=<nowy_DATABASE_URL>"\n# 5. Dopiero po potwierdzeniu kroku 4 zastosuj rejestr usunięć')),
+    ("Runbook podpina bazę przed drugim wymazaniem (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_runbook_kaze_zastosowac_rejestr_usuniec_przed_podpieciem_bazy_do_serwisu",
+     lambda s: replace_once(s, "# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie",
+                            'railway variables --set "DB_URL=<nowy_DATABASE_URL>"\n# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie')),
+    ("Awaria izolacji usług pozwala wymazać przed sprawdzeniem CSAM (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_brak_zatrzymania_uslug_nie_pozwala_pominac_sprawdzenia_csam",
+     lambda s: replace_once(s, 'Bez sprawdzenia decyzji CSAM', 'uruchom komendę natychmiast. Bez sprawdzenia decyzji CSAM')),
+    ("Odtworzenie CSAM po pierwszym wymazaniu kont (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_obie_kontrole_csam_poprzedzaja_wymazanie_i_podpiecie_bazy",
+     lambda s: kopie_przestaw_krok_po_wymazaniu(
+         s, '# 4. NAJPIERW odtwórz i zweryfikuj decyzje CSAM',
+         '# 5. Dopiero po potwierdzeniu kroku 4',
+         '# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie')),
+    ("Odtworzenie nowych decyzji CSAM po ponownym wymazaniu (#2708)", "docs/infra/KOPIE_I_ODTWORZENIE.md",
+     "test_obie_kontrole_csam_poprzedzaja_wymazanie_i_podpiecie_bazy",
+     lambda s: kopie_przestaw_krok_po_wymazaniu(
+         s, '# 6. Wstrzymaj ruch usług web, worker i scheduler na starej bazie',
+         'railway run --service kuking.pl --environment production \\\n  env DB_URL="$DB_URL_NOWEJ_BAZY" \\\n  php artisan kuking:wymaz-ponownie --od="<chwila kopii>" --na-sucho',
+         '# 7. Dopiero teraz podepnij nowy DB_URL')),
     # Paczka L: komunikat Planera trafił do C w kodowaniu UTF-8 odczytanym jako
     # Latin-1 („juÅ¼… OdÅ›wieÅ¼”). Strażnik ma znaleźć taki napis w kodzie.
     ("Zepsute kodowanie polskich liter w komunikacie Planera (paczka L)", "app/Http/Controllers/PlanerController.php",
@@ -2714,6 +2784,13 @@ checks = [
      lambda s: replace_once(s,
          "            default => redirect()->route('planer.show')\n                ->with(Komunikat::blad('Tej pozycji już nie ma w planie. Odśwież stronę.')),\n        };\n    }\n\n    /**\n     * Ekran „Zmień tekst”",
          "            default => redirect()->route('planer.show')\n                ->with(Komunikat::blad('Tej pozycji ju\u00c5\u00bc nie ma w planie. Od\u00c5\u203awie\u00c5\u00bc stron\u00c4\u2122.')),\n        };\n    }\n\n    /**\n     * Ekran „Zmień tekst”")),
+    # #2808: ścisła wersja została ukryta po kontroli formularza. Nie może
+    # wrócić do zwykłego zapytania, które celowo zachowuje starą semantykę.
+    ("Ścisłe gotowanie przyjmuje ukrytą wersję (#2808)", "app/Domain/Recipes/Actions/RecordCookedEvent.php",
+     "test_ukrycie_wersji_po_wstepnej_kontroli_odmawia_scislego_zapisu_bez_zdjecia_i_powiadomienia",
+     lambda s: replace_once(s,
+         "? HistoriaWersji::zapytanie($recipe, HistoriaWersji::widziUkryte($cook, $recipe))",
+         "? HistoriaWersji::zapytanie($recipe, true)")),
 ]
 
 # CZERWIEŃ Z OCZEKIWANEJ PRZYCZYNY (#1011, docs/PULAPKI_TESTOW.md §5b). Dawniej

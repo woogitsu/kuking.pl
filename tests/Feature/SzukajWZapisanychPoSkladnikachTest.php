@@ -72,7 +72,7 @@ class SzukajWZapisanychPoSkladnikachTest extends TestCase
 
         $this->actingAs($basia)->get(route('collections.index', ['szukaj' => 'cukinia']))
             ->assertOk()
-            ->assertSee('Nie znaleźliśmy w Twoich zeszytach przepisu, który ma w tytule albo w składnikach')
+            ->assertSee('Nie znaleźliśmy w Twoich zeszytach przepisu, który ma w tytule, w składnikach albo w polu')
             ->assertDontSee('Zapiekanka')
             ->assertDontSee('Cudzy');
 
@@ -132,7 +132,7 @@ class SzukajWZapisanychPoSkladnikachTest extends TestCase
         // Emoji znikają w transliteracji: to błąd z instrukcją, nie „wszystko”.
         $this->actingAs($basia)->get(route('collections.index', ['szukaj' => '😀😀']))
             ->assertOk()
-            ->assertSee('Wpisz co najmniej dwie litery z tytułu przepisu albo ze składnika.')
+            ->assertSee('Wpisz co najmniej dwie litery z tytułu przepisu, ze składnika albo z tego, od kogo masz przepis.')
             ->assertDontSee('data-wyniki-w-zeszytach', false);
     }
 
