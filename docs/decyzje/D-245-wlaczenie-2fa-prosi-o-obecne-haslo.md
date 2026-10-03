@@ -43,8 +43,9 @@ dowód tożsamości to osobna decyzja, tu niepodjęta.
 
 ### Włączenie 2FA gasi poświadczenia sprzed niego (#930)
 
-Po udanym potwierdzeniu (dobre hasło **i** dobry kod) `confirm()` woła
-istniejące `User::invalidateSessions()` z wyjątkiem bieżącej sesji — tą samą
+Po udanym potwierdzeniu (dobre hasło **i** dobry kod) akcja `WlaczDwuetapowa`
+woła istniejące `User::invalidateSessions()` pod tą samą blokadą konta,
+z wyjątkiem bieżącej sesji — tą samą
 drogą co zmiana hasła i „Wyloguj inne urządzenia" (#584). Znika więc każda
 inna sesja `database`, rotuje `remember_token` (stare ciasteczka „zapamiętaj
 mnie" przestają odtwarzać logowanie) i giną oczekujące linki do logowania.
@@ -54,6 +55,22 @@ bo `moderator.2fa` sprawdza stan konta, nie przebieg logowania. Bieżąca sesja
 zostaje, kody zapasowe są pokazane jak dotąd. Złe hasło albo zły kod kończą
 się przed tą linią, więc niczego nie odwołują. Nowe ciasteczko pamiętania dla
 bieżącej przeglądarki nie jest wystawiane — jak w #584.
+
+Od 3 października 2026 (#2861, #2862) potwierdzenie i wyłączenie 2FA ponownie
+sprawdzają hasło oraz generację sesji na świeżym wierszu pod `ZamekKonta`.
+Zmiana hasła lub reset w drugiej sesji, nawet do identycznego hasła, powodują
+odmowę starego żądania i ponowne logowanie. Zapis 2FA oraz odwołanie innych
+sesji są jedną operacją pod tym zamkiem. Wyłączenie przechodzi przez nazwaną
+akcję `WylaczDwuetapowa`. Test na dwóch połączeniach mierzy oba przeploty,
+dosłowne stare ciasteczko w kolejnym żądaniu oraz aktualną sesję; osobne
+mutacje obu akcji fizycznie cofają sprawdzenie i muszą oblać. Rollback tej
+poprawki przywróciłby okno, w którym stare żądanie może zmienić 2FA, więc
+do czasu ponownego wdrożenia trzeba wstrzymać oba formularze zmian 2FA.
+
+Jawna komenda wyłączenia z poprawnym hasłem zachowuje wcześniejsze znaczenie
+także wtedy, gdy 2FA nie była jeszcze potwierdzona: nie zapisuje fikcyjnego
+audytu „wyłączono 2FA”, ale odwołuje inne sesje i poświadczenia. Bieżąca sesja
+pozostaje ważna. Złe hasło oraz spóźniona generacja nie wykonują tej rotacji.
 
 📄 `app/Http/Controllers/Settings/TwoFactorSettingsController.php`,
 `routes/web.php`, `resources/views/pages/settings/two_factor/enable.blade.php`,

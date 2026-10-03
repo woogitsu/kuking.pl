@@ -3,6 +3,40 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/../.." && pwd)"
+
+# Pre-push przekazuje GIT_DIR (a czasem także GIT_WORK_TREE i parametry
+# konfiguracji) do uruchamianych poleceń. `git -C` tego nie odcina: `git init
+# --bare` potrafi wtedy przestawić core.bare w repozytorium wywołującym.
+# Git sam podaje kompletną listę zmiennych lokalnych dla repozytorium.
+mapfile -t lokalne_git < <(git rev-parse --local-env-vars)
+for git_zmienna in "${lokalne_git[@]}"; do
+    unset "$git_zmienna"
+done
+
+# Test nie może zmienić nawet konfiguracji lub hooka drzewa, z którego go
+# wywołano. Mierzymy bajty, czas modyfikacji i stan Git przed oraz po fixture.
+git_dir_wolajacego="$(git -C "$root" rev-parse --absolute-git-dir)"
+git_common_wolajacego="$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)"
+pliki_wolajacego=(
+    "$git_common_wolajacego/config"
+    "$git_common_wolajacego/hooks/pre-push"
+    "$git_dir_wolajacego/config.worktree"
+    "$git_dir_wolajacego/hooks/pre-push"
+    "$root/tests/skrypty/install-hooks-worktree.sh"
+)
+odcisk_plikow() {
+    local plik
+    for plik in "$@"; do
+        if [ -e "$plik" ]; then
+            printf '%s|%s|%s\n' "$plik" "$(sha256sum "$plik" | cut -d' ' -f1)" "$(stat -c '%y' "$plik")"
+        else
+            printf '%s|brak\n' "$plik"
+        fi
+    done
+}
+przed_wolajacym="$(odcisk_plikow "${pliki_wolajacego[@]}")"
+stan_przed="$(git -C "$root" status --porcelain --untracked-files=all)"
+
 tmp="$(mktemp -d -t kuking-hooks.XXXXXX)"
 tmp_parent="$(cd "$(dirname "$tmp")" && pwd -P)"
 case "$tmp" in
@@ -91,4 +125,48 @@ if (cd "$tmp/other" && bash scripts/install-hooks.sh) > "$tmp/custom.log" 2>&1; 
 fi
 grep -q 'core.hooksPath wskazuje już' "$tmp/custom.log"
 test "$(git -C "$tmp/other" config --worktree --get core.hooksPath)" = "$custom_before"
+
+if [ "${KUKING_HOOKS_WNETRZE_2871:-}" != 1 ]; then
+    # Drugi przebieg wywołuje TEN SAM test tak, jak robi to pre-push: z
+    # odziedziczonym GIT_DIR i GIT_CONFIG_PARAMETERS linked worktree. Własny
+    # tymczasowy caller daje dowód bez dotykania konfiguracji prawdziwego repo.
+    git init -q "$tmp/caller"
+    git -C "$tmp/caller" config user.name Test
+    git -C "$tmp/caller" config user.email test@example.test
+    printf 'caller\n' > "$tmp/caller/README"
+    git -C "$tmp/caller" add README
+    git -C "$tmp/caller" commit -qm caller
+    git -C "$tmp/caller" config extensions.worktreeConfig true
+    git -C "$tmp/caller" worktree add -qb caller "$tmp/caller-linked"
+    caller_dir="$(git -C "$tmp/caller-linked" rev-parse --absolute-git-dir)"
+    git -C "$tmp/caller-linked" config --worktree test.canary zostaje
+    mkdir -p "$caller_dir/hooks"
+    printf 'obcy hook\n' > "$caller_dir/hooks/pre-push"
+    caller_pliki=("$tmp/caller/.git/config" "$caller_dir/config.worktree" "$caller_dir/hooks/pre-push" "$tmp/caller-linked/README")
+    caller_przed="$(odcisk_plikow "${caller_pliki[@]}")"
+    caller_stan_przed="$(git -C "$tmp/caller-linked" status --porcelain --untracked-files=all)"
+
+    wynik_wewnetrzny=0
+    (GIT_DIR="$caller_dir" GIT_WORK_TREE="$tmp/caller-linked" GIT_CONFIG_PARAMETERS="'test.fixture=true'" \
+        KUKING_HOOKS_WNETRZE_2871=1 bash "$root/tests/skrypty/install-hooks-worktree.sh") \
+        > "$tmp/inherited.log" 2>&1 || wynik_wewnetrzny=$?
+    if [ "$(odcisk_plikow "${caller_pliki[@]}")" != "$caller_przed" ] \
+        || ! caller_stan_po="$(git -C "$tmp/caller-linked" status --porcelain --untracked-files=all 2>/dev/null)" \
+        || [ "$caller_stan_po" != "$caller_stan_przed" ]; then
+        echo 'INSTALL_HOOKS_2871_WOLAJACY_ZMIENIONY: fixture zmienił konfigurację, hook lub stan wywołującego worktree.' >&2
+        exit 1
+    fi
+    if [ "$wynik_wewnetrzny" -ne 0 ] || ! grep -q 'INSTALL_HOOKS_WORKTREE_PASS' "$tmp/inherited.log"; then
+        echo 'Fixture z odziedziczonym GIT_DIR nie przeszedł:' >&2
+        tail -n 20 "$tmp/inherited.log" >&2
+        exit 1
+    fi
+fi
+
+if [ "$(odcisk_plikow "${pliki_wolajacego[@]}")" != "$przed_wolajacym" ] \
+    || ! stan_po="$(git -C "$root" status --porcelain --untracked-files=all 2>/dev/null)" \
+    || [ "$stan_po" != "$stan_przed" ]; then
+    echo 'INSTALL_HOOKS_2871_WOLAJACY_ZMIENIONY: test zmienił własne repozytorium.' >&2
+    exit 1
+fi
 echo 'INSTALL_HOOKS_WORKTREE_PASS'
