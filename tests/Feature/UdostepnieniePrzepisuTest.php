@@ -474,6 +474,61 @@ class UdostepnieniePrzepisuTest extends TestCase
         $this->assertTrue(app(OdbierzDostepDoPrzepisu::class)->odbierz($halina, $udostepnienie));
     }
 
+    /** @return array<string, array{0: bool}> */
+    public static function okresyZawieszeniaAutorki(): array
+    {
+        return [
+            'zawieszenie czasowe' => [true],
+            'zawieszenie bezterminowe' => [false],
+        ];
+    }
+
+    #[DataProvider('okresyZawieszeniaAutorki')]
+    public function test_zawieszona_autorka_przez_formularz_cofa_tylko_wlasne_udostepnienie(bool $czasowo): void
+    {
+        $dlaJurka = $this->udostepnij();
+        $dlaBasi = $this->udostepnij($this->przepis, 'basia');
+        $this->actingAs($this->jurek)->get($this->strona())->assertOk();
+        $this->actingAs($this->basia)->get($this->strona())->assertOk();
+
+        $this->halina->suspend($czasowo ? now()->addDays(3) : null);
+        $adres = route('recipes.shares.index', $this->przepis);
+        $this->actingAs($this->halina->fresh())->get($adres)
+            ->assertOk()->assertSee('Odbierz dostęp')->assertSee('Odebrać dostęp możesz zawsze')
+            ->assertSee('action="'.route('recipes.shares.destroy', ['recipe' => $this->przepis, 'share' => $dlaJurka]).'"', false)
+            ->assertSee('name="_method" value="DELETE"', false);
+
+        // Jedynie odbieranie jest wyjątkiem; nowego odbiorcy nie dopisujemy.
+        $this->actingAs($this->halina->fresh())->from($adres)
+            ->post(route('recipes.shares.store', $this->przepis), ['nazwa' => 'nowa-osoba'])
+            ->assertSessionHasErrors('konto');
+        $this->assertSame(2, RecipeShare::query()->count(), 'UDOSTEPNIENIE_2791_BEZ_NOWEGO_GRANTU');
+
+        $this->actingAs($this->halina->fresh())->delete(route('recipes.shares.destroy', [
+            'recipe' => $this->przepis, 'share' => $dlaJurka,
+        ]))->assertRedirect($adres);
+        $this->assertFalse(RecipeShare::query()->whereKey($dlaJurka->getKey())->exists(), 'UDOSTEPNIENIE_2791_COFNIECIE_MIMO_KARY');
+        $this->assertDatabaseHas('recipe_shares', ['id' => $dlaBasi->getKey()]);
+
+        if ($czasowo) {
+            $this->travel(4)->days();
+            $this->actingAs($this->jurek->fresh())->get($this->strona())->assertForbidden();
+            $this->actingAs($this->basia->fresh())->get($this->strona())->assertOk();
+        }
+    }
+
+    public function test_zawieszona_autorka_nie_odbiera_cudzego_udostepnienia(): void
+    {
+        $inny = Recipe::factory()->create(['author_id' => $this->basia->getKey(), 'visibility' => 'private']);
+        [$cudze] = app(UdostepnijPrzepis::class)->poNazwie($this->basia, $inny, 'jurek');
+        $this->halina->suspend();
+
+        $this->actingAs($this->halina->fresh())
+            ->delete(route('recipes.shares.destroy', ['recipe' => $inny, 'share' => $cudze]))
+            ->assertForbidden();
+        $this->assertDatabaseHas('recipe_shares', ['id' => $cudze->getKey()]);
+    }
+
     public function test_przepis_ukryty_przez_moderacje_nie_otwiera_sie_przez_udostepnienie(): void
     {
         $this->udostepnij();

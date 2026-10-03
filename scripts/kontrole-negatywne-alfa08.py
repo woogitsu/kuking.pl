@@ -1355,6 +1355,9 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Zawieszona autorka nie może cofnąć udostępnienia (#2791)", "app/Http/Middleware/EnsureAccountIsActive.php",
+     "test_zawieszona_autorka_przez_formularz_cofa_tylko_wlasne_udostepnienie",
+     lambda s: replace_once(s, "        'recipes.shares.destroy',\n", "")),
     ("Moje rozmowy przepuszczają niemożliwą datę kursora (#2803)", "app/Domain/Comments/MojeRozmowy.php",
      "MojeRozmowyTest::test_parser_odrzuca_semantycznie_nieprawidlowy_czas_kursora",
      lambda s: replace_once(s, "if (! KursorListy::czasPasuje($m[1])) {", "if (false) {")),
