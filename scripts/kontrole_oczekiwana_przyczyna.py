@@ -566,6 +566,7 @@ OCZEKUJ = {
     'Odwołanie od blokady CSAM bez ochrony decyzji (#2427)': r'CSAM_BAN_APPEAL_MUST_STAY_OPEN',
     'Runbook odtworzenia stosuje rejestr usunięć po podpięciu bazy (#2708)': r'RUNBOOK_REJESTR_PO_PODPIECIU',
     'Zepsute kodowanie polskich liter w komunikacie Planera (paczka L)': r'Polskie litery zapisane w zepsutym kodowaniu.*PlanerController\.php',
+    'Ścisłe gotowanie przyjmuje ukrytą wersję (#2808)': r'GOTUJ_2808_UKRYTA_WERSJA',
 }
 
 

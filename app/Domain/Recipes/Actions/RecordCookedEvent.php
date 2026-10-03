@@ -8,6 +8,7 @@ use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Domain\Recipes\Gotowanie\DzienGotowania;
 use App\Domain\Recipes\Gotowanie\PorcjeWykonania;
+use App\Domain\Recipes\Historia\HistoriaWersji;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\CookedEvent;
@@ -223,7 +224,7 @@ final class RecordCookedEvent
                 // `$fillable`. `cooked_at` zostaje chwilą zgłoszenia — dzień
                 // go nie zastępuje i nie dotyka powiadomienia ani kohort.
                 $event->forceFill([
-                    'recipe_version_id' => $this->wersjaWykonania($recipe, $wersjaPrzepisuId, $wersjaScisla),
+                    'recipe_version_id' => $this->wersjaWykonania($cook, $recipe, $wersjaPrzepisuId, $wersjaScisla),
                     'dzien_gotowania' => $dzienGotowania,
                     'faktyczne_porcje' => $faktyczne,
                 ])->save();
@@ -343,12 +344,22 @@ final class RecordCookedEvent
      * wersji ani z `UPDATE` niekluczowych kolumn, a `DELETE` retencji czeka
      * do końca transakcji. Jeśli retencja zdążyła pierwsza, wiersza już nie
      * ma i schodzimy do najnowszej wersji.
+     * W ścisłym zapisie sprawdzamy również świeżą widoczność wersji. Sama
+     * blokada `FOR KEY SHARE` nie zatrzymuje aktualizacji `hidden_at`, ale
+     * istniejąca wcześniejsza blokada przepisu `FOR SHARE` stoi w kolejce
+     * za `FOR UPDATE` akcji ukrywania wersji.
      */
-    private function wersjaWykonania(Recipe $recipe, ?string $zFormularza, bool $scisle = false): ?string
+    private function wersjaWykonania(User $cook, Recipe $recipe, ?string $zFormularza, bool $scisle = false): ?string
     {
         if ($zFormularza !== null && Str::isUuid($zFormularza)) {
-            $jest = RecipeVersion::query()
-                ->where('recipe_id', $recipe->getKey())
+            // Po blokadzie przepisu czytamy aktualny stan ukrycia: wcześniejsza
+            // kontrola formularza mogła poprzedzić zatwierdzone ukrycie wersji.
+            // Zwykły zapis zachowuje dotychczasową regułę przypinania wersji.
+            $wersje = $scisle
+                ? HistoriaWersji::zapytanie($recipe, HistoriaWersji::widziUkryte($cook, $recipe))
+                : RecipeVersion::query()->where('recipe_id', $recipe->getKey());
+
+            $jest = $wersje
                 ->whereKey($zFormularza)
                 ->lock('for key share')
                 ->exists();
@@ -359,7 +370,7 @@ final class RecordCookedEvent
         }
 
         // ŚCIEŻKA „GOTUJ Z TEJ WERSJI” (#2491): wersja historyczna została wskazana jawnie, więc jej
-        // zniknięcie (retencja, usunięcie) to odmowa, a NIE ciche przypięcie dzisiejszej wersji.
+        // zniknięcie albo ukrycie to odmowa, a NIE ciche przypięcie dzisiejszej wersji.
         if ($scisle) {
             throw new BladDlaCzlowieka('Tej wersji przepisu już nie ma, więc nie zapisaliśmy wykonania. '
                 .'Otwórz „Ugotowałem” przy dzisiejszym przepisie albo wróć do swojego wykonania.');
