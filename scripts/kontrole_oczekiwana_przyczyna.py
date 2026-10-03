@@ -105,6 +105,7 @@ OCZEKUJ = {
     'Robots: znaki zarezerwowane dekodowane bez ograniczenia (#2569)': r'ROBOTS_2569_BEZ_PONOWNEGO_DEKODOWANIA',
     'Robots: długość kodowania wygrywa nad oktetami (#2569)': r'ROBOTS_2569_DLUGOSC_OKTETOW',
     "Spiżarnia usuwa bez pytania (#2467)": r'SPIZARNIA_2467_USUNIECIE_WYMAGA_PYTANIA',
+    "Stare potwierdzenie spiżarni kasuje dodane opakowanie (#2826)": r'SPIZARNIA_2826_STARE_POTWIERDZENIE_NIE_KASUJE',
     'Planer usuwa bez pytania (#2468)': r'PLANER_2468_PIERWSZY_KLIK_BEZ_DELETE',
     "Zmiana porcji zachowuje stare odmierzenie (#2502)": r'PORCJE_2502_NOWA_ILOSC_NIE_PRZYGOTOWANA',
     "Stary formularz przywraca porcje z innego urządzenia (#2502)": r'PORCJE_2502_STARY_FORMULARZ_NIE_PRZYWRACA',

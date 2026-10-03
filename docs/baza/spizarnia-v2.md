@@ -165,7 +165,16 @@ Reguły, które na tym stoją:
   Rollback odmawia, gdy choć jeden produkt ma `first_package_id`: bez tej
   kolumny kolejny `up()` nie odtworzy tożsamości awansowanego opakowania.
   Gdy żadne opakowanie nie awansowało, `down()` i ponowny `up()` są bezpieczne.
-  Usunięcie całego produktu (`pantry.destroy`) kasuje oba kaskadą.
+  Usunięcie całego produktu (`pantry.destroy`) kasuje oba kaskadą, ale dopiero
+  po potwierdzeniu aktualnego zakresu (#2826). Formularz niesie `brak` dla
+  jedynego opakowania albo UUID widzianego drugiego. Akcja domenowa pod tą samą
+  blokadą produktu co dodawanie B porównuje znacznik ze świeżym stanem i w tej
+  samej transakcji usuwa produkt. Formularz sprzed dodania B, bez znacznika
+  albo z podmienionym znacznikiem odmawia; oba opakowania zostają, a komunikat
+  kieruje do otwarcia aktualnego pytania. Świadome potwierdzenie obu nadal
+  usuwa cały produkt. Nie zmienia się schemat ani polityka dostępu. Cofnięcie
+  tej poprawki przywróciłoby możliwość skasowania B starym potwierdzeniem,
+  dlatego rollback kodu wymaga najpierw świadomej oceny tego ryzyka.
 - **Limit 150** dotyczy produktów (`CoMamWDomu::MAKS_PRODUKTOW`), nie opakowań;
   opakowań jest więc najwyżej 300.
 - **Eksport i wymazanie.** Paczka danych (`co_mam_w_domu[].drugie_opakowanie`,

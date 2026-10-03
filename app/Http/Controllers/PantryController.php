@@ -11,6 +11,7 @@ use App\Domain\Pantry\DrugieOpakowanieProduktu;
 use App\Domain\Pantry\Opakowanie;
 use App\Domain\Pantry\PodpowiedziSkladnikow;
 use App\Domain\Pantry\PriorytetZuzycia;
+use App\Domain\Pantry\UsunProduktPoPotwierdzeniu;
 use App\Domain\Pantry\ZmienNazweProduktu;
 use App\Domain\Pantry\ZmienTerminProduktu;
 use App\Domain\Zgody\PrzestawZgodeNaPrzypomnienieSpizarni;
@@ -273,12 +274,21 @@ class PantryController extends Controller
             : 'Wyłączono sobotnie przypomnienie.'));
     }
 
-    public function destroy(Request $request, PantryItem $pantryItem): RedirectResponse
+    public function destroy(Request $request, PantryItem $pantryItem, UsunProduktPoPotwierdzeniu $usun): RedirectResponse
     {
         $this->authorize('delete', $pantryItem);
 
         $nazwa = $pantryItem->name;
-        $pantryItem->delete();
+        $wynik = $usun->handle($pantryItem, $this->tekst($request, 'widziane_drugie'));
+
+        if ($wynik === UsunProduktPoPotwierdzeniu::ZMIENILO_SIE) {
+            return redirect()->route('pantry.index')->with(Komunikat::blad(
+                'Liczba opakowań tego produktu zmieniła się od otwarcia pytania. Niczego nie usunęliśmy. Otwórz aktualne pytanie „Usuń” i wybierz ponownie, co usunąć.',
+            ));
+        }
+        if ($wynik === UsunProduktPoPotwierdzeniu::BRAK) {
+            return redirect()->route('pantry.index')->with(Komunikat::informacja('Tego produktu nie ma już na liście. Niczego nie usunęliśmy.'));
+        }
 
         return redirect()->route('pantry.index')->with(Komunikat::sukces("Usunięto „{$nazwa}” z listy."));
     }
