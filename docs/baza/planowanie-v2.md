@@ -265,6 +265,18 @@ oraz pole `lista` przy każdej pozycji w `lista_zakupow`. **Wymazanie konta**
 kasuje listy bezwarunkowo (`EraseAccountData`). Polityka prywatności: wiersz „Lista
 zakupów” (drobna poprawka wersji z 30.09.2026, bez nowej daty).
 
+**Spójność paczki (#2847).** Eksporter odczytuje pozycje i wszystkie nazwane
+listy, także puste, w krótkiej transakcji pod tą samą blokadą konta, której
+używa przemianowanie i zapis zakupów. Po zwolnieniu blokady buduje dalsze
+dane oraz ZIP z zapamiętanej migawki. Zmiana nazwy w trakcie tworzenia ZIP-a
+nie przypisuje pozycji innej liście, nawet gdy ta zajmie dawną nazwę. Nie
+zmienia to formatu paczki ani reguły widoczności tytułów cudzych przepisów.
+Test na dwóch połączeniach zatrzymuje prawdziwy eksport między odczytami,
+wykonuje przemianowanie i sprawdza `dane.json` w gotowym archiwum; kontrola
+ujemna przywraca dwa niezależne odczyty i musi oblać znacznik spójności.
+Rollback kodu przywróciłby ryzyko mieszania nazw w nowych paczkach; nie
+przepisuje już pobranych archiwów i nie wymaga cofania schematu bazy.
+
 **Rollback (D-088).** `down()` drugiej migracji ODMAWIA, gdy choć jedna pozycja ma
 `list_id` (wpadłaby po cichu na listę domyślną; wymuszenie po kopii:
 `KUKING_ROLLBACK_SCALA_LISTY_ZAKUPOW=1`); `down()` pierwszej ODMAWIA, gdy istnieje

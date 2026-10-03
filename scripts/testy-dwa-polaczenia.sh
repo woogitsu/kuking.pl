@@ -144,6 +144,10 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna odnowionego punktu odzyskania #2849 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2847.py; then
+            printf "${CZERWONY}Kontrola ujemna spójności eksportu zakupów #2847 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2863.py; then
             printf "${CZERWONY}Kontrola ujemna spóźnionego kanału Atom #2863 nie przeszła.${RESET}\n" >&2
             exit 1
