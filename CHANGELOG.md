@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2827): zamknięcie formularza odpowiedzi zatrzymuje dyktowanie. Wpisany tekst i podgląd zostają, a ponowne otwarcie nie włącza mikrofonu bez kliknięcia.
+
 - Poprawione (#2803): „Moje rozmowy” otwierają pierwszą porcję, gdy w adresie jest kursor z nieistniejącą datą lub godziną. Poprawne kursory, także z dniem przestępnym i remisem czasu, nadal prowadzą do dalszej porcji bez powtórzeń.
 - Poprawione (#2785): nowa paczka danych nie ujawnia bieżącego tytułu ani autora prywatnego przepisu, gdy odbiorca utracił do niego dostęp. Informacja o samym udostępnieniu pozostaje; po ustaniu kary dostępne dane znów są widoczne.
 - Doprecyzowane (#2708): instrukcja moderacji odróżnia obsługiwany awatar i osobne zdjęcie od „Ugotowałem” i zeszytu, które nadal nie mają akcji CSAM. Wskazuje też, gdzie w panelu dostępny jest przycisk dla zdjęcia, aktualną treść ekranu zgłoszenia do organów oraz że próba na wdrożonym R2/CDN pozostaje do wykonania.

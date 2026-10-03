@@ -1291,6 +1291,12 @@ jobs:
       - name: Regresja „Pokaż więcej” (DOM w Chromium)
         run: node --test scripts/przegladarka/pokaz-wiecej.test.mjs
 
+      - name: Zamknięcie odpowiedzi kończy dyktowanie (DOM w Chromium, #2827)
+        run: node --test scripts/przegladarka/dyktowanie-odpowiedz.test.mjs
+
+      - name: Kontrola ujemna zamknięcia dyktowania (#2827)
+        run: python3 scripts/kontrola-negatywna-2827.py
+
       # Checklista składników w trybie „Gotuję” (#2069): niezależne wiersze,
       # stan po zmianie kroku i w drugiej karcie, reset niezależny od kroków,
       # klawiatura, 320 px i cele dotyku, widok bez JS. Też potrzebuje Chromium.
