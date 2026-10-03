@@ -1420,6 +1420,7 @@ final class CollectUserExportData
             ->map(function (DeletedCollection $kopia) use ($dni): array {
                 $przepisy = Recipe::query()
                     ->whereIn('id', array_values(array_filter(array_column($kopia->items, 'recipe_id'))))
+                    ->with('author')
                     ->get()
                     ->keyBy('id');
 
@@ -1437,6 +1438,7 @@ final class CollectUserExportData
                                 ? $przepis->title
                                 : self::TRESC_NIEDOSTEPNA),
                         'moj_dopisek' => $pozycja['note'],
+                        'reczna_pozycja' => $pozycja['recipe_id'] === null ? null : ($pozycja['position'] ?? null),
                         'zapisano' => $this->date(Carbon::parse($pozycja['created_at'])),
                     ], $kopia->items),
                 ];

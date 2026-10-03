@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2816): odzyskanie własnego usuniętego zeszytu zachowuje ręczną kolejność przepisów. Starsza kopia bez informacji o kolejności wraca bez zgadywania układu; usunięty przepis nadal nie wraca.
+
 - Poprawione (#2825): ponowienie przyjętego zaproszenia po odebraniu dostępu nie pokazuje nowej nazwy prywatnego zeszytu ani nie przywraca członkostwa. Gdy dostęp nadal trwa, ponowienie działa bez drugiego powiadomienia.
 - Poprawione (#2827): zamknięcie formularza odpowiedzi zatrzymuje dyktowanie. Wpisany tekst i podgląd zostają, a ponowne otwarcie nie włącza mikrofonu bez kliknięcia.
 - Poprawione (#2791): zawieszona osoba może odebrać dostęp do własnego przepisu. Po końcu kary cofnięte udostępnienie nie wraca; nowych udostępnień nadal nie można tworzyć podczas zawieszenia.

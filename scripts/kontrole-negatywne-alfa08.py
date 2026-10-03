@@ -1355,6 +1355,12 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Kopia odzyskania gubi ręczną kolejność (#2816)", "app/Domain/Collections/Odzyskiwanie/UsunZeszyt.php",
+     "test_reczne_ulozenie_przezywa_usuniecie_i_odzyskanie_calego_zeszytu",
+     lambda s: replace_once(s, "'position' => $p->position === null ? null : (int) $p->position,", "'position' => null,")),
+    ("Odtworzenie zeszytu gubi ręczną kolejność (#2816)", "app/Domain/Collections/Odzyskiwanie/OdzyskajUsunietyZeszyt.php",
+     "test_reczne_ulozenie_przezywa_usuniecie_i_odzyskanie_calego_zeszytu",
+     lambda s: replace_once(s, "'position' => $kolumna === 'recipe_id' ? ($pozycja['position'] ?? null) : null,", "'position' => null,")),
     ("Ponowienie zaproszenia ujawnia nazwę po odebraniu dostępu (#2825)", "app/Domain/Collections/Wspoldzielenie/OdpowiedzNaZaproszenie.php",
      "test_ponowienie_przyjetego_zaproszenia_bez_aktualnego_dostepu_nie_zdradza_nowej_nazwy",
      lambda s: replace_once(s, "if ($zeszyt->owner_id !== $swiezyWlasciciel->getKey()\n                    || ! $zeszyt->maCzlonka($swiezaOsoba)\n                    || ! (new CollectionPolicy)->view($swiezaOsoba, $zeszyt)) {", "if (false) {")),

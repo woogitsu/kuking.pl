@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Collections\KolejnoscPrzepisow;
 use App\Domain\Collections\Odzyskiwanie\OdzyskajUsunietyZeszyt;
 use App\Domain\Collections\Odzyskiwanie\PrzedawnioneUsunieteZeszyty;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportPhotoPlan;
+use App\Http\Controllers\CollectionRecipeOrderController;
 use App\Models\Collection;
 use App\Models\DeletedCollection;
 use App\Models\Notification;
@@ -240,6 +242,88 @@ final class OdzyskanieUsunietegoZeszytuTest extends TestCase
         $this->assertSame($powiadomienPrzed, Notification::query()->count(), 'Odzyskanie wysłało powiadomienie.');
         $this->assertSame(0, DB::table('collection_members')->where('collection_id', $zeszyt->getKey())->count());
         $this->assertStringContainsString('Wszystkie zapisy', $this->wiadomosc());
+    }
+
+    public function test_reczne_ulozenie_przezywa_usuniecie_i_odzyskanie_calego_zeszytu(): void
+    {
+        $zeszyt = $this->zeszyt($this->basia);
+        $deser = Recipe::factory()->create(['title' => 'Deser']);
+        $danie = Recipe::factory()->create(['title' => 'Danie']);
+        $zupa = Recipe::factory()->create(['title' => 'Zupa']);
+        foreach ([$deser, $danie, $zupa] as $i => $przepis) {
+            $this->zapisz($zeszyt, $przepis, $i === 1 ? 'Bez soli' : null, '2026-03-0'.($i + 1).' 10:00:00+00');
+        }
+        $wpis = Post::factory()->create();
+        $this->zapisz($zeszyt, $wpis, 'Wpis zostaje', '2026-03-04 10:00:00+00');
+        $this->assertSame([$zupa->id, $danie->id, $deser->id], KolejnoscPrzepisow::uklad($zeszyt));
+        $powiadomienPrzed = Notification::query()->count();
+
+        $this->actingAs($this->basia)->post(
+            route('collections.recipes.move', ['collection' => $zeszyt, 'pozycja' => $deser->getKey()]),
+            ['kierunek' => 'poczatek', CollectionRecipeOrderController::POLE_ODCISKU => KolejnoscPrzepisow::odcisk(KolejnoscPrzepisow::uklad($zeszyt))],
+        )->assertRedirect();
+        $oczekiwany = [$deser->id, $zupa->id, $danie->id];
+        $this->assertSame($oczekiwany, KolejnoscPrzepisow::uklad($zeszyt));
+
+        $this->usun($this->basia, $zeszyt)->assertRedirect();
+        $kopia = DeletedCollection::query()->where('collection_id', $zeszyt->getKey())->firstOrFail();
+        $pozycje = collect($kopia->items)->keyBy('recipe_id');
+        $this->assertSame([1, 2, 3], array_map(fn (string $id) => $pozycje[$id]['position'], $oczekiwany), 'ODZYSKANIE_2816_RECZNA_KOLEJNOSC: kopia zgubiła ułożenie.');
+        $this->assertNull(collect($kopia->items)->firstWhere('post_id', $wpis->getKey())['position']);
+        $paczka = app(CollectUserExportData::class)
+            ->handle($this->basia->fresh(), new ExportPhotoPlan($this->basia->fresh()), Carbon::now());
+        $wyeksportowane = collect($paczka['usuniete_zeszyty'][0]['pozycje'])->where('rodzaj', 'przepis')->pluck('reczna_pozycja')->all();
+        $this->assertSame([1, 3, 2], array_values($wyeksportowane)); // kopia jest uporządkowana po datach zapisu
+
+        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()))
+            ->assertRedirect(route('collections.show', $zeszyt->getKey()));
+        $wrocil = Collection::query()->findOrFail($zeszyt->getKey());
+        $this->assertSame($oczekiwany, KolejnoscPrzepisow::uklad($wrocil), 'ODZYSKANIE_2816_RECZNA_KOLEJNOSC: odtworzenie zgubiło ułożenie.');
+        $this->actingAs($this->basia)->get(route('collections.show', $wrocil))->assertOk()->assertSeeInOrder(['Deser', 'Zupa', 'Danie']);
+        $this->actingAs($this->basia)->get(route('collections.print', $wrocil))->assertOk()->assertSeeInOrder(['Deser', 'Zupa', 'Danie']);
+        $this->assertSame('Bez soli', DB::table('collection_items')->where('recipe_id', $danie->id)->value('note'));
+        $this->assertSame(1, DB::table('collection_items')->where('post_id', $wpis->id)->whereNull('position')->count());
+        $this->assertSame($powiadomienPrzed, Notification::query()->count());
+    }
+
+    public function test_stara_kopia_bez_pozycji_i_nieulozony_zeszyt_nie_dostaja_zgadywanego_ukladu(): void
+    {
+        $zeszyt = $this->zeszyt($this->basia);
+        $pierwszy = Recipe::factory()->create();
+        $drugi = Recipe::factory()->create();
+        $this->zapisz($zeszyt, $pierwszy, null, '2026-03-01 10:00:00+00');
+        $this->zapisz($zeszyt, $drugi, null, '2026-03-02 10:00:00+00');
+        $this->usun($this->basia, $zeszyt);
+        $kopia = DeletedCollection::query()->where('collection_id', $zeszyt->getKey())->firstOrFail();
+        $this->assertSame([null, null], array_column($kopia->items, 'position'));
+        DB::table('deleted_collections')->where('id', $kopia->getKey())->update([
+            'items' => json_encode(array_map(static function (array $item): array {
+                unset($item['position']);
+
+                return $item;
+            }, $kopia->items), JSON_THROW_ON_ERROR),
+        ]);
+
+        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->getKey()))->assertRedirect();
+        $this->assertFalse(KolejnoscPrzepisow::jestUlozony($zeszyt));
+        $this->assertSame([$drugi->id, $pierwszy->id], KolejnoscPrzepisow::uklad($zeszyt));
+    }
+
+    public function test_pominiecie_usunietego_przepisu_zostawia_dziure_w_recznych_numerach(): void
+    {
+        $zeszyt = $this->zeszyt($this->basia);
+        $przepisy = [Recipe::factory()->create(), Recipe::factory()->create(), Recipe::factory()->create()];
+        foreach ($przepisy as $i => $przepis) {
+            $this->zapisz($zeszyt, $przepis, null, '2026-03-0'.($i + 1).' 10:00:00+00');
+            DB::table('collection_items')->where('collection_id', $zeszyt->id)->where('recipe_id', $przepis->id)->update(['position' => $i + 1]);
+        }
+        $this->usun($this->basia, $zeszyt);
+        $przepisy[1]->delete();
+
+        $this->actingAs($this->basia)->post(route('collections.deleted.recover', $zeszyt->id))->assertRedirect();
+        $wiersze = DB::table('collection_items')->where('collection_id', $zeszyt->id)->orderBy('position')->pluck('position', 'recipe_id')->all();
+        $this->assertSame([(string) $przepisy[0]->id => 1, (string) $przepisy[2]->id => 3], $wiersze);
+        $this->assertSame([$przepisy[0]->id, $przepisy[2]->id], KolejnoscPrzepisow::uklad($zeszyt));
     }
 
     public function test_odzyskanie_nie_wskrzesza_usunietego_przepisu_i_mowi_ile_nie_wrocilo(): void

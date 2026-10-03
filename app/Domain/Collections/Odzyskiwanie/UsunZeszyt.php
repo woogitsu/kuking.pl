@@ -109,11 +109,12 @@ final class UsunZeszyt
             ->where('collection_id', $zeszyt->getKey())
             ->orderBy('created_at')
             ->orderByRaw('coalesce(recipe_id, post_id)')
-            ->get(['recipe_id', 'post_id', 'note', 'created_at'])
+            ->get(['recipe_id', 'post_id', 'note', 'created_at', 'position'])
             ->map(fn (object $p): array => [
                 'recipe_id' => $p->recipe_id,
                 'post_id' => $p->post_id,
                 'note' => $p->note,
+                'position' => $p->position === null ? null : (int) $p->position,
                 // Surowy napis z bazy, z mikrosekundami i strefą: odtwarzamy
                 // dokładnie tę chwilę zapisania, bez zaokrąglania do sekund.
                 'created_at' => (string) $p->created_at,
