@@ -76,6 +76,7 @@ OCZEKUJ = {
     'Dołączenie zdjęcia ignoruje świeży stan pod blokadą (#2500)': r'DOLACZENIE_2500_SWIEZY_STAN',
     'Dołączenie zdjęcia przejmuje cudze albo cudzo-przypięte (#2500)': r'DOLACZENIE_2500_WLASNOSC_MEDIOW',
     'Rollback udostępnień przepisów kasuje bez pytania (#2650)': r'Rollback skasował udostępnienia bez pytania',
+    'Niedostępny przepis usuwa drogę rezygnacji (#2859)': r'UDOSTEPNIENIE_2859_ANONIMOWA_REZYGNACJA',
     'Eksport pobiera tytuł przepisu bez aktualnego dostępu (#2785)': r'EKSPORT_2785_BIEZACY_TYTUL_BEZ_DOSTEPU',
     'Instrukcja CSAM myli awatar i osobne zdjęcie z nieobsługiwanymi (#2708)': r'CSAM_2708_MEDIA_NIE_SA_POZA_ZAKRESEM',
     'Tabela CSAM wraca do starej instrukcji zgłoszenia (#2708)': r'CSAM_2708_TABELA_ZGODNA_Z_EKRANEM',
