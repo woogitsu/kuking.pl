@@ -17,8 +17,23 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
 {
     use RefreshDatabase;
 
+    private ?\PDO $poZasiewie = null;
+
+    /** Rollback nie odtwarza statystyk ani stron po dużym fixture. */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        if ($this->poZasiewie !== null) {
+            $this->poZasiewie->exec('VACUUM (ANALYZE) recipes, recipe_ingredients, pantry_items, pantry_second_packages, users');
+            $this->poZasiewie = null;
+        }
+    }
+
     public function test_ostatnia_dostepna_strona_nie_odsyla_do_siebie_w_obu_trybach(): void
     {
+        $this->poZasiewie = DB::connection()->getPdo();
+
         $widz = User::factory()->create();
         $autor = User::factory()->create();
         $produkt = $widz->pantryItems()->create(['name' => 'jajka']);
@@ -56,6 +71,8 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
         ]);
         $prywatny->ingredients()->create(['position' => 0, 'ingredient_text' => 'jajka']);
 
+        DB::statement('ANALYZE recipes, recipe_ingredients, pantry_items, pantry_second_packages, users');
+
         foreach ([[], ['najpierw' => 'termin']] as $tryb) {
             $pierwsza = $this->actingAs($widz)->get(route('pantry.cook', [...$tryb, 'od' => 9980]))->assertOk();
             $adresOstatniej = $this->adresPokazWiecej((string) $pierwsza->getContent());
@@ -79,6 +96,8 @@ class CoUgotujeGranicaPaginacjiTest extends TestCase
             'prep_minutes' => 1, 'cook_minutes' => 0,
         ]);
         $dodatkowy->ingredients()->create(['position' => 0, 'ingredient_text' => 'jajka']);
+
+        DB::statement('ANALYZE recipes, recipe_ingredients, pantry_items, pantry_second_packages, users');
 
         foreach ([[], ['najpierw' => 'termin']] as $tryb) {
             $ostatnia = $this->actingAs($widz)->get(route('pantry.cook', [...$tryb, 'od' => 10000]))->assertOk();

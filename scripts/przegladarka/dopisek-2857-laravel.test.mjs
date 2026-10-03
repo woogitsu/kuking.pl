@@ -3,7 +3,7 @@
  * prawdziwy wybór pliku, kliknięcia i żądanie multipart. Odpowiedź POST jest
  * przechwycona, więc ten test nie twierdzi, że serwer zapisał wykonanie.
  */
-import test from 'node:test';
+import test, {after} from 'node:test';
 import assert from 'node:assert/strict';
 import {execFile} from 'node:child_process';
 import {mkdtemp, readFile, rm} from 'node:fs/promises';
@@ -12,10 +12,23 @@ import {join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {promisify} from 'node:util';
 import {chromium} from 'playwright';
+import {przygotujDokument} from './dopisek-2857-dokument.mjs';
 
 const uruchom = promisify(execFile);
 const repo = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const znacznik = 'DOPISEK_2857_DOM_PLIK_ZOSTAJE';
+let przegladarka;
+
+function otworzPrzegladarke() {
+    przegladarka ??= chromium.launch({executablePath: process.env.CHROMIUM_PATH || undefined});
+    return przegladarka;
+}
+
+after(async () => {
+    if (przegladarka) {
+        await (await przegladarka).close();
+    }
+});
 
 test('Laravel i Chromium: wstawienie dopisku zachowuje pola i plik w multipart (#2857)', async () => {
     assert.match(process.env.DB_DATABASE ?? '', /^kuking_test_2857_[a-z0-9_]+$/);
@@ -41,9 +54,13 @@ test('Laravel i Chromium: wstawienie dopisku zachowuje pola i plik w multipart (
         const manifest = JSON.parse(await readFile(resolve(repo, 'public/build/manifest.json'), 'utf8'));
         const css = await readFile(resolve(repo, 'public/build', manifest['resources/css/app.css'].file), 'utf8');
         assert.match(wejscie, /import '\.\/wstaw-dopisek-ugotowalem\.js'/, `${znacznik}: moduł musi być włączony na stronie.`);
-        const browser = await chromium.launch({executablePath: process.env.CHROMIUM_PATH || undefined});
+        const browser = await otworzPrzegladarke();
+        const context = await browser.newContext({viewport: {width: 320, height: 900}});
         try {
-            const context = await browser.newContext({viewport: {width: 320, height: 900}});
+            const page = await context.newPage();
+            // DOMParser tworzy odłączony dokument; na pustej stronie nie
+            // wykonujemy żadnego skryptu pochodzącego z HTML fixture.
+            const strona = await page.evaluate(przygotujDokument, {html, stylesheetHref: '/build/2857.css'});
             let wyslanie = null;
             await context.route('http://localhost/**', (route) => {
                 if (route.request().method() === 'POST') {
@@ -51,9 +68,6 @@ test('Laravel i Chromium: wstawienie dopisku zachowuje pola i plik w multipart (
                     return route.fulfill({contentType: 'text/html', body: '<h1>Żądanie odebrane</h1>'});
                 }
                 if (new URL(route.request().url()).pathname === '/formularz') {
-                    // Niezwiązane moduły strony nie uczestniczą w teście tej akcji.
-                    const strona = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
-                        .replace('</head>', '<link rel="stylesheet" href="/build/2857.css"></head>');
                     return route.fulfill({contentType: 'text/html', body: strona});
                 }
                 if (new URL(route.request().url()).pathname === '/build/2857.css') {
@@ -61,7 +75,6 @@ test('Laravel i Chromium: wstawienie dopisku zachowuje pola i plik w multipart (
                 }
                 return route.fulfill({status: 404, body: ''});
             });
-            const page = await context.newPage();
             await page.goto('http://localhost/formularz');
             assert.equal(await page.locator('[data-wstaw-dopisek]').isHidden(), true, `${znacznik}: bez modułu nie wolno pokazać martwego przycisku.`);
             assert.equal(await page.locator('[data-dopisek-recznie]').isVisible(), true, `${znacznik}: bez modułu potrzebna jest instrukcja ręczna.`);
@@ -108,9 +121,45 @@ test('Laravel i Chromium: wstawienie dopisku zachowuje pola i plik w multipart (
             await powiekszona.locator('[data-wstaw-dopisek]').click();
             assert.equal(await powiekszona.locator('[name="changes_note"]').inputValue(), 'dolane 50 ml wody, dłuższy czas', `${znacznik}: przy 200% wstawienie nie działa.`);
         } finally {
-            await browser.close();
+            await context.close();
         }
     } finally {
         await rm(katalog, {recursive: true, force: true});
     }
 });
+
+for (const [nazwa, skrypt, marker] of [
+    ['zamknięcie script z odstępem', '<script>globalThis.__POBOCZNY_2857 = 1;</script >', 'PRZYRZAD_2857_DOM_KONIEC_SCRIPT'],
+    ['ponowne złożenie script po usunięciu', '<scrip<script>usun</script>t>globalThis.__POBOCZNY_2857 = 2;</script>', 'PRZYRZAD_2857_DOM_PONOWNE_SCRIPT'],
+]) {
+    test(`Odłączony parser usuwa skrypty: ${nazwa} (#2857)`, async () => {
+        const browser = await otworzPrzegladarke();
+        const context = await browser.newContext();
+        try {
+            const page = await context.newPage();
+            const html = '<!DOCTYPE html><html><head></head><body>'
+                + '<script>globalThis.__POBOCZNY_2857 = 3;</script>' + skrypt
+                + '<form><input name="note" value="zachowane"><textarea name="changes_note">dopisek</textarea></form></body></html>';
+            const wynik = await page.evaluate(przygotujDokument, {html, stylesheetHref: '/build/2857.css'});
+            const stan = await page.evaluate(wynik => {
+                const dokument = new DOMParser().parseFromString(wynik, 'text/html');
+                return {
+                    skrypty: dokument.querySelectorAll('script').length,
+                    arkusze: Array.from(dokument.querySelectorAll('link[rel="stylesheet"]'), link => link.getAttribute('href')),
+                    uwaga: dokument.querySelector('[name="note"]')?.value,
+                    dopisek: dokument.querySelector('[name="changes_note"]')?.value,
+                    wykonany: globalThis.__POBOCZNY_2857 !== undefined,
+                    formularzeNaStronie: document.querySelectorAll('form').length,
+                };
+            }, wynik);
+            assert.equal(stan.skrypty, 0, `${marker}: wynik nie może zawierać elementu script.`);
+            assert.equal(stan.wykonany, false, `${marker}: skrypt fixture nie może się wykonać.`);
+            assert.equal(stan.formularzeNaStronie, 0, `${marker}: dokument fixture musi pozostać odłączony.`);
+            assert.deepEqual(stan.arkusze, ['/build/2857.css'], `${marker}: rzeczywisty CSS dodajemy przez DOM.`);
+            assert.equal(stan.uwaga, 'zachowane', `${marker}: parser zachowuje pole formularza.`);
+            assert.equal(stan.dopisek, 'dopisek', `${marker}: parser zachowuje dopisek.`);
+        } finally {
+            await context.close();
+        }
+    });
+}
