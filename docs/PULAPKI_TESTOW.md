@@ -443,6 +443,28 @@ katalog `tests/Feature/Wyscigi/` (siedem testów, m.in.
 Nie pisz zamiast tego testu pozornego, który „sprawdza współbieżność" przez
 dwa wywołania pod rząd.
 
+### Błąd SQL drugiego zapisu pod transakcją fixture może ukryć utratę pierwszego (#2810)
+
+Przywrócenie szkicu zapisywało tekst B, a zachowanie zastąpionego A w punkcie
+było osobną transakcją. Rzeczywisty wyzwalacz PostgreSQL odmawiający drugiego
+zapisu pokazał zatwierdzone B+B zamiast zachowanego A+B.
+
+Samo dodanie tego wyzwalacza do zwykłego `RefreshDatabase` nie daje właściwej
+kontroli ujemnej. Po fizycznym zdjęciu wspólnej transakcji błąd punktu
+przerywa zewnętrzną transakcję fixture: kolejne odczyty oblewają `25P02`,
+zamiast asercji o utraconym A. Nowa klasa
+`OdzyskanieTekstuSzkicuAtomowaZamianaTest` używa przygotowania schematu
+`RefreshDatabase`, ale jawnie zwraca pustą listę `connectionsToTransact()`
+i wymaga poziomu transakcji 0. Sprząta wyłącznie własne syntetyczne konta
+i przepisy przez FK. Nie używa `TRUNCATE`, który naruszałby strażniki
+dzienników dopisywania.
+
+Wtedy rzeczywisty P0001 pozostawia działające połączenie do odczytu, a mutant
+oblewa własny marker `ODZYSKANIE_2810_ATOMOWA_ZAMIANA` na pełnych wierszach.
+Kontrolowane zdarzenia `saved` i listener SQL w tej klasie nadal nie są
+pomiarem dwóch procesów. Osobny odbiór zapisuje różne PID-y świeżego odczytu
+zatwierdzonych danych oraz istniejący rzeczywisty Dwa #2849.
+
 ---
 
 ## 6b. …a od 11.09.2026 jest na to grupa `dwa-polaczenia`
@@ -1122,3 +1144,21 @@ Kontrola wyścigu importuje `kontrola_przyczyny.py`, która używa
 `zawezenie_testow.py`. Zmiana wyłącznie tych plików musi uruchomić job
 `dwa-polaczenia`. Tabela `tests/skrypty/zakres.sh` sprawdza oba wejścia
 z prawdziwym skryptem; celowe usunięcie każdego filtra oblewa tabelę.
+
+### Autoryzacja przed barierą nie chroni późnego INSERT (#2887)
+
+`ZgloszenieWskazowkiKontraWycofanieTest` zatrzymuje rzeczywisty `ReportContent`
+po pierwszej udanej Policy, potem wykonuje wycofanie i korektę. Odmowę mierzy
+liczbą spraw i skutków oraz prawdziwym HTTP 404. W odwrotnej kolejności
+bariera stoi przy `Report::creating`, już pod blokadami poprawki; osobny
+proces naprawdę wycofuje i poprawia wykonanie. Czekanie potwierdza krawędź
+`pg_blocking_pids`, a termin oczekiwania służy wyłącznie do przerwania
+nieudanego pomiaru. Sam upływ czasu nie jest dowodem serializacji.
+
+`scripts/kontrola-negatywna-2887.py` fizycznie wyłącza FIX tylko dla wskazówki.
+Właściwy przypadek musi oblać na `WSKAZOWKA_2887_PO_WYCOFANIU_BEZ_REPORT`,
+po dokładnym odtworzeniu bajtów i mtime przejść ponownie. Przyrząd wymaga
+jednej dokładnej klasy, metody i nazwanego wariantu z JUnit; odrzuca brak
+raportu, obcy test, skip, error i porażkę z innej przyczyny. Jego dziesięć
+kontroli w `tests/skrypty/kontrola-negatywna-2887-wynik.py` biegnie w lokalnej
+bramce i CI; fizyczny mutant FIX w blokującym jobie `dwa-polaczenia`.

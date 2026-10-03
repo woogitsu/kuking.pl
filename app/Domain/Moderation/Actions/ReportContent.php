@@ -41,8 +41,8 @@ use Illuminate\Support\Facades\Gate;
  * ciepłą ścieżkę „już to mamy" zamiast wyjątku z bazy. Indeks jest POD nim,
  * nie zamiast niego.
  *
- * `lockForUpdate()` NIE ZOSTAŁ DODANY i nie jest tu naprawą: `SELECT ... FOR
- * UPDATE`, który nie zwrócił wiersza, nie blokuje niczego, więc oba
+ * `lockForUpdate()` na nieistniejącym zgłoszeniu nie jest naprawą:
+ * `SELECT ... FOR UPDATE`, który nie zwrócił wiersza, nie blokuje niczego, więc oba
  * połączenia wstawiają bez czekania (zmierzone, ADR §1.4.2). Dopisanie go
  * i napisanie „naprawione" byłoby obietnicą bez pokrycia w kodzie.
  *
@@ -152,15 +152,18 @@ final class ReportContent
             throw new BladDlaCzlowieka('Wybierz powód zgłoszenia.');
         }
 
-        $existing = $this->otwarteZgloszenie($reporter, $targetType, $target->getKey());
+        $existing = $target instanceof RecipeHint
+            ? null
+            : $this->otwarteZgloszenie($reporter, $targetType, $target->getKey());
 
         if ($existing !== null) {
             return $this->dokonczPotwierdzenie($existing);
         }
 
         try {
-            // Transakcja wokół JEDNEGO `INSERT`-a nie jest tu po atomowość —
-            // ten `INSERT` i tak jest atomowy. Jest po to, żeby odrzucenie
+            // Pozostałe typy zapisują tu jeden atomowy INSERT. Wskazówka
+            // trzyma także blokady świeżej autoryzacji do zapisu (#2887).
+            // Punkt zapisu jest po to, żeby odrzucenie
             // wiersza przez indeks nie zostawiło po sobie ZERWANEJ transakcji
             // u wołającego: w PostgreSQL błąd unieważnia całą transakcję i
             // każde następne zapytanie w niej dostaje 25P02. Wycofanie do
@@ -168,14 +171,27 @@ final class ReportContent
             // jeszcze odczytać sprawę, która wyścig wygrała — a bez tego
             // akcja wołana wewnątrz cudzej transakcji (komenda, przyszły
             // endpoint, test) rozbijałaby ją zamiast oddać istniejący wiersz.
-            $report = DB::transaction(fn (): Report => Report::create([
-                'reporter_id' => $reporter?->getKey(),
-                'target_type' => $targetType,
-                'target_id' => $target->getKey(),
-                'reason' => $reason,
-                'details' => $details,
-                'status' => Report::STATUS_OPEN,
-            ]));
+            $report = DB::transaction(function () use ($reporter, $target, $targetType, $reason, $details): Report {
+                if ($target instanceof RecipeHint) {
+                    // #2887: zgoda i uwaga muszą pozostać aktualne do INSERT.
+                    // Wycofanie i korekta biorą najpierw konto kucharza.
+                    [$reporter, $target] = $this->lockHintForReport($reporter, $target);
+                    $this->authorize($reporter, $target);
+                    $existing = $this->otwarteZgloszenie($reporter, $targetType, $target->getKey());
+                    if ($existing !== null) {
+                        return $existing;
+                    }
+                }
+
+                return Report::create([
+                    'reporter_id' => $reporter?->getKey(),
+                    'target_type' => $targetType,
+                    'target_id' => $target->getKey(),
+                    'reason' => $reason,
+                    'details' => $details,
+                    'status' => Report::STATUS_OPEN,
+                ]);
+            });
         } catch (UniqueConstraintViolationException $e) {
             // Indeks `reports_one_open_per_pair` odbił wiersz: między naszym
             // `SELECT`-em a tym `INSERT`-em zgłoszenie tej pary już powstało
@@ -194,6 +210,12 @@ final class ReportContent
             }
 
             return $this->dokonczPotwierdzenie($rownolegle);
+        }
+
+        // Wskazówka sprawdza istniejącą sprawę dopiero na świeżym celu pod
+        // zamkiem. Potwierdzenie pozostaje poza transakcją przyjęcia.
+        if (! $report->wasRecentlyCreated) {
+            return $this->dokonczPotwierdzenie($report);
         }
 
         // Wpis pomocniczy (D-249, klasa 2): sprawa jest już zatwierdzona
@@ -242,6 +264,59 @@ final class ReportContent
         $this->alarm->handle($report);
 
         return $report;
+    }
+
+    /**
+     * Tylko wskazówka (#2887): konta rosnąco po UUID, potem wskazówka.
+     * SHARE konfliktuje z aktualizacją konta i zamkiem korekty (NO KEY UPDATE),
+     * a KEY SHARE by jej nie zatrzymał. Zgłaszający też jest w tym przebiegu:
+     * INSERT reports ma prawdziwy FK do users, także gdy zgłasza autor przepisu.
+     * Bez globalnego zamka ról i bez blokowania innych typów zgłoszeń.
+     *
+     * @return array{?User, RecipeHint}
+     */
+    private function lockHintForReport(?User $reporter, RecipeHint $target): array
+    {
+        $initial = RecipeHint::query()->whereKey($target->getKey())->first();
+        $missing = fn (): ModelNotFoundException => (new ModelNotFoundException)->setModel(RecipeHint::class, [$target->getKey()]);
+        if ($initial === null) {
+            throw $missing();
+        }
+
+        $accountIds = [(string) $initial->cook_id, (string) $initial->author_id];
+        if ($reporter !== null) {
+            $accountIds[] = (string) $reporter->getKey();
+        }
+        $accountIds = array_values(array_unique($accountIds));
+        sort($accountIds, SORT_STRING);
+        $accounts = [];
+        foreach ($accountIds as $id) {
+            $account = User::query()->whereKey($id)->lock('FOR SHARE')->first();
+            if ($account === null) {
+                throw $missing();
+            }
+            $accounts[$id] = $account;
+        }
+
+        $fresh = RecipeHint::query()->whereKey($target->getKey())->lockForUpdate()->first();
+        if ($fresh === null
+            || $fresh->cook_id !== $initial->cook_id
+            || $fresh->author_id !== $initial->author_id
+            || $fresh->recipe_id !== $initial->recipe_id
+            || $fresh->cooked_event_id !== $initial->cooked_event_id) {
+            throw $missing();
+        }
+
+        $fresh->load(['cook', 'author', 'recipe.author', 'cookedEvent.user', 'cookedEvent.recipe.author']);
+        if ($fresh->cook?->getKey() !== $initial->cook_id
+            || $fresh->author?->getKey() !== $initial->author_id
+            || $fresh->recipe?->author_id !== $initial->author_id
+            || $fresh->cookedEvent?->user_id !== $initial->cook_id
+            || $fresh->cookedEvent->recipe_id !== $initial->recipe_id) {
+            throw $missing();
+        }
+
+        return [$reporter === null ? null : $accounts[(string) $reporter->getKey()], $fresh];
     }
 
     /**

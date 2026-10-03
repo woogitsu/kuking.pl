@@ -35,6 +35,13 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Historia myli jawne NULL porcji z brakiem danych (#2877)': r'PORCJE_2877_NULL_PODGLAD',
+    'Historia pomija zapisane NULL porcji przy zastosowaniu (#2877)': r'PORCJE_2877_NULL_ZAPIS',
+    'Przywrócenie szkicu zatwierdza tekst przed błędem kopii (#2810)': r'ODZYSKANIE_2810_ATOMOWA_ZAMIANA',
+    'Przywrócenie szkicu czyta punkt sprzed blokady (#2810)': r'ODZYSKANIE_2810_ZMIENIONY_PUNKT',
+    'Przywrócenie szkicu zatwierdza odmowę jako sukces (#2810)': r'ODZYSKANIE_2810_ZMIENIONY_PUNKT',
+    'Przywrócenie szkicu pomija termin podczas zamiany (#2810)': r'ODZYSKANIE_2810_ZMIENIONY_PUNKT',
+    'Stare konto zapisuje wspólny postęp po zawieszeniu (#2879)': r'WSPOLNE_2879_SWIEZE_KONTO_ODMOWA',
     'Częściowe dane prób znów potwierdzają zgodność obu pól (#2817)': r'PROBY_2817_OSOBNE_POLA_DOMENA|PROBY_2817_OSOBNE_POLA_HTTP_PAGINACJA',
     'Kopia dnia gubi wybrane porcje (#2836)': r'PLANER_2836_KOPIA_PORCJI_DANE|PLANER_2836_KOPIA_PORCJI_LINK',
     'Kopia dnia gubi prywatny dopisek (#2836)': r'PLANER_2836_KOPIA_DOPISKU',

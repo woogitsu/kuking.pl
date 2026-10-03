@@ -98,6 +98,11 @@ class EnsureAccountIsActive
         // #2791: cofnięcie własnego udostępnienia tylko ODBIERA dostęp do
         // jednego przepisu. Zawieszenie nadal blokuje nowe udostępnienie.
         'recipes.shares.destroy',
+        // #2889: wyjście pomocnika i zakończenie przez gospodarza tylko
+        // kończą istniejący udział. Rolę nadal sprawdza CookingSessionPolicy;
+        // zapis postępu, jego czyszczenie i zaproszenia pozostają odcięte.
+        'wspolne-gotowanie.leave',
+        'wspolne-gotowanie.destroy',
         // #926: prywatny zeszyt i postęp gotowania zostają dostępne.
         // Widoczności zeszytu i treści nadal pilnują ich polityki.
         'collections.store',

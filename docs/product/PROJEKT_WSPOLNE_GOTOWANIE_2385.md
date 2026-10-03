@@ -170,6 +170,20 @@ Pomocnicy mają te same prawa między sobą: każdy może odhaczyć i cofnąć k
 krok (także odhaczony przez kogoś innego — to wspólna lista, nie rejestr
 własności), a żaden nie zarządza pozostałymi.
 
+**Zawieszenie a wyjście (#2889).** Pomocnik może opuścić istniejącą sesję,
+a gospodarz ją zakończyć także podczas zawieszenia czasowego albo
+bezterminowego. W HTTP są to wyłącznie dwa nazwane wyjątki bramki konta:
+`wspolne-gotowanie.leave` i `wspolne-gotowanie.destroy`. Rolę nadal sprawdza
+`CookingSessionPolicy`; obca osoba i niewłaściwa rola dostają neutralne 404.
+Wyjście usuwa tylko udział pomocnika i podnosi rewizję o jeden, zachowując
+odhaczenia, ich podpisy oraz istniejący link. Zakończenie kasuje tylko dane
+tej sesji z jej odhaczeniami, udziałami i linkami. Zawieszenie nadal blokuje
+zapis i cofanie kroków, czyszczenie postępu oraz tworzenie i odwoływanie
+zaproszeń. Zamknięte konto (`banned`, `pending_delete`, `erased`) nie dostaje
+tych wyjątków. Regresję mierzy pełny HTTP w
+`ZawieszoneKontoOpuszczaWspolneGotowanieTest`, z rzeczywistym `User::suspend()`
+i pełnym porównaniem danych oraz rewizji.
+
 Dlaczego pomocnik może odhaczać: to cały sens „pomagam”. Dlaczego nie może
 wyczyścić postępu: jedno przypadkowe kliknięcie nie powinno kasować pracy
 dwóch osób. Odhaczenie jest **ustawieniem** („ten krok: zrobiony/nie”), nie
@@ -181,6 +195,14 @@ etap 2 (pytanie 3).
 
 ## 6. Wspólny postęp i odświeżanie
 
+- Odhaczenie, cofnięcie i „Zacznij od początku” wymagają aktywnego konta
+  odczytanego pod dotychczasowym zamkiem `FOR KEY SHARE`, przed zamkiem sesji.
+  Publiczne `User::suspend()` bierze `FOR UPDATE` konta, więc zawieszenie
+  zatwierdzone przed tym odczytem powoduje odmowę bez zmiany kroków i rewizji
+  (#2879). W odwrotnej kolejności zapis kończy się przed zawieszeniem.
+  Wstępna Policy na starym modelu nie zastępuje tego sprawdzenia. Nie jest to
+  obietnica serializacji z dowolnym gołym `UPDATE status` (`NO KEY UPDATE`
+  jest zgodne z `KEY SHARE`), tylko z rzeczywistą publiczną akcją zawieszenia.
 - Stan: tabela `cooking_session_steps` — jeden wiersz = „ten krok jest
   zrobiony”, klucz główny `(session_id, step_id)`. Zapis `INSERT … ON CONFLICT
   DO NOTHING`, więc **dwa równoczesne odhaczenia tego samego kroku dają jeden

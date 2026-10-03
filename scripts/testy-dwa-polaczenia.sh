@@ -121,6 +121,11 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna świeżej decyzji o urodzinach #2880 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        # #2887: cofnięcie FIX odtwarza rzeczywisty INSERT po wycofaniu wskazówki.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2887.py; then
+            printf "${CZERWONY}Kontrola ujemna zgłoszenia wycofanej wskazówki #2887 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2402.py; then
             printf "${CZERWONY}Kontrola ujemna atomowości importów #2402 nie przeszła.${RESET}\n" >&2
             exit 1
@@ -157,6 +162,11 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
             printf "${CZERWONY}Kontrola ujemna spóźnionego kanału Atom #2863 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
+        # #2879: stary model konta oblewa pięć odmów; odwrotne przeploty przechodzą.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2879.py; then
+            printf "${CZERWONY}Kontrola ujemna postępu po zawieszeniu #2879 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
         # #2403: usunięcie retry slugu musi ujawnić 23505/recipes_slug_unique.
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2403.py; then
             printf "${CZERWONY}Kontrola ujemna kolizji slugu #2403 nie przeszła.${RESET}\n" >&2
@@ -187,6 +197,16 @@ if [ "$PRZESZLO" -eq "$PRZEBIEGI" ]; then
         # odmawiają po zmianie hasła w drugiej sesji.
         if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2861-2862.py; then
             printf "${CZERWONY}Kontrola ujemna spóźnionych zmian 2FA nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        # #2861: literalne cookie moderatora oraz okno potwierdzenie → sesje.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-2861-uzupelnienie.py; then
+            printf "${CZERWONY}Kontrola ujemna uzupełnienia 2FA #2861 nie przeszła.${RESET}\n" >&2
+            exit 1
+        fi
+        # S4: literalne A/B w nowych procesach; podmienione cookie nie przejdzie.
+        if ! DB_DATABASE="$BAZA" python3 scripts/kontrola-negatywna-s4-cookies.py; then
+            printf "${CZERWONY}Kontrola ujemna literalnych cookies S4 nie przeszła.${RESET}\n" >&2
             exit 1
         fi
     fi

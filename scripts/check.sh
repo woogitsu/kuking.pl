@@ -147,6 +147,38 @@ else
     zle "Kontrola #2880 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-2880-wynik.py"
 fi
 
+# #2887: późny INSERT musi oblać we właściwym wariancie, bez skip/error.
+krok "Werdykt zgłoszenia wskazówki (#2887)"
+if python3 tests/skrypty/kontrola-negatywna-2887-wynik.py >/dev/null 2>&1; then
+    ok "Kontrola #2887 wymaga wykonanej regresji i własnego markera"
+else
+    zle "Kontrola #2887 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-2887-wynik.py"
+fi
+
+# #2861: dokładna klasa, wariant i własna przyczyna z JUnit, bez skip/error.
+krok "Werdykt uzupełnienia 2FA (#2861)"
+if python3 tests/skrypty/kontrola-negatywna-2861-uzupelnienie-wynik.py >/dev/null 2>&1; then
+    ok "Kontrola #2861 odczytuje pięć właściwych wariantów i przyczyny z JUnit"
+else
+    zle "Kontrola #2861 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-2861-uzupelnienie-wynik.py"
+fi
+
+# S4: podmiana cookie A na B musi oblać dziewięć właściwych przypadków.
+krok "Werdykt literalnych cookies S4 (#2851, #2854, #2862)"
+if python3 tests/skrypty/kontrola-negatywna-s4-cookies-wynik.py >/dev/null 2>&1; then
+    ok "Kontrola S4 wymaga dziewięciu rzeczywistych odczytów i właściwego markera"
+else
+    zle "Kontrola cookies S4 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-s4-cookies-wynik.py"
+fi
+
+# #2879: pięć odmów i pięć odwrotnych przeplotów musi być rzeczywiście wykonanych.
+krok "Werdykt wspólnego postępu po zawieszeniu (#2879)"
+if python3 tests/skrypty/kontrola-negatywna-2879-wynik.py >/dev/null 2>&1; then
+    ok "Kontrola #2879 wymaga właściwych odmów bez błędów SQLSTATE i timeoutów"
+else
+    zle "Kontrola #2879 myli wynik — uruchom: python3 tests/skrypty/kontrola-negatywna-2879-wynik.py"
+fi
+
 # --- 3b''. Dziennik decyzji: pliki w docs/decyzje/ zgodne z indeksem -------
 # Jedna decyzja = jeden plik; docs/DECISIONS.md jest indeksem generowanym
 # z plików. To samo pilnuje DziennikDecyzjiZgodnyZIndeksemTest.

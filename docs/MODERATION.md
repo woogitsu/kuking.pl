@@ -23,6 +23,22 @@ Wyraźny tekst:
 
 Nie tylko ikonka flagi.
 
+### Wskazówka: wycofanie podczas zgłaszania (#2887)
+
+Pierwsza autoryzacja formularza nie wystarcza do przyjęcia wskazówki.
+`ReportContent` odczytuje jej bieżące powiązania, bierze konta zgłaszającego,
+kucharza i autora w rosnącej kolejności UUID (`FOR SHARE`), następnie wskazówkę
+(`FOR UPDATE`). Odświeża relacje używane przez istniejącą Policy i odmawia,
+jeśli powiązania nie są już tymi, których konta zablokowano. Policy ocenia
+świeży stan w tej samej transakcji; blokady pozostają do zapisu sprawy.
+
+Jeśli wycofanie i dozwolona korekta skończyły się wcześniej, spóźniona próba
+otrzymuje zwykłą odpowiedź 404 bez sprawy, potwierdzenia ani śladu przyjęcia.
+Jeśli zgłoszenie wygrało, wycofanie czeka, a późniejsza korekta nadal pomija
+chronioną uwagę zgodnie z #2884. Czas i opis zmian pozostają do poprawy.
+Panel czyta prawdziwą uwagę wykonania: nie tworzymy dodatkowej kopii tekstu.
+Pozostałe typy zgłoszeń zachowują swoją dotychczasową ścieżkę.
+
 ## Statusy
 
 ```text
