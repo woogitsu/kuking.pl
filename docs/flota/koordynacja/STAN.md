@@ -1,3 +1,9 @@
+# Aktualizacja koordynatora — 3.10.2026, 11:39 UTC
+
+S #2886 odebrane na main i produkcji `09f8af1c738789c4498d35158f940ac237c30eee`: pełne CI24/24, CodeQL, trzy Railway SUCCESS i live wydanie/health200. #2851/#2854/#2862 zamknięte z dowodem; #2861 czeka na dwa dodatkowe kryteria Dwa w Y. N–U #2865 zdalny `c31238b012518345fa807daee71e82e8f8525e27` przeszedł pełny normalny hook i czeka na świeże CI37119391938. #2810 NIE jest jego naprawionym zakresem; rzeczywistą awarię punktu odtworzono i naprawia ją agent w Y. V po zwykłym merge N–U i S zachowuje dokładnie wcześniejszy kod app/views/Dwa i rozpoczyna własną pełną bramkę przed PR. W i X idą potem zgodnie z odbiorami; zamrożonych headów w trwającym hooku nie zmieniamy. Właściciel zatwierdził dokładny izolowany test opóźnionego ReportContent; wcześniejszy niepotwierdzony wyścig nie jest jeszcze naprawą ani zamknięciem issue.
+
+Poniżej zachowany wcześniejszy handover i pomiary; dawne liczby/SHA są migawką.
+
 # Stan koordynacji: jak przejąć pracę w nowej sesji
 
 ## Aktualny odbiór Codex — 3.10.2026, 09:50 UTC
@@ -19,7 +25,8 @@
   Zwykły merge świeżej C wykonany; nie duplikować P/Q/R/T/U.
 - V `762b0ad3555017c06243e08543ce2116f64a91a8` wypchnięta zwykłym pełnym
   hakiem (exit 0), zakres #2847/#2872/#2873/#2875. Przed pełnym PR włączyć
-  zwykłym merge naprawy N–U; [odbiór V](ODBIOR-V-CODEX-20261003.md).
+  zwykłym merge naprawy N–U. Odbiór V jest w osobnej gałęzi V: plik
+  `docs/flota/koordynacja/ODBIOR-V-CODEX-20261003.md`; nie jest częścią N–U.
 - W lokalna `acbb118178184c548e0b73813a433ee59b5a1a39`: #2881/#2880/#2787,
   root 136/7150 Feature, 17/209 dwa połączenia, sześć właściwych fizycznych
   kontroli, build i pełny PHPStan zero. Brak push/PR. Przegląd wykrył i

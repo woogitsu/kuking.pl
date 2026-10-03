@@ -103,3 +103,14 @@ poświadczeń ani semantycznych wyborów w bazie. Zmiany schematu z N zachowują
 własne migracje, testy i opisane odmowy niebezpiecznego rollbacku.
 Pilot 50+, rzeczywiste telefony, przegląd prawny i panelowe #2025/#2708/#2713
 pozostają otwarte. Nie zamykać issues samym CI.
+
+
+## Pełny lokalny hook: martwy odnośnik handoveru
+
+Zwykły pełny pre-push na `05a0f8695d73285a8b80e533c5116786f59a22fb`
+zakończył się kodem 1. Jedyny FAIL: `DokumentyMdNieMajaMartwychOdnosnikowTest`
+wskazał odnośnik STAN do odbioru V, którego N–U celowo nie zawiera.
+Nie wykonano pusha ani nie pominięto hooka. Odnośnik zastąpiono wyraźnym
+opisem lokalizacji na osobnej gałęzi V; pozostała treść handoveru zachowana.
+Pełny hook nowego heada należy uruchomić ponownie; wcześniejsza porażka
+nie jest zielenią ani dowodem pełnego CI.
