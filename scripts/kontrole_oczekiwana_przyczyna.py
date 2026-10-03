@@ -35,6 +35,8 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Historia przepisu: błąd wyboru prowadzi do nieistniejącej sekcji (#2875)': r'KOTWICA_2875_ZYWA',
+    'Anulowanie poprawki zakupów gubi nazwaną listę (#2873)': r'ZAKUPY_2873_ANULUJ_LISTA',
     'Planer pomija błąd frazy w podsumowaniu (#2846)': r'PLANER_2846_BLAD_W_PODSUMOWANIU',
     'Odebranie współtworzenia obiecuje brak widoku zeszytu (#2822)': r'ZESZYT_2822_KONIEC_WSPOLTWORZENIA',
     'Potwierdzenie odejścia obiecuje brak widoku zeszytu (#2822)': r'ZESZYT_2822_POTWIERDZENIE_BEZ_OBIETNICY',
@@ -99,6 +101,8 @@ OCZEKUJ = {
     "Import partii ponownie zaznacza wykluczoną pozycję (#2843)": r'WYBOR_2843_NIE_WRACA_WYKLUCZONA',
     "Wydruk zeszytu pomija podpis oryginału wersji (#2852)": r'PODPIS_2852_WIDOCZNY',
     "Wydruk zeszytu pomija gotowe sztuki (#2876)": r'SZTUKI_2876_WYDRUK',
+    "Odmowa usunięcia listy gubi cel pytania (#2872)": r'SZAKUPY_2872_PYTANIE',
+    "Odmowa usunięcia listy zwija pytanie (#2872)": r'SZAKUPY_2872_PYTANIE',
     "Stara karta urodzin przywraca widoczność (#2864)": r'URODZINY_2864_NOWSZA_DECYZJA',
     "Paczka JSON bez budżetu struktury (#2611)": r'BUDZET_2611_ODMOWA_BEZ_FATALA',
     "Porcje mnożą procent tłuszczu (#2629)": r'PORCJE_2629_PROCENT_NIE_JEST_ILOSCIA',

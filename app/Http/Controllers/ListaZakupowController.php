@@ -185,18 +185,26 @@ class ListaZakupowController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $dane = $request->validate([
-            'potwierdzam' => ['nullable', 'boolean'],
-            'widziana_liczba' => ['nullable', 'integer', 'min:0'],
-        ]);
-
         $nazwa = $model->name;
-        $ile = $domena->usunListe(
-            $user,
-            $model,
-            (bool) ($dane['potwierdzam'] ?? false),
-            isset($dane['widziana_liczba']) ? (int) $dane['widziana_liczba'] : null,
-        );
+        try {
+            $dane = $request->validate([
+                'potwierdzam' => ['nullable', 'boolean'],
+                'widziana_liczba' => ['nullable', 'integer', 'min:0'],
+            ]);
+
+            $ile = $domena->usunListe(
+                $user,
+                $model,
+                (bool) ($dane['potwierdzam'] ?? false),
+                isset($dane['widziana_liczba']) ? (int) $dane['widziana_liczba'] : null,
+            );
+        } catch (ValidationException $e) {
+            // Po odmowie wracamy do pytania o TĘ listę, nawet gdy stary formularz
+            // przyszedł z karty z innym adresem. Policy sprawdziliśmy wyżej.
+            $e->redirectTo = $this->adres($model->getKey());
+
+            throw $e;
+        }
 
         if ($ile < 0) {
             return redirect()->route('shopping.index')->with(Komunikat::informacja('Tej listy już nie ma. Nic nie trzeba robić.'));
@@ -580,6 +588,7 @@ class ListaZakupowController extends Controller
             'pozycja' => $pozycja,
             'znacznik' => ListaZakupow::znacznikTekstu($pozycja),
             'maksZnakow' => ListaZakupow::maksZnakow(),
+            'adresAnulowania' => $this->adres($pozycja->list_id).'#pozycja-'.$pozycja->getKey(),
         ]);
     }
 

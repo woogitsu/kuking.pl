@@ -157,6 +157,10 @@ tekstu; zmiana w innym oknie daje konflikt bez zapisu. `edited_at` jest poza
 `$fillable`, wchodzi do migawki „Cofnij usunięcie” i do paczki RODO
 (`tekst_poprawiony_przez_wlasciciela`, `poprawiono`). Ekran mówi o pozycji
 skopiowanej z przepisu i poprawionej, że nie jest już dosłowną linią z przepisu.
+„Anuluj, zostaw jak jest” jest zwykłym odnośnikiem GET: wraca do listy tej
+pozycji (domyślnej lub nazwanej) i do jej kotwicy, również po błędzie formularza.
+Nie zapisuje pozycji. Wybrana nazwana lista jest ponownie sprawdzana przy
+otwieraniu strony, więc odnośnik nie daje dostępu do cudzej listy.
 **Rollback (D-088):** `down()` ODMAWIA, gdy choć jedna pozycja ma `edited_at`
 (komunikat podaje kopię `pg_dump -t shopping_list_items` i
 `UPDATE shopping_list_items SET edited_at = NULL`); bez korekt przechodzi.
@@ -264,6 +268,18 @@ nie jest usuwana automatycznie; limit i wybór listy nie zmieniają się (#2818)
 oraz pole `lista` przy każdej pozycji w `lista_zakupow`. **Wymazanie konta**
 kasuje listy bezwarunkowo (`EraseAccountData`). Polityka prywatności: wiersz „Lista
 zakupów” (drobna poprawka wersji z 30.09.2026, bez nowej daty).
+
+**Spójność paczki (#2847).** Eksporter odczytuje pozycje i wszystkie nazwane
+listy, także puste, w krótkiej transakcji pod tą samą blokadą konta, której
+używa przemianowanie i zapis zakupów. Po zwolnieniu blokady buduje dalsze
+dane oraz ZIP z zapamiętanej migawki. Zmiana nazwy w trakcie tworzenia ZIP-a
+nie przypisuje pozycji innej liście, nawet gdy ta zajmie dawną nazwę. Nie
+zmienia to formatu paczki ani reguły widoczności tytułów cudzych przepisów.
+Test na dwóch połączeniach zatrzymuje prawdziwy eksport między odczytami,
+wykonuje przemianowanie i sprawdza `dane.json` w gotowym archiwum; kontrola
+ujemna przywraca dwa niezależne odczyty i musi oblać znacznik spójności.
+Rollback kodu przywróciłby ryzyko mieszania nazw w nowych paczkach; nie
+przepisuje już pobranych archiwów i nie wymaga cofania schematu bazy.
 
 **Rollback (D-088).** `down()` drugiej migracji ODMAWIA, gdy choć jedna pozycja ma
 `list_id` (wpadłaby po cichu na listę domyślną; wymuszenie po kopii:

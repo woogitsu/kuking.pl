@@ -95,6 +95,45 @@ final class NazwaneListyZakupowTest extends TestCase
             ->orderBy('position')->orderBy('id')->pluck('text')->all();
     }
 
+    public function test_anulowanie_poprawki_wraca_do_wlasciwej_listy_bez_zmiany_pozycji_takze_po_bledzie(): void
+    {
+        $ja = $this->user('kupujaca');
+        $obca = $this->user('obca');
+        $swieta = $this->lista($ja, 'Święta');
+        $cudza = $this->lista($obca, 'Cudza lista');
+        $karp = $this->pozycja($ja, 'karp', $swieta);
+        $mleko = $this->pozycja($ja, 'mleko');
+        $cudzaPozycja = $this->pozycja($obca, 'sekret', $cudza);
+
+        foreach ([
+            [$karp, route('shopping.index', ['lista' => $swieta->getKey()]), 'Święta'],
+            [$mleko, route('shopping.index'), 'Na co dzień'],
+        ] as [$pozycja, $listaAdres, $nazwa]) {
+            $przed = $pozycja->fresh()->getAttributes();
+            $oczekiwany = $listaAdres.'#pozycja-'.$pozycja->getKey();
+            $html = (string) $this->actingAs($ja)->get(route('shopping.edit', $pozycja))->assertOk()->getContent();
+            preg_match('~<a[^>]+href="([^"]+)"[^>]*>Anuluj, zostaw jak jest</a>~', $html, $znaleziony);
+            $adres = html_entity_decode($znaleziony[1] ?? '', ENT_QUOTES, 'UTF-8');
+            $this->assertSame($oczekiwany, $adres, 'ZAKUPY_2873_ANULUJ_LISTA: przycisk nie wraca do listy pozycji.');
+
+            $cel = (string) $this->actingAs($ja)->get(explode('#', $adres, 2)[0])->assertOk()->getContent();
+            $this->assertStringContainsString('Wybrana lista: '.$nazwa, $cel);
+            $this->assertStringContainsString('id="pozycja-'.$pozycja->getKey().'"', $cel);
+            $this->assertSame($przed, $pozycja->fresh()->getAttributes(), 'Anulowanie nie może zapisać zmian.');
+        }
+
+        $wpisanyTekst = str_repeat('x', ListaZakupow::maksZnakow() + 1);
+        $this->actingAs($ja)->patch(route('shopping.update', $karp), [
+            'text' => $wpisanyTekst,
+            'stan' => ListaZakupow::znacznikTekstu($karp),
+        ])->assertRedirect(route('shopping.edit', $karp))->assertSessionHasErrors('text');
+        $poBledzie = (string) $this->actingAs($ja)->get(route('shopping.edit', $karp))->assertOk()->getContent();
+        $this->assertStringContainsString('value="'.$wpisanyTekst.'"', $poBledzie);
+        $this->assertStringContainsString('href="'.route('shopping.index', ['lista' => $swieta->getKey()]).'#pozycja-'.$karp->getKey().'"', $poBledzie);
+        $this->actingAs($ja)->get(route('shopping.edit', $cudzaPozycja))->assertForbidden();
+        $this->actingAs($ja)->get(route('shopping.index', ['lista' => $cudza->getKey()]))->assertForbidden();
+    }
+
     public function test_dotychczasowe_pozycje_sa_na_liscie_domyslnej_a_nazwana_ich_nie_miesza(): void
     {
         $ja = $this->user('kupujaca');
@@ -499,6 +538,53 @@ final class NazwaneListyZakupowTest extends TestCase
         // Powtórzone żądanie nie jest błędem.
         $this->actingAs($ja)->delete(route('shopping.lists.destroy', $swieta->getKey()), ['potwierdzam' => 1, 'widziana_liczba' => 2])
             ->assertRedirect(route('shopping.index'));
+    }
+
+    public function test_odmowa_starego_potwierdzenia_otwiera_wlasciwe_pytanie_z_zywym_linkiem(): void
+    {
+        $ja = $this->user('kupujaca');
+        $swieta = $this->lista($ja, 'Święta');
+        $wakacje = $this->lista($ja, 'Wakacje');
+        $this->pozycja($ja, 'karp', $swieta, 1);
+        $this->pozycja($ja, 'krem', $wakacje, 1);
+        $adres = route('shopping.index', ['lista' => $swieta->getKey()]);
+
+        $przed = (string) $this->actingAs($ja)->get($adres)->assertOk()->getContent();
+        $this->assertStringContainsString('name="widziana_liczba" value="1"', $przed);
+
+        // Druga karta dopisuje pozycję do tej samej listy po otwarciu pytania.
+        $this->actingAs($ja)->post(route('shopping.store'), ['text' => 'mąka', 'lista' => $swieta->getKey()])
+            ->assertRedirect();
+        $odmowa = $this->actingAs($ja)->from(route('shopping.index'))->followingRedirects()->delete(
+            route('shopping.lists.destroy', $swieta),
+            ['potwierdzam' => 1, 'widziana_liczba' => 1],
+        );
+        $html = (string) $odmowa->assertOk()->getContent();
+        $this->assertStringContainsString('Sprawdź formularz', $html, 'Błąd odmowy nie dotarł do GET.');
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="utf-8"?>'.$html);
+        $xpath = new \DOMXPath($dom);
+        $pytanie = $xpath->query('//section[@id="ta-lista"]/details[contains(concat(" ", normalize-space(@class), " "), " confirm ")]')->item(0);
+        $this->assertInstanceOf(\DOMElement::class, $pytanie, 'SZAKUPY_2872_PYTANIE: brak potwierdzenia na wybranej liście.');
+        $this->assertTrue($pytanie->hasAttribute('open'), 'SZAKUPY_2872_PYTANIE: po odmowie pytanie zostało zwinięte.');
+        $this->assertSame(1, $xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " error-summary ")]//a[@href="#f-potwierdzam"]')->length, 'SZAKUPY_2872_PYTANIE: podsumowanie nie prowadzi do pytania.');
+        $this->assertSame(1, $xpath->query('//section[@id="ta-lista"]/details/summary[@id="f-potwierdzam"]')->length, 'SZAKUPY_2872_PYTANIE: cel odnośnika musi być widocznym, dostępnym z klawiatury pytaniem.');
+        $this->assertSame(1, $xpath->query('//section[@id="ta-lista"]//*[@id="blad-potwierdzam"]')->length, 'SZAKUPY_2872_PYTANIE: brak lokalnego komunikatu przy pytaniu.');
+        $this->assertStringContainsString('Razem z listą zniknie 2 pozycje', $html);
+        $this->assertStringContainsString('name="widziana_liczba" value="2"', $html);
+        $this->assertSame(['karp', 'mąka'], $this->teksty($ja, $swieta));
+        $this->assertSame(['krem'], $this->teksty($ja, $wakacje));
+
+        $swiezy = (string) $this->actingAs($ja)->get($adres)->assertOk()->getContent();
+        @$dom->loadHTML('<?xml encoding="utf-8"?>'.$swiezy);
+        $pytanie = (new \DOMXPath($dom))->query('//section[@id="ta-lista"]/details[contains(concat(" ", normalize-space(@class), " "), " confirm ")]')->item(0);
+        $this->assertInstanceOf(\DOMElement::class, $pytanie);
+        $this->assertFalse($pytanie->hasAttribute('open'), 'Świeże wejście bez błędu powinno mieć zwinięte pytanie.');
+
+        $this->actingAs($ja)->delete(route('shopping.lists.destroy', $swieta), ['potwierdzam' => 1, 'widziana_liczba' => 2])
+            ->assertSessionHas('status');
+        $this->assertNull($swieta->fresh());
+        $this->assertNotNull($wakacje->fresh());
     }
 
     public function test_pusta_lista_usuwa_sie_bez_liczby_pozycji(): void

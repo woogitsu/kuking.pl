@@ -31,7 +31,7 @@
                  :help="'Na przykład „2 mleka”. Najwyżej '.$maksZnakow.' znaków.'" />
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Zapisz</button>
-            <a class="btn btn-quiet" href="{{ route('shopping.index') }}#pozycja-{{ $pozycja->getKey() }}">Anuluj, zostaw jak jest</a>
+            <a class="btn btn-quiet" href="{{ $adresAnulowania }}">Anuluj, zostaw jak jest</a>
         </div>
     </form>
 </x-layout>

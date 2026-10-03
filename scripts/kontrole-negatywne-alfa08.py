@@ -1356,6 +1356,10 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Historia przepisu: błąd wyboru prowadzi do nieistniejącej sekcji (#2875)",
+     "resources/views/pages/recipes/historia-poprawka.blade.php",
+     "test_blad_pustego_wyboru_prowadzi_do_widocznej_grupy_gdy_dane_sa_bez_zmian",
+     lambda s: replace_once(s, "'sekcje' => 'f-sekcje'", "'sekcje' => 'f-sekcja-dane'")),
     ("Planer pomija błąd frazy w podsumowaniu (#2846)", "resources/views/pages/planer/show.blade.php",
      "test_blad_frazy_jest_przy_polu_i_w_podsumowaniu_z_zywym_odnosnikiem",
      lambda s: replace_once(s,
@@ -1580,6 +1584,12 @@ checks = [
     ("Wydruk zeszytu pomija gotowe sztuki (#2876)", "resources/views/pages/collections/do-druku.blade.php",
      "WydrukZeszytuTest::test_wydruk_calego_zeszytu_pokazuje_sztuki_osobno_od_porcji_i_czasu",
      lambda s: replace_once(s, '$sztuki = $przepis->yieldLabel();', '$sztuki = null;')),
+    ("Odmowa usunięcia listy gubi cel pytania (#2872)", "resources/views/pages/zakupy/index.blade.php",
+     "NazwaneListyZakupowTest::test_odmowa_starego_potwierdzenia_otwiera_wlasciwe_pytanie_z_zywym_linkiem",
+     lambda s: replace_once(s, 'id="f-potwierdzam"', 'id="stary-nieistniejacy-cel"')),
+    ("Odmowa usunięcia listy zwija pytanie (#2872)", "resources/views/pages/zakupy/index.blade.php",
+     "NazwaneListyZakupowTest::test_odmowa_starego_potwierdzenia_otwiera_wlasciwe_pytanie_z_zywym_linkiem",
+     lambda s: replace_once(s, '<details class="confirm zakupy-potwierdzenie" @if($blad_potwierdzenia) open @endif>', '<details class="confirm zakupy-potwierdzenie">')),
     # #2611: wyłączenie preflightu musi oblać izolowane procesy PHP 256M
     # konkretną odmową (w starym kodzie kończyły się fatalem), a nie bazę CI.
     ("Paczka JSON bez budżetu struktury (#2611)", "app/Domain/Users/Import/PodgladPaczkiEksportu.php",
@@ -2643,6 +2653,8 @@ checks = [
      lambda s: replace_once(s, "        if ($poprawione > 0) {", "        if (false) {")),
     ("Poprawka zakupów: stara karta nadpisuje nowszą korektę (#2443)", ZAKUPY_LISTA, "ListaZakupowPoprawkaTest",
      lambda s: replace_once(s, "if (! hash_equals(self::znacznikTekstu($pozycja), $widzianyZnacznik)) {", "if (false) {")),
+    ("Anulowanie poprawki zakupów gubi nazwaną listę (#2873)", "resources/views/pages/zakupy/popraw.blade.php", "NazwaneListyZakupowTest::test_anulowanie_poprawki_wraca_do_wlasciwej_listy_bez_zmiany_pozycji_takze_po_bledzie",
+     lambda s: replace_once(s, 'href="{{ $adresAnulowania }}"', 'href="{{ route(\'shopping.index\') }}#pozycja-{{ $pozycja->getKey() }}"')),
     # #2438 (decyzja właściciela z 2.10.2026, D-333): wydruk zeszytu jest
     # DOMYŚLNIE bez notatek; powrót do „notatki, chyba że bez-notatek” musi
     # wywrócić test domyślnego wydruku.
