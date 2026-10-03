@@ -131,7 +131,7 @@
                 <x-confirm-button
                     :action="route('collections.leave', $collection)"
                     label="Odejdź z tego zeszytu"
-                    question="Odejść z tego zeszytu? Stracisz do niego dostęp. To, co w nim zapisano, zostanie u właściciela." />
+                    question="Odejść z tego zeszytu? Nie będziesz już w nim zapisywać. Jeśli zeszyt jest publiczny i nadal dostępny, możesz go czytać. To, co w nim zapisano, zostanie u właściciela." />
             </div>
         </section>
     @elseif($czlonkowie->isNotEmpty())

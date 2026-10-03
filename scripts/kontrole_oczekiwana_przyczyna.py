@@ -35,6 +35,8 @@ OCZEKUJ_MIARY = r'Brak wymaganego pliku database/data/odzywcze/miary\.csv'
 OCZEKUJ_GRAF_CYKLI = r'Graf zależności modułów app/Domain zmienił swoje cykle'
 
 OCZEKUJ = {
+    'Odebranie współtworzenia obiecuje brak widoku zeszytu (#2822)': r'ZESZYT_2822_KONIEC_WSPOLTWORZENIA',
+    'Potwierdzenie odejścia obiecuje brak widoku zeszytu (#2822)': r'ZESZYT_2822_POTWIERDZENIE_BEZ_OBIETNICY',
     'Wygasła prośba nadal blokuje poprawę uwagi (#2820)': r'KOREKTA_2820_WYGASLA_PROSBA_ODBLOCKOWUJE',
     'Kolejka gubi zdjęcie bieżącego kroku (#2828)': r'ZDJECIE_2828_BIEZACY_KROK',
     'Limit przepisu gubi wybraną listę zakupów (#2818)': r'LISTY_2818_WRACA_NA_WYBRANA',

@@ -6,6 +6,8 @@ Reguła na przyszłość: przy podbiciu numeru wersji, gdy ten plik bez sekcji �
 
 ## Nieopublikowane
 
+- Poprawione (#2822): po odejściu ze wspólnego zeszytu lub odebraniu udziału komunikat mówi o końcu współtworzenia. Publiczny zeszyt może nadal być dostępny do czytania, zależnie od aktualnych uprawnień.
+
 - Poprawione (#2820): po wygaśnięciu prośby o wskazówkę można ponownie poprawić własną uwagę przy wykonaniu. Przyjęta wskazówka i otwarte zgłoszenie nadal chronią tekst.
 
 - Poprawione (#2828): przy gotowaniu kilku potraw zdjęcie bieżącego kroku widać obok instrukcji. Zmiana kroku lub potrawy pokazuje właściwe zdjęcie; powiększenie nie zatrzymuje minutników.

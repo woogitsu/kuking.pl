@@ -1355,6 +1355,14 @@ def kroki_nie_rozpoznaja_nierozdzielajacej_spacji(source):
 
 
 checks = [
+    ("Odebranie współtworzenia obiecuje brak widoku zeszytu (#2822)",
+     "app/Http/Controllers/CollectionSharingController.php",
+     "test_koniec_wspoltworzenia_nie_obiecuje_utraty_publicznego_widoku",
+     lambda s: replace_once(s, "nie może już zapisywać w tym zeszycie", "nie widzi już tego zeszytu")),
+    ("Potwierdzenie odejścia obiecuje brak widoku zeszytu (#2822)",
+     "resources/views/pages/collections/show.blade.php",
+     "test_koniec_wspoltworzenia_nie_obiecuje_utraty_publicznego_widoku",
+     lambda s: replace_once(s, "Nie będziesz już w nim zapisywać", "Stracisz do niego dostęp")),
     ("Wygasła prośba nadal blokuje poprawę uwagi (#2820)", "app/Domain/Recipes/Gotowanie/PolaKorekty.php",
      "test_prosba_blokuje_przed_terminem_a_w_chwili_wygasniecia_odblokowuje_formularz_i_zapis",
      lambda s: replace_once(s,
